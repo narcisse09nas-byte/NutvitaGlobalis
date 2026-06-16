@@ -1,0 +1,40 @@
+import Link from "next/link";
+import ClientShell from "@/components/client/ClientShell";
+import BookingSlots from "@/components/client/BookingSlots";
+import InvoiceDownloadButton from "@/components/client/InvoiceDownloadButton";
+import {getClientEntitlements,requireClient} from "@/lib/client";
+
+export const metadata = { title: "Espace client" };
+
+export default async function ClientHome({ searchParams }: { searchParams: Promise<{ paiement?: string }> }) {
+  const params = await searchParams;
+  const { supabase, user, profile } = await requireClient();
+  const access=await getClientEntitlements(supabase,user.id);
+  const [{ data: enrollments }, { data: bookings }, { data: invoices }, { data: payments }, { data: reports }, { data: notifications }, { count: measurements }] = await Promise.all([
+    supabase.from("formation_enrollments").select("*, formations(title,image_url,moodle_url)").eq("client_id", user.id).order("enrolled_at", { ascending: false }),
+    supabase.from("consultation_bookings").select("*, teleconseils(name,duration)").eq("client_id", user.id).order("created_at", { ascending: false }),
+    supabase.from("invoices").select("*").eq("client_id", user.id).order("issued_at", { ascending: false }).limit(10),
+    supabase.from("payments").select("*").eq("client_id", user.id).order("created_at", { ascending: false }).limit(10),
+    supabase.from("health_reports").select("*").eq("client_id", user.id).order("created_at", { ascending: false }).limit(5),
+    supabase.from("client_notifications").select("*").eq("client_id", user.id).order("created_at", { ascending: false }).limit(8),
+    supabase.from("anthropometric_measurements").select("id", { count: "exact", head: true }).eq("client_id", user.id),
+  ]);
+  return <ClientShell email={user.email || ""}><div className="grid gap-8">
+    {params.paiement && <p className="rounded-xl bg-mint p-4 font-bold text-forest">Paiement recu. L'activation apparaitra ici apres confirmation.</p>}
+    <div><h1 className="text-3xl font-black">Bonjour {profile?.full_name || user.user_metadata.full_name || ""}</h1><p className="mt-2 text-slate-500">Vos achats, services et documents NutVitaGlobalis.</p></div>
+    <div className="grid gap-4 sm:grid-cols-4"><Metric label="Formations" value={enrollments?.length || 0}/><Metric label="Consultations" value={bookings?.length || 0}/><Metric label="Factures" value={invoices?.length || 0}/><Metric label="Mesures sante" value={measurements || 0}/></div>
+    <Section title="Mes formations achetees">{enrollments?.length ? enrollments.map((item: any) => <article key={item.id} className="rounded-xl bg-slate-50 p-4"><b>{item.formations?.title || "Formation"}</b><p className="mt-1 text-xs text-slate-500">Statut : {item.status}</p>{item.access_url && <a href={item.access_url} target="_blank" className="mt-3 inline-block font-bold text-leaf">Acceder a la formation</a>}</article>) : <Empty href="/formations" label="Decouvrir les formations"/>}</Section>
+    <Section title="Mes consultations reservees">{bookings?.length ? bookings.map((item: any) => <article key={item.id} className="rounded-xl bg-slate-50 p-4"><b>Pack {item.teleconseils?.name || "nutrition"}</b><p className="mt-1 text-sm">Statut : {item.status}</p>{item.scheduled_at ? <p className="mt-2 font-bold text-leaf">Creneau confirme : {new Date(item.scheduled_at).toLocaleString("fr-FR")}</p> : <BookingSlots bookingId={item.id} initial={item.preferred_slots || []}/>}</article>) : <Empty href="/teleconseils" label="Reserver une consultation"/>}</Section>
+    <div className="grid gap-6 xl:grid-cols-2">
+      <Section title="Mes paiements">{payments?.length ? payments.map((item: any) => <div key={item.id} className="flex justify-between rounded-xl bg-slate-50 p-4 text-sm"><span>{item.product_name || item.purchase_type}</span><b>{Number(item.total_including_tax || item.amount).toLocaleString("fr-FR")} {item.currency} · {item.status}</b></div>) : <p className="text-slate-400">Aucun paiement.</p>}</Section>
+      <Section title="Mes factures">{invoices?.length ? invoices.map((item: any) => <InvoiceDownloadButton key={item.id} path={item.file_path} label={`${item.invoice_number} · ${Number(item.total_including_tax).toLocaleString("fr-FR")} ${item.currency}`}/>) : <p className="text-slate-400">Aucune facture.</p>}</Section>
+      <Section title="Mes messages">{notifications?.length ? notifications.map((item: any) => <article key={item.id} className="rounded-xl bg-slate-50 p-4"><b>{item.title}</b><p className="mt-1 text-sm text-slate-600">{item.message}</p></article>) : <p className="text-slate-400">Aucun message.</p>}</Section>
+      <Section title="Mes rapports nutritionnels">{reports?.length ? reports.map((item: any) => <Link key={item.id} href="/espace-client/analyse" className="block rounded-xl bg-slate-50 p-4 font-bold text-leaf">{item.title}</Link>) : <Empty href="/espace-client/analyse" label="Ouvrir les analyses"/>}</Section>
+    </div>
+    <div className="grid gap-5 md:grid-cols-2">{access.health&&<Link href="/espace-client/dossier" className="rounded-2xl bg-forest p-7 text-white"><h2 className="text-2xl font-black text-white">Mon suivi santé</h2><p className="mt-2 text-white/70">Mesures, graphiques, tendances et commentaires.</p></Link>}{access.childGrowth&&<Link href="/espace-client/croissance-enfant" className="rounded-2xl bg-mint p-7"><h2 className="text-2xl font-black">Croissance enfant</h2><p className="mt-2 text-slate-600">Suivi actif pour les enfants abonnés.</p></Link>}{access.teleconsultation&&<Link href="/espace-client/messages" className="rounded-2xl bg-orange/10 p-7"><h2 className="text-2xl font-black">Mon expert</h2><p className="mt-2 text-slate-600">Chat et appels vidéo inclus dans votre pack.</p></Link>}<Link href="/espace-client/profil" className="rounded-2xl border bg-white p-7"><h2 className="text-2xl font-black">Mon profil</h2><p className="mt-2 text-slate-500">Coordonnées et informations personnelles.</p></Link></div>
+  </div></ClientShell>;
+}
+
+function Metric({ label, value }: { label: string; value: number }) { return <div className="rounded-2xl border bg-white p-6"><p className="text-3xl font-black text-forest">{value}</p><p className="mt-1 text-sm text-slate-500">{label}</p></div>; }
+function Section({ title, children }: { title: string; children: React.ReactNode }) { return <section className="rounded-2xl border bg-white p-6"><h2 className="mb-4 text-xl font-black">{title}</h2><div className="grid gap-3">{children}</div></section>; }
+function Empty({ href, label }: { href: string; label: string }) { return <Link href={href} className="font-bold text-leaf">{label} →</Link>; }

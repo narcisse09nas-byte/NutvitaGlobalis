@@ -1,0 +1,4 @@
+import AdminShell from "@/components/admin/AdminShell";
+import ChildGrowthAlertManager from "@/components/admin/ChildGrowthAlertManager";
+import {requireAdmin} from "@/lib/admin";
+export default async function ChildGrowthAdminPage(){const {supabase,admin,user}=await requireAdmin();const {data}=await supabase.from('child_growth_alerts').select('*, children(full_name,parent_id,client_profiles!children_parent_id_fkey(full_name,email))').order('created_at',{ascending:false});return <AdminShell name={admin.full_name||admin.email}><div className="mb-7"><h1 className="text-3xl font-black">Alertes croissance enfant</h1><p className="mt-2 text-slate-500">Les alertes automatisees restent soumises a une verification humaine.</p></div><ChildGrowthAlertManager initial={data||[]} userId={user.id}/></AdminShell>}

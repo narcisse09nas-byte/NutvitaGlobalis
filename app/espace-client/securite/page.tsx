@@ -1,0 +1,2 @@
+import ClientShell from "@/components/client/ClientShell";import PasswordChange from "@/components/client/PasswordChange";import {requireClient} from "@/lib/client";
+export default async function Page(){const {user}=await requireClient();return <ClientShell email={user.email||''}><div className="mb-7"><h1 className="text-3xl font-black">Sécurité du compte</h1><p className="mt-2 text-slate-500">Modifiez votre mot de passe en confirmant l’ancien.</p></div><PasswordChange/></ClientShell>}

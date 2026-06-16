@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base { html { scroll-behavior: smooth; overflow-x: hidden; } body { @apply overflow-x-hidden bg-cream text-slate-700 antialiased; } h1,h2,h3 { @apply text-forest tracking-tight; } }
+@layer components { .container-site { @apply mx-auto w-full max-w-7xl px-5 sm:px-8; } .section { @apply py-16 md:py-24; } .eyebrow { @apply mb-3 inline-flex rounded-full bg-mint px-4 py-2 text-xs font-bold uppercase tracking-[.16em] text-leaf; } .btn-primary { @apply inline-flex items-center justify-center rounded-full bg-orange px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange/20 transition hover:-translate-y-0.5 hover:bg-[#d96d31]; } .btn-secondary { @apply inline-flex items-center justify-center rounded-full border border-forest/15 bg-white px-6 py-3.5 text-sm font-bold text-forest transition hover:border-leaf hover:text-leaf; } .card { @apply overflow-hidden rounded-[1.5rem] border border-forest/10 bg-white shadow-soft; } }
+@layer components { .admin-input { @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-normal outline-none transition focus:border-leaf focus:ring-2 focus:ring-leaf/10; } .admin-icon { @apply grid h-10 w-10 place-items-center rounded-xl bg-slate-100 transition hover:bg-mint hover:text-leaf; } .editor-button { @apply rounded-lg px-3 py-1.5 text-sm hover:bg-white hover:shadow; } }
+@layer components { .article-content h2 { @apply mb-4 mt-10 text-3xl font-black; } .article-content h3 { @apply mb-3 mt-8 text-2xl font-black; } .article-content p { @apply mb-5; } .article-content ul { @apply mb-5 list-disc space-y-2 pl-6; } .article-content a { @apply font-bold text-leaf underline; } }
+@media (max-width: 639px) {
+  main > section:first-child h1 { max-width: 100%; overflow-wrap: anywhere; font-size: 2.55rem; line-height: 1.04; }
+  main > section:first-child p { font-size: 1rem; line-height: 1.75; }
+  main > section:first-child .container-site { min-width: 0; }
+  main > section:first-child .container-site > div { min-width: 0; }
+  .eyebrow { max-width: 100%; letter-spacing: .11em; }
+}

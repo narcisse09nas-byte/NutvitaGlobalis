@@ -1,0 +1,3 @@
+"use client";
+import {useState} from "react";import {createClient} from "@/lib/supabase/client";
+export default function InvoiceDownloadButton({path,label}:{path:string;label:string}){const [error,setError]=useState("");async function open(){if(!path){setError("Le PDF reel sera genere apres la connexion a Supabase.");return}const {data,error}=await createClient().storage.from("document-vault").createSignedUrl(path,180);if(error)setError(error.message);else window.open(data.signedUrl,"_blank")}return <div><button onClick={open} className="flex w-full justify-between rounded-xl bg-slate-50 p-4 text-left"><span>{label}</span><b className="text-leaf">Telecharger PDF</b></button>{error&&<p className="mt-1 text-xs text-red-600">{error}</p>}</div>}

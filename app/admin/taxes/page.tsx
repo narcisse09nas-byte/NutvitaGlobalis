@@ -1,0 +1,3 @@
+import AdminShell from "@/components/admin/AdminShell";import TaxManager from "@/components/admin/TaxManager";import {requireAdmin} from "@/lib/admin";
+export default async function TaxesPage(){const {supabase,admin}=await requireAdmin();const {data}=await supabase.from('tax_rates').select('*').order('created_at',{ascending:false});return <AdminShell name={admin.full_name||admin.email}><div className="mb-7"><h1 className="text-3xl font-black">Taxes</h1><p className="mt-2 text-slate-500">Taux par pays avec fallback mondial pour les checkouts et factures.</p></div><TaxManager initial={data||[]}/></AdminShell>}
+

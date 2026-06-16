@@ -1,0 +1,2 @@
+import AdminShell from "./AdminShell"; import ResourceManager from "./ResourceManager"; import { resources } from "@/lib/admin-resources"; import { requireAdmin } from "@/lib/admin";
+export default async function ResourcePage({resource}:{resource:keyof typeof resources}){const {admin}=await requireAdmin();return <AdminShell name={admin.full_name||admin.email}><ResourceManager config={resources[resource]}/></AdminShell>}

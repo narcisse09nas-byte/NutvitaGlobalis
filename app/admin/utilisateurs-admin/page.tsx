@@ -1,0 +1,5 @@
+import {redirect} from "next/navigation";
+import AdminShell from "@/components/admin/AdminShell";
+import AdminUserManager from "@/components/admin/AdminUserManager";
+import {requireAdmin} from "@/lib/admin";
+export default async function AdvancedAdminUsersPage(){const {supabase,admin}=await requireAdmin();const {data:current}=await supabase.from('admin_users').select('role').eq('id',admin.id).single();if(current?.role!=='super_admin')redirect('/admin?acces=refuse');const [{data:users},{data:history}]=await Promise.all([supabase.from('admin_users').select('*').order('created_at'),supabase.from('admin_activity_logs').select('*, admin_users!admin_activity_logs_admin_id_fkey(email)').order('created_at',{ascending:false}).limit(200)]);return <AdminShell name={admin.full_name||admin.email}><div className="mb-7"><h1 className="text-3xl font-black">Gestion avancee des administrateurs</h1><p className="mt-2 text-slate-500">Roles, acces, reinitialisations et historique securise.</p></div><AdminUserManager initial={users||[]} history={history||[]}/></AdminShell>}

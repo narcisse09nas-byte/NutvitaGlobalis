@@ -100,7 +100,7 @@ export default function AdminShell({ children, name }: { children: ReactNode; na
       <nav className="grid gap-2">
         {visible.map(([href, label, Icon]) => <Link onClick={() => setOpen(false)} key={href} href={href} className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold ${path === href ? "bg-white text-forest" : "text-white/70 hover:bg-white/10 hover:text-white"}`}><Icon className="h-5" />{label}</Link>)}
       </nav>
-      <button onClick={logout} className="fixed bottom-6 left-6 flex w-60 items-center gap-3 rounded-xl border border-white/15 bg-forest px-4 py-3 text-sm font-bold text-white/70"><ArrowRightStartOnRectangleIcon className="h-5" />Deconnexion</button>
+      <button onClick={logout} className="mt-8 flex w-full items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/70"><ArrowRightStartOnRectangleIcon className="h-5" />Deconnexion</button>
     </aside>
     <div className="lg:pl-72">
       <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b bg-white px-5 md:px-8">
@@ -112,3 +112,4 @@ export default function AdminShell({ children, name }: { children: ReactNode; na
     </div>
   </div>;
 }
+

@@ -8,15 +8,16 @@ import { getApplicableTax, priceBreakdown } from "@/lib/taxes";
 
 export const metadata = { title: "Paiement securise" };
 
-export default async function CheckoutPage({ searchParams }: { searchParams: Promise<{ type?: string; id?: string; paiement?: string }> }) {
+export default async function CheckoutPage({ searchParams }: { searchParams: Promise<{ type?: string; id?: string; child_id?: string; paiement?: string }> }) {
   const params = await searchParams;
   const type = params.type;
   const id = params.id;
+  const childId = params.child_id;
   if (!id || !type || !["subscription", "formation", "consultation"].includes(type)) notFound();
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const returnUrl = `/checkout?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`;
+  const returnUrl = `/checkout?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}${childId ? `&child_id=${encodeURIComponent(childId)}` : ""}`;
   if (!user) redirect(`/connexion?redirect=${encodeURIComponent(returnUrl)}`);
 
   const { data: profile } = await supabase.from("client_profiles").select("*").eq("id", user.id).maybeSingle();
@@ -73,8 +74,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
           {params.paiement === "annule" && <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Le paiement a ete annule.</p>}
         </section>
         <aside className="h-fit rounded-3xl bg-white p-7">
-          <CheckoutForm type={type as any} id={id} disabled={type === "consultation" && !teleconsultationConsent} />
-          <p className="mt-5 text-xs leading-5 text-slate-400">Montants factures en USD. Le taux XOF/USD est configurable par NutVitaGlobalis.</p>
+          <CheckoutForm type={type as any} id={id} childId={childId} disabled={type === "consultation" && !teleconsultationConsent} />
+          <p className="mt-5 text-xs leading-5 text-slate-400">Orange Money, MTN MoMo et virement bancaire affichent des instructions privees apres creation de la commande. Le service est active manuellement apres validation de la preuve de paiement.</p>
         </aside>
       </div>
     </div>

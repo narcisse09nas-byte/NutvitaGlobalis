@@ -30,11 +30,12 @@ export default function ClientShellClient({ children, email, access }: { childre
   const path = usePathname();
   const links: LinkItem[] = [
     ["/espace-client", "Tableau de bord", HomeIcon, true],
+    ["/espace-client/services", "Acheter un service", CreditCardIcon, true],
     ["/espace-client/profil", "Mon profil", UserCircleIcon, true],
     ["/espace-client/dossier", "Dossier nutritionnel", ClipboardDocumentListIcon, access.health],
     ["/espace-client/tendances", "Tendances", ChartBarIcon, access.health],
     ["/espace-client/analyse", "Analyse et rapports", SparklesIcon, access.health],
-    ["/espace-client/abonnement", "Services et abonnements", CreditCardIcon, true],
+    ["/espace-client/abonnement", "Mes abonnements", CreditCardIcon, true],
     ["/espace-client/croissance-enfant", "Croissance enfant", UserGroupIcon, access.childGrowth],
     ["/espace-client/messages", "Messages", ChatBubbleLeftRightIcon, access.health || access.teleconsultation],
     ["/espace-client/appels", "Appels video", VideoCameraIcon, access.teleconsultation],

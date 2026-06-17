@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 
-export default function CheckoutForm({ type, id, disabled = false }: { type: "subscription" | "formation" | "consultation"; id: string; disabled?: boolean }) {
+export default function CheckoutForm({ type, id, childId, disabled = false }: { type: "subscription" | "formation" | "consultation"; id: string; childId?: string; disabled?: boolean }) {
   const [provider, setProvider] = useState<"manual_mobile_money" | "manual_bank_transfer" | "cinetpay" | "paypal">("manual_mobile_money"), [loading, setLoading] = useState(false), [message, setMessage] = useState("");
   async function pay() {
     if (disabled) {
@@ -9,7 +9,7 @@ export default function CheckoutForm({ type, id, disabled = false }: { type: "su
       return;
     }
     setLoading(true); setMessage("");
-    const payload = type === "subscription" ? { plan_id: id, provider } : { purchase_type: type, product_id: id, provider };
+    const payload = type === "subscription" ? { plan_id: id, child_id: childId, provider } : { purchase_type: type, product_id: id, provider };
     const response = await fetch("/api/payments/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     const result = await response.json();
     if (response.ok && result.url) location.href = result.url; else setMessage(result.message || "Paiement indisponible.");

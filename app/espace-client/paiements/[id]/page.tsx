@@ -10,7 +10,9 @@ export default async function ManualPaymentPage({ params }: { params: Promise<{ 
   if (!user) redirect(`/connexion?redirect=${encodeURIComponent(`/espace-client/paiements/${id}`)}`);
   const { data: payment } = await supabase.from("payments").select("*").eq("id", id).eq("client_id", user.id).maybeSingle();
   if (!payment || payment.provider !== "manual") notFound();
+  const { data: profile } = await supabase.from("client_profiles").select("preferred_language").eq("id", user.id).maybeSingle();
   const { data: accounts } = await supabase.from("payment_accounts").select("*").eq("method", payment.manual_method).eq("active", true).order("sort_order");
+  const en = profile?.preferred_language === "en";
   return <main className="min-h-screen bg-slate-100 py-10">
     <div className="container-site max-w-4xl">
       <Link href="/espace-client" className="font-bold text-leaf">Retour a mon espace</Link>
@@ -23,7 +25,8 @@ export default async function ManualPaymentPage({ params }: { params: Promise<{ 
           <Line label="Mode" value={payment.manual_method === "bank_transfer" ? "Virement bancaire" : "Mobile Money"} />
           <Line label="Statut" value={payment.status} />
         </div>
-        <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Indiquez exactement la reference NutVitaGlobalis dans le motif ou message du paiement. Votre acces sera active apres verification par l equipe.</p>
+        <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{en ? "Use the NutVitaGlobalis reference exactly in the payment message or bank transfer description. Your access will be activated after verification by the team." : "Indiquez exactement la reference NutVitaGlobalis dans le motif ou message du paiement. Votre acces sera active apres verification par l equipe."}</p>
+        <p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">{en ? "You may upload the receipt here, or send it from your account email to contact@nutvitaglobalis.com with the payment reference." : "Vous pouvez televerser le recu ici, ou l envoyer depuis l email de votre compte a contact@nutvitaglobalis.com avec la reference de paiement."}</p>
       </section>
       <section className="mt-6 grid gap-4">
         <h2 className="text-2xl font-black">Comptes de paiement disponibles</h2>

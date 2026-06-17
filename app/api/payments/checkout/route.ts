@@ -5,7 +5,7 @@ import { getApplicableTax, priceBreakdown } from "@/lib/taxes";
 import {xofPerUsd,xofToUsd} from "@/lib/currency";
 
 type Purchase = { type: "subscription" | "formation" | "consultation"; id: string; name: string; price: number; currency: string; duration: number; childId?: string };
-type Provider = "cinetpay" | "paypal";
+type Provider = "cinetpay" | "paypal" | "manual_mobile_money" | "manual_bank_transfer";
 
 function cinetpayAmount(amount: number) {
   return Math.ceil(amount / 5) * 5;
@@ -35,8 +35,10 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return NextResponse.json({ message: "Non authentifie." }, { status: 401 });
   const body = await request.json();
-  const provider = (body.provider || "cinetpay") as Provider;
-  if (!["cinetpay", "paypal"].includes(provider)) return NextResponse.json({ message: "Fournisseur invalide." }, { status: 400 });
+  const provider = (body.provider || "manual_mobile_money") as Provider;
+  if (!["cinetpay", "paypal", "manual_mobile_money", "manual_bank_transfer"].includes(provider)) return NextResponse.json({ message: "Fournisseur invalide." }, { status: 400 });
+  const dbProvider = provider.startsWith("manual_") ? "manual" : provider;
+  const manualMethod = provider === "manual_mobile_money" ? "mobile_money" : provider === "manual_bank_transfer" ? "bank_transfer" : null;
   const { data: profile } = await supabase.from("client_profiles").select("*").eq("id", user.id).single();
   if (!profile) return NextResponse.json({ message: "Profil client introuvable." }, { status: 404 });
 
@@ -61,17 +63,19 @@ export async function POST(request: Request) {
   if (!purchase) return NextResponse.json({ message: "Produit ou service introuvable." }, { status: 404 });
 
   const admin = createAdminClient(), tax = await getApplicableTax(admin, profile.country_code, purchase.type), sourceAmountXof = purchase.price, exchangeRate = xofPerUsd();
-  const breakdown = provider === "cinetpay" ? priceBreakdown(sourceAmountXof, Number(tax.rate)) : priceBreakdown(xofToUsd(sourceAmountXof), Number(tax.rate));
-  purchase.currency = provider === "cinetpay" ? "XAF" : "USD";
+  const localPayment = provider === "cinetpay" || Boolean(manualMethod);
+  const breakdown = localPayment ? priceBreakdown(sourceAmountXof, Number(tax.rate)) : priceBreakdown(xofToUsd(sourceAmountXof), Number(tax.rate));
+  purchase.currency = localPayment ? "XAF" : "USD";
   const reference = `NVG${Date.now()}${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
   let subscriptionId: string | null = null;
   if (purchase.type === "subscription") {
-    const { data, error } = await admin.from("subscriptions").insert({ client_id: user.id, child_id: purchase.childId || null, plan_id: purchase.id, provider, status: "pending", renewal_period_months: purchase.duration }).select().single();
+    const { data, error } = await admin.from("subscriptions").insert({ client_id: user.id, child_id: purchase.childId || null, plan_id: purchase.id, provider: dbProvider, status: "pending", renewal_period_months: purchase.duration }).select().single();
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
     subscriptionId = data.id;
   }
-  const { data: payment, error: paymentError } = await admin.from("payments").insert({ client_id: user.id, subscription_id: subscriptionId, provider, checkout_reference: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, source_amount_xof:sourceAmountXof, exchange_rate_xof_per_usd:exchangeRate, price_excluding_tax: breakdown.priceExcludingTax, tax_rate: breakdown.taxRate, tax_amount: breakdown.taxAmount, total_including_tax: breakdown.totalIncludingTax, purchase_type: purchase.type, product_id: purchase.type === "subscription" ? null : purchase.id, product_name: purchase.name }).select().single();
+  const { data: payment, error: paymentError } = await admin.from("payments").insert({ client_id: user.id, subscription_id: subscriptionId, provider: dbProvider, manual_method: manualMethod, checkout_reference: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, source_amount_xof:sourceAmountXof, exchange_rate_xof_per_usd:exchangeRate, price_excluding_tax: breakdown.priceExcludingTax, tax_rate: breakdown.taxRate, tax_amount: breakdown.taxAmount, total_including_tax: breakdown.totalIncludingTax, purchase_type: purchase.type, product_id: purchase.type === "subscription" ? null : purchase.id, product_name: purchase.name }).select().single();
   if (paymentError) return NextResponse.json({ message: paymentError.message }, { status: 500 });
+  if (manualMethod) return NextResponse.json({ url: `/espace-client/paiements/${payment.id}` });
 
   try {
     const origin = new URL(request.url).origin;

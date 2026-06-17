@@ -232,4 +232,16 @@ https://www.nutvitaglobalis.com/api/payments/webhook/cinetpay
 PayPal utilise l'API Orders et capture le paiement au retour client via
 `/api/payments/paypal/capture`.
 
+## Paiements manuels et CamPay
+
+Executer `supabase/manual-payments.sql` apres `supabase/cinetpay-paypal-payments.sql`.
+Cette migration ajoute les comptes de paiement prives, les preuves de paiement
+et reserve `campay` comme fournisseur automatique futur.
+
+Pendant la phase de lancement, les clients connectes peuvent choisir Mobile
+Money manuel ou virement bancaire. Les coordonnees configurees dans
+`/admin/paiements` ne sont affichees qu'apres creation d'une reference de
+paiement privee. L'administration valide ensuite le paiement et active le
+service correspondant.
+
 Sans clé Resend, le site reste consultable mais les formulaires affichent une indisponibilité explicite.

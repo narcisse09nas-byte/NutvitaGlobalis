@@ -7,6 +7,14 @@ import {xofPerUsd,xofToUsd} from "@/lib/currency";
 type Purchase = { type: "subscription" | "formation" | "consultation"; id: string; name: string; price: number; currency: string; duration: number; childId?: string };
 type Provider = "cinetpay" | "paypal";
 
+function cinetpayAmount(amount: number) {
+  return Math.ceil(amount / 5) * 5;
+}
+
+function cinetpayText(value: string, fallback: string) {
+  return (value || fallback).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 .-]/g, " ").trim() || fallback;
+}
+
 async function paypalAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID;
   const secret = process.env.PAYPAL_CLIENT_SECRET;
@@ -55,7 +63,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient(), tax = await getApplicableTax(admin, profile.country_code, purchase.type), sourceAmountXof = purchase.price, exchangeRate = xofPerUsd();
   const breakdown = provider === "cinetpay" ? priceBreakdown(sourceAmountXof, Number(tax.rate)) : priceBreakdown(xofToUsd(sourceAmountXof), Number(tax.rate));
   purchase.currency = provider === "cinetpay" ? "XAF" : "USD";
-  const reference = `NVG-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  const reference = `NVG${Date.now()}${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
   let subscriptionId: string | null = null;
   if (purchase.type === "subscription") {
     const { data, error } = await admin.from("subscriptions").insert({ client_id: user.id, child_id: purchase.childId || null, plan_id: purchase.id, provider, status: "pending", renewal_period_months: purchase.duration }).select().single();
@@ -71,27 +79,28 @@ export async function POST(request: Request) {
     if (provider === "cinetpay") {
       const apiKey = process.env.CINETPAY_API_KEY, siteId = process.env.CINETPAY_SITE_ID;
       if (!apiKey || !siteId) throw new Error("CinetPay n est pas configure.");
-      const customerName = String(profile.full_name || user.email).trim();
+      const customerName = cinetpayText(String(profile.full_name || user.email), "Client NutVitaGlobalis");
       const [firstName, ...rest] = customerName.split(/\s+/);
+      const amount = cinetpayAmount(Number(breakdown.totalIncludingTax));
       const response = await fetch("https://api-checkout.cinetpay.com/v2/payment", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "User-Agent": "NutVitaGlobalis/1.0" },
         body: JSON.stringify({
           apikey: apiKey,
           site_id: siteId,
           transaction_id: reference,
-          amount: Math.round(breakdown.totalIncludingTax),
+          amount,
           currency: purchase.currency,
-          description: purchase.name,
+          description: cinetpayText(purchase.name, "Service NutVitaGlobalis"),
           customer_id: user.id,
           customer_name: firstName || "Client",
           customer_surname: rest.join(" ") || "NutVitaGlobalis",
           customer_email: user.email,
           customer_phone_number: profile.whatsapp_phone || profile.phone || "",
-          customer_address: profile.address || profile.city || "Douala",
-          customer_city: profile.city || "Douala",
+          customer_address: cinetpayText(profile.address || profile.city, "Douala"),
+          customer_city: cinetpayText(profile.city, "Douala"),
           customer_country: profile.country_code || "CM",
-          customer_state: profile.state_region || profile.city || "Littoral",
+          customer_state: profile.country_code || "CM",
           customer_zip_code: profile.postal_code || "00000",
           notify_url: `${origin}/api/payments/webhook/cinetpay`,
           return_url: `${origin}/espace-client?paiement=retour`,

@@ -11,7 +11,8 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return NextResponse.json({ message: "Non authentifie." }, { status: 401 });
   const body = await request.json();
-  if (!["stripe", "flutterwave"].includes(body.provider)) return NextResponse.json({ message: "Fournisseur invalide." }, { status: 400 });
+  const provider = body.provider || "flutterwave";
+  if (provider !== "flutterwave") return NextResponse.json({ message: "Flutterwave est le moyen de paiement actif pour le moment." }, { status: 400 });
   const { data: profile } = await supabase.from("client_profiles").select("*").eq("id", user.id).single();
   if (!profile) return NextResponse.json({ message: "Profil client introuvable." }, { status: 404 });
 
@@ -40,32 +41,22 @@ export async function POST(request: Request) {
   const reference = `NVG-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
   let subscriptionId: string | null = null;
   if (purchase.type === "subscription") {
-    const { data, error } = await admin.from("subscriptions").insert({ client_id: user.id, child_id: purchase.childId || null, plan_id: purchase.id, provider: body.provider, status: "pending", renewal_period_months: purchase.duration }).select().single();
+    const { data, error } = await admin.from("subscriptions").insert({ client_id: user.id, child_id: purchase.childId || null, plan_id: purchase.id, provider, status: "pending", renewal_period_months: purchase.duration }).select().single();
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
     subscriptionId = data.id;
   }
-  const { data: payment, error: paymentError } = await admin.from("payments").insert({ client_id: user.id, subscription_id: subscriptionId, provider: body.provider, checkout_reference: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, source_amount_xof:sourceAmountXof, exchange_rate_xof_per_usd:exchangeRate, price_excluding_tax: breakdown.priceExcludingTax, tax_rate: breakdown.taxRate, tax_amount: breakdown.taxAmount, total_including_tax: breakdown.totalIncludingTax, purchase_type: purchase.type, product_id: purchase.type === "subscription" ? null : purchase.id, product_name: purchase.name }).select().single();
+  const { data: payment, error: paymentError } = await admin.from("payments").insert({ client_id: user.id, subscription_id: subscriptionId, provider, checkout_reference: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, source_amount_xof:sourceAmountXof, exchange_rate_xof_per_usd:exchangeRate, price_excluding_tax: breakdown.priceExcludingTax, tax_rate: breakdown.taxRate, tax_amount: breakdown.taxAmount, total_including_tax: breakdown.totalIncludingTax, purchase_type: purchase.type, product_id: purchase.type === "subscription" ? null : purchase.id, product_name: purchase.name }).select().single();
   if (paymentError) return NextResponse.json({ message: paymentError.message }, { status: 500 });
 
   try {
     const origin = new URL(request.url).origin;
     let url = "";
-    if (body.provider === "stripe") {
-      const secret = process.env.STRIPE_SECRET_KEY;
-      if (!secret) throw new Error("Stripe n est pas configure.");
-      const form = new URLSearchParams({ mode: "payment", success_url: `${origin}/espace-client?paiement=succes`, cancel_url: `${origin}/checkout?type=${purchase.type}&id=${purchase.id}&paiement=annule`, customer_email: user.email, client_reference_id: reference, "line_items[0][price_data][currency]": purchase.currency.toLowerCase(), "line_items[0][price_data][product_data][name]": purchase.name, "line_items[0][price_data][unit_amount]": String(Math.round(breakdown.totalIncludingTax*100)), "line_items[0][quantity]": "1", "metadata[payment_id]": payment.id });
-      const response = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/x-www-form-urlencoded" }, body: form });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error?.message || "Stripe indisponible.");
-      url = result.url;
-    } else {
-      const secret = process.env.FLUTTERWAVE_SECRET_KEY;
-      if (!secret) throw new Error("Flutterwave n est pas configure.");
-      const response = await fetch("https://api.flutterwave.com/v3/payments", { method: "POST", headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" }, body: JSON.stringify({ tx_ref: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, redirect_url: `${origin}/espace-client?paiement=retour`, payment_options: "card,mobilemoneyghana,mpesa,ussd,account", customer: { email: user.email, name: profile.full_name || user.email, phonenumber: profile.whatsapp_phone || profile.phone }, customizations: { title: "NutVitaGlobalis", description: purchase.name }, meta: { payment_id: payment.id, purchase_type: purchase.type } }) });
-      const result = await response.json();
-      if (!response.ok || result.status !== "success") throw new Error(result.message || "Flutterwave indisponible.");
-      url = result.data.link;
-    }
+    const secret = process.env.FLUTTERWAVE_SECRET_KEY;
+    if (!secret) throw new Error("Flutterwave n est pas configure.");
+    const response = await fetch("https://api.flutterwave.com/v3/payments", { method: "POST", headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" }, body: JSON.stringify({ tx_ref: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, redirect_url: `${origin}/espace-client?paiement=retour`, payment_options: "card,mobilemoneyghana,mpesa,ussd,account", customer: { email: user.email, name: profile.full_name || user.email, phonenumber: profile.whatsapp_phone || profile.phone }, customizations: { title: "NutVitaGlobalis", description: purchase.name }, meta: { payment_id: payment.id, purchase_type: purchase.type } }) });
+    const result = await response.json();
+    if (!response.ok || result.status !== "success") throw new Error(result.message || "Flutterwave indisponible.");
+    url = result.data.link;
     return NextResponse.json({ url });
   } catch (error) {
     await admin.from("payments").update({ status: "failed" }).eq("id", payment.id);

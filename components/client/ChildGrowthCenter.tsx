@@ -19,7 +19,6 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
   const [children, setChildren] = useState(initialChildren);
   const [measurements, setMeasurements] = useState(initialMeasurements);
   const [selected, setSelected] = useState(initialChildren[0]?.id || "");
-  const [provider, setProvider] = useState<"flutterwave" | "stripe">("flutterwave");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [analyses,setAnalyses]=useState(initialAnalyses),[alerts,setAlerts]=useState(initialAlerts),[reports,setReports]=useState(initialReports);
@@ -52,7 +51,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
   async function checkout() {
     if (!plan || !selected) return;
     setLoading(true);
-    const response = await fetch("/api/payments/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan_id: plan.id, provider, child_id: selected }) });
+    const response = await fetch("/api/payments/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan_id: plan.id, provider: "flutterwave", child_id: selected }) });
     const result = await response.json();
     if (response.ok && result.url) location.href = result.url; else setMessage(result.message || "Paiement indisponible.");
     setLoading(false);
@@ -94,7 +93,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
       {child && !subscription && <section className="rounded-2xl border-2 border-orange bg-white p-6">
         <h2 className="text-2xl font-black">Activer le suivi de {child.full_name}</h2>
         <div className="mt-4 grid gap-2 text-sm sm:max-w-md"><Line label="Prix HT" value={formatUsd(xofToUsd(ht))}/><Line label={`Taxe (${taxRate} %)`} value={formatUsd(xofToUsd(tax))}/><Line label="Total TTC" value={formatUsd(xofToUsd(ht+tax))} strong/><Line label="Durée" value="12 mois"/><Line label="Renouvellement" value="Annuel"/></div>
-        <div className="mt-5 flex gap-2"><ProviderButton active={provider === "flutterwave"} onClick={() => setProvider("flutterwave")}>Flutterwave</ProviderButton><ProviderButton active={provider === "stripe"} onClick={() => setProvider("stripe")}>Stripe</ProviderButton></div>
+        <div className="mt-5 inline-flex rounded-full bg-mint px-4 py-2 text-sm font-bold text-forest">Paiement securise par Flutterwave</div>
         <button onClick={checkout} disabled={loading} className="btn-primary mt-5">{loading ? "Redirection..." : "Payer pour cet enfant"}</button>
       </section>}
       {child && subscription && <>
@@ -130,7 +129,6 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
 function Field({ name, label, type = "text", step, required = false }: any) { return <label className="grid gap-2 text-sm font-bold">{label}<input name={name} type={type} step={step} required={required} className="admin-input" /></label>; }
 function Area({ name, label }: { name: string; label: string }) { return <label className="grid gap-2 text-sm font-bold">{label}<textarea name={name} className="admin-input min-h-24" /></label>; }
 function Select({ name, label, options }: { name: string; label: string; options: string[][] }) { return <label className="grid gap-2 text-sm font-bold">{label}<select name={name} required className="admin-input">{options.map(([value, text]) => <option key={value || "empty"} value={value}>{text}</option>)}</select></label>; }
-function ProviderButton({ active, onClick, children }: any) { return <button type="button" onClick={onClick} className={`rounded-full px-4 py-2 ${active ? "bg-forest text-white" : "bg-slate-100"}`}>{children}</button>; }
 function Line({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) { return <div className={`flex justify-between ${strong ? "border-t pt-2 text-lg" : ""}`}><span>{label}</span><b>{value}</b></div>; }
 
 function analyze(rows: Row[]) {

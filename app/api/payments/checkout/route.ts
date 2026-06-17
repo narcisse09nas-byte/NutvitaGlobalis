@@ -5,14 +5,30 @@ import { getApplicableTax, priceBreakdown } from "@/lib/taxes";
 import {xofPerUsd,xofToUsd} from "@/lib/currency";
 
 type Purchase = { type: "subscription" | "formation" | "consultation"; id: string; name: string; price: number; currency: string; duration: number; childId?: string };
+type Provider = "cinetpay" | "paypal";
+
+async function paypalAccessToken() {
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  const secret = process.env.PAYPAL_CLIENT_SECRET;
+  if (!clientId || !secret) throw new Error("PayPal n est pas configure.");
+  const base = process.env.PAYPAL_ENV === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
+  const response = await fetch(`${base}/v1/oauth2/token`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${Buffer.from(`${clientId}:${secret}`).toString("base64")}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: "grant_type=client_credentials"
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error_description || "Connexion PayPal impossible.");
+  return { token: result.access_token as string, base };
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return NextResponse.json({ message: "Non authentifie." }, { status: 401 });
   const body = await request.json();
-  const provider = body.provider || "flutterwave";
-  if (provider !== "flutterwave") return NextResponse.json({ message: "Flutterwave est le moyen de paiement actif pour le moment." }, { status: 400 });
+  const provider = (body.provider || "cinetpay") as Provider;
+  if (!["cinetpay", "paypal"].includes(provider)) return NextResponse.json({ message: "Fournisseur invalide." }, { status: 400 });
   const { data: profile } = await supabase.from("client_profiles").select("*").eq("id", user.id).single();
   if (!profile) return NextResponse.json({ message: "Profil client introuvable." }, { status: 404 });
 
@@ -36,8 +52,9 @@ export async function POST(request: Request) {
   }
   if (!purchase) return NextResponse.json({ message: "Produit ou service introuvable." }, { status: 404 });
 
-  const admin = createAdminClient(), tax = await getApplicableTax(admin, profile.country_code, purchase.type),sourceAmountXof=purchase.price,exchangeRate=xofPerUsd(),breakdown = priceBreakdown(xofToUsd(sourceAmountXof), Number(tax.rate));
-  purchase.currency="USD";
+  const admin = createAdminClient(), tax = await getApplicableTax(admin, profile.country_code, purchase.type), sourceAmountXof = purchase.price, exchangeRate = xofPerUsd();
+  const breakdown = provider === "cinetpay" ? priceBreakdown(sourceAmountXof, Number(tax.rate)) : priceBreakdown(xofToUsd(sourceAmountXof), Number(tax.rate));
+  purchase.currency = provider === "cinetpay" ? "XAF" : "USD";
   const reference = `NVG-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
   let subscriptionId: string | null = null;
   if (purchase.type === "subscription") {
@@ -51,12 +68,57 @@ export async function POST(request: Request) {
   try {
     const origin = new URL(request.url).origin;
     let url = "";
-    const secret = process.env.FLUTTERWAVE_SECRET_KEY;
-    if (!secret) throw new Error("Flutterwave n est pas configure.");
-    const response = await fetch("https://api.flutterwave.com/v3/payments", { method: "POST", headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" }, body: JSON.stringify({ tx_ref: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, redirect_url: `${origin}/espace-client?paiement=retour`, payment_options: "card,mobilemoneyghana,mpesa,ussd,account", customer: { email: user.email, name: profile.full_name || user.email, phonenumber: profile.whatsapp_phone || profile.phone }, customizations: { title: "NutVitaGlobalis", description: purchase.name }, meta: { payment_id: payment.id, purchase_type: purchase.type } }) });
-    const result = await response.json();
-    if (!response.ok || result.status !== "success") throw new Error(result.message || "Flutterwave indisponible.");
-    url = result.data.link;
+    if (provider === "cinetpay") {
+      const apiKey = process.env.CINETPAY_API_KEY, siteId = process.env.CINETPAY_SITE_ID;
+      if (!apiKey || !siteId) throw new Error("CinetPay n est pas configure.");
+      const customerName = String(profile.full_name || user.email).trim();
+      const [firstName, ...rest] = customerName.split(/\s+/);
+      const response = await fetch("https://api-checkout.cinetpay.com/v2/payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apikey: apiKey,
+          site_id: siteId,
+          transaction_id: reference,
+          amount: Math.round(breakdown.totalIncludingTax),
+          currency: purchase.currency,
+          description: purchase.name,
+          customer_id: user.id,
+          customer_name: firstName || "Client",
+          customer_surname: rest.join(" ") || "NutVitaGlobalis",
+          customer_email: user.email,
+          customer_phone_number: profile.whatsapp_phone || profile.phone || "",
+          customer_address: profile.address || profile.city || "Douala",
+          customer_city: profile.city || "Douala",
+          customer_country: profile.country_code || "CM",
+          customer_state: profile.state_region || profile.city || "Littoral",
+          customer_zip_code: profile.postal_code || "00000",
+          notify_url: `${origin}/api/payments/webhook/cinetpay`,
+          return_url: `${origin}/espace-client?paiement=retour`,
+          channels: "ALL",
+          metadata: JSON.stringify({ payment_id: payment.id, purchase_type: purchase.type })
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !["201", "00"].includes(String(result.code))) throw new Error(result.message || "CinetPay indisponible.");
+      url = result.data?.payment_url;
+    } else {
+      const { token, base } = await paypalAccessToken();
+      const response = await fetch(`${base}/v2/checkout/orders`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          intent: "CAPTURE",
+          purchase_units: [{ reference_id: reference, custom_id: payment.id, description: purchase.name, amount: { currency_code: purchase.currency, value: Number(breakdown.totalIncludingTax).toFixed(2) } }],
+          application_context: { brand_name: "NutVitaGlobalis", landing_page: "LOGIN", user_action: "PAY_NOW", return_url: `${origin}/api/payments/paypal/capture?payment_id=${payment.id}`, cancel_url: `${origin}/checkout?type=${purchase.type}&id=${purchase.id}&paiement=annule` }
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "PayPal indisponible.");
+      await admin.from("payments").update({ provider_payment_id: result.id }).eq("id", payment.id);
+      url = result.links?.find((link: any) => link.rel === "approve")?.href;
+    }
+    if (!url) throw new Error("Lien de paiement indisponible.");
     return NextResponse.json({ url });
   } catch (error) {
     await admin.from("payments").update({ status: "failed" }).eq("id", payment.id);

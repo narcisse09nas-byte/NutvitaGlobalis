@@ -208,4 +208,28 @@ Renseigner egalement `NEXT_PUBLIC_SITE_URL` avec l'URL publique exacte du site,
 par exemple `https://nutvitaglobalis.com`, afin de produire des liens valides
 dans les emails et les redirections de paiement.
 
+## Paiements CinetPay et PayPal
+
+Executer `supabase/cinetpay-paypal-payments.sql` apres les migrations de base
+pour autoriser les fournisseurs `cinetpay` et `paypal`.
+
+Variables serveur a renseigner dans Vercel :
+
+```env
+CINETPAY_API_KEY=xxxxxxxxx
+CINETPAY_SITE_ID=000000
+PAYPAL_ENV=sandbox
+PAYPAL_CLIENT_ID=xxxxxxxxx
+PAYPAL_CLIENT_SECRET=xxxxxxxxx
+```
+
+Configurer la notification CinetPay vers :
+
+```text
+https://www.nutvitaglobalis.com/api/payments/webhook/cinetpay
+```
+
+PayPal utilise l'API Orders et capture le paiement au retour client via
+`/api/payments/paypal/capture`.
+
 Sans clé Resend, le site reste consultable mais les formulaires affichent une indisponibilité explicite.

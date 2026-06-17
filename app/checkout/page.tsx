@@ -43,7 +43,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
       supabase.from("user_consents").select("accepted").eq("user_id", user.id).eq("consent_type", "teleconsultation").eq("accepted", true).maybeSingle(),
     ]);
     teleconsultationConsent = Boolean(consent?.accepted);
-    if (data) product = { name: `${previous ? "Renouvellement " : ""}Pack ${data.name} - 3 mois`, priceXof: previous ? 10000 : Number(data.price || 15000) };
+    if (data) product = { name: `${previous ? "Renouvellement " : ""}Pack ${data.name} - 1 an`, priceXof: Number(data.price || 15000) };
   }
 
   if (!product) notFound();
@@ -64,7 +64,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
             <Line label="Total TTC" value={formatUsd(totals.totalIncludingTax)} strong />
           </div>
           {type === "consultation" && <>
-            <p className="mt-5 rounded-xl bg-mint p-4 text-sm text-forest"><b>Validite : 3 mois.</b> Chat et appels video avec un expert inclus. Renouvellement : {formatUsd(xofToUsd(10000))} HT pour 3 mois.</p>
+            <p className="mt-5 rounded-xl bg-mint p-4 text-sm text-forest"><b>Validite : 1 an renouvelable.</b> Chat securise, suivi personnalise et teleconsultations video avec un expert inclus selon le pack choisi.</p>
             <TeleconsultationConsent userId={user.id} accepted={teleconsultationConsent} />
           </>}
           <div className="mt-6">

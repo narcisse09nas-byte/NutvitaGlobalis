@@ -25,7 +25,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
   const [analyses,setAnalyses]=useState(initialAnalyses),[alerts,setAlerts]=useState(initialAlerts),[reports,setReports]=useState(initialReports);
   const child = children.find(item => item.id === selected);
   const rows = useMemo(() => measurements.filter(item => item.child_id === selected).sort((a, b) => +new Date(a.measured_at) - +new Date(b.measured_at)), [measurements, selected]);
-  const subscription = subscriptions.find(item => item.child_id === selected && item.status === "active");
+  const subscription = subscriptions.find(item => item.status === "active" && (item.child_id === selected || (!item.child_id && (item.subscription_plans?.service_type === "child_growth" || String(item.plan_id).includes("child-growth")))));
 
   async function addChild(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,7 +35,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
     payload.premature_birth = payload.premature_birth === "true";
     const { data, error } = await createClient().from("children").insert({ ...payload, parent_id: parentId }).select().single();
     if (error) setMessage(error.message);
-    else { setChildren([...children, data]); setSelected(data.id); form.reset(); setMessage("Enfant ajoute. Vous pouvez maintenant activer son abonnement."); }
+    else { setChildren([...children, data]); setSelected(data.id); form.reset(); setMessage("Enfant ajoute. Si votre suivi est deja active, vous pouvez commencer les mesures maintenant."); }
   }
 
   async function addMeasure(event: FormEvent<HTMLFormElement>) {

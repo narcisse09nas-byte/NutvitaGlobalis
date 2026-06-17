@@ -46,11 +46,13 @@ export async function POST(request: Request) {
   if (body.plan_id) {
     const { data: plan } = await supabase.from("subscription_plans").select("*").eq("id", String(body.plan_id)).eq("active", true).single();
     if (plan) {
-      if (plan.service_type === "child_growth") {
-        const { data: child } = await supabase.from("children").select("id").eq("id", String(body.child_id || "")).eq("parent_id", user.id).maybeSingle();
+      let childId: string | undefined;
+      if (plan.service_type === "child_growth" && body.child_id) {
+        const { data: child } = await supabase.from("children").select("id").eq("id", String(body.child_id)).eq("parent_id", user.id).maybeSingle();
         if (!child) return NextResponse.json({ message: "Selectionnez un enfant valide." }, { status: 400 });
+        childId = child.id;
       }
-      purchase = { type: "subscription", id: plan.id, name: plan.name, price: Number(plan.price_excluding_tax ?? plan.amount), currency: plan.currency, duration: Math.max(1, Number(plan.duration_months || 12)), childId: plan.service_type === "child_growth" ? body.child_id : undefined };
+      purchase = { type: "subscription", id: plan.id, name: plan.name, price: Number(plan.price_excluding_tax ?? plan.amount), currency: plan.currency, duration: Math.max(1, Number(plan.duration_months || 12)), childId };
     }
   } else if (body.purchase_type === "formation") {
     const { data } = await supabase.from("formations").select("id,title,price").eq("id", String(body.product_id)).eq("status", "published").single();
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
   } else if (body.purchase_type === "consultation") {
     const { data } = await supabase.from("teleconseils").select("id,name,price").eq("id", String(body.product_id)).eq("status", "active").single();
     const {data:previous}=await supabase.from('consultation_bookings').select('id').eq('client_id',user.id).eq('teleconseil_id',String(body.product_id)).limit(1).maybeSingle();
-    if (data) purchase = { type: "consultation", id: data.id, name: `${previous?'Renouvellement ':''}Pack ${data.name} - 3 mois`, price: previous?10000:Number(data.price || 15000), currency: "XOF", duration: 3 };
+    if (data) purchase = { type: "consultation", id: data.id, name: `${previous?'Renouvellement ':''}Pack ${data.name} - 1 an`, price: previous?Number(data.price || 15000):Number(data.price || 15000), currency: "XOF", duration: 12 };
   }
   if (!purchase) return NextResponse.json({ message: "Produit ou service introuvable." }, { status: 404 });
 

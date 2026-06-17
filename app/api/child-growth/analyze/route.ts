@@ -11,15 +11,17 @@ export async function POST(request: Request) {
   const { child_id } = await request.json(), now = new Date().toISOString();
   const [{ data: child }, { data: subscription }, { data: rows }, { data: profile }] = await Promise.all([
     supabase.from("children").select("*").eq("id", String(child_id)).eq("parent_id", user.id).maybeSingle(),
-    supabase.from("subscriptions").select("id").eq("client_id", user.id).eq("child_id", String(child_id)).eq("status", "active").gt("expires_at", now).maybeSingle(),
+    supabase.from("subscriptions").select("id,child_id,plan_id,subscription_plans(service_type)").eq("client_id", user.id).eq("status", "active").gt("expires_at", now),
     supabase.from("child_growth_measurements").select("*").eq("child_id", String(child_id)).order("measured_at"),
     supabase.from("client_profiles").select("full_name,email").eq("id", user.id).single(),
   ]);
   if (!child) return NextResponse.json({ message: "Enfant introuvable." }, { status: 404 });
-  if (!subscription) return NextResponse.json({ message: "Un abonnement actif est requis pour cet enfant." }, { status: 402 });
+  const validSubscription=(subscription||[]).find((item:any)=>(item.child_id===String(child_id)||!item.child_id)&&(item.subscription_plans?.service_type==="child_growth"||String(item.plan_id).includes("child-growth")));
+  if (!validSubscription) return NextResponse.json({ message: "Un abonnement actif est requis pour cet enfant." }, { status: 402 });
   const analysis = analyzeChildGrowth(child, rows || []), admin = createAdminClient();
   try {
     const { data: existingCritical } = await admin.from("child_growth_alerts").select("alert_type").eq("child_id", child.id).eq("severity", "critical").is("acknowledged_at", null);
+    if (!validSubscription.child_id) await admin.from("subscriptions").update({ child_id: child.id }).eq("id", validSubscription.id);
     const { data: saved, error } = await admin.from("child_growth_analyses").insert({ child_id: child.id, summary: analysis.summary, positives: analysis.positives, attention_points: analysis.attentionPoints, practical_advice: analysis.practicalAdvice, parent_advice: analysis.parentAdvice, consultation_recommended: analysis.consultationRecommended, generated_by: user.id }).select("id,created_at").single();
     if (error) throw error;
     let stored: Record<string, any>[] = [];

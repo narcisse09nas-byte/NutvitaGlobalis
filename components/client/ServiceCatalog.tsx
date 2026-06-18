@@ -4,7 +4,7 @@ import { formatUsd, xofToUsd } from "@/lib/currency";
 
 type Row = Record<string, any>;
 
-export default function ServiceCatalog({ plans, packs, courses, children, taxRate, initialFilter = "all" }: { plans: Row[]; packs: Row[]; courses: Row[]; children: Row[]; taxRate: number; initialFilter?: string }) {
+export default function ServiceCatalog({ plans, packs, courses, children, subscriptions = [], taxRate, initialFilter = "all" }: { plans: Row[]; packs: Row[]; courses: Row[]; children: Row[]; subscriptions?: Row[]; taxRate: number; initialFilter?: string }) {
   const [filter, setFilter] = useState(initialFilter);
   const [selectedChild, setSelectedChild] = useState(children[0]?.id || "");
   const premiumPlus=["Analyse intelligente de vos donnees de sante","Visualisation claire et automatique de votre progression","Accompagnement trimestriel par un teleconseiller qualifie","Acces aux articles et ressources premium","Suivi utilisable sur ordinateur et smartphone"];
@@ -17,17 +17,23 @@ export default function ServiceCatalog({ plans, packs, courses, children, taxRat
     ...courses.map(course => ({ id: course.id, kind: "formation", group: "formations", title: course.title, price: Number(course.price || 50000), features: ["Formation certifiante premium", "Acces au corps enseignant par appel video jusqu'a 5 fois par certificat", "Messagerie avec les enseignants", "Acces aux articles premium", "Certificat de fin de formation"], premium: true, billingLabel: "Acces formation premium" })),
   ], [plans, packs, courses]);
   const rows = filter === "all" ? services : services.filter(item => item.group === filter);
+  function activeSubscription(item:any){
+    if(item.kind!=="subscription")return null;
+    const now=Date.now();
+    return subscriptions.find(sub=>sub.plan_id===item.id&&sub.status==="active"&&(!sub.expires_at||+new Date(sub.expires_at)>now))||null;
+  }
   function checkout(item: any) {
     const childParam = item.group === "child_growth" && selectedChild ? `&child_id=${encodeURIComponent(selectedChild)}` : "";
     location.href = `/checkout?type=${item.kind}&id=${encodeURIComponent(item.id)}${childParam}`;
   }
   return <div className="grid gap-6">
     <div className="flex flex-wrap gap-2">{[["all","Tous"],["health_tracking","Suivi sante"],["child_growth","Croissance enfant"],["packs","Packs"],["formations","Formations"]].map(([value,label])=><button key={value} onClick={()=>setFilter(value)} className={`rounded-full px-4 py-2 text-sm font-bold ${filter===value?"bg-forest text-white":"bg-white text-forest"}`}>{label}</button>)}</div>
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{rows.map(item => { const tax = Math.round(item.price * taxRate) / 100, total = item.price + tax; return <article key={`${item.kind}-${item.id}`} className={`rounded-2xl border bg-white p-6 ${item.premium ? "border-orange" : ""}`}>
+    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{rows.map(item => { const tax = Math.round(item.price * taxRate) / 100, total = item.price + tax, active=activeSubscription(item); return <article key={`${item.kind}-${item.id}`} className={`rounded-2xl border bg-white p-6 ${item.premium ? "border-orange" : ""}`}>
       <p className="text-xs font-bold uppercase text-leaf">{item.premium ? "Premium" : "Standard"}</p>
       <h2 className="mt-2 text-2xl font-black">{item.title}</h2>
       <p className="mt-3 rounded-full bg-mint px-4 py-2 text-xs font-black text-forest">{item.billingLabel}</p>
       <div className="my-5 grid gap-2 rounded-xl bg-slate-50 p-4 text-sm"><Line label="Prix HT" value={formatUsd(xofToUsd(item.price))}/><Line label={`Taxe (${taxRate} %)`} value={formatUsd(xofToUsd(tax))}/><Line label="Total TTC" value={formatUsd(xofToUsd(total))} strong/></div>
+      {active&&<p className="mb-4 rounded-xl bg-mint p-3 text-sm font-bold text-forest">Abonnement actif jusqu'au {active.expires_at?new Date(active.expires_at).toLocaleDateString("fr-FR"):"renouvellement manuel"}. Un nouveau paiement prolongera automatiquement cette date.</p>}
       <ul className="my-5 grid gap-2 text-sm">{item.features.map((feature:string)=><li key={feature}>+ {feature}</li>)}</ul>
       {item.group === "child_growth" && <div className="mb-4">
         {children.length ? <label className="grid gap-2 text-sm font-bold">Enfant concerne
@@ -36,7 +42,7 @@ export default function ServiceCatalog({ plans, packs, courses, children, taxRat
           </select>
         </label> : <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Vous pouvez acheter ce suivi maintenant. Apres activation, vous ajouterez l'enfant a suivre dans l'espace croissance.</p>}
       </div>}
-      <button onClick={()=>checkout(item)} className="btn-primary w-full">Choisir ce service</button>
+      <button onClick={()=>checkout(item)} className="btn-primary w-full">{active?"Etendre l'abonnement":"Choisir ce service"}</button>
     </article>})}</div>
     {!rows.length && <p className="rounded-2xl bg-white p-8 text-slate-500">Aucun service disponible dans cette categorie.</p>}
   </div>;

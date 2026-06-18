@@ -25,6 +25,8 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
   const [note,setNote]=useState("");
   const [message,setMessage]=useState("");
   const [history,setHistory]=useState<Row[]>([]);
+  const [reviews,setReviews]=useState<Row[]>([]);
+  const [reviewerEmails,setReviewerEmails]=useState("");
   const supabase=useMemo(()=>createClient(),[]);
   const safeRows=Array.isArray(rows)?rows:[];
   const safeQuestions=Array.isArray(questions)?questions:[];
@@ -36,6 +38,11 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
     setNote("");
     const {data}=await supabase.from("recruitment_history").select("*").eq("application_id",row.id).order("created_at",{ascending:false});
     setHistory(data||[]);
+    const attempt=asArray(row.recruitment_test_attempts)[0];
+    if(attempt?.id){
+      const result=await supabase.from("recruitment_test_reviews").select("*").eq("attempt_id",attempt.id).order("created_at");
+      setReviews(result.error?[]:result.data||[]);
+    }else setReviews([]);
   }
 
   async function openDocument(path:string){
@@ -77,6 +84,24 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
 
   function update(name:string,value:unknown){
     setSelected(s=>s?{...s,[name]:value}:s);
+  }
+
+  async function inviteReviewers(){
+    if(!attempt?.id)return;
+    const response=await fetch("/api/recruitment/test-reviewers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({attempt_id:attempt.id,emails:reviewerEmails})});
+    const result=await response.json();
+    if(!response.ok){setMessage(result.message||"Invitation impossible.");return}
+    setReviewerEmails("");
+    setMessage(`${result.count} correcteur(s) invite(s).`);
+    const refreshed=await supabase.from("recruitment_test_reviews").select("*").eq("attempt_id",attempt.id).order("created_at");
+    if(!refreshed.error)setReviews(refreshed.data||[]);
+  }
+
+  async function saveReview(review:Row){
+    const response=await fetch("/api/recruitment/test-reviewers",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({review_id:review.id,score:review.score,comments:review.comments})});
+    const result=await response.json();
+    if(!response.ok){setMessage(result.message||"Correction impossible.");return}
+    setMessage("Note du correcteur enregistree et moyenne mise a jour.");
   }
 
   const docs=(selected?.documents&&typeof selected.documents==="object"?selected.documents:{}) as Record<string,Array<{name:string;path:string}>>;
@@ -170,6 +195,22 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
               <b>{question.prompt}</b>
               <AnswerDisplay value={attempt.answers?.[question.id]} openDocument={openDocument}/>
             </div>)}</div>
+            <div className="mt-6 rounded-2xl bg-white p-5">
+              <h4 className="text-lg font-black">Correcteurs du test</h4>
+              <p className="mt-1 text-sm text-slate-500">Invitez des membres du reseau ou des correcteurs externes disposant d'un compte NutVitaGlobalis. Chaque note est en pourcentage; la moyenne alimente la note finale de correction.</p>
+              <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+                <textarea className="admin-input" value={reviewerEmails} onChange={e=>setReviewerEmails(e.target.value)} placeholder="emails separes par virgule ou retour a la ligne"/>
+                <button onClick={inviteReviewers} className="btn-secondary px-4">Inviter</button>
+              </div>
+              <div className="mt-4 grid gap-3">{reviews.map(review=><div key={review.id} className="grid gap-3 rounded-xl bg-slate-50 p-4 md:grid-cols-[1fr_120px_1fr_auto]">
+                <div><b>{review.reviewer_email}</b><p className="text-xs text-slate-400">{review.status}</p></div>
+                <input type="number" min="0" max="100" className="admin-input" value={review.score??""} onChange={e=>setReviews(reviews.map(item=>item.id===review.id?{...item,score:e.target.value}:item))} placeholder="%"/>
+                <input className="admin-input" value={review.comments||""} onChange={e=>setReviews(reviews.map(item=>item.id===review.id?{...item,comments:e.target.value}:item))} placeholder="Commentaire"/>
+                <button onClick={()=>saveReview(review)} className="btn-primary px-4">Enregistrer</button>
+              </div>)}
+              {!reviews.length&&<p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Aucun correcteur invite pour ce test.</p>}</div>
+              {reviews.some(review=>review.score!==null&&review.score!==undefined)&&<p className="mt-4 rounded-xl bg-mint p-3 text-sm font-bold text-forest">Moyenne actuelle : {averageScore(reviews)}%</p>}
+            </div>
           </section>}
 
           <section className="rounded-2xl border p-5 lg:col-span-2">
@@ -227,4 +268,11 @@ function asArray(value:any){
   if(Array.isArray(value))return value;
   if(value===undefined||value===null||value==="")return [];
   return [value];
+}
+
+function averageScore(rows:Row[]){
+  const scores=rows.map(row=>Number(row.score)).filter(score=>!Number.isNaN(score));
+  if(!scores.length)return "0";
+  const average=scores.reduce((sum,score)=>sum+score,0)/scores.length;
+  return Number.isInteger(average)?String(average):average.toFixed(2);
 }

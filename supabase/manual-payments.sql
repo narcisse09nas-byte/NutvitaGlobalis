@@ -23,6 +23,7 @@ alter table public.subscriptions
 alter table public.subscriptions add column if not exists started_at timestamptz;
 alter table public.subscriptions add column if not exists expires_at timestamptz;
 alter table public.subscriptions add column if not exists renewal_period_months integer not null default 12;
+alter table public.subscriptions add column if not exists extends_subscription_id uuid references public.subscriptions(id) on delete set null;
 
 do $$
 declare

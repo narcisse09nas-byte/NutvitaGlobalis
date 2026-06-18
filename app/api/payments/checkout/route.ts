@@ -74,10 +74,42 @@ export async function POST(request: Request) {
   purchase.currency = localPayment ? "XAF" : "USD";
   const reference = `NVG${Date.now()}${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
   let subscriptionId: string | null = null;
+  let extendsSubscriptionId: string | null = null;
   if (purchase.type === "subscription") {
-    const { data, error } = await admin.from("subscriptions").insert({ client_id: user.id, child_id: purchase.childId || null, plan_id: purchase.id, provider: dbProvider, status: "pending", renewal_period_months: purchase.duration }).select().single();
-    if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+    const now = new Date().toISOString();
+    const { data: existingActive } = await admin
+      .from("subscriptions")
+      .select("id,expires_at")
+      .eq("client_id", user.id)
+      .eq("plan_id", purchase.id)
+      .eq("status", "active")
+      .gt("expires_at", now)
+      .maybeSingle();
+    const { data: existingPendingSubscription } = await admin
+      .from("subscriptions")
+      .select("id")
+      .eq("client_id", user.id)
+      .eq("plan_id", purchase.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const { data: existingPending } = existingPendingSubscription?.id
+      ? await admin.from("payments").select("id").eq("subscription_id", existingPendingSubscription.id).eq("status", "pending").maybeSingle()
+      : { data: null };
+    if (existingPending) {
+      return NextResponse.json({ url: `/espace-client/paiements/${existingPending.id}` });
+    }
+    extendsSubscriptionId = existingActive?.id || null;
+    const { data, error } = await admin.from("subscriptions").insert({ client_id: user.id, child_id: purchase.childId || null, plan_id: purchase.id, provider: dbProvider, status: "pending", renewal_period_months: purchase.duration, extends_subscription_id: extendsSubscriptionId }).select().single();
+    if (error) {
+      if (String(error.message || "").includes("extends_subscription_id") || error.code === "PGRST204") {
+        return NextResponse.json({ message: "La migration Supabase manual-payments.sql doit etre executee avant les extensions d'abonnement." }, { status: 500 });
+      }
+      return NextResponse.json({ message: error.message }, { status: 500 });
+    }
     subscriptionId = data.id;
+    if (extendsSubscriptionId) purchase.name = `Extension - ${purchase.name}`;
   }
   const paymentPayload = { client_id: user.id, subscription_id: subscriptionId, provider: dbProvider, manual_method: manualMethod, checkout_reference: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, source_amount_xof:sourceAmountXof, exchange_rate_xof_per_usd:exchangeRate, price_excluding_tax: breakdown.priceExcludingTax, tax_rate: breakdown.taxRate, tax_amount: breakdown.taxAmount, total_including_tax: breakdown.totalIncludingTax, purchase_type: purchase.type, product_id: purchase.type === "subscription" ? null : purchase.id, product_name: purchase.name };
   let { data: payment, error: paymentError } = await admin.from("payments").insert(paymentPayload).select().single();

@@ -37,10 +37,11 @@ const emptyQuestion={
   active:true,
 };
 
-export default function TestConfigManager({initialSettings,initialQuestions}:{initialSettings:Settings|null;initialQuestions:Row[]}){
+export default function TestConfigManager({initialSettings,initialQuestions,candidates}:{initialSettings:Settings|null;initialQuestions:Row[];candidates:Row[]}){
   const [settings,setSettings]=useState<Settings>(initialSettings||{id:1,title:"Test ecrit NutVitaGlobalis",instructions:"Lisez attentivement chaque question avant de repondre.",available_from:null,available_until:null,duration_minutes:60,camera_required:false,active:true});
   const [questions,setQuestions]=useState<Row[]>(initialQuestions);
   const [draft,setDraft]=useState<Row>(emptyQuestion);
+  const [selectedCandidates,setSelectedCandidates]=useState<string[]>([]);
   const [message,setMessage]=useState("");
   const supabase=useMemo(()=>createClient(),[]);
 
@@ -57,6 +58,7 @@ export default function TestConfigManager({initialSettings,initialQuestions}:{in
       active:Boolean(settings.active),
     });
     setMessage(error?error.message:"Parametres du test enregistres.");
+    return !error;
   }
 
   async function addQuestion(){
@@ -97,6 +99,40 @@ export default function TestConfigManager({initialSettings,initialQuestions}:{in
     setQuestions(questions.map(q=>q.id===question.id?data:q));
   }
 
+  function toggleCandidate(id:string){
+    setSelectedCandidates(current=>current.includes(id)?current.filter(item=>item!==id):[...current,id]);
+  }
+
+  async function sendTest(){
+    if(!selectedCandidates.length){
+      setMessage("Selectionnez au moins un candidat.");
+      return;
+    }
+    if(!settings.active){
+      setMessage("Activez le test avant l'envoi aux candidats.");
+      return;
+    }
+    if(!questions.some(question=>question.active)){
+      setMessage("Ajoutez au moins une question active avant l'envoi.");
+      return;
+    }
+    const saved=await saveSettings();
+    if(!saved)return;
+    setMessage("Envoi du test aux candidats selectionnes...");
+    const response=await fetch("/api/recruitment/send-test",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({candidate_ids:selectedCandidates}),
+    });
+    const result=await response.json();
+    if(!response.ok){
+      setMessage(result.message||"Envoi impossible.");
+      return;
+    }
+    setSelectedCandidates([]);
+    setMessage(`Test envoye a ${result.count} candidat(s). Il est maintenant visible dans leur espace candidat.`);
+  }
+
   return <section className="mb-8 rounded-3xl border bg-white p-6">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
@@ -133,6 +169,27 @@ export default function TestConfigManager({initialSettings,initialQuestions}:{in
       </label>
     </div>
     <button onClick={saveSettings} className="btn-primary mt-5">Enregistrer les parametres</button>
+
+    <div className="mt-8 border-t pt-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-black">Candidats invites au test</h3>
+          <p className="mt-2 max-w-3xl text-sm text-slate-500">Cochez un ou plusieurs candidats, puis envoyez le test. Le statut passera a "Invite au test ecrit" et le test apparaitra directement dans leur espace candidat.</p>
+        </div>
+        <button onClick={sendTest} className="btn-primary">Envoyer le test</button>
+      </div>
+      <div className="mt-4 grid max-h-72 gap-2 overflow-y-auto rounded-2xl border bg-slate-50 p-3">
+        {candidates.map(candidate=><label key={candidate.id} className="flex items-start gap-3 rounded-xl bg-white p-4 text-sm">
+          <input type="checkbox" className="mt-1" checked={selectedCandidates.includes(candidate.id)} onChange={()=>toggleCandidate(candidate.id)}/>
+          <span>
+            <b className="text-forest">{candidate.full_name||candidate.email}</b>
+            <span className="ml-2 rounded-full bg-mint px-2 py-1 text-xs font-bold text-leaf">{candidate.status}</span>
+            <p className="mt-1 text-xs text-slate-500">{[candidate.specialization,candidate.city,candidate.country].filter(Boolean).join(" - ")}</p>
+          </span>
+        </label>)}
+        {!candidates.length&&<p className="rounded-xl bg-white p-5 text-sm text-slate-500">Aucun candidat eligible pour le test.</p>}
+      </div>
+    </div>
 
     <div className="mt-8 border-t pt-6">
       <h3 className="text-xl font-black">Ajouter une question</h3>

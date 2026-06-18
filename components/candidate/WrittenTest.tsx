@@ -62,27 +62,23 @@ export default function WrittenTest({ eligible, completed, candidateId, candidat
     setSubmitting(true);
     setMessage("Soumission du test en cours...");
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    const supabase = createClient();
-    const saved = await supabase.rpc("save_recruitment_test_answers", { p_answers: test.answers });
-    if (saved.error) {
-      submittingRef.current = false;
-      setSubmitting(false);
-      setMessage(saved.error.message);
-      return;
-    }
     await log("submission_requested", { expired, manual: !expired });
-    const { data, error } = await supabase.rpc("submit_recruitment_test");
-    if (error) {
+    const response = await fetch("/api/recruitment/finish-test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ attempt_id: test.attempt_id, answers: test.answers, expired }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
       submittingRef.current = false;
       setSubmitting(false);
-      setMessage(error.message);
+      setMessage(result.message || "Soumission impossible.");
       return;
     }
-    await fetch("/api/recruitment/test-complete", { method: "POST" });
     sessionStorage.removeItem("nutvita-test-attempt");
-    setMessage(`Test termine. Score QCM automatique : ${data}%.`);
+    setMessage(`Test termine. Score QCM automatique : ${result.score}%.`);
     setTest(null);
-    router.replace("/candidat?test=termine");
+    window.location.replace("/candidat?test=termine");
     router.refresh();
   }
   if (completed) return <Panel title="Test ecrit termine" text="Votre tentative et son journal ont ete enregistres. Les evenements de surveillance sont examines uniquement par un humain." />;

@@ -133,13 +133,19 @@ export default function PaymentManager({initial,accounts:initialAccounts}:{initi
       let result:any={};
       try{result=text?JSON.parse(text):{};}catch{result={message:text};}
       if(!response.ok){
-        setMessage(result.message||`Erreur serveur ${response.status}`);
+        const nextMessage=result.message||`Erreur serveur ${response.status}`;
+        setMessage(nextMessage);
+        alert(nextMessage);
         return;
       }
       setItems(items.map(item=>item.id===row.id?{...item,status:action==="approve"?"succeeded":"failed",manual_review_notes:notes}:item));
-      setMessage(action==="approve"?"Paiement valide et acces active.":"Paiement rejete.");
+      const nextMessage=action==="approve"?"Paiement valide et acces active.":"Paiement rejete.";
+      setMessage(nextMessage);
+      alert(nextMessage);
     }catch(error){
-      setMessage(error instanceof Error?error.message:"Validation impossible.");
+      const nextMessage=error instanceof Error?error.message:"Validation impossible.";
+      setMessage(nextMessage);
+      alert(nextMessage);
     }finally{
       setReviewing("");
     }
@@ -154,7 +160,7 @@ export default function PaymentManager({initial,accounts:initialAccounts}:{initi
   }
 
   return <div className="grid gap-7">
-    {message&&<p className="rounded-xl bg-mint p-4 font-bold text-forest">{message}</p>}
+    {message&&<p className={`rounded-xl p-4 font-bold ${message.toLowerCase().includes("erreur")||message.toLowerCase().includes("impossible")||message.includes(":")?"bg-red-50 text-red-700":"bg-mint text-forest"}`}>{message}</p>}
     <section className="rounded-2xl border bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>

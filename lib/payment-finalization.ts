@@ -41,25 +41,37 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
     await admin.from("client_notifications").insert({ client_id: payment.client_id, title: existing?"Pack téléconseil renouvelé":"Consultation à planifier", message: `Votre accès est actif jusqu’au ${accessEnd.toLocaleDateString('fr-FR')}. Chat et appels vidéo avec votre expert inclus.`, link_url: "/espace-client/messages" });
   }
 
-  const { data: invoice, error } = await admin.from("invoices").insert({ invoice_number: `NVG-${start.getUTCFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, client_id: payment.client_id, payment_id: payment.id, subscription_id: payment.subscription_id || null, product_name: service.name, purchase_type: payment.purchase_type, payment_provider: payment.provider, payment_status: "paid", client_name: client.full_name || client.email, client_email: client.email, price_excluding_tax: payment.price_excluding_tax, tax_rate: payment.tax_rate, tax_amount: payment.tax_amount, total_including_tax: payment.total_including_tax, currency: payment.currency }).select().single();
-  failIfError("Creation de la facture", error);
-  const bytes = await renderInvoicePdf(invoice, client, service);
-  const path = `${payment.client_id}/invoices/${invoice.id}.pdf`;
-  const upload = await admin.storage.from("document-vault").upload(path, bytes, { contentType: "application/pdf", upsert: true });
-  if (upload.error) throw upload.error;
-  failIfError("Mise a jour de la facture", (await admin.from("invoices").update({ file_path: path }).eq("id", invoice.id)).error);
-  failIfError("Validation du paiement", (await admin.from("payments").update({ status: "succeeded", provider_payment_id: providerPaymentId, paid_at: start.toISOString(), raw_event: rawEvent, invoice_id: invoice.id }).eq("id", payment.id)).error);
-  failIfError("Archivage de la facture", (await admin.from("vault_documents").insert({ owner_id: payment.client_id, client_id: payment.client_id, document_type: "invoice", title: `Facture ${invoice.invoice_number}`, file_path: path, mime_type: "application/pdf", confidential: true, created_by: payment.client_id })).error);
+  failIfError("Validation du paiement", (await admin.from("payments").update({ status: "succeeded", provider_payment_id: providerPaymentId, paid_at: start.toISOString(), raw_event: rawEvent }).eq("id", payment.id)).error);
+
+  let invoice: any = null;
+  try {
+    const { data: createdInvoice, error } = await admin.from("invoices").insert({ invoice_number: `NVG-${start.getUTCFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, client_id: payment.client_id, payment_id: payment.id, subscription_id: payment.subscription_id || null, product_name: service.name, purchase_type: payment.purchase_type, payment_provider: payment.provider, payment_status: "paid", client_name: client.full_name || client.email, client_email: client.email, price_excluding_tax: payment.price_excluding_tax, tax_rate: payment.tax_rate, tax_amount: payment.tax_amount, total_including_tax: payment.total_including_tax, currency: payment.currency }).select().single();
+    failIfError("Creation de la facture", error);
+    invoice = createdInvoice;
+    const bytes = await renderInvoicePdf(invoice, client, service);
+    const path = `${payment.client_id}/invoices/${invoice.id}.pdf`;
+    const upload = await admin.storage.from("document-vault").upload(path, bytes, { contentType: "application/pdf", upsert: true });
+    failIfError("Upload de la facture", upload.error);
+    failIfError("Mise a jour de la facture", (await admin.from("invoices").update({ file_path: path }).eq("id", invoice.id)).error);
+    failIfError("Lien facture-paiement", (await admin.from("payments").update({ invoice_id: invoice.id }).eq("id", payment.id)).error);
+    failIfError("Archivage de la facture", (await admin.from("vault_documents").insert({ owner_id: payment.client_id, client_id: payment.client_id, document_type: "invoice", title: `Facture ${invoice.invoice_number}`, file_path: path, mime_type: "application/pdf", confidential: true, created_by: payment.client_id })).error);
+  } catch (error) {
+    console.error("Invoice finalization failed", error);
+  }
 
   const siteUrl=process.env.NEXT_PUBLIC_SITE_URL||"";
-  await sendSystemEmail(admin, "payment_confirmed", client.email, { name: client.full_name || "Client", product: service.name, total: Number(payment.total_including_tax).toLocaleString("fr-FR"), currency: payment.currency, start_date: start.toLocaleDateString("fr-FR"), end_date: end?.toLocaleDateString("fr-FR") || "service confirme", action_url:`${siteUrl}/espace-client` }, { payment_id: payment.id, invoice_id: invoice.id });
-  await sendSystemEmail(admin,"invoice_available",client.email,{name:client.full_name||"Client",invoice_number:invoice.invoice_number,action_url:`${siteUrl}/espace-client`},{payment_id:payment.id,invoice_id:invoice.id});
-  if(payment.purchase_type==="subscription")await sendSystemEmail(admin,"subscription_confirmed",client.email,{name:client.full_name||"Client",product:service.name,end_date:end?.toLocaleDateString("fr-FR")||"",action_url:`${siteUrl}/espace-client`},{payment_id:payment.id});
-  if (payment.purchase_type === "formation") {await sendSystemEmail(admin, "formation_purchased", client.email, { name: client.full_name || "Client", product: payment.product_name,action_url:`${siteUrl}/espace-client` }, { payment_id: payment.id });await sendSystemEmail(admin,"course_access_activated",client.email,{name:client.full_name||"Client",product:payment.product_name,action_url:`${siteUrl}/espace-client`},{payment_id:payment.id});}
-  if (payment.purchase_type === "consultation") {
-    await sendSystemEmail(admin, "consultation_booked", client.email, { name: client.full_name || "Client", product: payment.product_name,action_url:`${siteUrl}/espace-client` }, { payment_id: payment.id });
-    const teamEmail = process.env.CONTACT_TO_EMAIL || "contact@nutvitaglobalis.com";
-    await sendSystemEmail(admin, "consultation_booked_admin", teamEmail, { name: client.full_name || client.email, product: payment.product_name }, { payment_id: payment.id, client_id: payment.client_id });
+  try {
+    await sendSystemEmail(admin, "payment_confirmed", client.email, { name: client.full_name || "Client", product: service.name, total: Number(payment.total_including_tax).toLocaleString("fr-FR"), currency: payment.currency, start_date: start.toLocaleDateString("fr-FR"), end_date: end?.toLocaleDateString("fr-FR") || "service confirme", action_url:`${siteUrl}/espace-client` }, { payment_id: payment.id, invoice_id: invoice?.id });
+    if(invoice)await sendSystemEmail(admin,"invoice_available",client.email,{name:client.full_name||"Client",invoice_number:invoice.invoice_number,action_url:`${siteUrl}/espace-client`},{payment_id:payment.id,invoice_id:invoice.id});
+    if(payment.purchase_type==="subscription")await sendSystemEmail(admin,"subscription_confirmed",client.email,{name:client.full_name||"Client",product:service.name,end_date:end?.toLocaleDateString("fr-FR")||"",action_url:`${siteUrl}/espace-client`},{payment_id:payment.id});
+    if (payment.purchase_type === "formation") {await sendSystemEmail(admin, "formation_purchased", client.email, { name: client.full_name || "Client", product: payment.product_name,action_url:`${siteUrl}/espace-client` }, { payment_id: payment.id });await sendSystemEmail(admin,"course_access_activated",client.email,{name:client.full_name||"Client",product:payment.product_name,action_url:`${siteUrl}/espace-client`},{payment_id:payment.id});}
+    if (payment.purchase_type === "consultation") {
+      await sendSystemEmail(admin, "consultation_booked", client.email, { name: client.full_name || "Client", product: payment.product_name,action_url:`${siteUrl}/espace-client` }, { payment_id: payment.id });
+      const teamEmail = process.env.CONTACT_TO_EMAIL || "contact@nutvitaglobalis.com";
+      await sendSystemEmail(admin, "consultation_booked_admin", teamEmail, { name: client.full_name || client.email, product: payment.product_name }, { payment_id: payment.id, client_id: payment.client_id });
+    }
+    await sendSystemEmail(admin,"admin_purchase_notification",process.env.CONTACT_TO_EMAIL||"contact@nutvitaglobalis.com",{name:client.full_name||client.email,product:service.name,total:Number(payment.total_including_tax).toLocaleString("fr-FR"),currency:payment.currency,action_url:`${siteUrl}/admin/paiements`},{payment_id:payment.id});
+  } catch (error) {
+    console.error("Payment notification failed", error);
   }
-  await sendSystemEmail(admin,"admin_purchase_notification",process.env.CONTACT_TO_EMAIL||"contact@nutvitaglobalis.com",{name:client.full_name||client.email,product:service.name,total:Number(payment.total_including_tax).toLocaleString("fr-FR"),currency:payment.currency,action_url:`${siteUrl}/admin/paiements`},{payment_id:payment.id});
 }

@@ -30,6 +30,7 @@ export default function PaymentManager({initial,accounts:initialAccounts}:{initi
   const [status,setStatus]=useState("");
   const [service,setService]=useState("");
   const [message,setMessage]=useState("");
+  const [reviewing,setReviewing]=useState("");
   const rows=useMemo(()=>items.filter(row=>{
     const client=`${row.client_profiles?.full_name||""} ${row.client_profiles?.email||""}`.toLowerCase();
     return(!query||client.includes(query.toLowerCase()))&&(!status||row.status===status)&&(!service||row.purchase_type===service);
@@ -124,14 +125,24 @@ export default function PaymentManager({initial,accounts:initialAccounts}:{initi
 
   async function review(row:Row,action:"approve"|"reject"){
     const notes=prompt(action==="approve"?"Note de validation":"Motif du rejet")||"";
-    const response=await fetch("/api/admin/payments/manual-review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({payment_id:row.id,action,notes})});
-    const result=await response.json();
-    if(!response.ok){
-      setMessage(result.message);
-      return;
+    setReviewing(`${row.id}-${action}`);
+    setMessage(action==="approve"?"Validation du paiement en cours...":"Rejet du paiement en cours...");
+    try{
+      const response=await fetch("/api/admin/payments/manual-review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({payment_id:row.id,action,notes})});
+      const text=await response.text();
+      let result:any={};
+      try{result=text?JSON.parse(text):{};}catch{result={message:text};}
+      if(!response.ok){
+        setMessage(result.message||`Erreur serveur ${response.status}`);
+        return;
+      }
+      setItems(items.map(item=>item.id===row.id?{...item,status:action==="approve"?"succeeded":"failed",manual_review_notes:notes}:item));
+      setMessage(action==="approve"?"Paiement valide et acces active.":"Paiement rejete.");
+    }catch(error){
+      setMessage(error instanceof Error?error.message:"Validation impossible.");
+    }finally{
+      setReviewing("");
     }
-    setItems(items.map(item=>item.id===row.id?{...item,status:action==="approve"?"succeeded":"failed",manual_review_notes:notes}:item));
-    setMessage(action==="approve"?"Paiement valide et acces active.":"Paiement rejete.");
   }
 
   function statusLabel(row:Row){
@@ -214,7 +225,7 @@ export default function PaymentManager({initial,accounts:initialAccounts}:{initi
         <select className="admin-input" value={service} onChange={e=>setService(e.target.value)}><option value="">Tous les services</option><option value="formation">Formation</option><option value="consultation">Consultation</option><option value="subscription">Abonnement</option></select>
         <button onClick={exportCsv} className="btn-primary">Exporter CSV</button>
       </div>
-      <div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full min-w-[1250px] text-left text-sm"><thead><tr className="border-b bg-slate-50"><th className="p-4">Client</th><th className="p-4">Service</th><th className="p-4">TTC</th><th className="p-4">Moyen</th><th className="p-4">Reference</th><th className="p-4">Preuve</th><th className="p-4">Statut</th><th className="p-4">Date</th><th className="p-4">Actions</th></tr></thead><tbody>{rows.map(row=><tr key={row.id} className="border-b"><td className="p-4"><b>{row.client_profiles?.full_name||"Client"}</b><p className="text-xs text-slate-400">{row.client_profiles?.email}</p></td><td className="p-4">{row.product_name||row.purchase_type}</td><td className="p-4 font-bold">{Number(row.total_including_tax||row.amount).toLocaleString("fr-FR")} {row.currency}</td><td className="p-4">{row.provider}{row.manual_method?` / ${row.manual_method}`:""}</td><td className="p-4"><b>{row.checkout_reference}</b><p className="text-xs text-slate-400">{row.proof_reference}</p></td><td className="p-4">{row.proof_path?<button onClick={()=>openProof(row.proof_path)} className="font-bold text-leaf">Voir recu</button>:<span className="text-slate-400">Aucune</span>}</td><td className="p-4"><span className="rounded-full bg-mint px-3 py-1 text-xs font-bold text-forest">{statusLabel(row)}</span></td><td className="p-4">{new Date(row.created_at).toLocaleString("fr-FR")}</td><td className="p-4">{row.provider==="manual"&&row.status==="pending"&&row.proof_submitted_at?<div className="flex gap-2"><button onClick={()=>review(row,"approve")} className="btn-secondary px-3 py-2">Valider</button><button onClick={()=>review(row,"reject")} className="btn-secondary px-3 py-2">Rejeter</button></div>:row.provider==="manual"&&row.status==="pending"?<span className="text-slate-400">Attente preuve</span>:<span className="text-slate-400">-</span>}</td></tr>)}{!rows.length&&<tr><td colSpan={9} className="p-8 text-center text-slate-400">Aucun paiement.</td></tr>}</tbody></table></div>
+      <div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full min-w-[1250px] text-left text-sm"><thead><tr className="border-b bg-slate-50"><th className="p-4">Client</th><th className="p-4">Service</th><th className="p-4">TTC</th><th className="p-4">Moyen</th><th className="p-4">Reference</th><th className="p-4">Preuve</th><th className="p-4">Statut</th><th className="p-4">Date</th><th className="p-4">Actions</th></tr></thead><tbody>{rows.map(row=><tr key={row.id} className="border-b"><td className="p-4"><b>{row.client_profiles?.full_name||"Client"}</b><p className="text-xs text-slate-400">{row.client_profiles?.email}</p></td><td className="p-4">{row.product_name||row.purchase_type}</td><td className="p-4 font-bold">{Number(row.total_including_tax||row.amount).toLocaleString("fr-FR")} {row.currency}</td><td className="p-4">{row.provider}{row.manual_method?` / ${row.manual_method}`:""}</td><td className="p-4"><b>{row.checkout_reference}</b><p className="text-xs text-slate-400">{row.proof_reference}</p></td><td className="p-4">{row.proof_path?<button onClick={()=>openProof(row.proof_path)} className="font-bold text-leaf">Voir recu</button>:<span className="text-slate-400">Aucune</span>}</td><td className="p-4"><span className="rounded-full bg-mint px-3 py-1 text-xs font-bold text-forest">{statusLabel(row)}</span></td><td className="p-4">{new Date(row.created_at).toLocaleString("fr-FR")}</td><td className="p-4">{row.provider==="manual"&&row.status==="pending"&&row.proof_submitted_at?<div className="flex gap-2"><button disabled={reviewing===`${row.id}-approve`} onClick={()=>review(row,"approve")} className="btn-secondary px-3 py-2 disabled:opacity-50">{reviewing===`${row.id}-approve`?"Validation...":"Valider"}</button><button disabled={reviewing===`${row.id}-reject`} onClick={()=>review(row,"reject")} className="btn-secondary px-3 py-2 disabled:opacity-50">{reviewing===`${row.id}-reject`?"Rejet...":"Rejeter"}</button></div>:row.provider==="manual"&&row.status==="pending"?<span className="text-slate-400">Attente preuve</span>:<span className="text-slate-400">-</span>}</td></tr>)}{!rows.length&&<tr><td colSpan={9} className="p-8 text-center text-slate-400">Aucun paiement.</td></tr>}</tbody></table></div>
     </div>
   </div>;
 }

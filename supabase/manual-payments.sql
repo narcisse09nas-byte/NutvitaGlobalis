@@ -20,6 +20,10 @@ alter table public.subscriptions
   add constraint subscriptions_provider_check
   check (provider in ('stripe','flutterwave','cinetpay','campay','paypal','manual'));
 
+alter table public.subscriptions add column if not exists started_at timestamptz;
+alter table public.subscriptions add column if not exists expires_at timestamptz;
+alter table public.subscriptions add column if not exists renewal_period_months integer not null default 12;
+
 do $$
 declare
   constraint_name text;
@@ -73,6 +77,13 @@ alter table public.payments add column if not exists proof_submitted_at timestam
 alter table public.payments add column if not exists manual_reviewed_by uuid references auth.users(id) on delete set null;
 alter table public.payments add column if not exists manual_reviewed_at timestamptz;
 alter table public.payments add column if not exists manual_review_notes text;
+
+alter table public.invoices add column if not exists product_name text;
+alter table public.invoices add column if not exists purchase_type text;
+alter table public.invoices add column if not exists payment_provider text;
+alter table public.invoices add column if not exists payment_status text not null default 'paid';
+alter table public.invoices add column if not exists client_name text;
+alter table public.invoices add column if not exists client_email text;
 
 create index if not exists payment_accounts_method_active on public.payment_accounts(method, active, sort_order);
 create index if not exists payments_manual_review on public.payments(provider, status, proof_submitted_at desc);

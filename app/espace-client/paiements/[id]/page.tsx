@@ -17,13 +17,13 @@ export default async function ManualPaymentPage({ params }: { params: Promise<{ 
     <div className="container-site max-w-4xl">
       <Link href="/espace-client" className="font-bold text-leaf">Retour a mon espace</Link>
       <section className="mt-6 rounded-3xl bg-white p-7">
-        <p className="text-xs font-bold uppercase tracking-widest text-leaf">Paiement en attente</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-leaf">{paymentStatusLabel(payment)}</p>
         <h1 className="mt-3 text-3xl font-black">{payment.product_name || "Service NutVitaGlobalis"}</h1>
         <div className="mt-6 grid gap-2 rounded-2xl bg-slate-50 p-5 text-sm">
           <Line label="Reference obligatoire" value={payment.checkout_reference} strong />
           <Line label="Montant TTC" value={`${Number(payment.total_including_tax || payment.amount).toLocaleString("fr-FR")} ${payment.currency}`} />
           <Line label="Mode" value={payment.manual_method === "bank_transfer" ? "Virement bancaire" : "Mobile Money"} />
-          <Line label="Statut" value={payment.status} />
+          <Line label="Statut" value={paymentStatusLabel(payment)} />
         </div>
         <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{en ? "Use the NutVitaGlobalis reference exactly in the payment message or bank transfer description. Your access will be activated after verification by the team." : "Indiquez exactement la reference NutVitaGlobalis dans le motif ou message du paiement. Votre acces sera active apres verification par l equipe."}</p>
         <p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">{en ? "You may upload the receipt here, or send it from your account email to contact@nutvitaglobalis.com with the payment reference." : "Vous pouvez televerser le recu ici, ou l envoyer depuis l email de votre compte a contact@nutvitaglobalis.com avec la reference de paiement."}</p>
@@ -42,11 +42,19 @@ export default async function ManualPaymentPage({ params }: { params: Promise<{ 
           {account.instructions && <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm">{account.instructions}</p>}
         </article>) : <p className="rounded-2xl bg-white p-6 text-slate-500">Aucun compte actif pour ce mode. Contactez NutVitaGlobalis.</p>}
       </section>
-      <ManualPaymentProof paymentId={payment.id} userId={user.id} alreadySubmitted={Boolean(payment.proof_submitted_at)} />
+      {payment.status === "pending" ? <ManualPaymentProof paymentId={payment.id} userId={user.id} alreadySubmitted={Boolean(payment.proof_submitted_at)} /> : <p className="mt-6 rounded-2xl bg-white p-5 font-bold text-forest">Ce paiement a deja ete traite par NutVitaGlobalis.</p>}
     </div>
   </main>;
 }
 
 function Line({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return <div className={`flex justify-between gap-4 ${strong ? "text-lg font-black text-forest" : ""}`}><span>{label}</span><b className="text-right">{value}</b></div>;
+}
+function paymentStatusLabel(payment: any) {
+  if (payment.status === "pending" && payment.proof_submitted_at) return "Preuve soumise - validation en attente";
+  if (payment.status === "pending") return "En attente de preuve de paiement";
+  if (payment.status === "succeeded") return "Paiement valide";
+  if (payment.status === "failed") return "Paiement refuse";
+  if (payment.status === "cancelled") return "Paiement annule";
+  return payment.status;
 }

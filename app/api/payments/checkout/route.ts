@@ -15,6 +15,10 @@ function cinetpayText(value: string, fallback: string) {
   return (value || fallback).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 .-]/g, " ").trim() || fallback;
 }
 
+function isSchemaCacheColumnError(error: { message?: string; code?: string } | null) {
+  return Boolean(error && (error.code === "PGRST204" || error.message?.includes("schema cache")));
+}
+
 async function paypalAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID;
   const secret = process.env.PAYPAL_CLIENT_SECRET;
@@ -75,8 +79,15 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ message: error.message }, { status: 500 });
     subscriptionId = data.id;
   }
-  const { data: payment, error: paymentError } = await admin.from("payments").insert({ client_id: user.id, subscription_id: subscriptionId, provider: dbProvider, manual_method: manualMethod, checkout_reference: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, source_amount_xof:sourceAmountXof, exchange_rate_xof_per_usd:exchangeRate, price_excluding_tax: breakdown.priceExcludingTax, tax_rate: breakdown.taxRate, tax_amount: breakdown.taxAmount, total_including_tax: breakdown.totalIncludingTax, purchase_type: purchase.type, product_id: purchase.type === "subscription" ? null : purchase.id, product_name: purchase.name }).select().single();
-  if (paymentError) return NextResponse.json({ message: paymentError.message }, { status: 500 });
+  const paymentPayload = { client_id: user.id, subscription_id: subscriptionId, provider: dbProvider, manual_method: manualMethod, checkout_reference: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, source_amount_xof:sourceAmountXof, exchange_rate_xof_per_usd:exchangeRate, price_excluding_tax: breakdown.priceExcludingTax, tax_rate: breakdown.taxRate, tax_amount: breakdown.taxAmount, total_including_tax: breakdown.totalIncludingTax, purchase_type: purchase.type, product_id: purchase.type === "subscription" ? null : purchase.id, product_name: purchase.name };
+  let { data: payment, error: paymentError } = await admin.from("payments").insert(paymentPayload).select().single();
+  if (isSchemaCacheColumnError(paymentError)) {
+    const { source_amount_xof: _sourceAmount, exchange_rate_xof_per_usd: _exchangeRate, ...compatiblePayload } = paymentPayload;
+    const retry = await admin.from("payments").insert(compatiblePayload).select().single();
+    payment = retry.data;
+    paymentError = retry.error;
+  }
+  if (paymentError || !payment) return NextResponse.json({ message: paymentError?.message || "Paiement impossible." }, { status: 500 });
   if (manualMethod) return NextResponse.json({ url: `/espace-client/paiements/${payment.id}` });
 
   try {

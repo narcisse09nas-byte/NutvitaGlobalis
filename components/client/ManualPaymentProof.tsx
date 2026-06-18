@@ -8,6 +8,11 @@ export default function ManualPaymentProof({ paymentId, userId, alreadySubmitted
     event.preventDefault();
     const form = event.currentTarget, fd = new FormData(form), file = fd.get("proof") as File | null;
     setLoading(true); setMessage("");
+    if ((!file || file.size === 0) && !String(fd.get("proof_reference") || "").trim()) {
+      setMessage("Ajoutez au moins une reference de transaction ou un recu/capture.");
+      setLoading(false);
+      return;
+    }
     let proof_path = "";
     if (file && file.size > 0) {
       const safe = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");

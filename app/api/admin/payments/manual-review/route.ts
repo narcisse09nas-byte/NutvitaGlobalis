@@ -11,6 +11,7 @@ export async function POST(request: Request) {
   if (!payment) return NextResponse.json({ message: "Paiement introuvable." }, { status: 404 });
   if (payment.status !== "pending") return NextResponse.json({ message: "Paiement deja traite." }, { status: 400 });
   if (body.action === "approve") {
+    if (!payment.proof_submitted_at) return NextResponse.json({ message: "La preuve de paiement doit etre soumise avant validation." }, { status: 400 });
     await admin.from("payments").update({ manual_reviewed_by: user.id, manual_reviewed_at: new Date().toISOString(), manual_review_notes: String(body.notes || "") }).eq("id", payment.id);
     await finalizePayment(admin, payment.id, `manual-${payment.checkout_reference}`, { action: "manual_approved", reviewed_by: user.id, notes: body.notes || "" });
     return NextResponse.json({ ok: true });

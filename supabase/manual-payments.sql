@@ -59,6 +59,13 @@ create table if not exists public.payment_accounts (
 
 alter table public.payments add column if not exists manual_method text check(manual_method in ('mobile_money','bank_transfer'));
 alter table public.payments add column if not exists manual_account_id uuid references public.payment_accounts(id) on delete set null;
+alter table public.payments add column if not exists checkout_reference text;
+alter table public.payments add column if not exists source_amount_xof numeric;
+alter table public.payments add column if not exists exchange_rate_xof_per_usd numeric;
+alter table public.payments add column if not exists price_excluding_tax numeric;
+alter table public.payments add column if not exists tax_rate numeric not null default 0;
+alter table public.payments add column if not exists tax_amount numeric not null default 0;
+alter table public.payments add column if not exists total_including_tax numeric;
 alter table public.payments add column if not exists proof_path text;
 alter table public.payments add column if not exists proof_reference text;
 alter table public.payments add column if not exists proof_notes text;

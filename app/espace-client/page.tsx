@@ -26,7 +26,7 @@ export default async function ClientHome({ searchParams }: { searchParams: Promi
     <Section title="Mes formations achetees">{enrollments?.length ? enrollments.map((item: any) => <article key={item.id} className="rounded-xl bg-slate-50 p-4"><b>{item.formations?.title || "Formation"}</b><p className="mt-1 text-xs text-slate-500">Statut : {item.status}</p>{item.access_url && <a href={item.access_url} target="_blank" className="mt-3 inline-block font-bold text-leaf">Acceder a la formation</a>}</article>) : <Empty href="/espace-client/services?categorie=formations" label="Decouvrir les formations"/>}</Section>
     <Section title="Mes consultations reservees">{bookings?.length ? bookings.map((item: any) => <article key={item.id} className="rounded-xl bg-slate-50 p-4"><b>Pack {item.teleconseils?.name || "nutrition"}</b><p className="mt-1 text-sm">Statut : {item.status}</p>{item.scheduled_at ? <p className="mt-2 font-bold text-leaf">Creneau confirme : {new Date(item.scheduled_at).toLocaleString("fr-FR")}</p> : <BookingSlots bookingId={item.id} initial={item.preferred_slots || []}/>}</article>) : <Empty href="/espace-client/consultations" label="Reserver une consultation"/>}</Section>
     <div className="grid gap-6 xl:grid-cols-2">
-      <Section title="Mes paiements">{payments?.length ? payments.map((item: any) => <div key={item.id} className="flex justify-between rounded-xl bg-slate-50 p-4 text-sm"><span>{item.product_name || item.purchase_type}</span><b>{Number(item.total_including_tax || item.amount).toLocaleString("fr-FR")} {item.currency} · {item.status}</b></div>) : <p className="text-slate-400">Aucun paiement.</p>}</Section>
+      <Section title="Mes paiements">{payments?.length ? payments.map((item: any) => <PaymentRow key={item.id} item={item}/>) : <p className="text-slate-400">Aucun paiement.</p>}</Section>
       <Section title="Mes factures">{invoices?.length ? invoices.map((item: any) => <InvoiceDownloadButton key={item.id} path={item.file_path} label={`${item.invoice_number} · ${Number(item.total_including_tax).toLocaleString("fr-FR")} ${item.currency}`}/>) : <p className="text-slate-400">Aucune facture.</p>}</Section>
       <Section title="Mes messages">{notifications?.length ? notifications.map((item: any) => <article key={item.id} className="rounded-xl bg-slate-50 p-4"><b>{item.title}</b><p className="mt-1 text-sm text-slate-600">{item.message}</p></article>) : <p className="text-slate-400">Aucun message.</p>}</Section>
       <Section title="Mes rapports nutritionnels">{reports?.length ? reports.map((item: any) => <Link key={item.id} href="/espace-client/analyse" className="block rounded-xl bg-slate-50 p-4 font-bold text-leaf">{item.title}</Link>) : <Empty href="/espace-client/analyse" label="Ouvrir les analyses"/>}</Section>
@@ -35,6 +35,25 @@ export default async function ClientHome({ searchParams }: { searchParams: Promi
   </div></ClientShell>;
 }
 
+function PaymentRow({ item }: { item: any }) {
+  const needsProof = item.provider === "manual" && item.status === "pending";
+  return <article className="rounded-xl bg-slate-50 p-4 text-sm">
+    <div className="flex flex-wrap justify-between gap-3">
+      <span>{item.product_name || item.purchase_type}</span>
+      <b>{Number(item.total_including_tax || item.amount).toLocaleString("fr-FR")} {item.currency} · {paymentStatusLabel(item)}</b>
+    </div>
+    {needsProof && <Link href={`/espace-client/paiements/${item.id}`} className="mt-3 inline-block font-bold text-leaf">
+      {item.proof_submitted_at ? "Voir ou remplacer la preuve" : "Joindre la preuve de paiement"} →
+    </Link>}
+  </article>;
+}
+function paymentStatusLabel(item: any) {
+  if (item.provider === "manual" && item.status === "pending") return item.proof_submitted_at ? "Preuve soumise" : "En attente de preuve";
+  if (item.status === "succeeded") return "Valide";
+  if (item.status === "failed") return "Refuse";
+  if (item.status === "cancelled") return "Annule";
+  return item.status;
+}
 function Metric({ label, value }: { label: string; value: number }) { return <div className="rounded-2xl border bg-white p-6"><p className="text-3xl font-black text-forest">{value}</p><p className="mt-1 text-sm text-slate-500">{label}</p></div>; }
 function Section({ title, children }: { title: string; children: React.ReactNode }) { return <section className="rounded-2xl border bg-white p-6"><h2 className="mb-4 text-xl font-black">{title}</h2><div className="grid gap-3">{children}</div></section>; }
 function Empty({ href, label }: { href: string; label: string }) { return <Link href={href} className="font-bold text-leaf">{label} →</Link>; }

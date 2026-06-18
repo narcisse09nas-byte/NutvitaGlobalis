@@ -1,9 +1,10 @@
 "use client";
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ManualPaymentProof({ paymentId, userId, alreadySubmitted }: { paymentId: string; userId: string; alreadySubmitted: boolean }) {
-  const [message, setMessage] = useState(""), [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(""), [loading, setLoading] = useState(false), [confirmed, setConfirmed] = useState(alreadySubmitted), [sent, setSent] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget, fd = new FormData(form), file = fd.get("proof") as File | null;
@@ -23,9 +24,22 @@ export default function ManualPaymentProof({ paymentId, userId, alreadySubmitted
     const response = await fetch("/api/payments/manual-proof", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ payment_id: paymentId, proof_path, proof_reference: fd.get("proof_reference"), proof_notes: fd.get("proof_notes") }) });
     const result = await response.json();
     setMessage(response.ok ? "Preuve envoyee. L equipe NutVitaGlobalis verifiera le paiement." : result.message);
-    if (response.ok) form.reset();
+    if (response.ok) {
+      form.reset();
+      setSent(true);
+    }
     setLoading(false);
   }
+  if (sent) return <section className="mt-6 rounded-2xl border bg-white p-6">
+    <p className="rounded-xl bg-mint p-4 font-bold text-forest">Preuve envoyee. L equipe NutVitaGlobalis verifiera le paiement.</p>
+    <Link href="/espace-client" className="btn-primary mt-5">Retourner vers mon espace client</Link>
+  </section>;
+  if (!confirmed) return <section className="mt-6 rounded-2xl border bg-white p-6">
+    <h2 className="text-xl font-black">Confirmation du paiement</h2>
+    <p className="mt-2 text-sm text-slate-600">Apres avoir effectue le paiement avec la reference NutVitaGlobalis affichee ci-dessus, confirmez ici pour ouvrir le formulaire d'envoi du recu ou de la capture.</p>
+    <button type="button" onClick={() => setConfirmed(true)} className="btn-primary mt-5 w-full py-4 text-lg">J'ai effectue le paiement</button>
+    <p className="mt-3 text-xs text-slate-400">Le paiement est deja enregistre dans votre espace avec le statut "en attente de preuve".</p>
+  </section>;
   return <form onSubmit={submit} className="mt-6 grid gap-4 rounded-2xl border bg-white p-5">
     <h2 className="text-xl font-black">Envoyer la preuve de paiement</h2>
     {alreadySubmitted && <p className="rounded-xl bg-mint p-3 text-sm text-forest">Une preuve a deja ete envoyee. Vous pouvez la remplacer si necessaire.</p>}

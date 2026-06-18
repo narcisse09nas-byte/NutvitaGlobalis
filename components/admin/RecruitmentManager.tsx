@@ -26,8 +26,10 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
   const [message,setMessage]=useState("");
   const [history,setHistory]=useState<Row[]>([]);
   const supabase=useMemo(()=>createClient(),[]);
-  const filtered=useMemo(()=>rows.filter(r=>[r.full_name,r.country,r.city,r.specialization,r.status].join(" ").toLowerCase().includes(query.toLowerCase())&&(!status||r.status===status)),[rows,query,status]);
-  const testsToReview=useMemo(()=>rows.filter(row=>row.recruitment_test_attempts?.some((attempt:Row)=>["submitted","expired","graded"].includes(attempt.status))),[rows]);
+  const safeRows=Array.isArray(rows)?rows:[];
+  const safeQuestions=Array.isArray(questions)?questions:[];
+  const filtered=useMemo(()=>safeRows.filter(r=>[r.full_name,r.country,r.city,r.specialization,r.status].join(" ").toLowerCase().includes(query.toLowerCase())&&(!status||r.status===status)),[safeRows,query,status]);
+  const testsToReview=useMemo(()=>safeRows.filter(row=>asArray(row.recruitment_test_attempts).some((attempt:Row)=>["submitted","expired","graded"].includes(attempt.status))),[safeRows]);
 
   async function open(row:Row){
     setSelected(row);
@@ -67,7 +69,7 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
       return;
     }
     const updated:Row={...selected,status:next};
-    setRows(rows.map(r=>r.id===updated.id?updated:r));
+    setRows(safeRows.map(r=>r.id===updated.id?updated:r));
     setSelected(updated);
     setMessage(notify?"Statut mis a jour et notification envoyee.":"Evaluation enregistree.");
     open(updated);
@@ -77,8 +79,8 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
     setSelected(s=>s?{...s,[name]:value}:s);
   }
 
-  const docs=(selected?.documents||{}) as Record<string,Array<{name:string;path:string}>>;
-  const attempt=selected?.recruitment_test_attempts?.[0];
+  const docs=(selected?.documents&&typeof selected.documents==="object"?selected.documents:{}) as Record<string,Array<{name:string;path:string}>>;
+  const attempt=asArray(selected?.recruitment_test_attempts)[0];
 
   return <div>
     <section className="mb-8 rounded-3xl border bg-white p-6">
@@ -92,7 +94,7 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-2">
         {testsToReview.map(row=>{
-          const attempt=row.recruitment_test_attempts?.[0]||{};
+          const attempt=asArray(row.recruitment_test_attempts)[0]||{};
           return <button key={row.id} onClick={()=>open(row)} className="rounded-2xl bg-slate-50 p-4 text-left hover:bg-mint">
             <b className="text-forest">{row.full_name||row.email}</b>
             <p className="mt-1 text-sm text-slate-500">Statut test : {attempt.status} - Score QCM : {formatScore(attempt.automatic_score)}%</p>
@@ -140,16 +142,16 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
             ["Email",selected.email],
             ["Diplome",selected.highest_degree],
             ["Experience",`${selected.years_experience||0} ans`],
-            ["Langues",selected.languages?.join(", ")],
+            ["Langues",asArray(selected.languages).join(", ")],
             ["Disponibilite (heures)",selected.weekly_availability],
             ["Tarif",`${selected.desired_rate||0} FCFA`],
-            ["Domaines",selected.intervention_domains?.join(", ")],
+            ["Domaines",asArray(selected.intervention_domains).join(", ")],
           ]}/>
           <section className="rounded-2xl bg-slate-50 p-5">
             <h3 className="text-xl font-black">Documents</h3>
             <div className="mt-4 grid gap-3">{documentFields.map(([key,label])=><div key={key}>
               <b className="text-sm">{label}</b>
-              {(docs[key]||[]).map(file=><button key={file.path} onClick={()=>openDocument(file.path)} className="ml-3 text-sm font-bold text-leaf">{file.name}</button>)}
+              {asArray(docs[key]).map(file=><button key={file.path} onClick={()=>openDocument(file.path)} className="ml-3 text-sm font-bold text-leaf">{file.name}</button>)}
             </div>)}</div>
           </section>
 
@@ -164,7 +166,7 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
                 <textarea className="admin-input" value={attempt.reviewer_comments||""} onChange={e=>setSelected({...selected,recruitment_test_attempts:[{...attempt,reviewer_comments:e.target.value}]})}/>
               </label>
             </div>
-            <div className="mt-5 grid gap-3">{questions.map(question=><div key={question.id} className="rounded-xl bg-white p-4">
+            <div className="mt-5 grid gap-3">{safeQuestions.map(question=><div key={question.id} className="rounded-xl bg-white p-4">
               <b>{question.prompt}</b>
               <AnswerDisplay value={attempt.answers?.[question.id]} openDocument={openDocument}/>
             </div>)}</div>
@@ -219,4 +221,10 @@ function Info({title,values}:{title:string;values:Array<[string,unknown]>}){
 function formatScore(value:any){
   const score=Number(value||0);
   return Number.isInteger(score)?String(score):score.toFixed(2);
+}
+
+function asArray(value:any){
+  if(Array.isArray(value))return value;
+  if(value===undefined||value===null||value==="")return [];
+  return [value];
 }

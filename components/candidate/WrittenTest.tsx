@@ -13,12 +13,15 @@ export default function WrittenTest({ eligible, completed, candidateId, candidat
 
   async function enableCamera() {
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Camera indisponible dans ce navigateur.");
+      }
       stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-      if (video.current) video.current.srcObject = stream.current;
       setCamera(true); setCameraSkipped(false);
-    } catch {
+      setMessage("Camera activee. Verifiez l'image, puis capturez la photo.");
+    } catch (error) {
       setCameraSkipped(true);
-      setMessage("Camera non activee. Vous pouvez continuer, mais cette absence sera signalee a l equipe et pourrait vous porter prejudice.");
+      setMessage(error instanceof Error && error.message ? `${error.message} Vous pouvez continuer, mais cette absence sera signalee a l equipe et pourrait vous porter prejudice.` : "Camera non activee. Vous pouvez continuer, mais cette absence sera signalee a l equipe et pourrait vous porter prejudice.");
     }
   }
   function capture() {
@@ -46,6 +49,11 @@ export default function WrittenTest({ eligible, completed, candidateId, candidat
     sessionStorage.setItem("nutvita-test-attempt", current.attempt_id); setLoading(false);
   }
   useEffect(() => () => stream.current?.getTracks().forEach(track => track.stop()), []);
+  useEffect(() => {
+    if (!camera || !video.current || !stream.current) return;
+    video.current.srcObject = stream.current;
+    video.current.play().catch(() => setMessage("Camera activee, mais la lecture video doit etre autorisee par le navigateur."));
+  }, [camera]);
   useEffect(() => { if (!test) return; const tick = () => { const left = Math.max(0, Math.floor((new Date(test.expires_at).getTime() - Date.now()) / 1000)); setSeconds(left); if (left === 0) submit(true); }; tick(); const id = setInterval(tick, 1000); return () => clearInterval(id); }, [test]);
   useEffect(() => { if (!test) return; const visibility = () => { if (document.hidden) { const allowed = Boolean(activeQuestion?.allow_external_window); setSwitches(value => { const next = value + 1; log("tab_hidden", { count: next, question_id: activeQuestion?.id, external_window_allowed: allowed }); return next; }); } else log("tab_visible"); }; window.addEventListener("offline", () => log("connection_lost")); window.addEventListener("online", () => log("reconnected")); document.addEventListener("visibilitychange", visibility); return () => document.removeEventListener("visibilitychange", visibility); }, [test, log, activeQuestion]);
   function answer(id: string, value: any) { if (!test) return; const next = { ...test, answers: { ...test.answers, [id]: value } }; setTest(next); if (saveTimer.current) clearTimeout(saveTimer.current); saveTimer.current = setTimeout(async () => { const { error } = await createClient().rpc("save_recruitment_test_answers", { p_answers: next.answers }); setMessage(error ? error.message : "Reponses sauvegardees automatiquement."); }, 700); }
@@ -76,8 +84,10 @@ export default function WrittenTest({ eligible, completed, candidateId, candidat
       return;
     }
     sessionStorage.removeItem("nutvita-test-attempt");
+    localStorage.setItem(`nutvita-test-submitted-${test.attempt_id}`, "true");
     setMessage(`Test termine. Score QCM automatique : ${result.score}%.`);
     setTest(null);
+    window.close();
     window.location.replace("/candidat?test=termine");
     router.refresh();
   }

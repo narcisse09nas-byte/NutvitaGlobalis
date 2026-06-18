@@ -1,2 +1,35 @@
-import CandidateShell from "@/components/candidate/CandidateShell";import WrittenTest from "@/components/candidate/WrittenTest";import {requireCandidate} from "@/lib/recruitment";
-export default async function TestPage(){const {supabase,user}=await requireCandidate();const {data:app}=await supabase.from('recruitment_applications').select('status,full_name').eq('candidate_id',user.id).maybeSingle();const status=app?.status;return <CandidateShell email={user.email||''}><div className="mb-7"><h1 className="text-3xl font-black">Test écrit</h1><p className="mt-2 text-slate-500">Évaluation des connaissances, du raisonnement clinique et de l’éthique.</p></div><WrittenTest eligible={status==='invited_to_test'} completed={['test_completed','invited_to_interview','interview_completed','selected','rejected','integrated'].includes(status||'')} candidateId={user.id} candidateName={app?.full_name||user.user_metadata.full_name||''}/></CandidateShell>}
+import { redirect } from "next/navigation";
+import CandidateShell from "@/components/candidate/CandidateShell";
+import WrittenTest from "@/components/candidate/WrittenTest";
+import { requireCandidate } from "@/lib/recruitment";
+
+const closedStatuses = ["test_completed", "invited_to_interview", "interview_completed", "selected", "rejected", "integrated"];
+
+export default async function TestPage() {
+  const { supabase, user } = await requireCandidate();
+  const { data: app } = await supabase
+    .from("recruitment_applications")
+    .select("status,full_name")
+    .eq("candidate_id", user.id)
+    .maybeSingle();
+  const status = app?.status || "";
+
+  if (closedStatuses.includes(status)) {
+    redirect("/candidat?test=termine");
+  }
+
+  return (
+    <CandidateShell email={user.email || ""}>
+      <div className="mb-7">
+        <h1 className="text-3xl font-black">Test ecrit</h1>
+        <p className="mt-2 text-slate-500">Evaluation des connaissances, du raisonnement clinique et de l'ethique.</p>
+      </div>
+      <WrittenTest
+        eligible={status === "invited_to_test"}
+        completed={false}
+        candidateId={user.id}
+        candidateName={app?.full_name || user.user_metadata.full_name || ""}
+      />
+    </CandidateShell>
+  );
+}

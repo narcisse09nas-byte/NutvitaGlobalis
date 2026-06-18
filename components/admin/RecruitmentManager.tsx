@@ -27,6 +27,7 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
   const [history,setHistory]=useState<Row[]>([]);
   const supabase=useMemo(()=>createClient(),[]);
   const filtered=useMemo(()=>rows.filter(r=>[r.full_name,r.country,r.city,r.specialization,r.status].join(" ").toLowerCase().includes(query.toLowerCase())&&(!status||r.status===status)),[rows,query,status]);
+  const testsToReview=useMemo(()=>rows.filter(row=>row.recruitment_test_attempts?.some((attempt:Row)=>["submitted","expired","graded"].includes(attempt.status))),[rows]);
 
   async function open(row:Row){
     setSelected(row);
@@ -80,6 +81,27 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
   const attempt=selected?.recruitment_test_attempts?.[0];
 
   return <div>
+    <section className="mb-8 rounded-3xl border bg-white p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-orange">Correction</p>
+          <h2 className="mt-2 text-2xl font-black">Tests ecrits a corriger</h2>
+          <p className="mt-2 text-sm text-slate-500">Ouvrez un candidat, lisez ses reponses, attribuez une note de correction (%) puis cliquez sur "Enregistrer l'evaluation".</p>
+        </div>
+        <span className="rounded-full bg-orange/10 px-4 py-2 text-sm font-black text-orange">{testsToReview.length} dossier(s)</span>
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        {testsToReview.map(row=>{
+          const attempt=row.recruitment_test_attempts?.[0]||{};
+          return <button key={row.id} onClick={()=>open(row)} className="rounded-2xl bg-slate-50 p-4 text-left hover:bg-mint">
+            <b className="text-forest">{row.full_name||row.email}</b>
+            <p className="mt-1 text-sm text-slate-500">Statut test : {attempt.status} - Score QCM : {formatScore(attempt.automatic_score)}%</p>
+            <p className="mt-1 text-xs text-slate-400">Note correction : {attempt.manual_score??"non attribuee"}%</p>
+          </button>;
+        })}
+        {!testsToReview.length&&<p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500 md:col-span-2">Aucun test soumis a corriger pour le moment.</p>}
+      </div>
+    </section>
     <div className="mb-6 grid gap-3 md:grid-cols-[1fr_240px]">
       <input className="admin-input" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Rechercher nom, pays, ville, specialite..."/>
       <select className="admin-input" value={status} onChange={e=>setStatus(e.target.value)}>
@@ -180,7 +202,7 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
 function AnswerDisplay({value,openDocument}:{value:any;openDocument:(path:string)=>void}){
   if(value===undefined||value===null||value==="")return <p className="mt-2 text-sm text-slate-400">Sans reponse</p>;
   if(Array.isArray(value))return <ul className="mt-2 list-disc pl-5 text-sm">{value.map((item,index)=><li key={`${item}-${index}`}>{String(item)}</li>)}</ul>;
-  if(typeof value==="object"&&value.type==="file_upload"){
+  if(typeof value==="object"&&value.path){
     return <button onClick={()=>openDocument(value.path)} className="mt-2 text-sm font-bold text-leaf">{value.name||"Fichier joint"}</button>;
   }
   if(typeof value==="object")return <pre className="mt-2 overflow-x-auto rounded-xl bg-slate-100 p-3 text-xs">{JSON.stringify(value,null,2)}</pre>;

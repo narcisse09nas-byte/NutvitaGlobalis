@@ -20,7 +20,7 @@ export default async function RecruitmentAdmin(){
       <p className="mt-2 text-slate-500">Evaluez les dossiers, configurez le test ecrit et pilotez chaque etape de selection.</p>
     </div>
     <TestConfigManager initialSettings={settings} initialQuestions={questions||[]} candidates={testCandidates||[]}/>
-    <ProctoringSummary attempts={attempts||[]}/>
     <RecruitmentManager initial={applications||[]} questions={questions||[]}/>
+    <ProctoringSummary attempts={attempts||[]}/>
   </AdminShell>;
 }

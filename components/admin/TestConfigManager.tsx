@@ -44,6 +44,8 @@ export default function TestConfigManager({initialSettings,initialQuestions,cand
   const [selectedCandidates,setSelectedCandidates]=useState<string[]>([]);
   const [message,setMessage]=useState("");
   const supabase=useMemo(()=>createClient(),[]);
+  const isChoiceQuestion=draft.question_type==="qcm"||draft.question_type==="multi_qcm";
+  const isFileQuestion=draft.question_type==="file_upload";
 
   async function saveSettings(){
     setMessage("Enregistrement...");
@@ -198,32 +200,39 @@ export default function TestConfigManager({initialSettings,initialQuestions,cand
           <input className="admin-input" value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}/>
         </label>
         <label className="grid gap-2 text-sm font-bold">Type
-          <select className="admin-input" value={draft.question_type} onChange={e=>setDraft({...draft,question_type:e.target.value})}>
+          <select className="admin-input" value={draft.question_type} onChange={e=>setDraft({...draft,question_type:e.target.value,options:"",correct_answer:"",file_instructions:"",allow_external_window:false,max_files:1})}>
             {questionTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}
           </select>
         </label>
         <label className="grid gap-2 text-sm font-bold lg:col-span-2">Enonce
           <textarea className="admin-input min-h-24" value={draft.prompt} onChange={e=>setDraft({...draft,prompt:e.target.value})}/>
         </label>
-        <label className="grid gap-2 text-sm font-bold">Options QCM, une par ligne
-          <textarea className="admin-input min-h-24" value={draft.options} onChange={e=>setDraft({...draft,options:e.target.value})}/>
-        </label>
-        <label className="grid gap-2 text-sm font-bold">Bonne reponse QCM
-          <input className="admin-input" value={draft.correct_answer} onChange={e=>setDraft({...draft,correct_answer:e.target.value})} placeholder="Identique a l'option exacte"/>
-        </label>
+        {isChoiceQuestion&&<>
+          <label className="grid gap-2 text-sm font-bold">Options QCM, une par ligne
+            <textarea className="admin-input min-h-24" value={draft.options} onChange={e=>setDraft({...draft,options:e.target.value})}/>
+          </label>
+          <label className="grid gap-2 text-sm font-bold">Bonne reponse QCM
+            <input className="admin-input" value={draft.correct_answer} onChange={e=>setDraft({...draft,correct_answer:e.target.value})} placeholder={draft.question_type==="multi_qcm"?"Reponses exactes separees par des virgules":"Identique a l'option exacte"}/>
+          </label>
+        </>}
         <label className="grid gap-2 text-sm font-bold">Points
           <input className="admin-input" type="number" value={draft.points} onChange={e=>setDraft({...draft,points:Number(e.target.value)})}/>
         </label>
         <label className="grid gap-2 text-sm font-bold">Position
           <input className="admin-input" type="number" value={draft.position} onChange={e=>setDraft({...draft,position:Number(e.target.value)})}/>
         </label>
-        <label className="grid gap-2 text-sm font-bold lg:col-span-2">Instructions fichier
-          <textarea className="admin-input" value={draft.file_instructions} onChange={e=>setDraft({...draft,file_instructions:e.target.value})} placeholder="Formats attendus, consignes Word/Excel, etc."/>
-        </label>
-        <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-bold">
-          <input type="checkbox" checked={draft.allow_external_window} onChange={e=>setDraft({...draft,allow_external_window:e.target.checked})}/>
-          Autoriser temporairement une autre fenetre pour cette question
-        </label>
+        {isFileQuestion&&<>
+          <label className="grid gap-2 text-sm font-bold">Nombre maximum de fichiers
+            <input className="admin-input" type="number" min={1} max={5} value={draft.max_files} onChange={e=>setDraft({...draft,max_files:Number(e.target.value)})}/>
+          </label>
+          <label className="grid gap-2 text-sm font-bold lg:col-span-2">Instructions fichier
+            <textarea className="admin-input" value={draft.file_instructions} onChange={e=>setDraft({...draft,file_instructions:e.target.value})} placeholder="Formats attendus, consignes Word/Excel, etc."/>
+          </label>
+          <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-bold">
+            <input type="checkbox" checked={draft.allow_external_window} onChange={e=>setDraft({...draft,allow_external_window:e.target.checked})}/>
+            Autoriser temporairement une autre fenetre pour cette question
+          </label>
+        </>}
         <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-bold">
           <input type="checkbox" checked={draft.active} onChange={e=>setDraft({...draft,active:e.target.checked})}/>
           Question active

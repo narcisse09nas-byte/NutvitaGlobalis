@@ -82,7 +82,7 @@ export default function WrittenTest({ eligible, completed, candidateId, candidat
     sessionStorage.removeItem("nutvita-test-attempt");
     setMessage(`Test termine. Score QCM automatique : ${data}%.`);
     setTest(null);
-    router.push("/candidat");
+    router.replace("/candidat?test=termine");
     router.refresh();
   }
   if (completed) return <Panel title="Test ecrit termine" text="Votre tentative et son journal ont ete enregistres. Les evenements de surveillance sont examines uniquement par un humain." />;

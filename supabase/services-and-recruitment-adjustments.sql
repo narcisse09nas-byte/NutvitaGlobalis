@@ -31,7 +31,7 @@ drop policy if exists "Candidates read active recruitment test settings" on publ
 create policy "Candidates read active recruitment test settings" on public.recruitment_test_settings for select to authenticated using(active = true or public.is_admin());
 
 create or replace function public.start_recruitment_test() returns jsonb language plpgsql security definer set search_path=public as $$
-declare app public.recruitment_applications; attempt public.recruitment_test_attempts; settings public.recruitment_test_settings;
+declare app public.recruitment_applications; attempt public.recruitment_test_attempts; existing_attempt public.recruitment_test_attempts; settings public.recruitment_test_settings; last_invitation timestamptz;
 begin
   select * into app from public.recruitment_applications where candidate_id=(select auth.uid());
   if app.id is null or app.status <> 'invited_to_test' then raise exception 'Vous n etes pas invite a ce test.'; end if;
@@ -39,10 +39,28 @@ begin
   if settings.active is false then raise exception 'Le test ecrit n est pas encore actif.'; end if;
   if settings.available_from is not null and now() < settings.available_from then raise exception 'La periode du test n est pas encore ouverte.'; end if;
   if settings.available_until is not null and now() > settings.available_until then raise exception 'La periode du test est terminee.'; end if;
-  select * into attempt from public.recruitment_test_attempts where application_id=app.id;
+  select max(created_at) into last_invitation from public.recruitment_history where application_id=app.id and to_status='invited_to_test';
+  select * into attempt from public.recruitment_test_attempts where application_id=app.id and status='in_progress' and expires_at>now();
   if attempt.id is null then
-    insert into public.recruitment_test_attempts(application_id,candidate_id,expires_at)
-    values(app.id,(select auth.uid()),now() + make_interval(mins => settings.duration_minutes)) returning * into attempt;
+    select * into existing_attempt from public.recruitment_test_attempts where application_id=app.id;
+    if existing_attempt.id is null then
+      insert into public.recruitment_test_attempts(application_id,candidate_id,expires_at)
+      values(app.id,(select auth.uid()),now() + make_interval(mins => settings.duration_minutes)) returning * into attempt;
+    elsif last_invitation is not null and last_invitation > coalesce(existing_attempt.submitted_at, existing_attempt.started_at) then
+      update public.recruitment_test_attempts
+      set started_at=now(),
+          expires_at=now() + make_interval(mins => settings.duration_minutes),
+          submitted_at=null,
+          status='in_progress',
+          answers='{}'::jsonb,
+          automatic_score=0,
+          manual_score=null,
+          reviewer_comments=null
+      where id=existing_attempt.id
+      returning * into attempt;
+    else
+      raise exception 'Ce test est deja termine ou expire. Attendez une nouvelle invitation de l administration.';
+    end if;
   end if;
   return jsonb_build_object(
     'attempt_id',attempt.id,
@@ -89,3 +107,13 @@ on conflict(id) do update set
   amount=excluded.amount,currency=excluded.currency,features=excluded.features,
   active=true,service_type=excluded.service_type,duration_months=excluded.duration_months,
   price_excluding_tax=excluded.price_excluding_tax;
+
+insert into public.teleconseils(name,description,price,duration,target_audience,status,featured)
+select *
+from (values
+  ('Perte de poids','Un plan realise pour retrouver votre equilibre.',15000::numeric,'3 mois','Adultes souhaitant perdre du poids avec un accompagnement nutritionnel.', 'active', true),
+  ('Diabete','Adaptez votre alimentation a votre traitement.',15000::numeric,'3 mois','Personnes vivant avec le diabete ou un risque metabolique.', 'active', true),
+  ('Femme enceinte','Un accompagnement nutritionnel a chaque trimestre.',15000::numeric,'3 mois','Femmes enceintes souhaitant un suivi nutritionnel rassurant.', 'active', true),
+  ('Nutrition infantile','Des reperes personnalises pour votre enfant.',15000::numeric,'3 mois','Parents souhaitant un accompagnement nutritionnel pour leur enfant.', 'active', true)
+) as seed(name,description,price,duration,target_audience,status,featured)
+where not exists(select 1 from public.teleconseils t where lower(t.name)=lower(seed.name));

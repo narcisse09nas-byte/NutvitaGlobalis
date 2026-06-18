@@ -24,7 +24,7 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
   } else if (payment.purchase_type === "consultation") {
     const {data:existing}=await admin.from('consultation_bookings').select('*').eq('client_id',payment.client_id).eq('teleconseil_id',payment.product_id).order('access_expires_at',{ascending:false}).limit(1).maybeSingle();
     const accessStart=existing?.access_expires_at&&+new Date(existing.access_expires_at)>+start?new Date(existing.access_expires_at):start;
-    const accessEnd=new Date(accessStart);accessEnd.setUTCMonth(accessEnd.getUTCMonth()+12);end=accessEnd;
+    const accessEnd=new Date(accessStart);accessEnd.setUTCMonth(accessEnd.getUTCMonth()+3);end=accessEnd;
     let booking:any;
     if(existing){const result=await admin.from('consultation_bookings').update({payment_id:payment.id,status:'confirmed',access_starts_at:existing.access_starts_at||start.toISOString(),access_expires_at:accessEnd.toISOString(),renewal_price_xof:Number(payment.source_amount_xof||payment.price_excluding_tax||0)}).eq('id',existing.id).select().single();booking=result.data}
     else{const result=await admin.from('consultation_bookings').insert({client_id:payment.client_id,teleconseil_id:payment.product_id,payment_id:payment.id,status:'slot_required',access_starts_at:start.toISOString(),access_expires_at:accessEnd.toISOString(),renewal_price_xof:Number(payment.source_amount_xof||payment.price_excluding_tax||0)}).select().single();booking=result.data}

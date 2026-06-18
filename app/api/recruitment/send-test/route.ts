@@ -22,13 +22,12 @@ export async function POST(request:Request){
   ]);
   if(!settings?.active)return NextResponse.json({message:"Le test doit etre actif avant l'envoi."},{status:400});
   if(!questions?.length)return NextResponse.json({message:"Ajoutez au moins une question active avant l'envoi."},{status:400});
-  const rows=(applications||[]).filter((app:any)=>["submitted","under_review","preselected","invited_to_test"].includes(app.status));
+  const rows=(applications||[]).filter((app:any)=>["submitted","under_review","preselected","invited_to_test","test_completed"].includes(app.status));
   if(!rows.length)return NextResponse.json({message:"Aucun candidat eligible dans la selection."},{status:400});
 
   const targetStatus="invited_to_test";
   const {error}=await supabase.from("recruitment_applications").update({status:targetStatus}).in("id",rows.map((row:any)=>row.id));
   if(error)return NextResponse.json({message:error.message},{status:400});
-
   await supabase.from("recruitment_history").insert(rows.map((row:any)=>({
     application_id:row.id,
     actor_id:user.id,

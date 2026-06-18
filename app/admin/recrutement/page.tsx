@@ -11,7 +11,7 @@ export default async function RecruitmentAdmin(){
     supabase.from("recruitment_test_questions").select("*").order("position"),
     supabase.from("recruitment_test_attempts").select("*, recruitment_applications(full_name), test_proctoring_logs(*)").order("started_at",{ascending:false}),
     supabase.from("recruitment_test_settings").select("*").eq("id",1).maybeSingle(),
-    supabase.from("recruitment_applications").select("id,full_name,email,status,city,country,specialization").in("status",["submitted","under_review","preselected","invited_to_test"]).order("full_name"),
+    supabase.from("recruitment_applications").select("id,full_name,email,status,city,country,specialization").in("status",["submitted","under_review","preselected","invited_to_test","test_completed"]).order("full_name"),
   ]);
 
   return <AdminShell name={admin.full_name||admin.email}>

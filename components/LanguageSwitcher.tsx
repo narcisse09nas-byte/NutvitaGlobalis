@@ -2,11 +2,26 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { localizedPath, normalizeLocale, stripLocale, type Locale } from "@/lib/i18n";
+import { usePathname } from "next/navigation";
+import { canonicalPath, localizedPath, normalizeLocale, stripLocale, type Locale } from "@/lib/i18n";
+
+const publicCanonicalRoutes = new Set([
+  "/",
+  "/formations",
+  "/teleconseils",
+  "/ressources",
+  "/suivi-sante",
+  "/recrutement-dieteticiens",
+  "/a-propos",
+  "/contact",
+  "/acces",
+  "/confidentialite",
+  "/cgu",
+  "/cgv",
+  "/remboursement",
+]);
 
 export default function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
-  const router = useRouter();
   const pathname = usePathname();
   const detected = normalizeLocale(stripLocale(pathname).locale);
   const [locale, setLocale] = useState<Locale>(detected);
@@ -17,11 +32,16 @@ export default function LanguageSwitcher({ compact = false }: { compact?: boolea
   }, []);
 
   async function choose(next: Locale) {
+    const stripped = stripLocale(pathname);
+    const currentLocale = normalizeLocale(stripped.locale || locale);
+    const currentCanonical = canonicalPath(currentLocale, stripped.pathname);
+    const target = publicCanonicalRoutes.has(currentCanonical) ? localizedPath(next, currentCanonical) : currentCanonical;
+
     setLocale(next);
     localStorage.setItem("nutvita_locale", next);
     document.cookie = `nutvita_locale=${next}; path=/; max-age=31536000; SameSite=Lax`;
-    fetch("/api/preferences/language", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ locale: next }) }).catch(() => null);
-    router.refresh();
+    fetch("/api/preferences/language", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ locale: next }), keepalive: true }).catch(() => null);
+    window.location.assign(target);
   }
 
   return <div className={`inline-flex items-center rounded-full border border-forest/15 bg-white/90 p-1 text-xs font-black ${compact ? "" : "shadow-sm"}`} aria-label="Language selector">
@@ -31,5 +51,7 @@ export default function LanguageSwitcher({ compact = false }: { compact?: boolea
 
 export function LanguageLink({ locale, children }: { locale: Locale; children: React.ReactNode }) {
   const pathname = usePathname();
-  return <Link href={localizedPath(locale, stripLocale(pathname).pathname)}>{children}</Link>;
+  const stripped = stripLocale(pathname);
+  const canonical = canonicalPath(normalizeLocale(stripped.locale), stripped.pathname);
+  return <Link href={localizedPath(locale, canonical)}>{children}</Link>;
 }

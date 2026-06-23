@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowRightIcon, CheckIcon } from "@heroicons/react/24/outline";
 import ManagedPageHero from "@/components/ManagedPageHero";
 import MedicalDisclaimer from "@/components/MedicalDisclaimer";
-import { formatXofAsUsd } from "@/lib/currency";
 import { getTeleconseils } from "@/lib/public-content";
 import { getSitePage } from "@/lib/site-pages";
 
@@ -59,8 +58,7 @@ export default async function Teleconseils() {
               <div className="my-6 grid gap-3 text-sm">
                 {benefits.map(item => <span key={item} className="flex gap-2"><CheckIcon className="h-5 shrink-0 text-orange" />{item}</span>)}
               </div>
-              <p className="text-xl font-black text-white">{formatXofAsUsd(Number(p.price || 15000))} HT pour un suivi de 3 mois</p>
-              <p className="mb-5 mt-2 text-xs text-white/60">Renouvellement : {formatXofAsUsd(10000)} HT pour 3 mois supplementaires</p>
+              <p className="mb-5 rounded-2xl bg-white/10 p-4 text-sm font-bold text-white">Acces gratuit temporaire pendant la mise en stand-by des paiements.</p>
               <Link href={`/inscription?redirect=${encodeURIComponent(`/checkout?type=consultation&id=${checkoutId}`)}`} className="btn-primary mt-auto">Creer mon compte <ArrowRightIcon className="ml-2 h-4" /></Link>
             </article>;
           })}

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ChartBarIcon, DocumentTextIcon, SparklesIcon, UserGroupIcon } from "@heroicons/react/24/outline";
 import ManagedPageHero from "@/components/ManagedPageHero";
 import MedicalDisclaimer from "@/components/MedicalDisclaimer";
-import { formatXofAsUsd } from "@/lib/currency";
 import { getSitePage } from "@/lib/site-pages";
 
 export const metadata = { title: "Suivi Sante et Croissance Enfant" };
@@ -16,14 +15,13 @@ const features = [
 
 export default async function HealthTracking() {
   const page = await getSitePage("suivi-sante");
-  const price = formatXofAsUsd(10000);
 
   return <>
     {page && <ManagedPageHero initial={page} />}
     <MedicalDisclaimer />
     <section className="bg-forest py-10 text-white">
       <div className="container-site flex flex-wrap items-center justify-between gap-5">
-        <p className="text-2xl font-black text-orange">{price} HT pour 12 mois</p>
+        <p className="text-2xl font-black text-orange">Acces gratuit temporaire</p>
         <div className="flex flex-wrap gap-3">
           <Link href="/inscription" className="btn-primary bg-orange">Creer mon compte</Link>
           <Link href="/espace-client/abonnement" className="btn-secondary border-white text-white">Activer le suivi</Link>
@@ -41,8 +39,8 @@ export default async function HealthTracking() {
     </section>
     <section className="section bg-mint">
       <div className="container-site grid gap-6 text-center md:grid-cols-2">
-        <Offer title="Suivi Sante Autonome" text={`${price} HT, acces pendant 12 mois.`} href="/espace-client/abonnement" action="Souscrire" />
-        <Offer title="Croissance Enfant" text={`${price} HT par enfant et par an.`} href="/espace-client/croissance-enfant" action="Ajouter un enfant" />
+        <Offer title="Suivi Sante Autonome" text="Activation gratuite temporaire, acces pendant 12 mois." href="/espace-client/abonnement" action="Activer" />
+        <Offer title="Croissance Enfant" text="Activation gratuite temporaire par enfant, acces pendant 12 mois." href="/espace-client/croissance-enfant" action="Ajouter un enfant" />
       </div>
     </section>
   </>;

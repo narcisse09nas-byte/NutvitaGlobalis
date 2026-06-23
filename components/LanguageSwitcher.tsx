@@ -21,8 +21,6 @@ export default function LanguageSwitcher({ compact = false }: { compact?: boolea
     localStorage.setItem("nutvita_locale", next);
     document.cookie = `nutvita_locale=${next}; path=/; max-age=31536000; SameSite=Lax`;
     fetch("/api/preferences/language", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ locale: next }) }).catch(() => null);
-    const canonical = stripLocale(pathname).pathname;
-    router.push(localizedPath(next, canonical));
     router.refresh();
   }
 

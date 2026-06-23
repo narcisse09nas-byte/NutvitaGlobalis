@@ -52,7 +52,10 @@ export default function ResourceManager({ config }: { config: ResourceConfig }) 
     setMessage("");
     const payload = Object.fromEntries(Object.entries(editing).filter(([key]) => !["id", "created_at", "updated_at"].includes(key)));
     for (const field of config.fields) {
-      if (field.type === "select" && !payload[field.name]) payload[field.name] = field.options?.[0] || "";
+      if (field.type === "select") {
+        const fallback = field.options?.[0] || "";
+        if (!payload[field.name] || !field.options?.includes(String(payload[field.name]))) payload[field.name] = fallback;
+      }
     }
     const query = editing.id ? createClient().from(config.table).update(payload).eq("id", editing.id) : createClient().from(config.table).insert(payload);
     const { error } = await query;

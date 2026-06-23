@@ -1,7 +1,7 @@
 export type Field = {
   name: string;
   label: string;
-  type?: "text" | "textarea" | "richtext" | "number" | "date" | "datetime" | "select" | "boolean" | "url";
+  type?: "text" | "textarea" | "richtext" | "number" | "date" | "datetime" | "select" | "boolean" | "url" | "image";
   required?: boolean;
   options?: string[];
   help?: string;
@@ -26,7 +26,7 @@ export const resources: Record<string, ResourceConfig> = {
     { name: "content_en", label: "Full content", type: "richtext", locale: "en" },
     { name: "seo_title_en", label: "SEO title", locale: "en" },
     { name: "seo_description_en", label: "SEO description", type: "textarea", locale: "en" },
-    { name: "image_url", label: "Image principale", type: "url", locale: "both" },
+    { name: "image_url", label: "Image principale", type: "image", help: "Collez une URL ou televersez une image depuis votre ordinateur.", locale: "both" },
     { name: "author", label: "Auteur", locale: "both" },
     { name: "published_at", label: "Date de publication", type: "datetime", locale: "both" },
     { name: "status", label: "Statut", type: "select", options: ["draft", "published"], locale: "both" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { EyeIcon, PencilSquareIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import { ResourceConfig, slugify } from "@/lib/admin-resources";
@@ -122,11 +122,40 @@ export default function ResourceManager({ config }: { config: ResourceConfig }) 
         <form onSubmit={save} className="grid gap-5 md:grid-cols-2">
           {visibleFields.map(field => <label key={field.name} className={`grid gap-2 text-sm font-bold ${(field.type === "textarea" || field.type === "richtext") ? "md:col-span-2" : ""}`}>
             {field.label}{field.help && <span className="font-normal text-slate-400">{field.help}</span>}
-            {field.type === "richtext" ? <RichEditor value={String(editing[field.name] || "")} onChange={value => change(field.name, value)} /> : field.type === "textarea" ? <textarea rows={4} required={field.required && tab === "fr"} value={String(editing[field.name] || "")} onChange={event => change(field.name, event.target.value)} className="admin-input" /> : field.type === "select" ? <select value={String(editing[field.name] || "")} onChange={event => change(field.name, event.target.value)} className="admin-input">{field.options?.map(option => <option key={option}>{option}</option>)}</select> : field.type === "boolean" ? <input type="checkbox" checked={Boolean(editing[field.name])} onChange={event => change(field.name, event.target.checked)} className="h-5 w-5 accent-green-700" /> : <input type={field.type === "number" ? "number" : field.type === "datetime" ? "datetime-local" : field.type === "date" ? "date" : field.type === "url" ? "url" : "text"} required={field.required && tab === "fr"} value={String(editing[field.name] || "")} onChange={event => change(field.name, field.type === "number" ? Number(event.target.value) : event.target.value)} className="admin-input" />}
+            {field.type === "richtext" ? <RichEditor value={String(editing[field.name] || "")} onChange={value => change(field.name, value)} /> : field.type === "image" ? <ImageInput value={String(editing[field.name] || "")} onChange={value => change(field.name, value)} /> : field.type === "textarea" ? <textarea rows={4} required={field.required && tab === "fr"} value={String(editing[field.name] || "")} onChange={event => change(field.name, event.target.value)} className="admin-input" /> : field.type === "select" ? <select value={String(editing[field.name] || "")} onChange={event => change(field.name, event.target.value)} className="admin-input">{field.options?.map(option => <option key={option}>{option}</option>)}</select> : field.type === "boolean" ? <input type="checkbox" checked={Boolean(editing[field.name])} onChange={event => change(field.name, event.target.checked)} className="h-5 w-5 accent-green-700" /> : <input type={field.type === "number" ? "number" : field.type === "datetime" ? "datetime-local" : field.type === "date" ? "date" : field.type === "url" ? "url" : "text"} required={field.required && tab === "fr"} value={String(editing[field.name] || "")} onChange={event => change(field.name, field.type === "number" ? Number(event.target.value) : event.target.value)} className="admin-input" />}
           </label>)}
           <div className="flex gap-3 md:col-span-2"><button className="btn-primary" type="submit">Enregistrer</button><button className="btn-secondary" type="button" onClick={() => setOpen(false)}>Fermer</button><span className="self-center text-xs text-slate-400">Brouillon sauvegarde automatiquement sur cet appareil.</span></div>
         </form>
       </div>
     </div>}
+  </div>;
+}
+
+function ImageInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [message, setMessage] = useState("");
+  async function upload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setMessage("Televersement en cours...");
+    const safe = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");
+    const path = `articles/${crypto.randomUUID()}-${safe}`;
+    const supabase = createClient();
+    const { error } = await supabase.storage.from("public-assets").upload(path, file, { contentType: file.type || "image/jpeg", upsert: false });
+    if (error) {
+      setMessage(`${error.message}. Verifiez que le bucket public-assets existe dans Supabase.`);
+      return;
+    }
+    const { data } = supabase.storage.from("public-assets").getPublicUrl(path);
+    onChange(data.publicUrl);
+    setMessage("Image ajoutee.");
+  }
+  return <div className="grid gap-3">
+    <input type="url" value={value} onChange={event => onChange(event.target.value)} placeholder="https://..." className="admin-input" />
+    <div className="flex flex-wrap items-center gap-3">
+      <label className="btn-secondary cursor-pointer px-4 py-2 text-sm">Televerser une image<input type="file" accept="image/*" onChange={upload} className="hidden" /></label>
+      {value && <a href={value} target="_blank" className="text-sm font-bold text-leaf">Ouvrir l'image</a>}
+    </div>
+    {value && <img src={value} alt="" className="h-44 w-full rounded-xl object-cover" />}
+    {message && <p className="text-xs font-semibold text-slate-500">{message}</p>}
   </div>;
 }

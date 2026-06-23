@@ -8,11 +8,8 @@ export async function POST() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ message: "Non authentifie." }, { status: 401 });
-  const {data: subscription}=await supabase.from("subscriptions").select("id, subscription_plans(tier)").eq("client_id",user.id).eq("status","active").gt("expires_at",new Date().toISOString()).limit(1).maybeSingle();
+  const {data: subscription}=await supabase.from("subscriptions").select("id").eq("client_id",user.id).eq("status","active").gt("expires_at",new Date().toISOString()).limit(1).maybeSingle();
   if(!subscription)return NextResponse.json({message:"Un abonnement actif est requis."},{status:402});
-  const planRelation=subscription.subscription_plans as unknown as {tier?:string}|Array<{tier?:string}>|null;
-  const tier=Array.isArray(planRelation)?planRelation[0]?.tier:planRelation?.tier;
-  if(tier!=="premium")return NextResponse.json({message:"Les rapports PDF sont reserves a l'offre Premium."},{status:403});
   const [{ data: profile }, { data: anthropometry }, { data: biology }, { data: food }, { data: latestInsight }] = await Promise.all([
     supabase.from("client_profiles").select("*").eq("id", user.id).single(),
     supabase.from("anthropometric_measurements").select("*").eq("client_id", user.id).order("measured_at"),

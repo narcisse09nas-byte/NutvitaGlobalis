@@ -1,6 +1,5 @@
 "use client";
 import { useMemo, useState } from "react";
-import { formatUsd, xofToUsd } from "@/lib/currency";
 
 type Row = Record<string, any>;
 
@@ -28,11 +27,11 @@ export default function ServiceCatalog({ plans, packs, courses, children, subscr
   }
   return <div className="grid gap-6">
     <div className="flex flex-wrap gap-2">{[["all","Tous"],["health_tracking","Suivi sante"],["child_growth","Croissance enfant"],["packs","Packs"],["formations","Formations"]].map(([value,label])=><button key={value} onClick={()=>setFilter(value)} className={`rounded-full px-4 py-2 text-sm font-bold ${filter===value?"bg-forest text-white":"bg-white text-forest"}`}>{label}</button>)}</div>
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{rows.map(item => { const tax = Math.round(item.price * taxRate) / 100, total = item.price + tax, active=activeSubscription(item); return <article key={`${item.kind}-${item.id}`} className={`rounded-2xl border bg-white p-6 ${item.premium ? "border-orange" : ""}`}>
+    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{rows.map(item => { const active=activeSubscription(item); return <article key={`${item.kind}-${item.id}`} className={`rounded-2xl border bg-white p-6 ${item.premium ? "border-orange" : ""}`}>
       <p className="text-xs font-bold uppercase text-leaf">{item.premium ? "Premium" : "Standard"}</p>
       <h2 className="mt-2 text-2xl font-black">{item.title}</h2>
       <p className="mt-3 rounded-full bg-mint px-4 py-2 text-xs font-black text-forest">{item.billingLabel}</p>
-      <div className="my-5 grid gap-2 rounded-xl bg-slate-50 p-4 text-sm"><Line label="Prix HT" value={formatUsd(xofToUsd(item.price))}/><Line label={`Taxe (${taxRate} %)`} value={formatUsd(xofToUsd(tax))}/><Line label="Total TTC" value={formatUsd(xofToUsd(total))} strong/></div>
+      <div className="my-5 grid gap-2 rounded-xl bg-slate-50 p-4 text-sm"><Line label="Prix actuel" value="Gratuit temporairement" strong/><p className="text-xs text-slate-500">Paiements en stand-by pendant la finalisation juridique de l'entreprise.</p></div>
       {active&&<p className="mb-4 rounded-xl bg-mint p-3 text-sm font-bold text-forest">Abonnement actif jusqu'au {active.expires_at?new Date(active.expires_at).toLocaleDateString("fr-FR"):"renouvellement manuel"}. Un nouveau paiement prolongera automatiquement cette date.</p>}
       <ul className="my-5 grid gap-2 text-sm">{item.features.map((feature:string)=><li key={feature}>+ {feature}</li>)}</ul>
       {item.group === "child_growth" && <div className="mb-4">
@@ -42,7 +41,7 @@ export default function ServiceCatalog({ plans, packs, courses, children, subscr
           </select>
         </label> : <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Vous pouvez acheter ce suivi maintenant. Apres activation, vous ajouterez l'enfant a suivre dans l'espace croissance.</p>}
       </div>}
-      <button onClick={()=>checkout(item)} className="btn-primary w-full">{active?"Etendre l'abonnement":"Choisir ce service"}</button>
+      <button onClick={()=>checkout(item)} className="btn-primary w-full">{active?"Etendre gratuitement":"Activer gratuitement"}</button>
     </article>})}</div>
     {!rows.length && <p className="rounded-2xl bg-white p-8 text-slate-500">Aucun service disponible dans cette categorie.</p>}
   </div>;

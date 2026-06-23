@@ -28,6 +28,6 @@ export async function POST() {
     await admin.from("health_audit_logs").insert({ client_id: user.id, actor_id: user.id, action: "analysis_generated", resource_type: "ai_insight", resource_id: saved.id });
     const planRelation = subscription.subscription_plans as unknown as { tier?: string } | Array<{ tier?: string }> | null;
     const tier = Array.isArray(planRelation) ? planRelation[0]?.tier : planRelation?.tier;
-    return NextResponse.json(tier === "premium" ? { ...insight, id: saved.id, periodStart, periodEnd, tier } : { publicSummary: insight.publicSummary, professionalSummary: "Disponible avec l'offre Premium.", trends: insight.trends.slice(0, 2), improvements: insight.improvements.slice(0, 2), risks: [], recommendations: insight.recommendations.slice(0, 2), alerts: insight.alerts.filter(alert => alert.severity !== "info"), id: saved.id, periodStart, periodEnd, tier: "basic" });
+    return NextResponse.json({ ...insight, id: saved.id, periodStart, periodEnd, tier: tier || "temporary_free" });
   } catch (error) { return NextResponse.json({ message: error instanceof Error ? error.message : "Analyse impossible." }, { status: 500 }); }
 }

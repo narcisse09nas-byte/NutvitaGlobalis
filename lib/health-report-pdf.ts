@@ -15,6 +15,10 @@ export async function renderHealthReport(profile: Record<string, any>, anthropom
     foodIntake: "Food intake",
     foodLine: (count: number, calories: number) => `${count} food entrie(s). Reported average energy intake: ${calories} kcal.`,
     sections: [["Trends", insight.trends], ["Improvements", insight.improvements], ["Risks to review", insight.risks], ["Recommendations", insight.recommendations]] as const,
+    publicIndicators: "Indicator analysis - client version",
+    professionalIndicators: "Indicator analysis - professional version",
+    publicConclusion: "Client conclusion",
+    professionalConclusion: "Professional conclusion",
     measures: `Available measurements: ${anthropometry.length} anthropometric, ${biology.length} biological and ${food.length} food entries.`,
     warning: "This automated report is not a medical diagnosis. Every alert must be interpreted by a qualified professional.",
     page: "page",
@@ -27,6 +31,10 @@ export async function renderHealthReport(profile: Record<string, any>, anthropom
     foodIntake: "Apports alimentaires",
     foodLine: (count: number, calories: number) => `${count} entree(s) alimentaires. Apport energetique moyen renseigne : ${calories} kcal.`,
     sections: [["Tendances", insight.trends], ["Ameliorations", insight.improvements], ["Risques a verifier", insight.risks], ["Recommandations", insight.recommendations]] as const,
+    publicIndicators: "Analyse par indicateur - version grand public",
+    professionalIndicators: "Analyse par indicateur - version professionnelle",
+    publicConclusion: "Conclusion grand public",
+    professionalConclusion: "Conclusion professionnelle",
     measures: `Mesures disponibles: ${anthropometry.length} anthropometriques, ${biology.length} biologiques et ${food.length} entrees alimentaires.`,
     warning: "Ce rapport automatise ne constitue pas un diagnostic medical. Toute alerte doit etre interpretee par un professionnel qualifie.",
     page: "page",
@@ -58,9 +66,24 @@ export async function renderHealthReport(profile: Record<string, any>, anthropom
     text(labels.foodLine(food.length, Math.round(calories.reduce((sum, value) => sum + value, 0) / calories.length)), 10);
     y -= 8;
   }
+  if (insight.indicatorInsights?.length) {
+    text(labels.publicIndicators, 14, bold, rgb(.12, .49, .33));
+    for (const item of insight.indicatorInsights) {
+      text(`${item.indicator}${item.latest ? ` (${item.latest})` : ""}: ${item.publicInterpretation}`, 9);
+      text(`Recommandation: ${item.recommendation}`, 8, regular, rgb(.38, .45, .44));
+    }
+    y -= 8;
+    text(labels.professionalIndicators, 14, bold, rgb(.12, .49, .33));
+    for (const item of insight.indicatorInsights) {
+      text(`${item.indicator} [${item.status}]: ${item.professionalInterpretation}`, 9);
+    }
+    y -= 8;
+  }
   for (const [title, values] of labels.sections) {
     if (!values.length) continue; text(title, 13, bold, rgb(.12, .49, .33)); for (const value of values) text(`- ${value}`, 10); y -= 8;
   }
+  if (insight.publicConclusion) { text(labels.publicConclusion, 13, bold, rgb(.12, .49, .33)); text(insight.publicConclusion, 10); y -= 5; }
+  if (insight.professionalConclusion) { text(labels.professionalConclusion, 13, bold, rgb(.12, .49, .33)); text(insight.professionalConclusion, 10); y -= 5; }
   text(labels.measures, 9, regular, rgb(.4, .45, .44));
   text(labels.warning, 8, regular, rgb(.55, .3, .15));
   for (const [index, current] of pdf.getPages().entries()) current.drawText(`NutVitaGlobalis - ${labels.page} ${index + 1}/${pdf.getPageCount()}`, { x: 50, y: 72, size: 8, font: regular, color: rgb(.45, .45, .45) });

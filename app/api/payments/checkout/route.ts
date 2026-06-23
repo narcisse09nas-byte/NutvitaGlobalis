@@ -3,9 +3,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getApplicableTax, priceBreakdown } from "@/lib/taxes";
 import {xofPerUsd,xofToUsd} from "@/lib/currency";
+import { finalizePayment } from "@/lib/payment-finalization";
 
 type Purchase = { type: "subscription" | "formation" | "consultation"; id: string; name: string; price: number; currency: string; duration: number; childId?: string };
 type Provider = "cinetpay" | "paypal" | "manual_mobile_money" | "manual_bank_transfer";
+const freeAccessMode = () => process.env.NUTVITA_PAYMENTS_PAUSED !== "false";
 
 function cinetpayAmount(amount: number) {
   return Math.ceil(amount / 5) * 5;
@@ -68,9 +70,9 @@ export async function POST(request: Request) {
   }
   if (!purchase) return NextResponse.json({ message: "Produit ou service introuvable." }, { status: 404 });
 
-  const admin = createAdminClient(), tax = await getApplicableTax(admin, profile.country_code, purchase.type), sourceAmountXof = purchase.price, exchangeRate = xofPerUsd();
+  const admin = createAdminClient(), tax = await getApplicableTax(admin, profile.country_code, purchase.type), sourceAmountXof = freeAccessMode() ? 0 : purchase.price, exchangeRate = xofPerUsd();
   const localPayment = provider === "cinetpay" || Boolean(manualMethod);
-  const breakdown = localPayment ? priceBreakdown(sourceAmountXof, Number(tax.rate)) : priceBreakdown(xofToUsd(sourceAmountXof), Number(tax.rate));
+  const breakdown = freeAccessMode() ? priceBreakdown(0, 0) : localPayment ? priceBreakdown(sourceAmountXof, Number(tax.rate)) : priceBreakdown(xofToUsd(sourceAmountXof), Number(tax.rate));
   purchase.currency = localPayment ? "XAF" : "USD";
   const reference = `NVG${Date.now()}${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
   let subscriptionId: string | null = null;
@@ -120,6 +122,10 @@ export async function POST(request: Request) {
     paymentError = retry.error;
   }
   if (paymentError || !payment) return NextResponse.json({ message: paymentError?.message || "Paiement impossible." }, { status: 500 });
+  if (freeAccessMode()) {
+    await finalizePayment(admin, payment.id, `free-${reference}`, { action: "temporary_free_access", reason: "payments_paused_until_company_legal_documents_ready" });
+    return NextResponse.json({ url: "/espace-client?activation=gratuite" });
+  }
   if (manualMethod) return NextResponse.json({ url: `/espace-client/paiements/${payment.id}` });
 
   try {

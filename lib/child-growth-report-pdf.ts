@@ -64,6 +64,9 @@ export async function renderChildGrowthReport(child: GrowthRow, rows: GrowthRow[
   for (const positive of analysis.positives) text(`+ ${positive}`, 9);
   for (const point of analysis.attentionPoints) text(`! ${point}`, 9, regular, rgb(.65, .3, .08));
   y -= 8;
+  text("Resume professionnel", 14, bold, rgb(.12, .49, .33));
+  text(analysis.professionalSummary || analysis.summary, 10);
+  y -= 8;
 
   if (y < 360) newPage();
   text("Graphiques de croissance", 14, bold, rgb(.12, .49, .33));
@@ -83,6 +86,17 @@ export async function renderChildGrowthReport(child: GrowthRow, rows: GrowthRow[
     text(`${new Date(row.measured_at).toLocaleDateString("fr-FR")} | age ${format(row.age_months)} mois | poids ${format(row.weight_kg)} kg | taille ${format(row.height_cm)} cm | IMC ${format(row.bmi)} | MUAC ${format(row.muac_cm)} cm | risque ${row.risk_category || "non classe"}`, 8);
   }
   y -= 8;
+  if (analysis.indicatorInsights?.length) {
+    text("Analyse par indicateur - version parents", 14, bold, rgb(.12, .49, .33));
+    for (const item of analysis.indicatorInsights) {
+      text(`${item.indicator}${item.latest ? ` (${item.latest})` : ""}: ${item.parentInterpretation}`, 9);
+      text(`Conseil: ${item.recommendation}`, 8, regular, rgb(.38, .45, .44));
+    }
+    y -= 8;
+    text("Analyse par indicateur - version professionnelle", 14, bold, rgb(.12, .49, .33));
+    for (const item of analysis.indicatorInsights) text(`${item.indicator} [${item.status}]: ${item.professionalInterpretation}`, 9);
+    y -= 8;
+  }
   text("Conseils aux parents", 14, bold, rgb(.12, .49, .33));
   for (const advice of analysis.parentAdvice) text(`${advice.category} - ${advice.text}`, 9);
   if (analysis.alerts.length) {
@@ -90,6 +104,10 @@ export async function renderChildGrowthReport(child: GrowthRow, rows: GrowthRow[
     text("Alertes a verifier", 14, bold, rgb(.7, .2, .15));
     for (const alert of analysis.alerts) text(`${alert.title}: ${alert.message}`, 9);
   }
+  text("Conclusion parents", 14, bold, rgb(.12, .49, .33));
+  text(analysis.parentConclusion || analysis.summary, 9);
+  text("Conclusion professionnelle", 14, bold, rgb(.12, .49, .33));
+  text(analysis.professionalConclusion || "A interpreter avec l'examen clinique et les references OMS completes.", 9);
   text("Ce rapport automatise ne constitue pas un diagnostic. Toute alerte doit etre interpretee par un professionnel qualifie.", 8, regular, rgb(.55, .3, .15));
   for (const [index, current] of pdf.getPages().entries()) current.drawText(`NutVitaGlobalis - page ${index + 1}/${pdf.getPageCount()}`, { x: 50, y: 72, size: 8, font: regular, color: rgb(.45, .45, .45) });
   return pdf.save();

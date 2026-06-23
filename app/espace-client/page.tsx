@@ -6,7 +6,7 @@ import {getClientEntitlements,requireClient} from "@/lib/client";
 
 export const metadata = { title: "Espace client" };
 
-export default async function ClientHome({ searchParams }: { searchParams: Promise<{ paiement?: string }> }) {
+export default async function ClientHome({ searchParams }: { searchParams: Promise<{ paiement?: string; activation?: string }> }) {
   const params = await searchParams;
   const { supabase, user, profile } = await requireClient();
   const access=await getClientEntitlements(supabase,user.id);
@@ -20,6 +20,7 @@ export default async function ClientHome({ searchParams }: { searchParams: Promi
     supabase.from("anthropometric_measurements").select("id", { count: "exact", head: true }).eq("client_id", user.id),
   ]);
   return <ClientShell email={user.email || ""}><div className="grid gap-8">
+    {params.activation === "gratuite" && <p className="rounded-xl bg-mint p-4 font-bold text-forest">Service active gratuitement. Les paiements restent en stand-by pendant la finalisation juridique de NutVitaGlobalis.</p>}
     {params.paiement && <p className="rounded-xl bg-mint p-4 font-bold text-forest">Paiement recu. L'activation apparaitra ici apres confirmation.</p>}
     <div><h1 className="text-3xl font-black">Bonjour {profile?.full_name || user.user_metadata.full_name || ""}</h1><p className="mt-2 text-slate-500">Vos achats, services et documents NutVitaGlobalis.</p></div>
     <div className="grid gap-4 sm:grid-cols-4"><Metric label="Formations" value={enrollments?.length || 0}/><Metric label="Consultations" value={bookings?.length || 0}/><Metric label="Factures" value={invoices?.length || 0}/><Metric label="Mesures sante" value={measurements || 0}/></div>

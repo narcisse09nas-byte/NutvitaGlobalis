@@ -11,5 +11,5 @@ export default async function SubscriptionPage() {
     supabase.from("invoices").select("*").eq("client_id", user.id).order("issued_at", { ascending: false }),
     getApplicableTax(supabase, profile?.country_code),
   ]);
-  return <ClientShell email={user.email || ""}><div className="mb-7"><h1 className="text-3xl font-black">Mes abonnements</h1><p className="mt-2 text-slate-500">Retrouvez les offres de suivi disponibles. Le paiement manuel permet une activation apres verification du recu.</p></div><SubscriptionPlans plans={plans || []} current={current} taxRate={Number(tax.rate)} invoices={invoices || []} /></ClientShell>;
+  return <ClientShell email={user.email || ""}><div className="mb-7"><h1 className="text-3xl font-black">Mes abonnements</h1><p className="mt-2 text-slate-500">Retrouvez les offres de suivi disponibles. Les paiements sont temporairement en stand-by; l'activation est gratuite pour l'instant.</p></div><SubscriptionPlans plans={plans || []} current={current} taxRate={Number(tax.rate)} invoices={invoices || []} /></ClientShell>;
 }

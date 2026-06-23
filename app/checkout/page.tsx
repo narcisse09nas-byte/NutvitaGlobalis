@@ -2,9 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import CheckoutForm from "@/components/checkout/CheckoutForm";
 import TeleconsultationConsent from "@/components/client/TeleconsultationConsent";
-import { formatUsd, xofToUsd } from "@/lib/currency";
+import { formatUsd } from "@/lib/currency";
 import { createClient } from "@/lib/supabase/server";
-import { getApplicableTax, priceBreakdown } from "@/lib/taxes";
+import { priceBreakdown } from "@/lib/taxes";
 
 export const metadata = { title: "Paiement securise" };
 
@@ -48,8 +48,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
 
   if (!product) notFound();
 
-  const tax = await getApplicableTax(supabase, profile.country_code, type as any);
-  const totals = priceBreakdown(xofToUsd(product.priceXof), Number(tax.rate));
+  const totals = priceBreakdown(0, 0);
 
   return <main className="min-h-screen bg-slate-100 py-12">
     <div className="container-site max-w-4xl">
@@ -59,9 +58,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
           <p className="text-xs font-bold uppercase tracking-widest text-leaf">Commande</p>
           <h1 className="mt-3 text-3xl font-black">{product.name}</h1>
           <div className="mt-7 grid gap-3 border-y py-6">
-            <Line label="Prix hors taxe" value={formatUsd(totals.priceExcludingTax)} />
-            <Line label={`Taxe (${totals.taxRate} %)`} value={formatUsd(totals.taxAmount)} />
-            <Line label="Total TTC" value={formatUsd(totals.totalIncludingTax)} strong />
+            <Line label="Prix temporaire" value="Gratuit" />
+            <Line label="Taxe" value={formatUsd(totals.taxAmount)} />
+            <Line label="Total actuel" value={formatUsd(totals.totalIncludingTax)} strong />
           </div>
           {type === "consultation" && <>
             <p className="mt-5 rounded-xl bg-mint p-4 text-sm text-forest"><b>Validite : 1 an renouvelable.</b> Chat securise, suivi personnalise et teleconsultations video avec un expert inclus selon le pack choisi.</p>
@@ -75,7 +74,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
         </section>
         <aside className="h-fit rounded-3xl bg-white p-7">
           <CheckoutForm type={type as any} id={id} childId={childId} disabled={type === "consultation" && !teleconsultationConsent} />
-          <p className="mt-5 text-xs leading-5 text-slate-400">Orange Money, MTN MoMo et virement bancaire affichent des instructions privees apres creation de la commande. Le service est active manuellement apres validation de la preuve de paiement.</p>
+           <p className="mt-5 text-xs leading-5 text-slate-400">Activation gratuite temporaire pendant la mise en place des documents juridiques et des services de paiement. Les conditions commerciales definitives seront publiees avant toute facturation.</p>
         </aside>
       </div>
     </div>

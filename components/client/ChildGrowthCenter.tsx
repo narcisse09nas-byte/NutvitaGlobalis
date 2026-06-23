@@ -4,7 +4,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import GeoFields from "@/components/accounts/GeoFields";
 import { createClient } from "@/lib/supabase/client";
-import {formatUsd,xofToUsd} from "@/lib/currency";
 
 type Row = Record<string, any>;
 
@@ -19,7 +18,6 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
   const [children, setChildren] = useState(initialChildren);
   const [measurements, setMeasurements] = useState(initialMeasurements);
   const [selected, setSelected] = useState(initialChildren[0]?.id || "");
-  const [provider, setProvider] = useState<"cinetpay" | "paypal">("cinetpay");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [analyses,setAnalyses]=useState(initialAnalyses),[alerts,setAlerts]=useState(initialAlerts),[reports,setReports]=useState(initialReports);
@@ -52,9 +50,9 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
   async function checkout() {
     if (!plan || !selected) return;
     setLoading(true);
-    const response = await fetch("/api/payments/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan_id: plan.id, provider, child_id: selected }) });
+    const response = await fetch("/api/payments/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan_id: plan.id, provider: "manual_mobile_money", child_id: selected }) });
     const result = await response.json();
-    if (response.ok && result.url) location.href = result.url; else setMessage(result.message || "Paiement indisponible.");
+    if (response.ok && result.url) location.href = result.url; else setMessage(result.message || "Activation indisponible.");
     setLoading(false);
   }
 
@@ -64,9 +62,6 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
 
   const analysis = analyze(rows);
   const savedAnalysis=analyses.find(item=>item.child_id===selected),childAlerts=alerts.filter(item=>item.child_id===selected),childReports=reports.filter(item=>item.child_id===selected);
-  const ht = Number(plan?.price_excluding_tax || 10000);
-  const tax = Math.round(ht * taxRate) / 100;
-
   return <div className="grid gap-7">
     {message && <p className="rounded-xl bg-mint p-4 font-bold text-forest">{message}</p>}
     <section className="rounded-2xl border bg-white p-6">
@@ -93,9 +88,8 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
       <section className="flex flex-wrap gap-3">{children.map(item => <button key={item.id} onClick={() => setSelected(item.id)} className={`rounded-full px-5 py-3 font-bold ${selected === item.id ? "bg-forest text-white" : "bg-white"}`}>{item.full_name}</button>)}</section>
       {child && !subscription && <section className="rounded-2xl border-2 border-orange bg-white p-6">
         <h2 className="text-2xl font-black">Activer le suivi de {child.full_name}</h2>
-        <div className="mt-4 grid gap-2 text-sm sm:max-w-md"><Line label="Prix HT" value={formatUsd(xofToUsd(ht))}/><Line label={`Taxe (${taxRate} %)`} value={formatUsd(xofToUsd(tax))}/><Line label="Total TTC" value={formatUsd(xofToUsd(ht+tax))} strong/><Line label="Durée" value="12 mois"/><Line label="Renouvellement" value="Annuel"/></div>
-        <div className="mt-5 flex gap-2"><ProviderButton active={provider === "cinetpay"} onClick={() => setProvider("cinetpay")}>CinetPay</ProviderButton><ProviderButton active={provider === "paypal"} onClick={() => setProvider("paypal")}>PayPal</ProviderButton></div>
-        <button onClick={checkout} disabled={loading} className="btn-primary mt-5">{loading ? "Redirection..." : "Payer pour cet enfant"}</button>
+        <div className="mt-4 grid gap-2 text-sm sm:max-w-md"><Line label="Prix actuel" value="Gratuit temporairement" strong/><Line label="Duree" value="12 mois"/><Line label="Renouvellement" value="Annuel"/><p className="text-xs text-slate-500">Les paiements sont en stand-by pendant la finalisation juridique de l'entreprise.</p></div>
+        <button onClick={checkout} disabled={loading} className="btn-primary mt-5">{loading ? "Activation..." : "Activer gratuitement pour cet enfant"}</button>
       </section>}
       {child && subscription && <>
         <section className="rounded-2xl bg-mint p-5"><b>Suivi actif pour {child.full_name}</b><p className="mt-1 text-sm">Du {new Date(subscription.started_at).toLocaleDateString("fr-FR")} au {new Date(subscription.expires_at).toLocaleDateString("fr-FR")}</p></section>
@@ -118,7 +112,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
         <div className="flex flex-wrap gap-3"><button onClick={analyzeNow} disabled={loading} className="btn-primary">{loading?'Traitement...':'Actualiser l analyse'}</button><button onClick={createReport} disabled={loading} className="btn-secondary">Generer le rapport PDF</button></div>
         <GrowthCharts rows={rows} />
         <MeasurementHistory rows={rows} />
-        <section className="rounded-2xl border bg-white p-6"><h2 className="text-xl font-black">Analyse IA explicable</h2><p className="mt-4 leading-7">{savedAnalysis?.summary||analysis.summary}</p>{(savedAnalysis?.positives||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-leaf">+ {item}</p>)}{(savedAnalysis?.attention_points||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-orange">! {item}</p>)}<p className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{analysis.advice}</p></section>
+        <section className="rounded-2xl border bg-white p-6"><h2 className="text-xl font-black">Analyse IA explicable</h2><p className="mt-4 leading-7">{savedAnalysis?.summary||analysis.summary}</p>{(savedAnalysis?.positives||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-leaf">+ {item}</p>)}{(savedAnalysis?.attention_points||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-orange">! {item}</p>)}<p className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{analysis.advice}</p>{(savedAnalysis?.indicatorInsights||[]).length>0&&<div className="mt-5 grid gap-3">{savedAnalysis.indicatorInsights.map((item:any)=><article key={item.indicator} className="rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap justify-between gap-2"><b>{item.indicator}</b><span className="text-xs font-bold uppercase text-slate-500">{item.status}</span></div><p className="mt-2 text-sm text-slate-700">{item.parentInterpretation}</p><p className="mt-2 text-xs text-slate-500">{item.professionalInterpretation}</p></article>)}</div>}</section>
         <AlertPanel alerts={childAlerts}/>
         <AdvicePanel items={savedAnalysis?.parent_advice||[]}/>
         <section className="rounded-2xl border bg-white p-6"><h2 className="text-xl font-black">Rapports de croissance</h2><div className="mt-4 grid gap-3">{childReports.map(item=><button key={item.id} onClick={()=>openReport(item.file_path)} className="flex justify-between rounded-xl bg-slate-50 p-4 text-left font-bold"><span>{item.title}</span><span className="text-leaf">Telecharger</span></button>)}{!childReports.length&&<p className="text-slate-400">Aucun rapport genere.</p>}</div></section>
@@ -130,7 +124,6 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
 function Field({ name, label, type = "text", step, required = false }: any) { return <label className="grid gap-2 text-sm font-bold">{label}<input name={name} type={type} step={step} required={required} className="admin-input" /></label>; }
 function Area({ name, label }: { name: string; label: string }) { return <label className="grid gap-2 text-sm font-bold">{label}<textarea name={name} className="admin-input min-h-24" /></label>; }
 function Select({ name, label, options }: { name: string; label: string; options: string[][] }) { return <label className="grid gap-2 text-sm font-bold">{label}<select name={name} required className="admin-input">{options.map(([value, text]) => <option key={value || "empty"} value={value}>{text}</option>)}</select></label>; }
-function ProviderButton({ active, onClick, children }: any) { return <button type="button" onClick={onClick} className={`rounded-full px-4 py-2 ${active ? "bg-forest text-white" : "bg-slate-100"}`}>{children}</button>; }
 function Line({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) { return <div className={`flex justify-between ${strong ? "border-t pt-2 text-lg" : ""}`}><span>{label}</span><b>{value}</b></div>; }
 
 function analyze(rows: Row[]) {

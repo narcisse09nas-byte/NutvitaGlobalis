@@ -119,6 +119,7 @@ export default function RichEditor({ value, onChange }: { value: string; onChang
         <ToolbarButton label="Aligner a gauche" onClick={() => command("justifyLeft")}>Gauche</ToolbarButton>
         <ToolbarButton label="Centrer" onClick={() => command("justifyCenter")}>Centre</ToolbarButton>
         <ToolbarButton label="Aligner a droite" onClick={() => command("justifyRight")}>Droite</ToolbarButton>
+        <ToolbarButton label="Justifier le paragraphe" onClick={() => command("justifyFull")}>Justifier</ToolbarButton>
         <ToolbarButton label="Lien" onClick={createLink}>Lien</ToolbarButton>
         <ToolbarButton label="Image dans le contenu" onClick={insertImage}>Image</ToolbarButton>
         <label className="editor-button cursor-pointer">

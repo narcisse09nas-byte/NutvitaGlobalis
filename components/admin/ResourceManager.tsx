@@ -30,8 +30,8 @@ export default function ResourceManager({ config }: { config: ResourceConfig }) 
   useEffect(() => { load(); }, [config.table]);
 
   function create() {
-    const saved = localStorage.getItem(draftKey);
-    setEditing(saved ? JSON.parse(saved) : ({ ...defaults, id: "" } as Row));
+    localStorage.removeItem(draftKey);
+    setEditing({ ...defaults, id: "" } as Row);
     setTab("fr");
     setOpen(true);
   }

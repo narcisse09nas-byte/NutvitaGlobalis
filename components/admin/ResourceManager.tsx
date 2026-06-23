@@ -16,7 +16,7 @@ export default function ResourceManager({ config }: { config: ResourceConfig }) 
   const [message, setMessage] = useState("");
   const [tab, setTab] = useState<"fr" | "en">("fr");
   const draftKey = `nutvita-draft-${config.table}`;
-  const defaults = useMemo(() => Object.fromEntries(config.fields.map(field => [field.name, field.type === "boolean" ? false : field.name === "publication_locale_status" ? "both" : field.name === "status" ? (field.options?.[0] || "") : ""])), [config]);
+  const defaults = useMemo(() => Object.fromEntries(config.fields.map(field => [field.name, field.type === "boolean" ? false : field.name === "publication_locale_status" ? "both" : field.type === "select" ? (field.options?.[0] || "") : ""])), [config]);
   const visibleFields = config.fields.filter(field => !field.locale || field.locale === "both" || field.locale === tab);
 
   async function load() {
@@ -51,6 +51,9 @@ export default function ResourceManager({ config }: { config: ResourceConfig }) 
     if (!editing) return;
     setMessage("");
     const payload = Object.fromEntries(Object.entries(editing).filter(([key]) => !["id", "created_at", "updated_at"].includes(key)));
+    for (const field of config.fields) {
+      if (field.type === "select" && !payload[field.name]) payload[field.name] = field.options?.[0] || "";
+    }
     const query = editing.id ? createClient().from(config.table).update(payload).eq("id", editing.id) : createClient().from(config.table).insert(payload);
     const { error } = await query;
     if (error) {

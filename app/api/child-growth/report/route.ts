@@ -29,6 +29,10 @@ export async function POST(request:Request){
     attentionPoints:latest.attention_points||computed.attentionPoints,
     practicalAdvice:latest.practical_advice||computed.practicalAdvice,
     parentAdvice:latest.parent_advice||computed.parentAdvice,
+    professionalSummary:latest.professional_summary||computed.professionalSummary,
+    indicatorInsights:latest.indicator_insights||computed.indicatorInsights,
+    parentConclusion:latest.parent_conclusion||computed.parentConclusion,
+    professionalConclusion:latest.professional_conclusion||computed.professionalConclusion,
     consultationRecommended:latest.consultation_recommended,
   }:computed;
   const period={start:String(rows[0].measured_at).slice(0,10),end:String(rows.at(-1).measured_at).slice(0,10)};

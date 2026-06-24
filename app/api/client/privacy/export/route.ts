@@ -15,6 +15,7 @@ export async function GET() {
     { data: anthropometry },
     { data: biology },
     { data: food },
+    { data: lifestyle },
   ] = await Promise.all([
     supabase.from("client_profiles").select("*").eq("id", user.id).maybeSingle(),
     supabase.from("subscriptions").select("*").eq("client_id", user.id),
@@ -24,6 +25,7 @@ export async function GET() {
     supabase.from("anthropometric_measurements").select("*").eq("client_id", user.id),
     supabase.from("biological_measurements").select("*").eq("client_id", user.id),
     supabase.from("food_history").select("*").eq("client_id", user.id),
+    supabase.from("health_lifestyle_assessments").select("*").eq("client_id", user.id),
   ]);
 
   return NextResponse.json({
@@ -38,6 +40,7 @@ export async function GET() {
       anthropometry: anthropometry || [],
       biology: biology || [],
       food: food || [],
+      lifestyle: lifestyle || [],
     },
   });
 }

@@ -2,8 +2,10 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import GeoFields from "@/components/accounts/GeoFields";
 import { createClient } from "@/lib/supabase/client";
+import { customIndicatorTemplates } from "@/lib/tracking-indicators";
 
 type Row = Record<string, any>;
 
@@ -23,6 +25,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
   const [analyses,setAnalyses]=useState(initialAnalyses),[alerts,setAlerts]=useState(initialAlerts),[reports,setReports]=useState(initialReports);
   const child = children.find(item => item.id === selected);
   const rows = useMemo(() => measurements.filter(item => item.child_id === selected).sort((a, b) => +new Date(a.measured_at) - +new Date(b.measured_at)), [measurements, selected]);
+  const customTemplates = useMemo(() => customIndicatorTemplates(rows), [rows]);
   const subscription = subscriptions.find(item => item.status === "active" && (item.child_id === selected || (!item.child_id && (item.subscription_plans?.service_type === "child_growth" || String(item.plan_id).includes("child-growth")))));
 
   async function addChild(event: FormEvent<HTMLFormElement>) {
@@ -42,6 +45,10 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
     const payload = formPayload(form);
     payload.edema = payload.edema === "true";
     payload.vaccinations_up_to_date = payload.vaccinations_up_to_date === "true" ? true : payload.vaccinations_up_to_date === "false" ? false : null;
+    if (payload.custom_values) {
+      try { payload.custom_values = JSON.parse(String(payload.custom_values)); }
+      catch { payload.custom_values = {}; }
+    }
     const { data, error } = await createClient().from("child_growth_measurements").insert({ ...payload, child_id: selected, recorded_by: parentId }).select().single();
     if (error) setMessage(error.message);
     else { setMeasurements([...measurements, data]); form.reset(); setMessage("Mesure enregistree. Analyse en cours..."); await analyzeNow(); }
@@ -106,13 +113,14 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
           <Select name="vaccinations_up_to_date" label="Vaccination a jour" options={[["true", "Oui"], ["false", "Non"], ["", "Non renseigne"]]} />
           <Area name="complementary_feeding" label="Alimentation complementaire" />
           <Area name="recent_illnesses" label="Maladies recentes" />
+          <ChildCustomIndicators key={selected} templates={customTemplates}/>
           <Area name="notes" label="Commentaires" />
           <button className="btn-primary justify-self-start md:col-span-3">Enregistrer</button>
         </form>
         <div className="flex flex-wrap gap-3"><button onClick={analyzeNow} disabled={loading} className="btn-primary">{loading?'Traitement...':'Actualiser l analyse'}</button><button onClick={createReport} disabled={loading} className="btn-secondary">Generer le rapport PDF</button></div>
         <GrowthCharts rows={rows} />
         <MeasurementHistory rows={rows} />
-        <section className="rounded-2xl border bg-white p-6"><h2 className="text-xl font-black">Analyse IA explicable</h2><p className="mt-4 leading-7">{savedAnalysis?.summary||analysis.summary}</p>{(savedAnalysis?.positives||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-leaf">+ {item}</p>)}{(savedAnalysis?.attention_points||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-orange">! {item}</p>)}<p className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{analysis.advice}</p>{(savedAnalysis?.indicatorInsights||[]).length>0&&<div className="mt-5 grid gap-3">{savedAnalysis.indicatorInsights.map((item:any)=><article key={item.indicator} className="rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap justify-between gap-2"><b>{item.indicator}</b><span className="text-xs font-bold uppercase text-slate-500">{item.status}</span></div><p className="mt-2 text-sm text-slate-700">{item.parentInterpretation}</p><p className="mt-2 text-xs text-slate-500">{item.professionalInterpretation}</p></article>)}</div>}</section>
+        <section className="rounded-2xl border bg-white p-6"><h2 className="text-xl font-black">Analyse IA explicable</h2><p className="mt-4 leading-7">{savedAnalysis?.summary||analysis.summary}</p>{(savedAnalysis?.positives||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-leaf">+ {item}</p>)}{(savedAnalysis?.attention_points||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-orange">! {item}</p>)}<p className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{analysis.advice}</p>{(savedAnalysis?.indicator_insights||savedAnalysis?.indicatorInsights||[]).length>0&&<div className="mt-5 grid gap-3">{(savedAnalysis?.indicator_insights||savedAnalysis?.indicatorInsights||[]).map((item:any)=><article key={item.indicator} className="rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap justify-between gap-2"><b>{item.indicator}</b><span className="text-xs font-bold uppercase text-slate-500">{item.status}</span></div><p className="mt-2 text-sm text-slate-700">{item.parentInterpretation}</p><p className="mt-2 text-xs text-slate-500">{item.professionalInterpretation}</p></article>)}</div>}</section>
         <AlertPanel alerts={childAlerts}/>
         <AdvicePanel items={savedAnalysis?.parent_advice||[]}/>
         <section className="rounded-2xl border bg-white p-6"><h2 className="text-xl font-black">Rapports de croissance</h2><div className="mt-4 grid gap-3">{childReports.map(item=><button key={item.id} onClick={()=>openReport(item.file_path)} className="flex justify-between rounded-xl bg-slate-50 p-4 text-left font-bold"><span>{item.title}</span><span className="text-leaf">Telecharger</span></button>)}{!childReports.length&&<p className="text-slate-400">Aucun rapport genere.</p>}</div></section>
@@ -125,6 +133,16 @@ function Field({ name, label, type = "text", step, required = false }: any) { re
 function Area({ name, label }: { name: string; label: string }) { return <label className="grid gap-2 text-sm font-bold">{label}<textarea name={name} className="admin-input min-h-24" /></label>; }
 function Select({ name, label, options }: { name: string; label: string; options: string[][] }) { return <label className="grid gap-2 text-sm font-bold">{label}<select name={name} required className="admin-input">{options.map(([value, text]) => <option key={value || "empty"} value={value}>{text}</option>)}</select></label>; }
 function Line({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) { return <div className={`flex justify-between ${strong ? "border-t pt-2 text-lg" : ""}`}><span>{label}</span><b>{value}</b></div>; }
+
+function ChildCustomIndicators({templates}:{templates:Array<{name:string;unit?:string;normal_min?:number|null;normal_max?:number|null}>}) {
+  const [items,setItems]=useState(templates.map(item=>({name:item.name,value:"",unit:item.unit||"",normalMin:item.normal_min==null?"":String(item.normal_min),normalMax:item.normal_max==null?"":String(item.normal_max)})));
+  const values=Object.fromEntries(items.filter(item=>item.name.trim()&&item.value!=="").map(item=>[item.name.trim(),{value:Number(item.value),unit:item.unit.trim(),normal_min:item.normalMin===""?null:Number(item.normalMin),normal_max:item.normalMax===""?null:Number(item.normalMax)}]));
+  return <div className="rounded-2xl bg-slate-50 p-4 md:col-span-3">
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-black">Autres indicateurs de croissance ou de sante</h3><p className="text-sm text-slate-500">Ils resteront disponibles pour les prochaines mesures de cet enfant. La plage normale permet une analyse comparative.</p></div><button type="button" className="btn-secondary px-4 py-2" onClick={()=>setItems([...items,{name:"",value:"",unit:"",normalMin:"",normalMax:""}])}><PlusIcon className="mr-2 h-4"/>Ajouter un indicateur</button></div>
+    <div className="mt-4 grid gap-3">{items.map((item,index)=><div key={`${item.name}-${index}`} className="grid gap-3 md:grid-cols-[1.2fr_.8fr_.7fr_.7fr_.7fr_auto]"><input className="admin-input" placeholder="Nom" value={item.name} onChange={event=>setItems(items.map((row,i)=>i===index?{...row,name:event.target.value}:row))}/><input className="admin-input" type="number" step="0.01" placeholder="Valeur" value={item.value} onChange={event=>setItems(items.map((row,i)=>i===index?{...row,value:event.target.value}:row))}/><input className="admin-input" placeholder="Unite" value={item.unit} onChange={event=>setItems(items.map((row,i)=>i===index?{...row,unit:event.target.value}:row))}/><input className="admin-input" type="number" step="0.01" placeholder="Norme min." value={item.normalMin} onChange={event=>setItems(items.map((row,i)=>i===index?{...row,normalMin:event.target.value}:row))}/><input className="admin-input" type="number" step="0.01" placeholder="Norme max." value={item.normalMax} onChange={event=>setItems(items.map((row,i)=>i===index?{...row,normalMax:event.target.value}:row))}/><button type="button" className="grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-600" onClick={()=>setItems(items.filter((_,i)=>i!==index))}><TrashIcon className="h-5"/></button></div>)}</div>
+    <input type="hidden" name="custom_values" value={JSON.stringify(values)}/>
+  </div>;
+}
 
 function analyze(rows: Row[]) {
   if (rows.length < 2) return { summary: "Ajoutez au moins deux mesures pour visualiser une tendance.", advice: "Les z-scores sont calcules uniquement apres import des tables OMS officielles adaptees a l'age et au sexe." };

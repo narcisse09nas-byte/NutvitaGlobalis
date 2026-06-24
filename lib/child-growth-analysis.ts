@@ -1,3 +1,5 @@
+import { analyzeCustomIndicators } from "@/lib/tracking-indicators";
+
 export type GrowthRow = Record<string, any>;
 export type GrowthAlert = { alert_type: string; severity: "info" | "warning" | "critical"; title: string; message: string };
 export type ParentAdvice = { category: string; title: string; text: string };
@@ -133,6 +135,33 @@ export function analyzeChildGrowth(child: GrowthRow, source: GrowthRow[]): Child
     professionalInterpretation: "MUAC a interpreter surtout entre 6 et 59 mois, avec verification de l'oedeme et de l'etat clinique.",
     recommendation: muac !== null && muac < 12.5 ? "Confirmer la mesure et demander un avis professionnel." : "Continuer les mesures de routine si l'enfant est dans la tranche d'age concernee.",
   });
+
+  for (const item of analyzeCustomIndicators(rows, "measured_at")) {
+    const previousText = item.previous === null
+      ? "Aucune valeur precedente n'est disponible."
+      : `La valeur precedente etait ${item.previous} ${item.unit}, soit une variation de ${item.delta! > 0 ? "+" : ""}${item.delta} ${item.unit}.`;
+    const normalText = item.normalMin !== null || item.normalMax !== null
+      ? `plage configuree ${item.normalMin ?? "-"} a ${item.normalMax ?? "-"} ${item.unit}`
+      : "aucune plage normale configuree";
+    const outside = item.relation === "below" || item.relation === "above";
+    if (outside) {
+      attentionPoints.push(`${item.name} est ${item.relation === "below" ? "sous" : "au-dessus de"} la plage configuree.`);
+      alerts.push({
+        alert_type: `custom_${item.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40)}`,
+        severity: "warning",
+        title: `${item.name} hors plage`,
+        message: `Valeur actuelle ${item.current} ${item.unit}; ${normalText}.`,
+      });
+    }
+    addInsight(indicatorInsights, {
+      indicator: item.name,
+      latest: `${item.current} ${item.unit}`.trim(),
+      status: outside ? "watch" : "usual",
+      parentInterpretation: `La valeur actuelle est ${item.current} ${item.unit}. ${outside ? `Elle est ${item.relation === "below" ? "sous" : "au-dessus de"} la plage renseignee.` : item.relation === "within" ? "Elle se situe dans la plage renseignee." : "Aucune norme n'a encore ete renseignee."} ${previousText}`,
+      professionalInterpretation: `Valeur actuelle ${item.current} ${item.unit}; ${normalText}; tendance ${item.trend}. ${previousText} Valider la norme selon l'age, le sexe, la methode de mesure et le contexte clinique.`,
+      recommendation: outside ? "Confirmer la mesure et demander un avis professionnel." : "Poursuivre les mesures comparables pour consolider la tendance.",
+    });
+  }
 
   if (latest.edema) addInsight(indicatorInsights, {
     indicator: "Oedemes",

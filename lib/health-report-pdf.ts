@@ -5,7 +5,7 @@ import { createNutvitaDocumentBranding } from "@/lib/pdf-branding";
 
 const wrap = (text: string, max = 88) => { const words = text.split(/\s+/), lines: string[] = []; let line = ""; for (const word of words) { if (`${line} ${word}`.trim().length > max) { lines.push(line); line = word; } else line = `${line} ${word}`.trim(); } if (line) lines.push(line); return lines; };
 
-export async function renderHealthReport(profile: Record<string, any>, anthropometry: HealthRow[], biology: HealthRow[], food: HealthRow[], insight: InsightResult, period: { start: string; end: string }, locale: "fr" | "en" = "fr") {
+export async function renderHealthReport(profile: Record<string, any>, anthropometry: HealthRow[], biology: HealthRow[], food: HealthRow[], lifestyle: HealthRow[], insight: InsightResult, period: { start: string; end: string }, locale: "fr" | "en" = "fr") {
   const labels = locale === "en" ? {
     title: "NutVitaGlobalis - Health tracking report",
     fromTo: "to",
@@ -19,7 +19,7 @@ export async function renderHealthReport(profile: Record<string, any>, anthropom
     professionalIndicators: "Indicator analysis - professional version",
     publicConclusion: "Client conclusion",
     professionalConclusion: "Professional conclusion",
-    measures: `Available measurements: ${anthropometry.length} anthropometric, ${biology.length} biological and ${food.length} food entries.`,
+    measures: `Available measurements: ${anthropometry.length} anthropometric, ${biology.length} biological, ${food.length} food and ${lifestyle.length} lifestyle assessments.`,
     warning: "This automated report is not a medical diagnosis. Every alert must be interpreted by a qualified professional.",
     page: "page",
   } : {
@@ -35,7 +35,7 @@ export async function renderHealthReport(profile: Record<string, any>, anthropom
     professionalIndicators: "Analyse par indicateur - version professionnelle",
     publicConclusion: "Conclusion grand public",
     professionalConclusion: "Conclusion professionnelle",
-    measures: `Mesures disponibles: ${anthropometry.length} anthropometriques, ${biology.length} biologiques et ${food.length} entrees alimentaires.`,
+    measures: `Mesures disponibles: ${anthropometry.length} anthropometriques, ${biology.length} biologiques, ${food.length} entrees alimentaires et ${lifestyle.length} evaluations du mode de vie.`,
     warning: "Ce rapport automatise ne constitue pas un diagnostic medical. Toute alerte doit etre interpretee par un professionnel qualifie.",
     page: "page",
   };

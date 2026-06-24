@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   try {
     const { data: existingCritical } = await admin.from("child_growth_alerts").select("alert_type").eq("child_id", child.id).eq("severity", "critical").is("acknowledged_at", null);
     if (!validSubscription.child_id) await admin.from("subscriptions").update({ child_id: child.id }).eq("id", validSubscription.id);
-    const { data: saved, error } = await admin.from("child_growth_analyses").insert({ child_id: child.id, summary: analysis.summary, positives: analysis.positives, attention_points: analysis.attentionPoints, practical_advice: analysis.practicalAdvice, parent_advice: analysis.parentAdvice, consultation_recommended: analysis.consultationRecommended, generated_by: user.id }).select("id,created_at").single();
+    const { data: saved, error } = await admin.from("child_growth_analyses").insert({ child_id: child.id, summary: analysis.summary, professional_summary: analysis.professionalSummary, positives: analysis.positives, attention_points: analysis.attentionPoints, practical_advice: analysis.practicalAdvice, parent_advice: analysis.parentAdvice, indicator_insights: analysis.indicatorInsights, parent_conclusion: analysis.parentConclusion, professional_conclusion: analysis.professionalConclusion, consultation_recommended: analysis.consultationRecommended, generated_by: user.id }).select("id,created_at").single();
     if (error) throw error;
     let stored: Record<string, any>[] = [];
     if (analysis.alerts.length) {

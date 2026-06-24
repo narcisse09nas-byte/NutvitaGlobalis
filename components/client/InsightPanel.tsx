@@ -52,7 +52,9 @@ export default function InsightPanel({ initial, alerts, reports }: { initial: In
     else window.open(data.signedUrl, "_blank");
   }
 
-  const indicatorInsights = insight?.indicatorInsights || [];
+  const indicatorInsights = insight?.indicatorInsights || insight?.indicator_insights || [];
+  const publicConclusion = insight?.publicConclusion || insight?.public_conclusion;
+  const professionalConclusion = insight?.professionalConclusion || insight?.professional_conclusion;
 
   return (
     <div className="grid gap-6">
@@ -94,15 +96,15 @@ export default function InsightPanel({ initial, alerts, reports }: { initial: In
         </section>
       )}
 
-      {(insight?.publicConclusion || insight?.professionalConclusion) && (
+      {(publicConclusion || professionalConclusion) && (
         <div className="grid gap-5 lg:grid-cols-2">
           <section className="rounded-2xl border bg-white p-6">
             <h2 className="text-xl font-black">Conclusion grand public</h2>
-            <p className="mt-3 leading-7 text-slate-600">{insight?.publicConclusion}</p>
+            <p className="mt-3 leading-7 text-slate-600">{publicConclusion}</p>
           </section>
           <section className="rounded-2xl border bg-white p-6">
             <h2 className="text-xl font-black">Conclusion professionnelle</h2>
-            <p className="mt-3 leading-7 text-slate-600">{insight?.professionalConclusion}</p>
+            <p className="mt-3 leading-7 text-slate-600">{professionalConclusion}</p>
           </section>
         </div>
       )}

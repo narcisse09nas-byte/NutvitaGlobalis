@@ -1,3 +1,5 @@
+import { analyzeCustomIndicators } from "@/lib/tracking-indicators";
+
 export type HealthRow = Record<string, any>;
 export type IndicatorInsight = {
   indicator: string;
@@ -38,7 +40,7 @@ function addInsight(insights: IndicatorInsight[], insight: IndicatorInsight) {
   insights.push(insight);
 }
 
-export function analyzeHealthData(anthropometry: HealthRow[], biology: HealthRow[], food: HealthRow[], locale: "fr" | "en" = "fr"): InsightResult {
+export function analyzeHealthData(anthropometry: HealthRow[], biology: HealthRow[], food: HealthRow[], lifestyle: HealthRow[] = [], locale: "fr" | "en" = "fr"): InsightResult {
   const trends: string[] = [], improvements: string[] = [], risks: string[] = [], recommendations: string[] = [], indicatorInsights: IndicatorInsight[] = [];
   const alerts: InsightResult["alerts"] = [];
   const weight = variation(anthropometry, "weight_kg", "measured_at");
@@ -156,6 +158,84 @@ export function analyzeHealthData(anthropometry: HealthRow[], biology: HealthRow
     professionalInterpretation: locale === "en" ? "Interpret reported intake with recall quality, portion estimation, disease status, activity and objectives." : "Interpreter les apports declares selon la qualite du rappel, l'estimation des portions, l'etat de sante, l'activite et les objectifs.",
     recommendation: locale === "en" ? "Record several representative days, including one weekend day if possible." : "Renseigner plusieurs jours representatifs, dont un jour de week-end si possible.",
   });
+
+  for (const [category, rows] of [[locale === "en" ? "Anthropometry" : "Anthropometrie", anthropometry], [locale === "en" ? "Biology" : "Biologie", biology]] as const) {
+    for (const item of analyzeCustomIndicators(rows, "measured_at")) {
+      const normal = item.normalMin !== null || item.normalMax !== null
+        ? `${item.normalMin ?? "-"} a ${item.normalMax ?? "-"} ${item.unit}`.trim()
+        : locale === "en" ? "not configured" : "non configuree";
+      const previous = item.previous === null
+        ? locale === "en" ? "No previous value." : "Aucune valeur precedente."
+        : locale === "en"
+          ? `Previous value: ${item.previous} ${item.unit}; change: ${item.delta! > 0 ? "+" : ""}${item.delta} ${item.unit}.`
+          : `Valeur precedente : ${item.previous} ${item.unit}; variation : ${item.delta! > 0 ? "+" : ""}${item.delta} ${item.unit}.`;
+      const relation = item.relation === "below"
+        ? locale === "en" ? "below the configured range" : "sous la plage configuree"
+        : item.relation === "above"
+          ? locale === "en" ? "above the configured range" : "au-dessus de la plage configuree"
+          : item.relation === "within"
+            ? locale === "en" ? "within the configured range" : "dans la plage configuree"
+            : locale === "en" ? "without a configured reference range" : "sans plage de reference configuree";
+      if (item.delta !== null) trends.push(`${item.name}: ${item.delta > 0 ? "+" : ""}${item.delta} ${item.unit} (${item.trend}).`);
+      if (item.relation === "below" || item.relation === "above") risks.push(`${item.name}: ${relation}.`);
+      addInsight(indicatorInsights, {
+        indicator: `${category} - ${item.name}`,
+        latest: `${item.current} ${item.unit}`.trim(),
+        status: item.relation === "below" || item.relation === "above" ? "watch" : "stable",
+        publicInterpretation: locale === "en"
+          ? `The current value is ${item.current} ${item.unit}, ${relation}. ${previous}`
+          : `La valeur actuelle est de ${item.current} ${item.unit}, ${relation}. ${previous}`,
+        professionalInterpretation: locale === "en"
+          ? `Current ${item.current} ${item.unit}; configured range ${normal}; trend ${item.trend}. ${previous} Validate the reference according to age, sex, method and laboratory context.`
+          : `Valeur actuelle ${item.current} ${item.unit}; norme configuree ${normal}; tendance ${item.trend}. ${previous} Valider la reference selon l'age, le sexe, la methode et le contexte du laboratoire.`,
+        recommendation: item.relation === "below" || item.relation === "above"
+          ? locale === "en" ? "Confirm the value and discuss it with a qualified professional." : "Confirmer la valeur et la discuter avec un professionnel qualifie."
+          : locale === "en" ? "Continue comparable measurements to strengthen the trend." : "Poursuivre des mesures comparables pour consolider la tendance.",
+      });
+    }
+  }
+
+  const lifestyleRows = dated(lifestyle, "assessment_date");
+  const latestLifestyle = lifestyleRows.at(-1);
+  const previousLifestyle = lifestyleRows.at(-2);
+  const levelLabels = locale === "en"
+    ? ["", "Very low", "Low", "Moderate", "Good", "Excellent"]
+    : ["", "Tres faible", "Faible", "Moderee", "Bonne", "Excellente"];
+  for (const metric of [
+    { key: "activity_level", label: locale === "en" ? "Physical activity over 7 days" : "Activite physique sur 7 jours" },
+    { key: "diet_level", label: locale === "en" ? "Overall diet over 7 days" : "Alimentation globale sur 7 jours" },
+  ]) {
+    const current = number(latestLifestyle?.[metric.key]);
+    const previous = number(previousLifestyle?.[metric.key]);
+    if (current === null) {
+      addInsight(indicatorInsights, {
+        indicator: metric.label,
+        status: "incomplete",
+        publicInterpretation: locale === "en" ? "No weekly assessment is available yet." : "Aucune evaluation hebdomadaire n'est encore disponible.",
+        professionalInterpretation: locale === "en" ? "No recent self-reported 5-point assessment." : "Aucune auto-evaluation recente sur l'echelle a 5 niveaux.",
+        recommendation: locale === "en" ? "Complete the weekly assessment." : "Completer l'evaluation hebdomadaire.",
+      });
+      continue;
+    }
+    const delta = previous === null ? null : current - previous;
+    if (delta !== null) trends.push(`${metric.label}: ${delta > 0 ? "+" : ""}${delta} point(s) depuis l'evaluation precedente.`);
+    if (current <= 2) risks.push(`${metric.label}: niveau ${levelLabels[current].toLowerCase()} a ameliorer.`);
+    if (delta !== null && delta > 0) improvements.push(`${metric.label}: progression de ${delta} point(s).`);
+    addInsight(indicatorInsights, {
+      indicator: metric.label,
+      latest: `${levelLabels[current]} (${current}/5)`,
+      status: current <= 2 ? "watch" : delta !== null && delta > 0 ? "improving" : "stable",
+      publicInterpretation: locale === "en"
+        ? `Your current level is ${levelLabels[current]} (${current}/5). ${previous === null ? "This is the first assessment." : `The previous level was ${levelLabels[previous]} (${previous}/5).`}`
+        : `Votre niveau actuel est ${levelLabels[current]} (${current}/5). ${previous === null ? "Il s'agit de la premiere evaluation." : `Le niveau precedent etait ${levelLabels[previous]} (${previous}/5).`}`,
+      professionalInterpretation: locale === "en"
+        ? `Self-reported 7-day score: ${current}/5; previous ${previous ?? "unavailable"}; delta ${delta ?? "unavailable"}. Interpret with functional capacity, symptoms and objectives.`
+        : `Score auto-declare sur 7 jours : ${current}/5; precedent ${previous ?? "indisponible"}; variation ${delta ?? "indisponible"}. Interpreter avec les capacites fonctionnelles, les symptomes et les objectifs.`,
+      recommendation: current <= 2
+        ? locale === "en" ? "Set one realistic weekly improvement goal and seek professional advice when needed." : "Fixer un objectif hebdomadaire realiste d'amelioration et demander conseil si necessaire."
+        : locale === "en" ? "Maintain the habits and reassess every week." : "Maintenir les habitudes et reevaluer chaque semaine.",
+    });
+  }
 
   const recentLimit = Date.now() - 30 * 86400000;
   const hasRecentAnthro = anthropometry.some(row => +new Date(row.measured_at) >= recentLimit);

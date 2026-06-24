@@ -84,6 +84,11 @@ export async function renderChildGrowthReport(child: GrowthRow, rows: GrowthRow[
   text("Mesures enregistrees", 14, bold, rgb(.12, .49, .33));
   for (const row of rows.slice(-12)) {
     text(`${new Date(row.measured_at).toLocaleDateString("fr-FR")} | age ${format(row.age_months)} mois | poids ${format(row.weight_kg)} kg | taille ${format(row.height_cm)} cm | IMC ${format(row.bmi)} | MUAC ${format(row.muac_cm)} cm | risque ${row.risk_category || "non classe"}`, 8);
+    const custom = Object.entries(row.custom_values || {}).map(([name, raw]) => {
+      const item = raw as any;
+      return `${name}: ${typeof item === "object" ? item.value : item}${typeof item === "object" && item.unit ? ` ${item.unit}` : ""}`;
+    });
+    if (custom.length) text(`Indicateurs personnalises : ${custom.join(" | ")}`, 8, regular, rgb(.38, .45, .44));
   }
   y -= 8;
   if (analysis.indicatorInsights?.length) {

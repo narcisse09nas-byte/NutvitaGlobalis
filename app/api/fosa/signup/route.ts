@@ -41,7 +41,13 @@ export async function POST(request: Request) {
     },
   });
   if (error || !data.user || !data.properties?.action_link) {
-    return NextResponse.json({ message: error?.message || "Creation du compte impossible." }, { status: 400 });
+    const duplicate = /already|registered|exists/i.test(error?.message || "");
+    return NextResponse.json({
+      code: duplicate ? "EMAIL_EXISTS" : "SIGNUP_FAILED",
+      message: duplicate
+        ? "Cette adresse possede deja un compte NutVitaGlobalis. Utilisez son mot de passe actuel pour lui ajouter l'espace FOSA."
+        : error?.message || "Creation du compte impossible.",
+    }, { status: duplicate ? 409 : 400 });
   }
   try {
     const subject = "Confirmez votre compte FOSA NutVitaGlobalis";

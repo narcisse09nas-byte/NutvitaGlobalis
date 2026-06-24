@@ -7,6 +7,9 @@ NutVitaGlobalis.
 ## Acces
 
 - La creation d'un compte est obligatoire.
+- Une meme identite Supabase peut cumuler un espace client et un espace FOSA.
+- Si l'email existe deja, le mot de passe actuel confirme l'identite et seule la
+  demande FOSA est ajoutee au compte.
 - Le demandeur indique le nombre de formations sanitaires et de membres du personnel.
 - Un administrateur NutVitaGlobalis approuve ou rejette la demande.
 - Apres approbation, le demandeur devient administrateur de son organisation FOSA.

@@ -19,6 +19,7 @@ export const routeAliases: Record<Locale, Record<string, string>> = {
     "/cgu": "/cgu",
     "/cgv": "/cgv",
     "/remboursement": "/remboursement",
+    "/fosa": "/fosa",
   },
   en: {
     "/": "/",
@@ -34,6 +35,7 @@ export const routeAliases: Record<Locale, Record<string, string>> = {
     "/terms-of-use": "/cgu",
     "/terms-of-sale": "/cgv",
     "/refund-policy": "/remboursement",
+    "/fosa": "/fosa",
   },
 };
 

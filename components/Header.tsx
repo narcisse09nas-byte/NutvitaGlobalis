@@ -19,6 +19,7 @@ export default function Header() {
     ["/formations", t.courses],
     ["/teleconseils", t.counselling],
     ["/ressources", t.resources],
+    ["/fosa", "FOSA"],
     ["/recrutement-dieteticiens", t.recruitment],
     ["/a-propos", t.about],
     ["/contact", t.contact],

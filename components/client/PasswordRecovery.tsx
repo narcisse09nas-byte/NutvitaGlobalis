@@ -11,7 +11,15 @@ export default function PasswordRecovery() {
     if (recovery) {
       const password = String(fd.get("password"));
       if (password !== String(fd.get("confirmation"))) { setMessage("Les mots de passe ne correspondent pas."); setLoading(false); return; }
-      const { error } = await supabase.auth.updateUser({ password }); setMessage(error ? error.message : "Mot de passe mis a jour. Vous pouvez vous connecter.");
+      const { error } = await supabase.auth.updateUser({ password });
+      if (!error) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) await Promise.all([
+          supabase.from("client_profiles").update({ must_change_password: false }).eq("id", user.id),
+          supabase.rpc("complete_fosa_password_change"),
+        ]);
+      }
+      setMessage(error ? error.message : "Mot de passe mis a jour. Vous pouvez vous connecter.");
     } else {
       const callback = `${location.origin}/auth/callback?next=${encodeURIComponent("/mot-de-passe-oublie")}`;
       const { error } = await supabase.auth.resetPasswordForEmail(String(fd.get("email")), { redirectTo: callback }); setMessage(error ? error.message : "Un lien de reinitialisation vous a ete envoye.");

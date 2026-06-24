@@ -9,6 +9,7 @@ import {
   ArrowRightStartOnRectangleIcon,
   AtSymbolIcon,
   Bars3Icon,
+  BuildingOffice2Icon,
   CalculatorIcon,
   ChartBarIcon,
   ChatBubbleLeftRightIcon,
@@ -40,6 +41,7 @@ const navGroups = [
   ]},
   {title:"Sante & clients", tone:"bg-emerald-500/12", links:[
     ["/admin/sante", "Administration sante", UserGroupIcon, [...all, "health_admin"]],
+    ["/admin/fosa", "Service FOSA", BuildingOffice2Icon, [...all, "health_admin"]],
     ["/admin/salle-attente", "Salle d'attente", ExclamationTriangleIcon, [...all, "health_admin"]],
     ["/admin/croissance-enfant", "Croissance enfant", ExclamationTriangleIcon, [...all, "health_admin"]],
     ["/admin/teleconseils", "Teleconseils", ChatBubbleLeftRightIcon, [...all, "health_admin"]],

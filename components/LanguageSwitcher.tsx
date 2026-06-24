@@ -19,6 +19,7 @@ const publicCanonicalRoutes = new Set([
   "/cgu",
   "/cgv",
   "/remboursement",
+  "/fosa",
 ]);
 
 export default function LanguageSwitcher({ compact = false }: { compact?: boolean }) {

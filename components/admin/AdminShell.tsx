@@ -37,6 +37,7 @@ const all = ["super_admin"];
 const navGroups = [
   {title:"Pilotage", tone:"bg-white/10", links:[
     ["/admin", "Tableau de bord", Squares2X2Icon, null],
+    ["/super-admin", "Espace Super admin", ShieldCheckIcon, all],
     ["/admin/dashboard-business", "Dashboard business", ChartBarIcon, [...all, "finance_admin"]],
   ]},
   {title:"Sante & clients", tone:"bg-emerald-500/12", links:[

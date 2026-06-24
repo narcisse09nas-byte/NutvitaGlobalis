@@ -15,11 +15,8 @@ export default function Header() {
   const t = ui[locale].nav;
   const links = [
     ["/", t.home],
-    ["/suivi-sante", t.health],
-    ["/formations", t.courses],
-    ["/teleconseils", t.counselling],
+    ["/services", locale === "en" ? "Our services" : "Nos services"],
     ["/ressources", t.resources],
-    ["/fosa", "FOSA"],
     ["/recrutement-dieteticiens", t.recruitment],
     ["/a-propos", t.about],
     ["/contact", t.contact],

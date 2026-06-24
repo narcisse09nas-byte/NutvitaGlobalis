@@ -7,6 +7,7 @@ export const localeLabels: Record<Locale, string> = { fr: "FR", en: "EN" };
 export const routeAliases: Record<Locale, Record<string, string>> = {
   fr: {
     "/": "/",
+    "/services": "/services",
     "/formations": "/formations",
     "/teleconseils": "/teleconseils",
     "/ressources": "/ressources",
@@ -23,6 +24,7 @@ export const routeAliases: Record<Locale, Record<string, string>> = {
   },
   en: {
     "/": "/",
+    "/our-services": "/services",
     "/courses": "/formations",
     "/nutrition-counselling": "/teleconseils",
     "/resources": "/ressources",

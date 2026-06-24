@@ -1,6 +1,7 @@
 export const fosaModules = [
   { slug: "admissions", title: "Admissions", description: "Enregistrer les admissions nutritionnelles et les donnees anthropometriques." },
   { slug: "children", title: "Registre des enfants", description: "Suivre les enfants, visites, traitements et sorties." },
+  { slug: "vaccination", title: "Vaccination", description: "Documenter le statut vaccinal et les doses manquantes de chaque enfant." },
   { slug: "referrals", title: "Referencements", description: "Gerer les references entrantes et sortantes entre formations sanitaires." },
   { slug: "special-attention", title: "Attention speciale", description: "Identifier les dossiers qui necessitent une surveillance renforcee." },
   { slug: "stock", title: "Stocks nutritionnels", description: "Suivre les intrants, lots, mouvements et disponibilites." },

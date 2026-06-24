@@ -49,3 +49,26 @@ generique sans modifier le modele d'acces.
 
 Executer `supabase/fosa-service.sql` dans l'editeur SQL Supabase avant de tester le
 service. Le script cree les tables, fonctions, politiques RLS et modeles d'emails.
+
+Executer ensuite `supabase/fosa-specialized-forms.sql`. Cette migration ajoute les
+informations de programme des FOSA et l'index PostgreSQL utilise par les formulaires
+specialises.
+
+## Email de confirmation
+
+Le formulaire FOSA genere maintenant un lien de confirmation Supabase puis l'envoie
+avec Resend. Les variables suivantes doivent etre definies dans Vercel :
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `RESEND_API_KEY`
+- `MAIL_FROM`
+
+`MAIL_FROM` doit utiliser un domaine verifie dans Resend. En cas d'echec d'envoi, le
+compte incomplet est supprime afin que le demandeur puisse recommencer proprement.
+
+## Absence de Firebase
+
+Aucun module Firebase ou Firestore du projet Studio n'est copie. Les formulaires,
+les donnees, les droits et les rapports reposent exclusivement sur Next.js,
+Supabase Auth et PostgreSQL.

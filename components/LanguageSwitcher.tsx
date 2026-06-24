@@ -7,6 +7,7 @@ import { canonicalPath, localizedPath, normalizeLocale, stripLocale, type Locale
 
 const publicCanonicalRoutes = new Set([
   "/",
+  "/services",
   "/formations",
   "/teleconseils",
   "/ressources",

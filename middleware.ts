@@ -33,6 +33,7 @@ const access: Record<string, string[]> = {
 const aliases: Record<string, Record<string, string>> = {
   fr: {
     "/": "/",
+    "/services": "/services",
     "/formations": "/formations",
     "/teleconseils": "/teleconseils",
     "/ressources": "/ressources",
@@ -49,6 +50,7 @@ const aliases: Record<string, Record<string, string>> = {
   },
   en: {
     "/": "/",
+    "/our-services": "/services",
     "/courses": "/formations",
     "/nutrition-counselling": "/teleconseils",
     "/resources": "/ressources",

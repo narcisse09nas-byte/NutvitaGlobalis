@@ -8,8 +8,10 @@ export async function POST(request: Request) {
   const session = await createClient();
   const { data: { user } } = await session.auth.getUser();
   if (!user) return NextResponse.json({ message: "Non authentifie." }, { status: 401 });
-  const { data: actor } = await session.from("fosa_members").select("*, fosa_organizations(*)").eq("user_id", user.id).eq("status", "active").maybeSingle();
-  if (!actor || actor.role !== "organization_admin" || actor.fosa_organizations?.status !== "approved") {
+  const { data: actor } = await session.from("fosa_members").select("*").eq("user_id", user.id).eq("status", "active").maybeSingle();
+  const service = createAdminClient();
+  const { data: organization } = actor ? await service.from("fosa_organizations").select("*").eq("id", actor.organization_id).maybeSingle() : { data: null };
+  if (!actor || actor.role !== "organization_admin" || organization?.status !== "approved") {
     return NextResponse.json({ message: "Administrateur FOSA requis." }, { status: 403 });
   }
   const body = await request.json();
@@ -21,7 +23,6 @@ export async function POST(request: Request) {
   if (!email || !fullName) return NextResponse.json({ message: "Le nom et l'email sont obligatoires." }, { status: 400 });
   if (password.length < 8) return NextResponse.json({ message: "Le mot de passe initial doit contenir au moins 8 caracteres." }, { status: 400 });
   const facilityIds = Array.isArray(body.facility_ids) ? body.facility_ids.map(String) : [];
-  const service = createAdminClient();
   if (facilityIds.length) {
     const { data: allowedFacilities } = await service.from("fosa_facilities").select("id").eq("organization_id", actor.organization_id).in("id", facilityIds);
     if (facilityIds.length !== (allowedFacilities || []).length) return NextResponse.json({ message: "Une FOSA selectionnee n'appartient pas a votre organisation." }, { status: 400 });

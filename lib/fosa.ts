@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function requireFosaMember() {
   const supabase = await createClient();
@@ -7,11 +8,17 @@ export async function requireFosaMember() {
   if (!user) redirect("/fosa/connexion");
   const { data: member } = await supabase
     .from("fosa_members")
-    .select("*, fosa_organizations(*)")
+    .select("*")
     .eq("user_id", user.id)
     .maybeSingle();
   if (!member) redirect("/fosa/inscription");
-  const organization = member.fosa_organizations;
+  const admin = createAdminClient();
+  const { data: organization } = await admin
+    .from("fosa_organizations")
+    .select("*")
+    .eq("id", member.organization_id)
+    .maybeSingle();
+  if (!organization) redirect("/fosa/inscription?erreur=organisation");
   return { supabase, user, member, organization };
 }
 

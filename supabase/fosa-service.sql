@@ -143,6 +143,15 @@ returns boolean language sql stable security definer set search_path=public as $
   );
 $$;
 
+create or replace function public.can_read_fosa_organization(p_organization_id uuid)
+returns boolean language sql stable security definer set search_path=public as $$
+  select exists(
+    select 1 from public.fosa_members m
+    where m.organization_id=p_organization_id
+      and m.user_id=(select auth.uid())
+  );
+$$;
+
 create or replace function public.can_access_fosa_facility(p_facility_id uuid)
 returns boolean language sql stable security definer set search_path=public as $$
   select exists(
@@ -173,7 +182,7 @@ alter table public.fosa_member_facilities enable row level security;
 alter table public.fosa_records enable row level security;
 
 create policy "FOSA members read organization" on public.fosa_organizations for select to authenticated
-using(public.is_admin() or exists(select 1 from public.fosa_members m where m.organization_id=id and m.user_id=(select auth.uid())));
+using(public.is_admin() or public.can_read_fosa_organization(id));
 create policy "NutVita admins manage FOSA organizations" on public.fosa_organizations for all to authenticated
 using(public.is_admin()) with check(public.is_admin());
 

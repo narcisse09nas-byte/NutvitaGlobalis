@@ -22,6 +22,7 @@ export const routeAliases: Record<Locale, Record<string, string>> = {
     "/remboursement": "/remboursement",
     "/fosa": "/nutritrack",
     "/nutritrack": "/nutritrack",
+    "/acces-nutritrack": "/acces-nutritrack",
   },
   en: {
     "/": "/",
@@ -40,6 +41,7 @@ export const routeAliases: Record<Locale, Record<string, string>> = {
     "/refund-policy": "/remboursement",
     "/fosa": "/nutritrack",
     "/nutritrack": "/nutritrack",
+    "/nutritrack-access": "/acces-nutritrack",
   },
 };
 

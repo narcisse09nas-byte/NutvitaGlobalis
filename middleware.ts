@@ -27,6 +27,7 @@ const access: Record<string, string[]> = {
   "/admin/factures": ["super_admin", "finance_admin"],
   "/admin/taxes": ["super_admin", "finance_admin"],
   "/admin/offres": ["super_admin", "finance_admin"],
+  "/super-admin/nutritrack": ["super_admin"],
 };
 
 const aliases: Record<string, Record<string, string>> = {
@@ -47,6 +48,7 @@ const aliases: Record<string, Record<string, string>> = {
     "/remboursement": "/remboursement",
     "/fosa": "/nutritrack",
     "/nutritrack": "/nutritrack",
+    "/acces-nutritrack": "/acces-nutritrack",
   },
   en: {
     "/": "/",
@@ -65,6 +67,7 @@ const aliases: Record<string, Record<string, string>> = {
     "/refund-policy": "/remboursement",
     "/fosa": "/nutritrack",
     "/nutritrack": "/nutritrack",
+    "/nutritrack-access": "/acces-nutritrack",
   },
 };
 

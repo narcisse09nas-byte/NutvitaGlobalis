@@ -9,7 +9,7 @@ export default async function SuperAdminPage() {
   const { data: current } = await supabase.from("admin_users").select("role").eq("id", admin.id).single();
   if (current?.role !== "super_admin") redirect("/admin?acces=refuse");
   const links = [
-    { title: "NutriTrack", text: "Ouvrir l'application de support a la prise en charge integree de la malnutrition aigue.", href: "/nutritrack", icon: BuildingOffice2Icon, tone: "bg-cyan-50 text-cyan-700" },
+    { title: "Administration NutriTrack", text: "Valider les organisations et administrer les acces a l application.", href: "/super-admin/nutritrack", icon: BuildingOffice2Icon, tone: "bg-cyan-50 text-cyan-700" },
     { title: "Administrateurs NutVita", text: "Gerer les administrateurs globaux, leurs roles et leur historique.", href: "/admin/utilisateurs-admin", icon: ShieldCheckIcon, tone: "bg-slate-100 text-slate-700" },
     { title: "Tableau de bord", text: "Revenir au pilotage general de NutVitaGlobalis.", href: "/admin", icon: Squares2X2Icon, tone: "bg-emerald-50 text-emerald-700" },
     { title: "Dashboard business", text: "Consulter les principaux indicateurs de gestion.", href: "/admin/dashboard-business", icon: ChartBarIcon, tone: "bg-orange/10 text-orange" },

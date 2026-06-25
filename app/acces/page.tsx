@@ -8,7 +8,7 @@ const spaces = [
   { title: "Espace candidat", text: "Creez ou suivez votre candidature, completez votre dossier et consultez vos convocations.", href: "/candidat", action: "Connexion candidat", icon: UserPlusIcon, tone: "bg-sky-50 text-sky-700" },
   { title: "Dieteticien/nutritionniste partenaire", text: "Retrouvez votre activite clinique, vos clients, paiements, messages et appels.", href: "/partenaire/connexion", action: "Portail partenaire", icon: BriefcaseIcon, tone: "bg-orange/10 text-orange" },
   { title: "Administration", text: "Acces reserve aux administrateurs autorises de NutVitaGlobalis.", href: "/admin", action: "Connexion administrateur", icon: ShieldCheckIcon, tone: "bg-forest text-white" },
-  { title: "Service FOSA", text: "Gerez les formations sanitaires, les equipes, les admissions nutritionnelles et les rapports.", href: "/fosa", action: "Acceder au service FOSA", icon: BuildingOffice2Icon, tone: "bg-teal-50 text-teal-700" },
+  { title: "NutriTrack", text: "Application de support a la prise en charge integree de la malnutrition aigue.", href: "/nutritrack", action: "Ouvrir NutriTrack", icon: BuildingOffice2Icon, tone: "bg-cyan-50 text-cyan-700" },
 ] as const;
 
 export const metadata = { title: "Se connecter" };

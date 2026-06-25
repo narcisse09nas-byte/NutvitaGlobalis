@@ -12,3 +12,50 @@
   main > section:first-child .container-site > div { min-width: 0; }
   .eyebrow { max-width: 100%; letter-spacing: .11em; }
 }
+
+.nutritrack-scope {
+  --background: 180 14% 97%;
+  --foreground: 180 5% 20%;
+  --card: 0 0% 100%;
+  --card-foreground: 180 5% 20%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 180 5% 20%;
+  --primary: 196 100% 47%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 180 14% 90%;
+  --secondary-foreground: 180 5% 20%;
+  --muted: 180 14% 94%;
+  --muted-foreground: 180 5% 45%;
+  --accent: 18 65% 51%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 180 14% 88%;
+  --input: 180 14% 92%;
+  --ring: 196 100% 47%;
+  --radius: .5rem;
+  --sidebar-background: 240 100% 15%;
+  --sidebar-foreground: 210 20% 96%;
+  --sidebar-logo-background: 240 100% 12%;
+  --sidebar-accent: 240 100% 25%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 240 100% 20%;
+  --sidebar-reporting-active: hsl(150 70% 40%);
+  --sidebar-reporting-active-foreground: hsl(0 0% 100%);
+  --sidebar-operations-active: hsl(45 95% 55%);
+  --sidebar-operations-active-foreground: hsl(220 50% 10%);
+  --sidebar-settings-active: hsl(280 65% 60%);
+  --sidebar-settings-active-foreground: hsl(0 0% 100%);
+  --sidebar-feedback-active: hsl(0 84% 60%);
+  --sidebar-feedback-active-foreground: hsl(0 0% 100%);
+  min-height: 100vh;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.nutritrack-scope h1,
+.nutritrack-scope h2,
+.nutritrack-scope h3 {
+  color: inherit;
+  letter-spacing: 0;
+}

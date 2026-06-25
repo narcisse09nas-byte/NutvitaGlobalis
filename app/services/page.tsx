@@ -6,7 +6,7 @@ const available = [
   { title: "Suivi croissance enfant", text: "Courbes, mesures, analyses et accompagnement de la croissance de l'enfant.", href: "/connexion", icon: ChartBarSquareIcon, tone: "bg-sky-50 text-sky-700" },
   { title: "Formations certifiantes", text: "Parcours de formation, ressources pedagogiques et accompagnement des apprenants.", href: "/formations", icon: AcademicCapIcon, tone: "bg-violet-50 text-violet-700" },
   { title: "Teleconseils et packs", text: "Accompagnement nutritionnel, consultations video et programmes personnalises.", href: "/teleconseils", icon: VideoCameraIcon, tone: "bg-orange/10 text-orange" },
-  { title: "Gestion des FOSA", text: "Admissions nutritionnelles, suivi des enfants, stock, supervision et rapports par formation sanitaire.", href: "/fosa", icon: BuildingOffice2Icon, tone: "bg-teal-50 text-teal-700" },
+  { title: "NutriTrack", text: "Application de support a la prise en charge integree de la malnutrition aigue.", href: "/nutritrack", icon: BuildingOffice2Icon, tone: "bg-cyan-50 text-cyan-700" },
 ] as const;
 
 const upcoming = [

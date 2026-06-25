@@ -16,7 +16,6 @@ export default function PasswordRecovery() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) await Promise.all([
           supabase.from("client_profiles").update({ must_change_password: false }).eq("id", user.id),
-          supabase.rpc("complete_fosa_password_change"),
         ]);
       }
       setMessage(error ? error.message : "Mot de passe mis a jour. Vous pouvez vous connecter.");

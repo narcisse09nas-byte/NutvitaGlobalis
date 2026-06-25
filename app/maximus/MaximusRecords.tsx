@@ -1,8 +1,9 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, FilePenLine, Plus, Search, Send, Trash2, X, XCircle } from 'lucide-react';
+import { CheckCircle2, FilePenLine, GitBranch, Plus, Search, Send, Trash2, X, XCircle } from 'lucide-react';
 import type { MaximusModule } from '@/lib/maximus-modules';
+import { workflowActionFor } from '@/lib/maximus-workflows';
 
 type RecordRow = {
   id: string;
@@ -14,8 +15,14 @@ type RecordRow = {
 };
 
 const statusLabels: Record<string, string> = {
-  draft: 'Brouillon', submitted: 'Soumis', validated: 'Validé', rejected: 'Rejeté', archived: 'Archivé',
+  draft: 'Brouillon',
+  submitted: 'Soumis',
+  validated: 'Validé',
+  rejected: 'Rejeté',
+  archived: 'Archivé',
 };
+
+const workflowItemFields = new Set(['menus', 'menus_quantities', 'items', 'specific_ingredients']);
 
 export default function MaximusRecords({ module }: { module: MaximusModule }) {
   const [items, setItems] = useState<RecordRow[]>([]);
@@ -25,6 +32,7 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+  const [workflowBusy, setWorkflowBusy] = useState('');
 
   async function load() {
     const response = await fetch(`/api/maximus/records?module=${encodeURIComponent(module.slug)}`);
@@ -32,6 +40,7 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
     if (response.ok) setItems(result.items || []);
     else setMessage(result.message || 'Chargement impossible.');
   }
+
   useEffect(() => { load(); }, [module.slug]);
 
   const filtered = useMemo(() => items.filter(item =>
@@ -70,12 +79,30 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
 
   async function changeStatus(item: RecordRow, next: string) {
     const response = await fetch('/api/maximus/records', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: item.id, status: next }),
     });
     const result = await response.json();
     if (!response.ok) return setMessage(result.message || 'Mise à jour impossible.');
     setMessage(`Statut : ${statusLabels[next]}.`);
+    await load();
+  }
+
+  async function advanceWorkflow(item: RecordRow) {
+    const action = workflowActionFor(module.slug, item.status);
+    if (!action) return;
+    if (!confirm(`${action.label} pour « ${item.title} » ?`)) return;
+    setWorkflowBusy(item.id);
+    const response = await fetch('/api/maximus/workflow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recordId: item.id, action: action.id }),
+    });
+    const result = await response.json();
+    setWorkflowBusy('');
+    if (!response.ok) return setMessage(result.message || 'Exécution du workflow impossible.');
+    setMessage(result.message || action.successMessage);
     await load();
   }
 
@@ -95,17 +122,83 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
 
   return <div className="grid gap-6">
     <section className="flex flex-wrap items-end justify-between gap-4">
-      <div><p className="text-xs font-black uppercase tracking-widest text-[#ef7f3b]">{module.group}</p><h2 className="mt-2 text-3xl font-black">{module.title}</h2><p className="mt-2 max-w-3xl leading-7 text-slate-500">{module.description}</p></div>
+      <div>
+        <p className="text-xs font-black uppercase tracking-widest text-[#ef7f3b]">{module.group}</p>
+        <h2 className="mt-2 text-3xl font-black">{module.title}</h2>
+        <p className="mt-2 max-w-3xl leading-7 text-slate-500">{module.description}</p>
+      </div>
       <button onClick={() => openEdit()} className="btn-primary"><Plus className="mr-2 h-4" />Ajouter</button>
     </section>
+
     {message && <p className="rounded-md bg-emerald-50 p-4 font-bold text-emerald-800">{message}</p>}
+
     <section className="rounded-lg border bg-white">
       <header className="flex flex-wrap items-center gap-3 border-b p-4">
-        <label className="relative min-w-[240px] flex-1"><Search className="absolute left-3 top-3 h-4 text-slate-400" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher..." className="admin-input pl-10" /></label>
-        <select value={status} onChange={event => setStatus(event.target.value)} className="admin-input max-w-48"><option value="">Tous les statuts</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+        <label className="relative min-w-[240px] flex-1">
+          <Search className="absolute left-3 top-3 h-4 text-slate-400" />
+          <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher..." className="admin-input pl-10" />
+        </label>
+        <select value={status} onChange={event => setStatus(event.target.value)} className="admin-input max-w-48">
+          <option value="">Tous les statuts</option>
+          {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
       </header>
-      {filtered.length ? <div className="overflow-x-auto"><table className="min-w-full text-sm"><thead><tr className="text-left text-slate-500"><th className="p-4">Élément</th><th className="p-4">Référence</th><th className="p-4">Statut</th><th className="p-4">Date</th><th className="p-4 text-right">Actions</th></tr></thead><tbody>{filtered.map(item => <tr key={item.id} className="border-t"><td className="p-4"><b>{item.title}</b><p className="mt-1 max-w-xl truncate text-xs text-slate-400">{module.fields.slice(1, 4).map(field => item.data[field.key]).filter(Boolean).join(' · ')}</p></td><td className="p-4">{item.reference || '-'}</td><td className="p-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${item.status === 'validated' ? 'bg-emerald-50 text-emerald-800' : item.status === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-700'}`}>{statusLabels[item.status] || item.status}</span></td><td className="p-4">{new Date(item.created_at).toLocaleDateString('fr-FR')}</td><td className="p-4"><div className="flex justify-end gap-2"><button title="Modifier" onClick={() => openEdit(item)} className="icon-action"><FilePenLine className="h-4" /></button>{item.status === 'draft' && <button title="Soumettre" onClick={() => changeStatus(item, 'submitted')} className="icon-action text-blue-700"><Send className="h-4" /></button>}{item.status === 'submitted' && <><button title="Valider" onClick={() => changeStatus(item, 'validated')} className="icon-action text-emerald-700"><CheckCircle2 className="h-4" /></button><button title="Rejeter" onClick={() => changeStatus(item, 'rejected')} className="icon-action text-red-700"><XCircle className="h-4" /></button></>}<button title="Supprimer" onClick={() => remove(item)} className="icon-action text-red-700"><Trash2 className="h-4" /></button></div></td></tr>)}</tbody></table></div> : <div className="p-12 text-center text-sm text-slate-500">Aucun élément enregistré dans ce module.</div>}
+
+      {filtered.length ? <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead><tr className="text-left text-slate-500"><th className="p-4">Élément</th><th className="p-4">Référence</th><th className="p-4">Statut</th><th className="p-4">Date</th><th className="p-4 text-right">Actions</th></tr></thead>
+          <tbody>{filtered.map(item => {
+            const action = workflowActionFor(module.slug, item.status);
+            const processed = Array.isArray(item.data.workflow_processed_actions) ? item.data.workflow_processed_actions : [];
+            const workflowAvailable = action && !processed.includes(action.id);
+            return <tr key={item.id} className="border-t">
+              <td className="p-4">
+                <b>{item.title}</b>
+                <p className="mt-1 max-w-xl truncate text-xs text-slate-400">{module.fields.slice(1, 4).map(field => item.data[field.key]).filter(Boolean).join(' · ')}</p>
+                {action && processed.includes(action.id) && <p className="mt-2 text-xs font-bold text-emerald-700">Étape suivante déjà exécutée</p>}
+              </td>
+              <td className="p-4">{item.reference || '-'}</td>
+              <td className="p-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${item.status === 'validated' ? 'bg-emerald-50 text-emerald-800' : item.status === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-700'}`}>{statusLabels[item.status] || item.status}</span></td>
+              <td className="p-4">{new Date(item.created_at).toLocaleDateString('fr-FR')}</td>
+              <td className="p-4"><div className="flex justify-end gap-2">
+                <button title="Modifier" onClick={() => openEdit(item)} className="icon-action"><FilePenLine className="h-4" /></button>
+                {item.status === 'draft' && <button title="Soumettre" onClick={() => changeStatus(item, 'submitted')} className="icon-action text-blue-700"><Send className="h-4" /></button>}
+                {item.status === 'submitted' && <>
+                  <button title="Valider" onClick={() => changeStatus(item, 'validated')} className="icon-action text-emerald-700"><CheckCircle2 className="h-4" /></button>
+                  <button title="Rejeter" onClick={() => changeStatus(item, 'rejected')} className="icon-action text-red-700"><XCircle className="h-4" /></button>
+                </>}
+                {workflowAvailable && <button disabled={workflowBusy === item.id} title={action.label} onClick={() => advanceWorkflow(item)} className="icon-action text-violet-700"><GitBranch className="h-4" /></button>}
+                <button title="Supprimer" onClick={() => remove(item)} className="icon-action text-red-700"><Trash2 className="h-4" /></button>
+              </div></td>
+            </tr>;
+          })}</tbody>
+        </table>
+      </div> : <div className="p-12 text-center text-sm text-slate-500">Aucun élément enregistré dans ce module.</div>}
     </section>
-    {formOpen && <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-950/60 p-4"><div className="mx-auto my-8 max-w-4xl rounded-lg bg-white shadow-2xl"><header className="flex items-center justify-between border-b p-5"><div><p className="text-xs font-black uppercase text-[#ef7f3b]">{editing ? 'Modification' : 'Nouvel élément'}</p><h3 className="mt-1 text-xl font-black">{module.title}</h3></div><button onClick={() => { setFormOpen(false); setEditing(null); }} className="icon-action"><X className="h-5" /></button></header><form onSubmit={save} className="grid gap-4 p-5 md:grid-cols-2"><label className="grid gap-2 text-sm font-bold md:col-span-2">Référence interne<input name="reference" defaultValue={editing?.reference || ''} className="admin-input" /></label>{module.fields.map(field => <label key={field.key} className={`grid gap-2 text-sm font-bold ${field.type === 'textarea' ? 'md:col-span-2' : ''}`}>{field.label}{field.type === 'textarea' ? <textarea name={field.key} required={field.required} defaultValue={String(editing?.data[field.key] || '')} rows={4} className="admin-input" /> : field.type === 'select' ? <select name={field.key} required={field.required} defaultValue={String(editing?.data[field.key] || '')} className="admin-input"><option value="">Sélectionner</option>{field.options?.map(option => <option key={option}>{option}</option>)}</select> : <input name={field.key} type={field.type || 'text'} required={field.required} defaultValue={String(editing?.data[field.key] || '')} className="admin-input" />}</label>)}<div className="flex justify-end gap-3 border-t pt-5 md:col-span-2"><button type="button" onClick={() => setFormOpen(false)} className="btn-secondary">Annuler</button><button disabled={busy} className="btn-primary">{busy ? 'Enregistrement...' : 'Enregistrer'}</button></div></form></div></div>}
+
+    {formOpen && <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-950/60 p-4">
+      <div className="mx-auto my-8 max-w-4xl rounded-lg bg-white shadow-2xl">
+        <header className="flex items-center justify-between border-b p-5">
+          <div><p className="text-xs font-black uppercase text-[#ef7f3b]">{editing ? 'Modification' : 'Nouvel élément'}</p><h3 className="mt-1 text-xl font-black">{module.title}</h3></div>
+          <button onClick={() => { setFormOpen(false); setEditing(null); }} className="icon-action"><X className="h-5" /></button>
+        </header>
+        <form onSubmit={save} className="grid gap-4 p-5 md:grid-cols-2">
+          <label className="grid gap-2 text-sm font-bold md:col-span-2">Référence interne<input name="reference" defaultValue={editing?.reference || ''} className="admin-input" /></label>
+          {module.fields.map(field => <label key={field.key} className={`grid gap-2 text-sm font-bold ${field.type === 'textarea' ? 'md:col-span-2' : ''}`}>
+            {field.label}
+            {field.type === 'textarea' ? <>
+              <textarea name={field.key} required={field.required} defaultValue={String(editing?.data[field.key] || '')} rows={4} className="admin-input" />
+              {workflowItemFields.has(field.key) && <span className="text-xs font-normal text-slate-500">Une ligne par article : désignation | quantité | unité | prix unitaire. Exemple : Menu poulet | 20 | portion | 2500</span>}
+            </> : field.type === 'select' ? <select name={field.key} required={field.required} defaultValue={String(editing?.data[field.key] || '')} className="admin-input">
+              <option value="">Sélectionner</option>{field.options?.map(option => <option key={option}>{option}</option>)}
+            </select> : <input name={field.key} type={field.type || 'text'} required={field.required} defaultValue={String(editing?.data[field.key] || '')} className="admin-input" />}
+          </label>)}
+          <div className="flex justify-end gap-3 border-t pt-5 md:col-span-2">
+            <button type="button" onClick={() => setFormOpen(false)} className="btn-secondary">Annuler</button>
+            <button disabled={busy} className="btn-primary">{busy ? 'Enregistrement...' : 'Enregistrer'}</button>
+          </div>
+        </form>
+      </div>
+    </div>}
   </div>;
 }

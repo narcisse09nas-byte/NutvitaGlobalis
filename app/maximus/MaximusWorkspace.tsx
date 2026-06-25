@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import {
   Archive, Boxes, Building2, Car, ChevronDown, ChevronRight, ClipboardList,
-  Handshake, LayoutDashboard, Menu, ShoppingCart, Users, Utensils, Wallet, X,
+  GitBranch, Handshake, LayoutDashboard, Menu, ShoppingCart, Users, Utensils, Wallet, X,
 } from 'lucide-react';
 import type { MaximusModule } from '@/lib/maximus-modules';
 import { maximusModules } from '@/lib/maximus-modules';
 import MaximusRecords from './MaximusRecords';
+import MaximusWorkflowOverview from './MaximusWorkflowOverview';
 
 const groupIcons = {
   'Restauration': Utensils,
@@ -22,7 +23,7 @@ const groupIcons = {
   'Finance': Wallet,
 } as const;
 
-export default function MaximusWorkspace({ adminName, module }: { adminName: string; module?: MaximusModule }) {
+export default function MaximusWorkspace({ adminName, module, workflowView = false }: { adminName: string; module?: MaximusModule; workflowView?: boolean }) {
   const groups = useMemo(() => {
     const result = new Map<string, MaximusModule[]>();
     maximusModules.filter(item => item.group !== 'Restauration').forEach(item => result.set(item.group, [...(result.get(item.group) || []), item]));
@@ -45,7 +46,8 @@ export default function MaximusWorkspace({ adminName, module }: { adminName: str
         <button onClick={() => setMobileOpen(false)} className="lg:hidden"><X className="h-5" /></button>
       </div>
       <nav className="p-3">
-        <Link href="/maximus" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${!module ? 'bg-[#ef7f3b] text-white' : 'text-white/75 hover:bg-white/10'}`}><LayoutDashboard className="h-5" />Tableau de bord</Link>
+        <Link href="/maximus" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${!module && !workflowView ? 'bg-[#ef7f3b] text-white' : 'text-white/75 hover:bg-white/10'}`}><LayoutDashboard className="h-5" />Tableau de bord</Link>
+        <Link href="/maximus/workflows" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${workflowView ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><GitBranch className="h-5" />Flux centralisés</Link>
         <Link href="/admin/collaboration" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white/75 hover:bg-white/10"><ClipboardList className="h-5" />Messagerie interne</Link>
         <Link href="/admin/appels" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white/75 hover:bg-white/10"><ClipboardList className="h-5" />Réunions</Link>
         <Link href="/maximus/menus" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'menus' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><Utensils className="h-5" />Menus</Link>
@@ -62,10 +64,10 @@ export default function MaximusWorkspace({ adminName, module }: { adminName: str
 
     <section className="min-h-screen lg:pl-72">
       <header className="flex min-h-20 items-center justify-between border-b bg-white px-6 pl-20 lg:pl-8">
-        <div><p className="text-xs font-black uppercase tracking-widest text-[#ef7f3b]">Gestion interne</p><h1 className="text-2xl font-black">{module?.title || 'Tableau de bord'}</h1></div>
+        <div><p className="text-xs font-black uppercase tracking-widest text-[#ef7f3b]">Gestion interne</p><h1 className="text-2xl font-black">{workflowView ? 'Flux centralisés' : module?.title || 'Tableau de bord'}</h1></div>
         <div className="flex items-center gap-3"><div className="hidden text-right sm:block"><p className="text-sm font-black">{adminName}</p><p className="text-xs text-slate-500">Super administrateur</p></div><span className="grid h-11 w-11 place-items-center rounded-full bg-[#123d32] font-black text-white">{adminName.slice(0, 2).toUpperCase()}</span></div>
       </header>
-      <div className="p-5 lg:p-8">{module ? <MaximusRecords module={module} /> : <Dashboard />}</div>
+      <div className="p-5 lg:p-8">{workflowView ? <MaximusWorkflowOverview /> : module ? <MaximusRecords module={module} /> : <Dashboard />}</div>
     </section>
   </main>;
 }

@@ -3,14 +3,18 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { maximusModuleMap, maximusStatuses } from '@/lib/maximus-modules';
 import { hasLocalAdminMode, hasSupabaseConfig } from '@/lib/supabase/config';
+import { localMaximusRecords } from '@/lib/maximus-local-store';
+import { parseWorkflowItems } from '@/lib/maximus-workflows';
 
-type LocalRow = {
-  id: string; module: string; title: string; reference: string | null; status: string;
-  data: Record<string, unknown>; created_at: string; updated_at: string;
-};
-
-const globalStore = globalThis as typeof globalThis & { __maximusLocalRecords?: LocalRow[] };
-const localRecords = () => globalStore.__maximusLocalRecords ||= [];
+function normalizeWorkflowData(input: Record<string, unknown>) {
+  const data = { ...input };
+  const itemSource = data.menus || data.menus_quantities || data.items;
+  if (itemSource && !Array.isArray(data.workflow_items)) data.workflow_items = parseWorkflowItems(itemSource);
+  if (data.specific_ingredients && !Array.isArray(data.ingredient_items)) {
+    data.ingredient_items = parseWorkflowItems(data.specific_ingredients);
+  }
+  return data;
+}
 
 async function context() {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
@@ -32,7 +36,7 @@ export async function GET(request: Request) {
   if (!maximusModuleMap.has(module)) return NextResponse.json({ message: 'Module Maximus invalide.' }, { status: 400 });
   const ctx = await context();
   if (ctx.error) return ctx.error;
-  if (ctx.local) return NextResponse.json({ items: localRecords().filter(item => item.module === module).reverse() });
+  if (ctx.local) return NextResponse.json({ items: localMaximusRecords().filter(item => item.module === module).reverse() });
   const { data, error } = await ctx.supabase.from('maximus_records').select('*').eq('module', module).order('created_at', { ascending: false });
   if (error) return NextResponse.json({ message: error.message }, { status: 400 });
   return NextResponse.json({ items: data || [] });
@@ -45,14 +49,14 @@ export async function POST(request: Request) {
   const module = String(body.module || '');
   const definition = maximusModuleMap.get(module);
   if (!definition) return NextResponse.json({ message: 'Module Maximus invalide.' }, { status: 400 });
-  const data = body.data && typeof body.data === 'object' ? body.data : {};
+  const data = normalizeWorkflowData(body.data && typeof body.data === 'object' ? body.data as Record<string, unknown> : {});
   const firstField = definition.fields.find(field => field.required) || definition.fields[0];
   const title = String(body.title || data[firstField?.key] || definition.title).trim();
   if (!title) return NextResponse.json({ message: 'Le titre ou le champ principal est obligatoire.' }, { status: 400 });
   if (ctx.local) {
     const now = new Date().toISOString();
-    const saved: LocalRow = { id: crypto.randomUUID(), module, title, reference: body.reference || null, status: 'draft', data, created_at: now, updated_at: now };
-    localRecords().push(saved);
+    const saved = { id: crypto.randomUUID(), module, title, reference: body.reference || null, status: 'draft', data, created_at: now, updated_at: now };
+    localMaximusRecords().push(saved);
     return NextResponse.json({ item: saved });
   }
   const { data: saved, error } = await ctx.supabase.from('maximus_records').insert({
@@ -69,12 +73,12 @@ export async function PATCH(request: Request) {
   const body = await request.json();
   const id = String(body.id || '');
   const payload: Record<string, unknown> = { updated_by: ctx.user.id };
-  if (body.data && typeof body.data === 'object') payload.data = body.data;
+  if (body.data && typeof body.data === 'object') payload.data = normalizeWorkflowData(body.data as Record<string, unknown>);
   if (body.title) payload.title = String(body.title);
   if (body.reference !== undefined) payload.reference = body.reference || null;
   if (body.status && maximusStatuses.includes(body.status)) payload.status = body.status;
   if (ctx.local) {
-    const item = localRecords().find(row => row.id === id);
+    const item = localMaximusRecords().find(row => row.id === id);
     if (!item) return NextResponse.json({ message: 'Élément introuvable.' }, { status: 404 });
     if (payload.data) item.data = payload.data as Record<string, unknown>;
     if (payload.title) item.title = String(payload.title);
@@ -94,8 +98,8 @@ export async function DELETE(request: Request) {
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ message: 'Identifiant requis.' }, { status: 400 });
   if (ctx.local) {
-    const index = localRecords().findIndex(item => item.id === id);
-    if (index >= 0) localRecords().splice(index, 1);
+    const index = localMaximusRecords().findIndex(item => item.id === id);
+    if (index >= 0) localMaximusRecords().splice(index, 1);
     return NextResponse.json({ ok: true });
   }
   const { error } = await ctx.supabase.from('maximus_records').delete().eq('id', id);

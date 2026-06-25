@@ -1,0 +1,223 @@
+'use client';
+
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
+import {
+  Activity, BarChart3, ClipboardList, Database, Download, FileSpreadsheet,
+  FlaskConical, MapPinned, Plus, Save, Send, Settings2, Trash2, Users,
+} from 'lucide-react';
+import { analyzeDataset, crossTab } from '@/survey/lib/analysis';
+import { exportQuestionnaireWorkbook, parseXlsForm, type SurveyQuestion } from '@/survey/lib/xlsform';
+import { calculateLFAzScore, calculateWFAzScore, calculateWFLzScore, classifyLFAzScore, classifyWFLzScore } from '@/survey/lib/who-growth-standards';
+
+type Row = Record<string, any>;
+type Resource = 'team' | 'clusters' | 'samples' | 'forms' | 'responses' | 'reports';
+type Tab = 'overview' | 'team' | 'sampling' | 'questionnaire' | 'collection' | 'analysis' | 'reports';
+
+const tabItems: { id: Tab; label: string; icon: typeof Users }[] = [
+  { id: 'overview', label: 'Cadrage', icon: Settings2 },
+  { id: 'team', label: 'Equipe', icon: Users },
+  { id: 'sampling', label: 'Echantillonnage', icon: MapPinned },
+  { id: 'questionnaire', label: 'Questionnaires', icon: ClipboardList },
+  { id: 'collection', label: 'Collecte', icon: Database },
+  { id: 'analysis', label: 'Analyse', icon: BarChart3 },
+  { id: 'reports', label: 'Rapports', icon: FileSpreadsheet },
+];
+
+export default function SurveyManager({ initialSurvey }: { initialSurvey: Row }) {
+  const [survey, setSurvey] = useState(initialSurvey);
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [resources, setResources] = useState<Record<Resource, Row[]>>({ team: [], clusters: [], samples: [], forms: [], responses: [], reports: [] });
+  const [message, setMessage] = useState('');
+  const base = `/api/surveys/${survey.id}`;
+
+  async function load(resource: Resource) {
+    const response = await fetch(`${base}/resources?resource=${resource}`);
+    const result = await response.json();
+    if (response.ok) setResources(current => ({ ...current, [resource]: result.items || [] }));
+  }
+  useEffect(() => {
+    (Object.keys(resources) as Resource[]).forEach(load);
+  }, []);
+
+  async function mutate(resource: Resource, method: 'POST' | 'PATCH' | 'DELETE', payload?: Row, item?: string) {
+    const url = `${base}/resources?resource=${resource}${item ? `&item=${item}` : ''}`;
+    const response = await fetch(url, {
+      method,
+      headers: method === 'DELETE' ? undefined : { 'Content-Type': 'application/json' },
+      body: method === 'DELETE' ? undefined : JSON.stringify(payload),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || 'Operation impossible.');
+    await load(resource);
+    return result.item;
+  }
+
+  return (
+    <div className="mx-auto grid max-w-[1500px] gap-6 p-5 lg:grid-cols-[230px_1fr]">
+      <aside className="h-fit rounded-lg bg-forest p-3 text-white lg:sticky lg:top-5">
+        <p className="px-3 py-3 text-xs font-black uppercase tracking-widest text-white/50">Cycle de l enquete</p>
+        <nav className="grid gap-1">{tabItems.map(({ id, label, icon: Icon }) => <button key={id} onClick={() => setActiveTab(id)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-left text-sm font-bold ${activeTab === id ? 'bg-white text-forest' : 'text-white/75 hover:bg-white/10'}`}><Icon className="h-5" />{label}</button>)}</nav>
+      </aside>
+      <section className="min-w-0">
+        {message && <p className="mb-5 rounded-lg bg-emerald-50 p-4 font-bold text-emerald-800">{message}</p>}
+        {activeTab === 'overview' && <Overview survey={survey} onSaved={setSurvey} setMessage={setMessage} />}
+        {activeTab === 'team' && <Team surveyId={survey.id} items={resources.team} mutate={mutate} setMessage={setMessage} />}
+        {activeTab === 'sampling' && <Sampling clusters={resources.clusters} samples={resources.samples} mutate={mutate} setMessage={setMessage} />}
+        {activeTab === 'questionnaire' && <Questionnaires forms={resources.forms} mutate={mutate} setMessage={setMessage} />}
+        {activeTab === 'collection' && <Collection forms={resources.forms} responses={resources.responses} mutate={mutate} setMessage={setMessage} />}
+        {activeTab === 'analysis' && <Analysis survey={survey} mutate={mutate} setMessage={setMessage} />}
+        {activeTab === 'reports' && <Reports surveyId={survey.id} reports={resources.reports} />}
+      </section>
+    </div>
+  );
+}
+
+function Panel({ title, text, actions, children }: { title: string; text?: string; actions?: React.ReactNode; children: React.ReactNode }) {
+  return <section className="rounded-lg border bg-white"><header className="flex flex-wrap items-start justify-between gap-4 border-b p-6"><div><h2 className="text-xl font-black">{title}</h2>{text && <p className="mt-1 text-sm leading-6 text-slate-500">{text}</p>}</div>{actions}</header><div className="p-6">{children}</div></section>;
+}
+
+function Overview({ survey, onSaved, setMessage }: { survey: Row; onSaved: (row: Row) => void; setMessage: (value: string) => void }) {
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const response = await fetch(`/api/surveys/${survey.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+    const result = await response.json();
+    if (response.ok) { onSaved(result.survey); setMessage('Parametres de l enquete enregistres.'); }
+  }
+  return <Panel title="Cadrage de l enquete" text="Definissez le perimetre, le calendrier et l etape actuelle."><form onSubmit={save} className="grid gap-4 md:grid-cols-2"><label className="grid gap-2 text-sm font-bold">Titre<input name="title" defaultValue={survey.title} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Pays<input name="country" defaultValue={survey.country || ''} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Debut<input type="date" name="starts_at" defaultValue={survey.starts_at || ''} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Fin<input type="date" name="ends_at" defaultValue={survey.ends_at || ''} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Statut<select name="status" defaultValue={survey.status} className="admin-input"><option value="planned">Planification</option><option value="collecting">Collecte</option><option value="analysis">Analyse</option><option value="completed">Terminee</option><option value="archived">Archivee</option></select></label><label className="grid gap-2 text-sm font-bold md:col-span-2">Description<textarea name="description" defaultValue={survey.description || ''} rows={5} className="admin-input" /></label><button className="btn-primary md:col-span-2"><Save className="mr-2 h-4" />Enregistrer</button></form></Panel>;
+}
+
+function Team({ items, mutate, setMessage }: { surveyId: string; items: Row[]; mutate: any; setMessage: (value: string) => void }) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const form = event.currentTarget; const values = Object.fromEntries(new FormData(form));
+    await mutate('team', 'POST', values); form.reset(); setMessage('Membre ajoute a l equipe.');
+  }
+  return <div className="grid gap-6"><Panel title="Equipe de l enquete" text="Proprietaire, managers, superviseurs, enqueteurs, guides et analystes."><form onSubmit={submit} className="grid gap-3 md:grid-cols-3"><input name="first_name" required placeholder="Prenom" className="admin-input" /><input name="last_name" required placeholder="Nom" className="admin-input" /><select name="role" className="admin-input"><option>Manager</option><option>Superviseur</option><option>Enqueteur</option><option>Guide de terrain</option><option>Analyste</option><option>Autre</option></select><input name="email" type="email" placeholder="Email" className="admin-input" /><input name="phone" placeholder="Telephone" className="admin-input" /><button className="btn-primary"><Plus className="mr-2 h-4" />Ajouter</button></form></Panel><Panel title={`${items.length} membre(s)`}>{items.length ? <div className="overflow-x-auto"><table className="min-w-full text-sm"><thead><tr className="text-left text-slate-500"><th className="p-3">Nom</th><th className="p-3">Role</th><th className="p-3">Contact</th><th /></tr></thead><tbody>{items.map(item => <tr key={item.id} className="border-t"><td className="p-3 font-bold">{item.first_name} {item.last_name}</td><td className="p-3">{item.role}</td><td className="p-3">{item.email || item.phone || '-'}</td><td className="p-3 text-right"><button onClick={() => mutate('team', 'DELETE', undefined, item.id)} className="text-red-700"><Trash2 className="h-4" /></button></td></tr>)}</tbody></table></div> : <Empty text="Aucun membre ajoute." />}</Panel></div>;
+}
+
+function Sampling({ clusters, samples, mutate, setMessage }: { clusters: Row[]; samples: Row[]; mutate: any; setMessage: (value: string) => void }) {
+  const [sampleSize, setSampleSize] = useState(1);
+  async function addCluster(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const form = event.currentTarget; const values = Object.fromEntries(new FormData(form));
+    await mutate('clusters', 'POST', { ...values, population: Number(values.population), villages: String(values.villages || '').split('\n').map((name, index) => ({ id: `${values.cluster_code}-${index + 1}`, name: name.trim(), population: 0 })).filter(item => item.name) }); form.reset(); setMessage('Grappe ajoutee a la base de sondage.');
+  }
+  async function drawPps() {
+    const total = clusters.reduce((sum, cluster) => sum + Number(cluster.population || 0), 0);
+    const count = Math.min(Math.max(1, sampleSize), clusters.length);
+    if (!total || !count) return setMessage('Renseignez les populations avant le tirage PPS.');
+    const interval = total / count; const start = Math.random() * interval; const selected = new Map<string, Row>();
+    let cumulative = 0; let point = start;
+    for (const cluster of clusters) {
+      const previous = cumulative; cumulative += Number(cluster.population || 0);
+      while (point <= cumulative && selected.size < count) { selected.set(cluster.id, { cluster, probability: Number(cluster.population || 0) / total, interval_start: previous, interval_end: cumulative }); point += interval; }
+    }
+    for (const value of selected.values()) if (!samples.some(sample => sample.cluster_id === value.cluster.id)) await mutate('samples', 'POST', { cluster_id: value.cluster.id, probability: value.probability, interval_start: value.interval_start, interval_end: value.interval_end });
+    setMessage(`${selected.size} grappe(s) tiree(s) par probabilite proportionnelle a la taille.`);
+  }
+  return <div className="grid gap-6"><Panel title="Etape 1: Base de sondage" text="Definissez les grappes, leurs villages et leurs populations."><form onSubmit={addCluster} className="grid gap-3 md:grid-cols-3"><input name="cluster_code" required placeholder="Code grappe" className="admin-input" /><input name="cluster_name" required placeholder="Nom de la grappe" className="admin-input" /><input name="population" required type="number" min="0" placeholder="Population" className="admin-input" /><input name="region" placeholder="Region" className="admin-input" /><input name="district" placeholder="District" className="admin-input" /><textarea name="villages" placeholder="Villages, un par ligne" className="admin-input md:row-span-2" /><button className="btn-primary md:col-span-2"><Plus className="mr-2 h-4" />Ajouter la grappe</button></form><div className="mt-6 grid gap-3">{clusters.map(cluster => <article key={cluster.id} className="flex items-center justify-between rounded-md border p-4"><div><b>{cluster.cluster_code} - {cluster.cluster_name}</b><p className="text-sm text-slate-500">{cluster.region || '-'} / {cluster.district || '-'} · {Number(cluster.population).toLocaleString('fr-FR')} habitants · {(cluster.villages || []).length} village(s)</p></div><button onClick={() => mutate('clusters', 'DELETE', undefined, cluster.id)} className="text-red-700"><Trash2 className="h-4" /></button></article>)}</div></Panel><Panel title="Etape 2: Tirage PPS" text="Tirage systematique avec probabilite proportionnelle a la population." actions={<div className="flex gap-2"><input type="number" min="1" max={Math.max(1, clusters.length)} value={sampleSize} onChange={event => setSampleSize(Number(event.target.value))} className="admin-input w-24" /><button onClick={drawPps} className="btn-primary"><FlaskConical className="mr-2 h-4" />Tirer</button></div>}>{samples.length ? <div className="grid gap-3">{samples.map(sample => { const cluster = clusters.find(item => item.id === sample.cluster_id); return <article key={sample.id} className="rounded-md border border-emerald-200 bg-emerald-50 p-4"><b>{cluster?.cluster_name || sample.cluster_id}</b><p className="text-sm text-emerald-800">Probabilite: {(Number(sample.probability || 0) * 100).toFixed(2)}% · Statut: {sample.status}</p></article>; })}</div> : <Empty text="Aucune grappe tiree." />}</Panel></div>;
+}
+
+function Questionnaires({ forms, mutate, setMessage }: { forms: Row[]; mutate: any; setMessage: (value: string) => void }) {
+  const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
+  const [title, setTitle] = useState('');
+  const addQuestion = () => setQuestions(current => [...current, { id: crypto.randomUUID(), type: 'text', name: `question_${current.length + 1}`, label: '' }]);
+  async function importFile(file?: File) {
+    if (!file) return; const parsed = parseXlsForm(await file.arrayBuffer()); setQuestions(parsed.questions); setTitle(file.name.replace(/\.[^.]+$/, '')); setMessage(`${parsed.questions.length} question(s) importee(s) du XLSForm.`);
+  }
+  async function saveForm() {
+    if (!title.trim() || !questions.length) return setMessage('Ajoutez un titre et au moins une question.');
+    await mutate('forms', 'POST', { title, form_code: `${title.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}_${Date.now()}`, definition: { questions }, source_type: 'builder', status: 'draft' });
+    setTitle(''); setQuestions([]); setMessage('Questionnaire enregistre en brouillon.');
+  }
+  async function status(form: Row, next: string) {
+    await mutate('forms', 'PATCH', { id: form.id, status: next, status_history: [...(form.status_history || []), { status: next, at: new Date().toISOString() }] }); setMessage(`Statut du formulaire: ${next}.`);
+  }
+  return <div className="grid gap-6"><Panel title="Etape 3: Conception du questionnaire" text="Importez un XLSForm ou construisez les questions directement."><div className="flex flex-wrap gap-3"><label className="btn-secondary cursor-pointer"><FileSpreadsheet className="mr-2 h-4" />Importer XLSForm<input type="file" accept=".xlsx,.xls" className="hidden" onChange={event => importFile(event.target.files?.[0])} /></label><button onClick={addQuestion} className="btn-secondary"><Plus className="mr-2 h-4" />Ajouter une question</button></div><input value={title} onChange={event => setTitle(event.target.value)} placeholder="Titre du questionnaire" className="admin-input mt-5" /><div className="mt-4 grid gap-3">{questions.map((question, index) => <div key={question.id} className="grid gap-3 rounded-md border p-4 md:grid-cols-[160px_1fr_1fr_auto]"><select value={question.type} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, type: event.target.value as SurveyQuestion['type'] } : item))} className="admin-input"><option value="text">Texte</option><option value="number">Nombre</option><option value="date">Date</option><option value="select_one">Choix unique</option><option value="select_multiple">Choix multiple</option><option value="note">Note</option></select><input value={question.name} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, name: event.target.value } : item))} className="admin-input" placeholder="nom_variable" /><input value={question.label} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, label: event.target.value } : item))} className="admin-input" placeholder={`Libelle question ${index + 1}`} /><button onClick={() => setQuestions(current => current.filter(item => item.id !== question.id))} className="text-red-700"><Trash2 className="h-4" /></button>{question.type.startsWith('select_') && <textarea className="admin-input md:col-span-3 md:col-start-2" placeholder="Options, une par ligne" value={(question.options || []).map(option => option.label).join('\n')} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, options: event.target.value.split('\n').filter(Boolean).map((label, optionIndex) => ({ value: `option_${optionIndex + 1}`, label })) } : item))} />}</div>)}</div>{questions.length > 0 && <button onClick={saveForm} className="btn-primary mt-4"><Save className="mr-2 h-4" />Enregistrer le questionnaire</button>}</Panel><Panel title="Etape 4: Workflow des formulaires">{forms.length ? <div className="grid gap-3">{forms.map(form => <article key={form.id} className="rounded-md border p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><b>{form.title}</b><p className="text-sm text-slate-500">{form.form_code} · version {form.version} · {form.status}</p></div><div className="flex flex-wrap gap-2"><button onClick={() => exportQuestionnaireWorkbook(form.title, form.definition?.questions || [])} className="btn-secondary"><Download className="mr-2 h-4" />XLSForm</button>{form.status === 'draft' && <button onClick={() => status(form, 'pending_endorsement')} className="btn-primary"><Send className="mr-2 h-4" />Soumettre</button>}{form.status === 'pending_endorsement' && <button onClick={() => status(form, 'endorsed')} className="btn-primary">Valider</button>}<button onClick={() => mutate('forms', 'DELETE', undefined, form.id)} className="rounded-md bg-red-50 px-3 text-red-700"><Trash2 className="h-4" /></button></div></div></article>)}</div> : <Empty text="Aucun questionnaire." />}</Panel></div>;
+}
+
+function Collection({ forms, responses, mutate, setMessage }: { forms: Row[]; responses: Row[]; mutate: any; setMessage: (value: string) => void }) {
+  const endorsed = forms.filter(form => form.status === 'endorsed');
+  const [formId, setFormId] = useState('');
+  const selected = endorsed.find(form => form.id === formId);
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!selected) return; const data = Object.fromEntries(new FormData(event.currentTarget));
+    await mutate('responses', 'POST', { cluster_reference: String(data.cluster_reference || ''), response_data: { form_id: selected.id, form_code: selected.form_code, answers: data } }); event.currentTarget.reset(); setMessage('Reponse enregistree.');
+  }
+  return <div className="grid gap-6"><Panel title="Collecte des donnees" text="Seuls les questionnaires valides sont deployables."><select value={formId} onChange={event => setFormId(event.target.value)} className="admin-input max-w-xl"><option value="">Choisir un questionnaire valide</option>{endorsed.map(form => <option key={form.id} value={form.id}>{form.title}</option>)}</select>{selected && <form onSubmit={submit} className="mt-6 grid max-w-3xl gap-4"><label className="grid gap-2 text-sm font-bold">Reference grappe / menage<input name="cluster_reference" className="admin-input" /></label>{(selected.definition?.questions || []).map((question: SurveyQuestion) => <QuestionField key={question.id} question={question} />)}<button className="btn-primary"><Save className="mr-2 h-4" />Enregistrer la reponse</button></form>}</Panel><Panel title={`${responses.length} reponse(s) collectee(s)`}>{responses.length ? <div className="overflow-x-auto"><table className="min-w-full text-sm"><thead><tr className="text-left text-slate-500"><th className="p-3">Reference</th><th className="p-3">Formulaire</th><th className="p-3">Date</th></tr></thead><tbody>{responses.map(response => <tr key={response.id} className="border-t"><td className="p-3 font-bold">{response.cluster_reference || '-'}</td><td className="p-3">{response.response_data?.form_code || '-'}</td><td className="p-3">{new Date(response.submitted_at).toLocaleString('fr-FR')}</td></tr>)}</tbody></table></div> : <Empty text="Aucune donnee collectee." />}</Panel></div>;
+}
+
+function QuestionField({ question }: { question: SurveyQuestion }) {
+  if (question.type === 'note') return <p className="rounded-md bg-slate-50 p-4 text-sm">{question.label}</p>;
+  if (question.type === 'select_one') return <label className="grid gap-2 text-sm font-bold">{question.label}<select name={question.name} required={question.required} className="admin-input"><option value="">Selectionner</option>{question.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
+  if (question.type === 'select_multiple') return <fieldset className="rounded-md border p-4"><legend className="px-2 text-sm font-bold">{question.label}</legend>{question.options?.map(option => <label key={option.value} className="mr-4 inline-flex gap-2 text-sm"><input type="checkbox" name={`${question.name}_${option.value}`} value="yes" />{option.label}</label>)}</fieldset>;
+  return <label className="grid gap-2 text-sm font-bold">{question.label}<input name={question.name} type={question.type === 'number' ? 'number' : question.type === 'date' ? 'date' : 'text'} required={question.required} className="admin-input" /></label>;
+}
+
+function Analysis({ survey, mutate, setMessage }: { survey: Row; mutate: any; setMessage: (value: string) => void }) {
+  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [fileName, setFileName] = useState('');
+  const [first, setFirst] = useState('');
+  const [second, setSecond] = useState('');
+  const [mapping, setMapping] = useState({ age: '', sex: '', weight: '', height: '' });
+  const [nutrition, setNutrition] = useState<Row | null>(null);
+  const [ai, setAi] = useState<Row | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const analysis = useMemo(() => rows.length ? analyzeDataset(rows) : null, [rows]);
+  const table = first && second ? crossTab(rows, first, second) : null;
+  async function load(file?: File) {
+    if (!file) return; setFileName(file.name);
+    if (file.name.toLowerCase().endsWith('.csv')) {
+      const parsed = Papa.parse<Record<string, unknown>>(await file.text(), { header: true, skipEmptyLines: true, dynamicTyping: true });
+      setRows(parsed.data);
+    } else {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' }); const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      setRows(XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' }));
+    }
+  }
+  async function saveReport() {
+    if (!analysis) return;
+    await mutate('reports', 'POST', { title: `Analyse ${survey.title} - ${new Date().toLocaleDateString('fr-FR')}`, report_type: 'data_quality', source_file_name: fileName, dataset_summary: { rows: analysis.rowCount, columns: analysis.columnCount }, quality_report: analysis, analysis_results: { cross_tab: table, nutritional_status: nutrition }, ai_interpretation: ai || {} });
+    setMessage('Analyse ajoutee au rapport de l enquete.');
+  }
+  function calculateNutrition() {
+    if (!mapping.sex || !mapping.weight || !mapping.height) return setMessage('Selectionnez au minimum le sexe, le poids et la taille.');
+    const calculated = rows.map(row => {
+      const sex = row[mapping.sex]; const weight = Number(row[mapping.weight]); const height = Number(row[mapping.height]); const age = Number(row[mapping.age]);
+      const whz = calculateWFLzScore(height, weight, sex);
+      const haz = mapping.age ? calculateLFAzScore(age, height, sex) : null;
+      const waz = mapping.age ? calculateWFAzScore(age, weight, sex) : null;
+      return { whz, whzCategory: classifyWFLzScore(whz), haz, hazCategory: classifyLFAzScore(haz), waz };
+    });
+    const valid = calculated.filter(item => item.whz !== null);
+    setNutrition({
+      valid: valid.length,
+      wasting: valid.filter(item => Number(item.whz) < -2).length,
+      severeWasting: valid.filter(item => Number(item.whz) < -3).length,
+      stunting: calculated.filter(item => item.haz !== null && Number(item.haz) < -2).length,
+      severeStunting: calculated.filter(item => item.haz !== null && Number(item.haz) < -3).length,
+      underweight: calculated.filter(item => item.waz !== null && Number(item.waz) < -2).length,
+    });
+  }
+  async function generateAi() {
+    if (!analysis) return; setAiBusy(true);
+    const response = await fetch(`/api/surveys/${survey.id}/ai-analysis`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ summary: { rows: analysis.rowCount, columns: analysis.columnCount }, quality: analysis, nutritionalStatus: nutrition, crossTab: table }) });
+    const result = await response.json(); setAiBusy(false);
+    if (response.ok) setAi(result.analysis); else setMessage(result.message || 'Analyse IA impossible.');
+  }
+  const columns = Object.keys(rows[0] || {});
+  return <div className="grid gap-6"><Panel title="Module d analyse" text="Chargez un fichier CSV ou Excel pour les controles de qualite, analyses univariees et croisees."><label className="btn-primary cursor-pointer"><FileSpreadsheet className="mr-2 h-4" />Charger les donnees<input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={event => load(event.target.files?.[0])} /></label>{analysis && <div className="mt-6 grid gap-4 sm:grid-cols-4"><Metric label="Lignes" value={analysis.rowCount} /><Metric label="Variables" value={analysis.columnCount} /><Metric label="Completude" value={`${analysis.completeness}%`} /><Metric label="Doublons" value={analysis.duplicateRows} /></div>}</Panel>{analysis && <><Panel title="Qualite et plausibilite" text="Statistiques descriptives et donnees manquantes par variable."><div className="overflow-x-auto"><table className="min-w-full text-sm"><thead><tr className="text-left text-slate-500"><th className="p-3">Variable</th><th className="p-3">Manquants</th><th className="p-3">Uniques</th><th className="p-3">Moyenne</th><th className="p-3">ET</th><th className="p-3">Min-Max</th></tr></thead><tbody>{analysis.columns.map(column => <tr key={column.name} className="border-t"><td className="p-3 font-mono text-xs">{column.name}</td><td className="p-3">{column.missing}</td><td className="p-3">{column.unique}</td><td className="p-3">{column.mean?.toFixed(2) || '-'}</td><td className="p-3">{column.standardDeviation?.toFixed(2) || '-'}</td><td className="p-3">{column.numeric ? `${column.min} - ${column.max}` : '-'}</td></tr>)}</tbody></table></div></Panel><Panel title="Statut nutritionnel OMS" text="Associez les colonnes anthropometriques pour calculer WHZ, HAZ et WAZ."><div className="grid gap-3 md:grid-cols-4">{(['age','sex','weight','height'] as const).map(key => <select key={key} value={mapping[key]} onChange={event => setMapping(current => ({ ...current, [key]: event.target.value }))} className="admin-input"><option value="">{key === 'age' ? 'Age en mois' : key === 'sex' ? 'Sexe' : key === 'weight' ? 'Poids kg' : 'Taille cm'}</option>{columns.map(column => <option key={column}>{column}</option>)}</select>)}</div><button onClick={calculateNutrition} className="btn-secondary mt-4">Calculer les indicateurs</button>{nutrition && <div className="mt-5 grid gap-3 sm:grid-cols-3"><Metric label="Emaciation" value={nutrition.wasting} /><Metric label="Emaciation severe" value={nutrition.severeWasting} /><Metric label="Retard de croissance" value={nutrition.stunting} /><Metric label="Retard severe" value={nutrition.severeStunting} /><Metric label="Insuffisance ponderale" value={nutrition.underweight} /><Metric label="Observations valides" value={nutrition.valid} /></div>}</Panel><Panel title="Analyse bivariee" text="Croisez deux variables pour produire un tableau de contingence."><div className="flex flex-wrap gap-3"><select value={first} onChange={event => setFirst(event.target.value)} className="admin-input"><option value="">Variable 1</option>{columns.map(column => <option key={column}>{column}</option>)}</select><select value={second} onChange={event => setSecond(event.target.value)} className="admin-input"><option value="">Variable 2</option>{columns.map(column => <option key={column}>{column}</option>)}</select></div>{table && <pre className="mt-5 max-h-96 overflow-auto rounded-md bg-slate-950 p-4 text-xs text-emerald-100">{JSON.stringify(table, null, 2)}</pre>}</Panel><Panel title="Interpretation assistee par IA" text="Synthese des constats, limites et recommandations a partir des resultats agreges."><button onClick={generateAi} disabled={aiBusy} className="btn-primary">{aiBusy ? 'Analyse...' : 'Generer l interpretation'}</button>{ai && <div className="mt-5 grid gap-4"><p className="leading-7">{ai.summary}</p>{['findings','limitations','recommendations'].map(section => <div key={section}><h3 className="font-black capitalize">{section}</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{(ai[section] || []).map((item: string) => <li key={item}>{item}</li>)}</ul></div>)}</div>}<button onClick={saveReport} className="btn-secondary mt-5"><Save className="mr-2 h-4" />Ajouter au rapport</button></Panel></>}</div>;
+}
+
+function Reports({ surveyId, reports }: { surveyId: string; reports: Row[] }) {
+  return <Panel title="Constructeur de rapports" text="Analyses sauvegardees, historique et elements a inclure dans la restitution finale." actions={<a href={`/api/surveys/${surveyId}/report`} className="btn-primary"><Download className="mr-2 h-4" />Telecharger le PDF</a>}>{reports.length ? <div className="grid gap-4">{reports.map(report => <article key={report.id} className="rounded-md border p-5"><p className="text-xs font-black uppercase tracking-widest text-emerald-700">{report.report_type}</p><h3 className="mt-2 font-black">{report.title}</h3><p className="mt-2 text-sm text-slate-500">{report.source_file_name || 'Donnees collectees dans la plateforme'} · {new Date(report.created_at).toLocaleString('fr-FR')}</p><div className="mt-4 grid gap-3 sm:grid-cols-3"><Metric label="Lignes" value={report.dataset_summary?.rows || '-'} /><Metric label="Variables" value={report.dataset_summary?.columns || '-'} /><Metric label="Completude" value={`${report.quality_report?.completeness || 0}%`} /></div>{report.ai_interpretation?.summary && <p className="mt-4 border-l-4 border-emerald-500 pl-4 text-sm leading-6">{report.ai_interpretation.summary}</p>}</article>)}</div> : <Empty text="Aucune analyse sauvegardee dans le rapport." />}</Panel>;
+}
+
+function Metric({ label, value }: { label: string; value: string | number }) {
+  return <div className="rounded-md bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-500">{label}</p><p className="mt-2 text-2xl font-black text-forest">{value}</p></div>;
+}
+
+function Empty({ text }: { text: string }) {
+  return <div className="rounded-md border border-dashed p-8 text-center text-sm text-slate-500"><Activity className="mx-auto mb-3 h-7 text-slate-300" />{text}</div>;
+}

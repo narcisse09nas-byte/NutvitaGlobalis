@@ -11,6 +11,14 @@ const roles = [
   ['validator', 'Validateur'],
   ['organization_admin', 'Administrateur organisation'],
 ] as const;
+type Role = typeof roles[number][0];
+
+function normalizedRoles(value: unknown, fallback?: string): Role[] {
+  const incoming = Array.isArray(value) ? value.map(String) : fallback ? [fallback] : [];
+  const valid = incoming.filter((role): role is Role => roles.some(([candidate]) => candidate === role));
+  if (valid.includes('organization_admin')) return roles.map(([role]) => role);
+  return valid.length ? [...new Set(valid)] : ['creator'];
+}
 
 export default function NutriTrackMemberManager({
   initialMembers,
@@ -31,6 +39,7 @@ export default function NutriTrackMemberManager({
   });
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [newRoles, setNewRoles] = useState<Role[]>(['creator']);
 
   function toggle(memberId: string, facilityId: string) {
     setSelected(current => {
@@ -71,12 +80,13 @@ export default function NutriTrackMemberManager({
       action: 'invite',
       full_name: values.get('full_name'),
       email: values.get('email'),
-      role: values.get('role'),
+      roles: newRoles,
       facilities: selected[temporaryId] || [],
     });
     if (result?.member) {
       setMembers(current => [...current, result.member]);
       setSelected(current => ({ ...current, [result.member.id]: current[temporaryId] || [], [temporaryId]: [] }));
+      setNewRoles(['creator']);
       form.reset();
     }
   }
@@ -86,7 +96,7 @@ export default function NutriTrackMemberManager({
     if (await call({
       action: 'update',
       id: row.id,
-      role: next.role,
+      roles: normalizedRoles(next.roles, next.role),
       status: next.status,
       facilities: selected[row.id] || [],
     })) {
@@ -107,7 +117,7 @@ export default function NutriTrackMemberManager({
         <h2 className="text-xl font-black md:col-span-2">Inviter un membre</h2>
         <label className="grid gap-2 text-sm font-bold">Nom complet<input name="full_name" required className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Email<input name="email" type="email" required className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Role<select name="role" className="admin-input">{roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <RoleChoices values={newRoles} onChange={setNewRoles} />
         <FacilityChoices facilities={facilities} values={selected.new || []} onToggle={id => toggle('new', id)} />
         <button disabled={busy} className="btn-primary md:col-span-2">Inviter et attribuer les acces</button>
       </form>
@@ -119,9 +129,6 @@ export default function NutriTrackMemberManager({
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div><b>{row.full_name}</b><p className="text-sm text-slate-500">{row.email}</p></div>
               <div className="flex gap-2">
-                <select value={row.role} onChange={event => update(row, { role: event.target.value })} className="admin-input py-2">
-                  {roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
                 <button onClick={() => update(row, { status: row.status === 'active' ? 'suspended' : 'active' })} className="btn-secondary">
                   {row.status === 'active' ? 'Suspendre' : 'Activer'}
                 </button>
@@ -129,13 +136,44 @@ export default function NutriTrackMemberManager({
               </div>
             </div>
             <div className="mt-4">
+              <RoleChoices
+                values={normalizedRoles(row.roles, row.role)}
+                onChange={values => setMembers(current => current.map(item => item.id === row.id ? { ...item, roles: values } : item))}
+              />
               <FacilityChoices facilities={facilities} values={selected[row.id] || []} onToggle={id => toggle(row.id, id)} />
-              <button onClick={() => update(row, {})} className="mt-3 text-sm font-bold text-cyan-700">Enregistrer les formations sanitaires</button>
+              <button onClick={() => update(row, {})} className="mt-3 text-sm font-bold text-cyan-700">Enregistrer les roles et les formations sanitaires</button>
             </div>
           </article>
         ))}
       </section>
     </div>
+  );
+}
+
+function RoleChoices({ values, onChange }: { values: Role[]; onChange: (values: Role[]) => void }) {
+  function toggleRole(role: Role) {
+    if (role === 'organization_admin') {
+      onChange(values.includes(role) ? ['creator'] : roles.map(([value]) => value));
+      return;
+    }
+    if (values.includes('organization_admin')) return;
+    const next = values.includes(role) ? values.filter(value => value !== role) : [...values, role];
+    onChange(next.length ? next : ['creator']);
+  }
+
+  return (
+    <fieldset className="rounded-lg border p-4">
+      <legend className="px-2 text-sm font-bold">Roles attribues</legend>
+      <div className="flex flex-wrap gap-4">
+        {roles.map(([value, label]) => (
+          <label key={value} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={values.includes(value)} onChange={() => toggleRole(value)} />
+            {label}
+          </label>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-slate-500">Le role administrateur active automatiquement les droits de creation, verification et validation.</p>
+    </fieldset>
   );
 }
 

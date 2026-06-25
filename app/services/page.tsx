@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AcademicCapIcon, ArrowRightIcon, BuildingOffice2Icon, ChartBarSquareIcon, ClipboardDocumentListIcon, HeartIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
+import { AcademicCapIcon, ArrowRightIcon, BuildingOffice2Icon, ChartBarSquareIcon, ClipboardDocumentListIcon, CommandLineIcon, HeartIcon, PresentationChartLineIcon, RectangleGroupIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
 
 const available = [
   { title: "Suivi sante", text: "Suivi autonome ou premium des indicateurs de sante, tendances, analyses et rapports.", href: "/suivi-sante", icon: HeartIcon, tone: "bg-emerald-50 text-emerald-700" },
@@ -7,11 +7,10 @@ const available = [
   { title: "Formations certifiantes", text: "Parcours de formation, ressources pedagogiques et accompagnement des apprenants.", href: "/formations", icon: AcademicCapIcon, tone: "bg-violet-50 text-violet-700" },
   { title: "Teleconseils et packs", text: "Accompagnement nutritionnel, consultations video et programmes personnalises.", href: "/teleconseils", icon: VideoCameraIcon, tone: "bg-orange/10 text-orange" },
   { title: "NutriTrack", text: "Application de support a la prise en charge integree de la malnutrition aigue.", href: "/acces-nutritrack", icon: BuildingOffice2Icon, tone: "bg-cyan-50 text-cyan-700" },
-] as const;
-
-const upcoming = [
-  { title: "Enquetes de securite alimentaire et nutrition", text: "Planification, collecte des donnees, controle qualite, analyse et restitution." },
-  { title: "Gestion des projets", text: "Planification, activites, equipes, indicateurs, budgets, risques et rapports." },
+  { title: "Support Food Security and Nutrition Survey", text: "Planification, echantillonnage, collecte, controle qualite et analyse des enquetes de securite alimentaire et nutrition.", href: "/surveys", icon: ClipboardDocumentListIcon, tone: "bg-lime-50 text-lime-800" },
+  { title: "OP Management", text: "Gestion des projets, financements, planification, execution, indicateurs et reporting.", href: "/op-management", icon: PresentationChartLineIcon, tone: "bg-blue-50 text-blue-700" },
+  { title: "Manager", text: "Console de direction pour superviser les equipes, operations, ressources et performances.", href: "/manager", icon: RectangleGroupIcon, tone: "bg-rose-50 text-rose-700" },
+  { title: "Maximus", text: "Cockpit interne de pilotage du cabinet, reserve aux super administrateurs NutVitaGlobalis.", href: "/maximus", icon: CommandLineIcon, tone: "bg-slate-900 text-white" },
 ] as const;
 
 export const metadata = { title: "Nos services" };
@@ -19,6 +18,6 @@ export const metadata = { title: "Nos services" };
 export default function ServicesPage() {
   return <main>
     <section className="bg-forest py-16 text-white"><div className="container-site"><p className="text-sm font-black uppercase tracking-widest text-orange">NutVitaGlobalis</p><h1 className="mt-4 text-5xl font-black text-white">Nos services</h1><p className="mt-5 max-w-3xl text-lg leading-8 text-white/70">Un point d'entree clair vers les services de sante, de formation et de gestion de donnees proposes par la plateforme.</p></div></section>
-    <section className="section"><div className="container-site"><div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{available.map(({ title, text, href, icon: Icon, tone }) => <article key={title} className="card flex flex-col p-7"><span className={`grid h-12 w-12 place-items-center rounded-lg ${tone}`}><Icon className="h-6" /></span><h2 className="mt-5 text-2xl font-black">{title}</h2><p className="mt-3 flex-1 leading-7 text-slate-500">{text}</p><Link href={href} className="btn-secondary mt-6 justify-between">Decouvrir<ArrowRightIcon className="ml-3 h-5" /></Link></article>)}</div><div className="mt-16 border-t pt-10"><h2 className="text-3xl font-black">Services en preparation</h2><div className="mt-6 grid gap-4 md:grid-cols-2">{upcoming.map(item => <article key={item.title} className="rounded-lg border border-dashed bg-slate-50 p-6"><ClipboardDocumentListIcon className="h-7 text-slate-400" /><p className="mt-4 text-xs font-black uppercase tracking-widest text-slate-400">Bientot disponible</p><h3 className="mt-2 text-xl font-black">{item.title}</h3><p className="mt-2 leading-7 text-slate-500">{item.text}</p></article>)}</div></div></div></section>
+    <section className="section"><div className="container-site"><div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{available.map(({ title, text, href, icon: Icon, tone }) => <article key={title} className="card flex flex-col p-7"><span className={`grid h-12 w-12 place-items-center rounded-lg ${tone}`}><Icon className="h-6" /></span><h2 className="mt-5 text-2xl font-black">{title}</h2><p className="mt-3 flex-1 leading-7 text-slate-500">{text}</p><Link href={href} className="btn-secondary mt-6 justify-between">Acceder<ArrowRightIcon className="ml-3 h-5" /></Link></article>)}</div></div></section>
   </main>;
 }

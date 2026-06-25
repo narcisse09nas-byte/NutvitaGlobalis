@@ -3,6 +3,7 @@ import { analyzeHealthData } from "@/lib/health-analysis";
 import { renderHealthReport } from "@/lib/health-report-pdf";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { enrichHealthNarrative } from "@/lib/ai-narrative";
 
 export async function POST() {
   const supabase = await createClient();
@@ -20,7 +21,9 @@ export async function POST() {
   ]);
   if (!profile) return NextResponse.json({ message: "Profil introuvable." }, { status: 404 });
   const locale = profile?.preferred_language === "en" ? "en" : "fr";
-  const insight = analyzeHealthData(anthropometry || [], biology || [], food || [], lifestyle || [], locale), dates = [...(anthropometry || []).map(row => row.measured_at), ...(biology || []).map(row => row.measured_at), ...(lifestyle || []).map(row => row.assessment_date)].filter(Boolean).sort();
+  const deterministicInsight = analyzeHealthData(anthropometry || [], biology || [], food || [], lifestyle || [], locale);
+  const insight = await enrichHealthNarrative(deterministicInsight, locale);
+  const dates = [...(anthropometry || []).map(row => row.measured_at), ...(biology || []).map(row => row.measured_at), ...(lifestyle || []).map(row => row.assessment_date)].filter(Boolean).sort();
   const period = { start: dates[0]?.slice(0, 10) || new Date().toISOString().slice(0, 10), end: dates.at(-1)?.slice(0, 10) || new Date().toISOString().slice(0, 10) };
   try {
     const admin = createAdminClient(), bytes = await renderHealthReport(profile, anthropometry || [], biology || [], food || [], lifestyle || [], insight, period, locale), reportId = crypto.randomUUID(), path = `${user.id}/health-reports/${reportId}.pdf`;

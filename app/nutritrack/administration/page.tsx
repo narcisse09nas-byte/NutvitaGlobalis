@@ -5,7 +5,7 @@ import { requireNutriTrackAccess } from '@/lib/nutritrack-auth';
 
 export default async function NutriTrackAdministrationPage() {
   const { supabase, member } = await requireNutriTrackAccess();
-  if (member.role !== 'organization_admin') redirect('/nutritrack');
+  if (member.role !== 'organization_admin' && !member.roles?.includes('organization_admin')) redirect('/nutritrack');
   const [{ data: members }, { data: assignments }, { data: facilityDocuments }] = await Promise.all([
     supabase.from('nutritrack_members').select('*').eq('organization_id', member.organization_id).order('created_at'),
     supabase.from('nutritrack_member_facilities').select('*'),

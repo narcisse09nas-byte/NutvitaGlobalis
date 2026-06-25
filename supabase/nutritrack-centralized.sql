@@ -35,6 +35,26 @@ create table if not exists public.nutritrack_members (
   unique(organization_id,email)
 );
 
+alter table public.nutritrack_members
+  add column if not exists roles text[] not null default array['creator']::text[];
+
+update public.nutritrack_members
+set roles = case
+  when role='organization_admin' then array['organization_admin','creator','verifier','validator']::text[]
+  else array[role]::text[]
+end
+where cardinality(roles)=0
+   or roles=array['creator']::text[] and role<>'creator';
+
+alter table public.nutritrack_members
+  drop constraint if exists nutritrack_members_roles_check;
+alter table public.nutritrack_members
+  add constraint nutritrack_members_roles_check
+  check(
+    cardinality(roles)>0
+    and roles <@ array['organization_admin','creator','verifier','validator']::text[]
+  );
+
 create table if not exists public.nutritrack_member_facilities (
   member_id uuid not null references public.nutritrack_members(id) on delete cascade,
   facility_document_id text not null,
@@ -93,7 +113,7 @@ language sql stable security definer set search_path=public as $$
     where m.organization_id=p_organization_id
       and m.user_id=(select auth.uid())
       and m.status='active'
-      and m.role='organization_admin'
+      and (m.role='organization_admin' or m.roles @> array['organization_admin']::text[])
       and o.status='approved'
   );
 $$;
@@ -164,7 +184,8 @@ begin
     and m.status='active'
   limit 1;
   if member_record.id is null then return false; end if;
-  if member_record.role='organization_admin' then return true; end if;
+  if member_record.role='organization_admin'
+     or member_record.roles @> array['organization_admin']::text[] then return true; end if;
   if nullif(p_data#>>'{discharge,referredToFacilityId}','') is not null
      and public.nutritrack_member_has_facility(
        p_organization_id,
@@ -199,8 +220,10 @@ begin
     and m.status='active'
   limit 1;
   if member_record.id is null then return false; end if;
-  if member_record.role='organization_admin' then return true; end if;
-  if member_record.role not in ('creator','verifier','validator') then return false; end if;
+  if member_record.role='organization_admin'
+     or member_record.roles @> array['organization_admin']::text[] then return true; end if;
+  if not member_record.roles && array['creator','verifier','validator']::text[]
+     and member_record.role not in ('creator','verifier','validator') then return false; end if;
   return public.nutritrack_can_read_document(
     p_organization_id,p_collection_path,p_document_id,p_data
   );
@@ -239,15 +262,16 @@ begin
   returning id into v_organization_id;
 
   insert into public.nutritrack_members(
-    organization_id,user_id,email,full_name,role,status
+    organization_id,user_id,email,full_name,role,roles,status
   ) values(
     v_organization_id,(select auth.uid()),current_email,p_contact_name,
-    'organization_admin','pending'
+    'organization_admin',array['organization_admin','creator','verifier','validator']::text[],'pending'
   )
   on conflict(organization_id,user_id) do update set
     email=excluded.email,
     full_name=excluded.full_name,
-    role='organization_admin';
+    role='organization_admin',
+    roles=array['organization_admin','creator','verifier','validator']::text[];
   return v_organization_id;
 end $$;
 
@@ -280,11 +304,11 @@ begin
     returning id into v_organization_id;
 
     insert into public.nutritrack_members(
-      organization_id,user_id,email,full_name,role,status
+      organization_id,user_id,email,full_name,role,roles,status
     ) values(
       v_organization_id,new.id,new.email,
       coalesce(nullif(new.raw_user_meta_data->>'full_name',''),new.email),
-      'organization_admin','pending'
+      'organization_admin',array['organization_admin','creator','verifier','validator']::text[],'pending'
     )
     on conflict(organization_id,user_id) do nothing;
   end if;

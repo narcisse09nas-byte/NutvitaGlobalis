@@ -19,6 +19,7 @@ export async function renderHealthReport(profile: Record<string, any>, anthropom
     professionalIndicators: "Indicator analysis - professional version",
     publicConclusion: "Client conclusion",
     professionalConclusion: "Professional conclusion",
+    aiSource: insight.aiProvider === "openai" ? "Narrative enriched by external AI" : "Local analytical fallback",
     measures: `Available measurements: ${anthropometry.length} anthropometric, ${biology.length} biological, ${food.length} food and ${lifestyle.length} lifestyle assessments.`,
     warning: "This automated report is not a medical diagnosis. Every alert must be interpreted by a qualified professional.",
     page: "page",
@@ -35,6 +36,7 @@ export async function renderHealthReport(profile: Record<string, any>, anthropom
     professionalIndicators: "Analyse par indicateur - version professionnelle",
     publicConclusion: "Conclusion grand public",
     professionalConclusion: "Conclusion professionnelle",
+    aiSource: insight.aiProvider === "openai" ? "Narration enrichie par IA externe" : "Moteur analytique local de secours",
     measures: `Mesures disponibles: ${anthropometry.length} anthropometriques, ${biology.length} biologiques, ${food.length} entrees alimentaires et ${lifestyle.length} evaluations du mode de vie.`,
     warning: "Ce rapport automatise ne constitue pas un diagnostic medical. Toute alerte doit etre interpretee par un professionnel qualifie.",
     page: "page",
@@ -46,6 +48,7 @@ export async function renderHealthReport(profile: Record<string, any>, anthropom
   const text = (value: string, size = 10, font = regular, color = rgb(.16, .23, .22)) => { for (const line of wrap(value, size > 15 ? 58 : 88)) { if (y < 85) addPage(); page.drawText(line, { x: 50, y, size, font, color }); y -= size + 5; } };
   text(labels.title, 20, bold, rgb(.07, .24, .19));
   text(`${profile.full_name || "Client"} - ${period.start} ${labels.fromTo} ${period.end}`, 10, regular, rgb(.4, .45, .44)); y -= 15;
+  text(labels.aiSource, 8, bold, insight.aiProvider === "openai" ? rgb(.12, .49, .33) : rgb(.55, .35, .1)); y -= 8;
   text(labels.publicSummary, 14, bold, rgb(.12, .49, .33)); text(insight.publicSummary, 10); y -= 10;
   text(labels.clinicalSummary, 14, bold, rgb(.12, .49, .33)); text(insight.professionalSummary, 10); y -= 10;
 
@@ -69,13 +72,35 @@ export async function renderHealthReport(profile: Record<string, any>, anthropom
   if (insight.indicatorInsights?.length) {
     text(labels.publicIndicators, 14, bold, rgb(.12, .49, .33));
     for (const item of insight.indicatorInsights) {
-      text(`${item.indicator}${item.latest ? ` (${item.latest})` : ""}: ${item.publicInterpretation}`, 9);
-      text(`Recommandation: ${item.recommendation}`, 8, regular, rgb(.38, .45, .44));
+      text(`${item.indicator}${item.latest ? ` - ${item.latest}` : ""}`, 11, bold, rgb(.07, .24, .19));
+      if (item.history?.length) {
+        text(locale === "en" ? "Recorded history" : "Historique disponible", 8, bold, rgb(.35, .4, .39));
+        for (const point of item.history) text(`${point.date} | ${point.value}${point.secondary ? ` | ${point.secondary}` : ""}`, 8);
+      }
+      if (item.reference) text(`${locale === "en" ? "Reference" : "Reference"}: ${item.reference}`, 8, regular, rgb(.38, .45, .44));
+      if (item.changeSummary) text(`${locale === "en" ? "Change" : "Evolution"}: ${item.changeSummary}`, 8, bold);
+      text(item.publicInterpretation, 9);
+      if (item.benefits?.length) {
+        text(locale === "en" ? "Possible benefits" : "Benefices possibles", 8, bold, rgb(.12, .49, .33));
+        for (const benefit of item.benefits) text(`- ${benefit}`, 8);
+      }
+      text(`${locale === "en" ? "Practical advice" : "Conseil pratique"}: ${item.recommendation}`, 8, bold, rgb(.12, .49, .33));
+      y -= 8;
     }
     y -= 8;
     text(labels.professionalIndicators, 14, bold, rgb(.12, .49, .33));
     for (const item of insight.indicatorInsights) {
-      text(`${item.indicator} [${item.status}]: ${item.professionalInterpretation}`, 9);
+      text(`${item.indicator} [${item.status}]`, 11, bold, rgb(.07, .24, .19));
+      text(item.professionalInterpretation, 9);
+      if (item.missingData?.length) {
+        text(locale === "en" ? "Missing data limiting interpretation" : "Donnees manquantes limitant l interpretation", 8, bold, rgb(.55, .3, .15));
+        for (const missing of item.missingData) text(`- ${missing}`, 8);
+      }
+      if (item.professionalRecommendations?.length) {
+        text(locale === "en" ? "Professional recommendations" : "Recommandations professionnelles", 8, bold, rgb(.12, .49, .33));
+        for (const recommendation of item.professionalRecommendations) text(`- ${recommendation}`, 8);
+      }
+      y -= 8;
     }
     y -= 8;
   }

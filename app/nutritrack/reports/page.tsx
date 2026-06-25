@@ -15,7 +15,7 @@ import {
   SidebarProvider,
   SidebarMenuLabel,
 } from '@/nutritrack/components/ui/sidebar';
-import { Home, Users, Map as MapIcon, Settings, PlusCircle, BarChart as BarChartIcon, Warehouse, Calendar as CalendarIcon, Contact, HelpCircle, UserPlus, UserMinus, MessageSquareQuote, Group, Send, Bed, AlertTriangle, ClipboardCheck, Download as DownloadIcon, TrendingUp, Clock, UserCheck, Ban, Skull, Meh, Sparkles } from 'lucide-react';
+import { Home, Users, Map as MapIcon, Settings, PlusCircle, BarChart as BarChartIcon, Warehouse, Calendar as CalendarIcon, Contact, HelpCircle, UserPlus, UserMinus, MessageSquareQuote, Group, Send, Bed, AlertTriangle, ClipboardCheck, Download as DownloadIcon, TrendingUp, Clock, UserCheck, Ban, Skull, Meh, Sparkles, FileText, FileSpreadsheet } from 'lucide-react';
 import { Logo } from '@/nutritrack/components/logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/nutritrack/components/ui/card';
 import { firestore as db } from '@/nutritrack/local-firestore';
@@ -37,6 +37,7 @@ import { StatCard } from '@/nutritrack/components/stat-card';
 import { Badge } from '@/nutritrack/components/ui/badge';
 import { useToast } from '@/nutritrack/hooks/use-toast';
 import { summarizeHomeVisits } from '@/nutritrack/ai/flows/summarize-home-visits-flow';
+import { createClient } from '@/lib/supabase/client';
 
 
 type Option = { label: string; value: string };
@@ -89,6 +90,7 @@ interface SupervisionReportData {
 
 
 export default function ReportsPage() {
+  const { toast } = useToast();
   const [reportData, setReportData] = useState<{
     community: CommunityReportData | null;
     tsfp: ProgramReportData | null;
@@ -121,6 +123,26 @@ export default function ReportsPage() {
   const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
   
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [canExportOrganization, setCanExportOrganization] = useState(false);
+
+  useEffect(() => {
+    const loadPermissions = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: member } = await supabase
+        .from('nutritrack_members')
+        .select('role,roles')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setCanExportOrganization(
+        member?.role === 'organization_admin'
+        || Boolean(member?.roles?.includes('organization_admin')),
+      );
+    };
+    loadPermissions();
+  }, []);
 
   const countryOptions = useMemo(() => Array.from(new Set(healthAreas.map(ha => ha.country))).map(c => ({ label: c, value: c })), [healthAreas]);
 
@@ -440,32 +462,58 @@ export default function ReportsPage() {
         }
     }, [loading, processData]);
     
-    const handleDownload = async () => {
+    const handleDownload = async (format: 'json' | 'csv' | 'excel') => {
         setIsDownloading(true);
-        const dataToDownload = {
-            healthAreas,
-            children: allChildren,
-            visits: allVisits,
-            villages: allVillages,
-            communityScreenings: allCommunityScreenings,
-            communitySensitizations: allCommunitySensitizations,
-            communityHomeVisits: allCommunityHomeVisits,
-        };
+        try {
+          const response = await fetch(`/api/nutritrack/export?format=${format}`);
+          if (!response.ok) throw new Error((await response.json()).message || 'Export impossible.');
+          const blob = await response.blob();
+          const disposition = response.headers.get('content-disposition') || '';
+          const filename = disposition.match(/filename="([^"]+)"/)?.[1] || `nutritrack-export.${format}`;
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = filename;
+          link.click();
+          URL.revokeObjectURL(link.href);
+        } catch (error) {
+          toast({ title: 'Export impossible', description: error instanceof Error ? error.message : 'Veuillez reessayer.', variant: 'destructive' });
+        } finally {
+          setIsDownloading(false);
+        }
+    };
 
-        // Convert Timestamp objects to string
-        const sanitizedData = JSON.parse(JSON.stringify(dataToDownload, (key, value) => {
-            if (value && value.hasOwnProperty('seconds') && value.hasOwnProperty('nanoseconds')) {
-                return new Date(value.seconds * 1000).toISOString();
-            }
-            return value;
-        }));
-
-        const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(sanitizedData, null, 2))}`;
+    const handlePdfReport = async () => {
+      setIsGeneratingPdf(true);
+      try {
+        const facilityNames = selectedFacilities.map(id => healthAreas.find(area => area.id === id)?.healthFacilityName || id);
+        const response = await fetch('/api/nutritrack/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filters: {
+              startDate: startDate?.toISOString().slice(0, 10),
+              endDate: endDate?.toISOString().slice(0, 10),
+              countries: selectedCountries,
+              regions: selectedRegions,
+              districts: selectedDistricts,
+              healthAreas: selectedHealthAreas,
+              facilities: facilityNames,
+            },
+            reportData,
+          }),
+        });
+        if (!response.ok) throw new Error((await response.json()).message || 'Generation impossible.');
+        const blob = await response.blob();
         const link = document.createElement('a');
-        link.href = jsonString;
-        link.download = 'nutritrack_backup.json';
+        link.href = URL.createObjectURL(blob);
+        link.download = `rapport-nutritrack-${new Date().toISOString().slice(0, 10)}.pdf`;
         link.click();
-        setIsDownloading(false);
+        URL.revokeObjectURL(link.href);
+      } catch (error) {
+        toast({ title: 'Rapport indisponible', description: error instanceof Error ? error.message : 'Veuillez reessayer.', variant: 'destructive' });
+      } finally {
+        setIsGeneratingPdf(false);
+      }
     };
     
   if (loading) {
@@ -509,7 +557,21 @@ export default function ReportsPage() {
                      <div className="flex items-center gap-2">
                         <Popover><PopoverTrigger asChild><Button id="start-date" variant={"outline"} className={cn("w-[150px] justify-start text-left font-normal text-black", !startDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{startDate ? format(startDate, "LLL dd, y") : <span>Start date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><Calendar initialFocus mode="single" selected={startDate} onSelect={setStartDate} /></PopoverContent></Popover>
                          <Popover><PopoverTrigger asChild><Button id="end-date" variant={"outline"} className={cn("w-[150px] justify-start text-left font-normal text-black", !endDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{endDate ? format(endDate, "LLL dd, y") : <span>End date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><Calendar initialFocus mode="single" selected={endDate} onSelect={setEndDate} /></PopoverContent></Popover>
-                         <Button variant="secondary" onClick={handleDownload} disabled={isDownloading}><DownloadIcon className="mr-2 h-4 w-4" />{isDownloading ? 'Downloading...' : 'Download All Data'}</Button>
+                         <Button variant="secondary" onClick={handlePdfReport} disabled={isGeneratingPdf || isProcessing}>
+                           <FileText className="mr-2 h-4 w-4" />{isGeneratingPdf ? 'Generation...' : 'Rapport PDF avec IA'}
+                         </Button>
+                         {canExportOrganization && (
+                           <details className="relative">
+                             <summary className="flex h-10 cursor-pointer list-none items-center rounded-md bg-secondary px-4 text-sm font-medium text-secondary-foreground">
+                               <FileSpreadsheet className="mr-2 h-4 w-4" />Exporter les donnees
+                             </summary>
+                             <div className="absolute right-0 top-12 z-50 grid min-w-44 gap-1 rounded-md border bg-white p-2 text-slate-900 shadow-lg">
+                               <button className="rounded px-3 py-2 text-left text-sm hover:bg-slate-100" onClick={() => handleDownload('excel')}>Excel (.xls)</button>
+                               <button className="rounded px-3 py-2 text-left text-sm hover:bg-slate-100" onClick={() => handleDownload('csv')}>CSV</button>
+                               <button className="rounded px-3 py-2 text-left text-sm hover:bg-slate-100" onClick={() => handleDownload('json')}>JSON complet</button>
+                             </div>
+                           </details>
+                         )}
                     </div>
                  </div>
                  <div className="flex items-center gap-2 flex-wrap">

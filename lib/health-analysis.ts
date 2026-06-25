@@ -8,6 +8,12 @@ export type IndicatorInsight = {
   publicInterpretation: string;
   professionalInterpretation: string;
   recommendation: string;
+  history?: Array<{ date: string; value: string; secondary?: string }>;
+  reference?: string;
+  changeSummary?: string;
+  benefits?: string[];
+  missingData?: string[];
+  professionalRecommendations?: string[];
 };
 export type InsightResult = {
   professionalSummary: string;
@@ -19,6 +25,7 @@ export type InsightResult = {
   indicatorInsights: IndicatorInsight[];
   publicConclusion: string;
   professionalConclusion: string;
+  aiProvider?: "openai" | "local";
   alerts: Array<{ alert_type: string; severity: "info" | "warning" | "critical"; title: string; message: string; metric_value?: number }>;
 };
 
@@ -26,6 +33,16 @@ const number = (value: unknown) => value == null || value === "" ? null : Number
 const round = (value: number, digits = 1) => Number(value.toFixed(digits));
 const dated = (rows: HealthRow[], key: string) => [...rows].filter(row => row[key]).sort((a, b) => +new Date(a[key]) - +new Date(b[key]));
 const value = (input: unknown, unit = "", digits = 1) => number(input) == null ? undefined : `${round(Number(input), digits)}${unit}`;
+const dateLabel = (input: unknown, locale: "fr" | "en") => input ? new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "fr-FR").format(new Date(String(input))) : "-";
+
+function bmiCategory(bmi: number, locale: "fr" | "en") {
+  if (bmi < 18.5) return locale === "en" ? "underweight range" : "insuffisance ponderale";
+  if (bmi < 25) return locale === "en" ? "usual adult range" : "corpulence usuelle";
+  if (bmi < 30) return locale === "en" ? "overweight range" : "surpoids";
+  if (bmi < 35) return locale === "en" ? "class I obesity range" : "obesite de classe I";
+  if (bmi < 40) return locale === "en" ? "class II obesity range" : "obesite de classe II";
+  return locale === "en" ? "class III obesity range" : "obesite de classe III";
+}
 
 function variation(rows: HealthRow[], valueKey: string, dateKey: string) {
   const values = dated(rows, dateKey).filter(row => number(row[valueKey]) != null);
@@ -49,6 +66,9 @@ export function analyzeHealthData(anthropometry: HealthRow[], biology: HealthRow
   const latestAnthropometry = dated(anthropometry, "measured_at").at(-1);
   const latestBiology = dated(biology, "measured_at").at(-1);
   const latestBmi = number(latestAnthropometry?.bmi);
+  const anthropometryHistory = dated(anthropometry, "measured_at");
+  const firstAnthropometry = anthropometryHistory.find(row => number(row.weight_kg) !== null);
+  const firstBmi = number(firstAnthropometry?.bmi);
   const latestGlucose = number(latestBiology?.glucose);
   const latestHba1c = number(latestBiology?.hba1c);
   const systolic = number(latestBiology?.systolic_pressure);
@@ -69,9 +89,34 @@ export function analyzeHealthData(anthropometry: HealthRow[], biology: HealthRow
       indicator: locale === "en" ? "Weight" : "Poids",
       latest: `${weight.last} kg`,
       status: weight.weekly > 1 || weight.weekly < -1.5 ? "watch" : weight.delta < 0 ? "improving" : "stable",
-      publicInterpretation: locale === "en" ? `Your weight changed by ${weight.delta > 0 ? "+" : ""}${weight.delta} kg. This is useful for tracking progress, but it must be interpreted with your context.` : `Votre poids a varie de ${weight.delta > 0 ? "+" : ""}${weight.delta} kg. Cette information aide a suivre votre progression, mais elle doit etre interpretee selon votre contexte.`,
-      professionalInterpretation: locale === "en" ? `Weight trajectory: ${weight.weekly} kg/week over ${weight.days} days. Review fluid balance, dietary intake, activity and clinical context if the change is rapid.` : `Trajectoire ponderale: ${weight.weekly} kg/semaine sur ${weight.days} jours. Verifier hydratation, apports, activite et contexte clinique si la variation est rapide.`,
+      publicInterpretation: locale === "en"
+        ? `Your weight changed from ${weight.first} kg to ${weight.last} kg, a ${weight.delta > 0 ? "gain" : "loss"} of ${Math.abs(weight.delta)} kg over ${weight.days} days. ${latestBmi !== null ? `Your current BMI is ${latestBmi.toFixed(2)}, in the ${bmiCategory(latestBmi, locale)}.` : ""} This is a meaningful trend, but the pace and the way the change was achieved also matter.`
+        : `Votre poids est passe de ${weight.first} kg a ${weight.last} kg, soit ${weight.delta > 0 ? "une prise" : "une perte"} de ${Math.abs(weight.delta)} kg en ${weight.days} jours. ${latestBmi !== null ? `Votre IMC actuel est de ${latestBmi.toFixed(2)}, compatible avec la categorie ${bmiCategory(latestBmi, locale)}.` : ""} Cette tendance est utile, mais la vitesse et les conditions dans lesquelles elle a ete obtenue comptent egalement.`,
+      professionalInterpretation: locale === "en"
+        ? `Weight change ${weight.delta} kg (${round(weight.delta / weight.first * 100, 1)}% of initial body weight) over ${weight.days} days, estimated at ${weight.weekly} kg/week. ${firstBmi !== null && latestBmi !== null ? `BMI changed from ${firstBmi.toFixed(2)} to ${latestBmi.toFixed(2)} kg/m2 (${round(latestBmi - firstBmi, 2)} kg/m2).` : ""} Review energy and protein intake, physical activity, lean mass preservation, hydration, oedema and the clinical context when the rate is outside usual targets.`
+        : `Variation ponderale de ${weight.delta} kg (${round(weight.delta / weight.first * 100, 1)} % du poids initial) sur ${weight.days} jours, soit une vitesse estimee a ${weight.weekly} kg/semaine. ${firstBmi !== null && latestBmi !== null ? `L IMC est passe de ${firstBmi.toFixed(2)} a ${latestBmi.toFixed(2)} kg/m2, soit ${round(latestBmi - firstBmi, 2)} kg/m2.` : ""} Evaluer les apports energetiques et proteiques, l activite physique, le maintien de la masse maigre, l hydratation, les oedemes et le contexte clinique lorsque la vitesse sort des objectifs usuels.`,
       recommendation: locale === "en" ? "Continue measurements under comparable conditions and discuss rapid changes with a professional." : "Poursuivre les mesures dans des conditions comparables et discuter toute variation rapide avec un professionnel.",
+      history: anthropometryHistory.filter(row => number(row.weight_kg) !== null).map(row => ({
+        date: dateLabel(row.measured_at, locale),
+        value: `${round(Number(row.weight_kg), 1)} kg`,
+        secondary: number(row.bmi) !== null ? `IMC ${round(Number(row.bmi), 2)}` : undefined,
+      })),
+      reference: locale === "en" ? "A commonly used sustainable target is about 0.5 to 1 kg per week, adjusted to the individual situation." : "Un objectif souvent utilise pour une perte progressive est d environ 0,5 a 1 kg par semaine, a adapter a la situation individuelle.",
+      changeSummary: locale === "en" ? `${weight.delta} kg in ${weight.days} days; ${round(weight.delta / weight.first * 100, 1)}% of initial weight.` : `${weight.delta} kg en ${weight.days} jours, soit ${round(weight.delta / weight.first * 100, 1)} % du poids initial.`,
+      benefits: weight.delta < 0 ? (locale === "en"
+        ? ["May support improved blood pressure and glucose balance.", "May reduce mechanical stress on joints.", "May improve sleep, mobility, energy and quality of life when achieved safely."]
+        : ["Peut contribuer a ameliorer la pression arterielle et l equilibre glycemique.", "Peut reduire les contraintes sur les articulations.", "Peut ameliorer le sommeil, la mobilite, l energie et la qualite de vie lorsque la perte est obtenue de facon adaptee."]) : [],
+      missingData: [
+        latestAnthropometry?.waist_cm ? "" : locale === "en" ? "Waist circumference" : "Tour de taille",
+        latestAnthropometry?.body_fat_percent ? "" : locale === "en" ? "Body fat percentage" : "Pourcentage de masse grasse",
+        latestAnthropometry?.muscle_mass_kg ? "" : locale === "en" ? "Muscle mass" : "Masse musculaire",
+        latestAnthropometry?.muac_cm ? "" : "MUAC",
+        lifestyle.length ? "" : locale === "en" ? "Physical activity assessment" : "Evaluation de l activite physique",
+        food.length ? "" : locale === "en" ? "Dietary data" : "Donnees alimentaires",
+      ].filter(Boolean),
+      professionalRecommendations: locale === "en"
+        ? ["Continue weekly weight monitoring under comparable conditions.", "Measure waist circumference and body composition where possible.", "Set a 5 to 10% weight-loss objective over 3 to 6 months when clinically appropriate.", "Assess dietary intake, physical activity and preservation of lean mass."]
+        : ["Poursuivre un suivi ponderal hebdomadaire dans des conditions comparables.", "Mesurer le tour de taille et la composition corporelle lorsque cela est possible.", "Definir, lorsque cela est pertinent, un objectif de perte de 5 a 10 % du poids initial sur 3 a 6 mois.", "Evaluer les apports alimentaires, l activite physique et le maintien de la masse maigre."],
     });
   } else {
     addInsight(indicatorInsights, {
@@ -94,6 +139,11 @@ export function analyzeHealthData(anthropometry: HealthRow[], biology: HealthRow
       publicInterpretation: locale === "en" ? `Your latest BMI is ${latestBmi.toFixed(1)}. It is a screening indicator, not a diagnosis.` : `Votre dernier IMC est de ${latestBmi.toFixed(1)}. C'est un indicateur de depistage, pas un diagnostic.`,
       professionalInterpretation: locale === "en" ? "BMI should be interpreted with age, sex, body composition, oedema, pregnancy status and clinical background." : "L'IMC doit etre interprete avec l'age, le sexe, la composition corporelle, les oedemes, la grossesse et le contexte clinique.",
       recommendation: locale === "en" ? "Use BMI together with waist, symptoms and dietary history." : "Associer l'IMC au tour de taille, aux symptomes et a l'histoire alimentaire.",
+      history: anthropometryHistory.filter(row => number(row.bmi) !== null).map(row => ({ date: dateLabel(row.measured_at, locale), value: `${round(Number(row.bmi), 2)} kg/m2`, secondary: `${round(Number(row.weight_kg), 1)} kg` })),
+      reference: locale === "en" ? "Adult screening categories: <18.5; 18.5-24.9; 25-29.9; >=30 kg/m2." : "Categories de depistage adulte : <18,5 ; 18,5-24,9 ; 25-29,9 ; >=30 kg/m2.",
+      changeSummary: firstBmi !== null ? `${firstBmi.toFixed(2)} -> ${latestBmi.toFixed(2)} kg/m2 (${round(latestBmi - firstBmi, 2)})` : undefined,
+      missingData: [latestAnthropometry?.waist_cm ? "" : locale === "en" ? "Waist circumference" : "Tour de taille", latestAnthropometry?.body_fat_percent ? "" : locale === "en" ? "Body composition" : "Composition corporelle"].filter(Boolean),
+      professionalRecommendations: locale === "en" ? ["Interpret with waist circumference and cardiometabolic risk factors.", "Avoid using BMI alone as an individual diagnosis."] : ["Interpreter avec le tour de taille et les facteurs de risque cardiometabolique.", "Ne pas utiliser l IMC seul comme diagnostic individuel."],
     });
   }
 
@@ -260,5 +310,5 @@ export function analyzeHealthData(anthropometry: HealthRow[], biology: HealthRow
   const professionalConclusion = urgentCount
     ? locale === "en" ? "Clinical triage is recommended because at least one critical automatic signal was generated. Validate units, timing, symptoms and treatment history." : "Un tri clinique est recommande car au moins un signal automatique critique est genere. Valider les unites, le moment de mesure, les symptomes et l'historique therapeutique."
     : locale === "en" ? "Interpret these findings as decision support only. Correlate all indicators with clinical assessment and care objectives." : "Interpreter ces resultats comme une aide a la decision uniquement. Correlater les indicateurs avec l'evaluation clinique et les objectifs de prise en charge.";
-  return { professionalSummary, publicSummary, trends, improvements, risks, recommendations, indicatorInsights, publicConclusion, professionalConclusion, alerts };
+  return { professionalSummary, publicSummary, trends, improvements, risks, recommendations, indicatorInsights, publicConclusion, professionalConclusion, aiProvider: "local", alerts };
 }

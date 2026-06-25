@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Operations Management</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navigation principale">
+        <div class="brand">
+          <span class="brand-mark">OP</span>
+          <div>
+            <strong>Operations Management</strong>
+            <small>Projets, financements et suivi</small>
+          </div>
+        </div>
+
+        <nav class="nav-list" id="nav-list">
+          <div class="nav-group group-home">
+            <p class="nav-group-title">Accueil</p>
+            <button class="nav-item active" data-page="operationsDashboard"><span class="icon" aria-hidden="true">O</span>Dashboard operations</button>
+          </div>
+          <div class="nav-group group-setup">
+            <p class="nav-group-title">Parametrage</p>
+            <button class="nav-item" data-page="fieldOffices"><span class="icon" aria-hidden="true">O</span>Office in charge</button>
+            <button class="nav-item" data-page="fdps"><span class="icon" aria-hidden="true">D</span>Final Distribution Point</button>
+            <button class="nav-item" data-page="sites"><span class="icon" aria-hidden="true">S</span>Sites administratifs</button>
+            <button class="nav-item" data-page="partners"><span class="icon" aria-hidden="true">P</span>Partenaire cooperant</button>
+            <button class="nav-item" data-page="cooperativePartners"><span class="icon" aria-hidden="true">C</span>Coops/GICs et autres</button>
+            <button class="nav-item" data-page="strategicDocuments"><span class="icon" aria-hidden="true">G</span>Documents strategiques</button>
+            <button class="nav-item" data-page="grants"><span class="icon" aria-hidden="true">$</span>Grants</button>
+            <button class="nav-item" data-page="staffs"><span class="icon" aria-hidden="true">H</span>Staffs</button>
+          </div>
+          <div class="nav-group group-framework">
+            <p class="nav-group-title">Cadre projet</p>
+            <button class="nav-item" data-page="projects"><span class="icon" aria-hidden="true">J</span>Projet</button>
+            <button class="nav-item" data-page="stakeholders"><span class="icon" aria-hidden="true">E</span>Parties prenantes & staff</button>
+            <button class="nav-item" data-page="projectActivities"><span class="icon" aria-hidden="true">A</span>Activites projet</button>
+            <button class="nav-item" data-page="kpis"><span class="icon" aria-hidden="true">K</span>KPIs</button>
+            <button class="nav-item" data-page="projectSubActivities"><span class="icon" aria-hidden="true">S</span>Sous activites</button>
+            <button class="nav-item" data-page="budgets"><span class="icon" aria-hidden="true">B</span>Budget detaille</button>
+            <button class="nav-item" data-page="grantInKinds"><span class="icon" aria-hidden="true">G</span>Grants en nature</button>
+            <button class="nav-item" data-page="baselines"><span class="icon" aria-hidden="true">I</span>Baseline</button>
+          </div>
+          <div class="nav-group group-planning">
+            <p class="nav-group-title">Planification</p>
+            <button class="nav-item" data-page="monthlyPlans"><span class="icon" aria-hidden="true">M</span>Plan mensuel</button>
+            <button class="nav-item" data-page="processIndicators"><span class="icon" aria-hidden="true">Q</span>Process monitoring</button>
+          </div>
+          <div class="nav-group group-execution">
+            <p class="nav-group-title">Execution</p>
+            <button class="nav-item" data-page="monthlyReports"><span class="icon" aria-hidden="true">R</span>Reporting Quantitatif Mensuel</button>
+            <button class="nav-item" data-page="monthlyExpenses"><span class="icon" aria-hidden="true">D</span>Depenses mensuelles</button>
+            <button class="nav-item" data-page="processReports"><span class="icon" aria-hidden="true">T</span>Rapport process</button>
+          </div>
+          <div class="nav-group group-reporting">
+            <p class="nav-group-title">Reporting</p>
+            <button class="nav-item" data-page="progressReport"><span class="icon" aria-hidden="true">Y</span>Progress report</button>
+            <button class="nav-item" data-page="partnerInvoice"><span class="icon" aria-hidden="true">N</span>Facture partenaire</button>
+          </div>
+          <div class="nav-group group-adjustments">
+            <p class="nav-group-title">Ajustements</p>
+            <button class="nav-item" data-page="amendments"><span class="icon" aria-hidden="true">U</span>Amendements</button>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <small>Operation CM02</small>
+          <strong id="portfolio-count">Configuration projet</strong>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" id="view-kicker">Operations management</p>
+            <h1 id="view-title">Configuration projet</h1>
+          </div>
+          <div class="topbar-actions">
+            <div class="context-controls" aria-label="Contexte operationnel">
+              <label>Pays<select id="context-country"></select></label>
+              <label>Sous bureau<select id="context-field-office"></select></label>
+            </div>
+            <label class="search-box">
+              <span aria-hidden="true">S</span>
+              <input id="search-input" type="search" placeholder="Rechercher dans le registre actif..." />
+            </label>
+          </div>
+        </header>
+
+        <section class="metrics-grid" aria-label="Indicateurs cles">
+          <article class="metric">
+            <span>Field offices</span>
+            <strong id="metric-fo">1</strong>
+            <small>Structures operationnelles</small>
+          </article>
+          <article class="metric">
+            <span>Partenaires</span>
+            <strong id="metric-partners">1</strong>
+            <small>Implementing partners</small>
+          </article>
+          <article class="metric">
+            <span>Projets</span>
+            <strong id="metric-projects">1</strong>
+            <small id="metric-budget">275 000 000 XAF budgetise</small>
+          </article>
+          <article class="metric">
+            <span>KPIs</span>
+            <strong id="metric-kpis">0</strong>
+            <small>Suivi des resultats</small>
+          </article>
+        </section>
+
+        <p class="app-error" id="app-error" hidden></p>
+
+        <section class="config-layout" id="config-layout">
+          <section class="panel form-panel" id="form-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow" id="form-kicker">Referentiel</p>
+                <h2 id="form-title">Creer un enregistrement</h2>
+              </div>
+              <button class="modal-close" id="close-form" type="button" aria-label="Fermer">X</button>
+            </div>
+            <form id="record-form" class="record-form"></form>
+          </section>
+
+          <section class="panel register-panel" id="register-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Registre</p>
+                <h2 id="table-title">Enregistrements</h2>
+              </div>
+              <span class="count-badge" id="table-count">0</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead id="table-head"></thead>
+                <tbody id="table-body"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      window.addEventListener("error", function (event) {
+        var box = document.getElementById("app-error");
+        if (!box) return;
+        box.hidden = false;
+        box.textContent = "Erreur JavaScript: " + event.message + (event.filename ? " | " + event.filename + ":" + event.lineno : "");
+      });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

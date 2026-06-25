@@ -66,14 +66,21 @@ export async function enrichHealthNarrative<T extends {
   recommendations: string[];
   publicConclusion: string;
   professionalConclusion: string;
-  indicatorInsights: unknown[];
+  indicatorInsights: any[];
   trends: string[];
   improvements: string[];
   risks: string[];
 }>(analysis: T, locale: 'fr' | 'en'): Promise<T> {
-  const narrative = await generateStructured<Pick<T, 'publicSummary' | 'professionalSummary' | 'recommendations' | 'publicConclusion' | 'professionalConclusion'>>(
+  const narrative = await generateStructured<Pick<T, 'publicSummary' | 'professionalSummary' | 'recommendations' | 'publicConclusion' | 'professionalConclusion' | 'indicatorInsights'>>(
     'health_followup_narrative',
-    `Langue de sortie: ${locale}. Analysez indicateur par indicateur, les tendances par rapport aux valeurs precedentes, les limites des donnees et les interactions plausibles sans affirmer de causalite.`,
+    [
+      `Langue de sortie: ${locale}.`,
+      'Reecrivez CHAQUE indicateur avec un niveau de detail comparable a une note de suivi nutritionnel de qualite.',
+      'Pour la version grand public: expliquez clairement la valeur actuelle, la comparaison avec la norme, la variation depuis la premiere et la precedente mesure, les benefices possibles, les precautions et les conseils pratiques.',
+      'Pour la version professionnelle: fournissez les valeurs initiales et actuelles, les variations absolues et relatives disponibles, la vitesse d evolution, la classification, les limites, les donnees manquantes et des recommandations de suivi.',
+      'Conservez toutes les donnees historiques, references, listes de benefices et donnees manquantes fournies. Ne supprimez aucun indicateur.',
+      'Les conclusions globales doivent integrer les interactions entre anthropometrie, biologie, alimentation et activite, tout en distinguant clairement faits, hypotheses et limites.',
+    ].join('\n'),
     {
       indicatorInsights: analysis.indicatorInsights,
       trends: analysis.trends,
@@ -90,11 +97,33 @@ export async function enrichHealthNarrative<T extends {
         recommendations: { type: 'array', items: { type: 'string' } },
         publicConclusion: { type: 'string' },
         professionalConclusion: { type: 'string' },
+        indicatorInsights: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              indicator: { type: 'string' },
+              latest: { type: ['string', 'null'] },
+              status: { type: 'string', enum: ['stable', 'improving', 'watch', 'urgent', 'incomplete'] },
+              publicInterpretation: { type: 'string' },
+              professionalInterpretation: { type: 'string' },
+              recommendation: { type: 'string' },
+              history: { type: 'array', items: { type: 'object', additionalProperties: false, properties: { date: { type: 'string' }, value: { type: 'string' }, secondary: { type: ['string', 'null'] } }, required: ['date', 'value', 'secondary'] } },
+              reference: { type: ['string', 'null'] },
+              changeSummary: { type: ['string', 'null'] },
+              benefits: { type: 'array', items: { type: 'string' } },
+              missingData: { type: 'array', items: { type: 'string' } },
+              professionalRecommendations: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['indicator', 'latest', 'status', 'publicInterpretation', 'professionalInterpretation', 'recommendation', 'history', 'reference', 'changeSummary', 'benefits', 'missingData', 'professionalRecommendations'],
+          },
+        },
       },
-      required: ['publicSummary', 'professionalSummary', 'recommendations', 'publicConclusion', 'professionalConclusion'],
+      required: ['publicSummary', 'professionalSummary', 'recommendations', 'publicConclusion', 'professionalConclusion', 'indicatorInsights'],
     },
   );
-  return narrative ? { ...analysis, ...narrative } : analysis;
+  return narrative ? { ...analysis, ...narrative, aiProvider: 'openai' } : { ...analysis, aiProvider: 'local' };
 }
 
 export async function enrichChildGrowthNarrative<T extends {

@@ -27,6 +27,7 @@ export default function InsightPanel({ initial, alerts, reports }: { initial: In
         indicatorInsights: result.indicatorInsights,
         publicConclusion: result.publicConclusion,
         professionalConclusion: result.professionalConclusion,
+        aiProvider: result.aiProvider,
         created_at: new Date().toISOString(),
       });
       setItems([...result.alerts.map((alert: Insight) => ({ ...alert, id: crypto.randomUUID(), created_at: new Date().toISOString() })), ...items]);
@@ -63,6 +64,11 @@ export default function InsightPanel({ initial, alerts, reports }: { initial: In
         <button onClick={report} disabled={loading} className="btn-secondary">Generer un rapport PDF</button>
       </div>
       {message && <p className="rounded-xl bg-mint p-4 font-bold text-forest">{message}</p>}
+      {insight?.aiProvider && (
+        <p className={`rounded-xl p-4 text-sm font-bold ${insight.aiProvider === "openai" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>
+          {insight.aiProvider === "openai" ? "Analyse enrichie par le module IA externe." : "Analyse produite par le moteur local de secours. Verifiez OPENAI_API_KEY et OPENAI_MODEL pour activer l enrichissement externe."}
+        </p>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="rounded-2xl border bg-white p-6">
@@ -88,7 +94,13 @@ export default function InsightPanel({ initial, alerts, reports }: { initial: In
                   <span className="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase text-slate-500">{item.status}</span>
                 </div>
                 <p className="mt-3 text-sm leading-6 text-slate-700">{item.publicInterpretation}</p>
-                <p className="mt-2 text-xs leading-5 text-slate-500">{item.professionalInterpretation}</p>
+                {item.history?.length > 0 && <div className="mt-3 overflow-x-auto"><table className="min-w-full text-left text-xs"><thead><tr className="text-slate-400"><th className="py-2 pr-4">Date</th><th className="py-2 pr-4">Valeur</th><th className="py-2">Indicateur associe</th></tr></thead><tbody>{item.history.map((point: Insight, index: number) => <tr key={`${point.date}-${index}`} className="border-t"><td className="py-2 pr-4">{point.date}</td><td className="py-2 pr-4 font-bold">{point.value}</td><td className="py-2">{point.secondary || "-"}</td></tr>)}</tbody></table></div>}
+                {item.reference && <p className="mt-3 text-xs leading-5 text-slate-500"><b>Reference :</b> {item.reference}</p>}
+                {item.changeSummary && <p className="mt-2 text-sm font-bold text-forest">{item.changeSummary}</p>}
+                {item.benefits?.length > 0 && <div className="mt-3"><p className="text-sm font-bold">Benefices possibles</p><ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-slate-600">{item.benefits.map((value: string) => <li key={value}>{value}</li>)}</ul></div>}
+                <div className="mt-4 border-t pt-3"><p className="text-xs font-black uppercase text-slate-400">Lecture professionnelle</p><p className="mt-2 text-xs leading-5 text-slate-600">{item.professionalInterpretation}</p></div>
+                {item.missingData?.length > 0 && <div className="mt-3"><p className="text-xs font-bold text-amber-800">Donnees manquantes</p><p className="mt-1 text-xs text-slate-500">{item.missingData.join(", ")}</p></div>}
+                {item.professionalRecommendations?.length > 0 && <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-slate-600">{item.professionalRecommendations.map((value: string) => <li key={value}>{value}</li>)}</ul>}
                 <p className="mt-3 text-sm font-bold text-forest">{item.recommendation}</p>
               </article>
             ))}

@@ -3,7 +3,7 @@ import NutriTrackRequestManager from '@/components/nutritrack/NutriTrackRequestM
 import { requireAdmin } from '@/lib/admin';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ChartBarIcon } from '@heroicons/react/24/outline';
+import { ChatBubbleLeftRightIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 
 export default async function NutriTrackAdminPage() {
   const { supabase, admin } = await requireAdmin();
@@ -22,10 +22,16 @@ export default async function NutriTrackAdminPage() {
             <h1 className="mt-2 text-3xl font-black">Acces des organisations</h1>
             <p className="mt-2 text-slate-500">Approuvez, rejetez ou supprimez les espaces NutriTrack.</p>
           </div>
-          <Link href="/super-admin/nutritrack/dashboard" className="btn-primary">
-            <ChartBarIcon className="mr-2 h-5" />
-            Voir l utilisation de NutriTrack
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/super-admin/nutritrack/feedback" className="btn-secondary">
+              <ChatBubbleLeftRightIcon className="mr-2 h-5" />
+              Consulter les feedbacks
+            </Link>
+            <Link href="/super-admin/nutritrack/dashboard" className="btn-primary">
+              <ChartBarIcon className="mr-2 h-5" />
+              Voir l utilisation de NutriTrack
+            </Link>
+          </div>
         </div>
       </div>
       <NutriTrackRequestManager initial={organizations || []} />

@@ -37,7 +37,11 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ message: error.message }, { status: 400 });
     await service
       .from('nutritrack_members')
-      .update({ status: 'active', role: 'organization_admin' })
+      .update({
+        status: 'active',
+        role: 'organization_admin',
+        roles: ['organization_admin', 'creator', 'verifier', 'validator'],
+      })
       .eq('organization_id', organizationId)
       .eq('user_id', organization.owner_user_id);
     await service.from('nutritrack_access_logs').insert({

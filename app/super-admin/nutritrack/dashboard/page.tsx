@@ -5,7 +5,7 @@ import AdminShell from '@/components/admin/AdminShell';
 import { requireAdmin } from '@/lib/admin';
 
 type Organization = { id: string; name: string; status: string };
-type Member = { organization_id: string; status: string; role: string };
+type Member = { organization_id: string; status: string; role: string; roles?: string[] };
 type DocumentRow = { organization_id: string; collection_path: string; updated_at: string };
 
 export default async function NutriTrackUsageDashboard() {
@@ -15,7 +15,7 @@ export default async function NutriTrackUsageDashboard() {
 
   const [{ data: organizations }, { data: members }, { data: documents }, { data: reports }] = await Promise.all([
     supabase.from('nutritrack_organizations').select('id,name,status').order('name'),
-    supabase.from('nutritrack_members').select('organization_id,status,role'),
+    supabase.from('nutritrack_members').select('organization_id,status,role,roles'),
     supabase.from('nutritrack_documents').select('organization_id,collection_path,updated_at'),
     supabase.from('nutritrack_ai_reports').select('organization_id,provider,status,created_at').order('created_at', { ascending: false }).limit(500),
   ]);

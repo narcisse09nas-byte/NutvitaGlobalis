@@ -5,6 +5,12 @@ import { sendSystemEmail } from '@/lib/system-email';
 
 const roles = ['organization_admin', 'creator', 'verifier', 'validator'];
 
+function normalizeRoles(value: unknown, fallback = 'creator') {
+  const incoming = Array.isArray(value) ? value.map(String) : [fallback];
+  const valid = [...new Set(incoming.filter(role => roles.includes(role)))];
+  return valid.includes('organization_admin') ? roles : valid.length ? valid : ['creator'];
+}
+
 export async function POST(request: Request) {
   const session = await createClient();
   const { data: { user } } = await session.auth.getUser();
@@ -17,7 +23,7 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (
     !member
-    || member.role !== 'organization_admin'
+    || (member.role !== 'organization_admin' && !member.roles?.includes('organization_admin'))
     || member.nutritrack_organizations?.status !== 'approved'
   ) {
     return NextResponse.json({ message: 'Administrateur NutriTrack requis.' }, { status: 403 });
@@ -30,9 +36,10 @@ export async function POST(request: Request) {
   if (action === 'invite') {
     const email = String(body.email || '').trim().toLowerCase();
     const fullName = String(body.full_name || '').trim();
-    const role = String(body.role || 'creator');
+    const memberRoles = normalizeRoles(body.roles, String(body.role || 'creator'));
+    const role = memberRoles.includes('organization_admin') ? 'organization_admin' : memberRoles[0];
     const facilities = Array.isArray(body.facilities) ? body.facilities.map(String) : [];
-    if (!email || !fullName || !roles.includes(role)) {
+    if (!email || !fullName) {
       return NextResponse.json({ message: 'Informations du membre invalides.' }, { status: 400 });
     }
     const listed = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });
@@ -57,6 +64,7 @@ export async function POST(request: Request) {
         email,
         full_name: fullName,
         role,
+        roles: memberRoles,
         status: 'active',
         invited_by: user.id,
       }, { onConflict: 'organization_id,user_id' })
@@ -76,7 +84,7 @@ export async function POST(request: Request) {
       await sendSystemEmail(service, 'nutritrack_staff_invited', email, {
         name: fullName,
         organization: member.nutritrack_organizations.name,
-        role,
+        role: memberRoles.join(', '),
         action_url: `${process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin}/acces-nutritrack`,
       });
     }
@@ -86,7 +94,7 @@ export async function POST(request: Request) {
       action: 'member_invited',
       target_type: 'member',
       target_id: saved.id,
-      details: { email, role, facilities },
+      details: { email, roles: memberRoles, facilities },
     });
     return NextResponse.json({ ok: true, member: saved });
   }
@@ -104,11 +112,12 @@ export async function POST(request: Request) {
   }
 
   if (action === 'update') {
-    const role = String(body.role || target.role);
+    const memberRoles = normalizeRoles(body.roles ?? target.roles, String(body.role || target.role));
+    const role = memberRoles.includes('organization_admin') ? 'organization_admin' : memberRoles[0];
     const facilities = Array.isArray(body.facilities) ? body.facilities.map(String) : [];
-    if (!roles.includes(role)) return NextResponse.json({ message: 'Role invalide.' }, { status: 400 });
     await service.from('nutritrack_members').update({
       role,
+      roles: memberRoles,
       status: body.status === 'suspended' ? 'suspended' : 'active',
     }).eq('id', target.id);
     await service.from('nutritrack_member_facilities').delete().eq('member_id', target.id);

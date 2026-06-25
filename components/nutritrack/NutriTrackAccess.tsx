@@ -16,6 +16,7 @@ export default function NutriTrackAccess({ user, organization }: Props) {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState('');
   const countries = useMemo(
     () => Country.getAllCountries().sort((a, b) => a.name.localeCompare(b.name)),
     [],
@@ -58,7 +59,7 @@ export default function NutriTrackAccess({ user, organization }: Props) {
       password,
       options: {
         data: metadata,
-        emailRedirectTo: `${location.origin}/acces-nutritrack`,
+        emailRedirectTo: `${location.origin}/auth/callback?next=/acces-nutritrack`,
       },
     });
     setLoading(false);
@@ -66,10 +67,30 @@ export default function NutriTrackAccess({ user, organization }: Props) {
       setMessage(error.message);
       return;
     }
+    setPendingEmail(data.session ? '' : email);
     setMessage(
       data.session
         ? 'Compte cree. Votre demande NutriTrack est en cours d examen.'
         : 'Compte cree. Confirmez votre adresse email. Votre demande sera ensuite examinee.',
+    );
+  }
+
+  async function resendConfirmation() {
+    if (!pendingEmail) return;
+    setLoading(true);
+    setMessage('');
+    const { error } = await createClient().auth.resend({
+      type: 'signup',
+      email: pendingEmail,
+      options: {
+        emailRedirectTo: `${location.origin}/auth/callback?next=/acces-nutritrack`,
+      },
+    });
+    setLoading(false);
+    setMessage(
+      error
+        ? `Le renvoi a echoue: ${error.message}`
+        : 'Un nouveau mail de confirmation a ete envoye. Verifiez aussi le dossier courrier indesirable.',
     );
   }
 
@@ -158,6 +179,16 @@ export default function NutriTrackAccess({ user, organization }: Props) {
           {loading ? 'Traitement...' : mode === 'login' ? 'Se connecter' : 'Creer le compte et envoyer la demande'}
         </button>
         {message && <p className="rounded-lg bg-mint p-4 text-sm font-bold text-forest md:col-span-2">{message}</p>}
+        {pendingEmail && (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={resendConfirmation}
+            className="btn-secondary md:col-span-2"
+          >
+            Renvoyer le mail de confirmation
+          </button>
+        )}
       </form>
     </div>
   );

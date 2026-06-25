@@ -158,10 +158,10 @@ declare
 begin
   if public.is_admin() then return true; end if;
   select * into member_record
-  from public.nutritrack_members
-  where organization_id=p_organization_id
-    and user_id=(select auth.uid())
-    and status='active'
+  from public.nutritrack_members m
+  where m.organization_id=p_organization_id
+    and m.user_id=(select auth.uid())
+    and m.status='active'
   limit 1;
   if member_record.id is null then return false; end if;
   if member_record.role='organization_admin' then return true; end if;
@@ -193,10 +193,10 @@ declare
 begin
   if public.is_admin() then return true; end if;
   select * into member_record
-  from public.nutritrack_members
-  where organization_id=p_organization_id
-    and user_id=(select auth.uid())
-    and status='active'
+  from public.nutritrack_members m
+  where m.organization_id=p_organization_id
+    and m.user_id=(select auth.uid())
+    and m.status='active'
   limit 1;
   if member_record.id is null then return false; end if;
   if member_record.role='organization_admin' then return true; end if;
@@ -216,7 +216,7 @@ create or replace function public.submit_nutritrack_request(
 ) returns uuid
 language plpgsql security definer set search_path=public as $$
 declare
-  organization_id uuid;
+  v_organization_id uuid;
   current_email text;
 begin
   if (select auth.uid()) is null then raise exception 'Authentification requise.'; end if;
@@ -236,25 +236,25 @@ begin
     requested_facility_count=excluded.requested_facility_count,
     requested_staff_count=excluded.requested_staff_count,
     status=case when nutritrack_organizations.status='approved' then 'approved' else 'pending' end
-  returning id into organization_id;
+  returning id into v_organization_id;
 
   insert into public.nutritrack_members(
     organization_id,user_id,email,full_name,role,status
   ) values(
-    organization_id,(select auth.uid()),current_email,p_contact_name,
+    v_organization_id,(select auth.uid()),current_email,p_contact_name,
     'organization_admin','pending'
   )
   on conflict(organization_id,user_id) do update set
     email=excluded.email,
     full_name=excluded.full_name,
     role='organization_admin';
-  return organization_id;
+  return v_organization_id;
 end $$;
 
 -- The auth trigger cannot rely on auth.uid(), so it performs the same insertion directly.
 create or replace function public.handle_nutritrack_request_user()
 returns trigger language plpgsql security definer set search_path=public as $$
-declare organization_id uuid;
+declare v_organization_id uuid;
 begin
   if coalesce(new.raw_user_meta_data->>'account_type','')='nutritrack_request' then
     insert into public.nutritrack_organizations(
@@ -277,12 +277,12 @@ begin
       country=excluded.country,
       requested_facility_count=excluded.requested_facility_count,
       requested_staff_count=excluded.requested_staff_count
-    returning id into organization_id;
+    returning id into v_organization_id;
 
     insert into public.nutritrack_members(
       organization_id,user_id,email,full_name,role,status
     ) values(
-      organization_id,new.id,new.email,
+      v_organization_id,new.id,new.email,
       coalesce(nullif(new.raw_user_meta_data->>'full_name',''),new.email),
       'organization_admin','pending'
     )
@@ -379,6 +379,24 @@ alter table public.nutritrack_member_facilities enable row level security;
 alter table public.nutritrack_documents enable row level security;
 alter table public.nutritrack_access_logs enable row level security;
 
+create table if not exists public.nutritrack_ai_reports (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.nutritrack_organizations(id) on delete cascade,
+  requested_by uuid references auth.users(id) on delete set null,
+  report_type text not null,
+  provider text not null default 'local',
+  model text,
+  status text not null default 'completed' check(status in ('completed','fallback','failed')),
+  input_summary jsonb not null default '{}'::jsonb,
+  output jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists nutritrack_ai_reports_organization
+on public.nutritrack_ai_reports(organization_id,created_at desc);
+
+alter table public.nutritrack_ai_reports enable row level security;
+
 drop policy if exists "NutriTrack organizations visible to members" on public.nutritrack_organizations;
 create policy "NutriTrack organizations visible to members"
 on public.nutritrack_organizations for select to authenticated
@@ -438,6 +456,15 @@ drop policy if exists "NutriTrack logs visible to admins" on public.nutritrack_a
 create policy "NutriTrack logs visible to admins"
 on public.nutritrack_access_logs for select to authenticated
 using(public.is_admin() or public.nutritrack_is_org_admin(organization_id));
+
+drop policy if exists "NutriTrack AI reports visible to organization" on public.nutritrack_ai_reports;
+create policy "NutriTrack AI reports visible to organization"
+on public.nutritrack_ai_reports for select to authenticated
+using(
+  public.is_admin()
+  or public.nutritrack_is_org_admin(organization_id)
+  or requested_by=(select auth.uid())
+);
 
 drop trigger if exists set_updated_at on public.nutritrack_organizations;
 create trigger set_updated_at before update on public.nutritrack_organizations

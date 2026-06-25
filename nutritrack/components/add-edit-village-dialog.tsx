@@ -181,7 +181,7 @@ export function AddEditVillageDialog({ isOpen, onClose, onSave, village, healthA
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Health Area/Facility</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!district}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!district}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select a health area" /></SelectTrigger></FormControl>
                     <SelectContent>{healthAreaOptions.map(ha => (<SelectItem key={ha.id} value={ha.id}>{ha.healthFacilityName} ({ha.healthArea})</SelectItem>))}</SelectContent>
                   </Select>
@@ -190,7 +190,7 @@ export function AddEditVillageDialog({ isOpen, onClose, onSave, village, healthA
               )}
             />
             <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Village/Quartier Name</FormLabel><FormControl><Input placeholder="e.g., Kalaban Koro" {...field} /></FormControl><FormMessage /></FormItem>)} />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField control={form.control} name="chwCount" render={({ field }) => (<FormItem><FormLabel>Number of CHWs</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="estimatedPopulation" render={({ field }) => (<FormItem><FormLabel>Est. Population</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
             </div>

@@ -188,6 +188,7 @@ export default function HealthAreasPage() {
                   </CardHeader>
                   <CardContent>
                       {loading ? <p>Loading health areas...</p> :
+                      <div className="overflow-x-auto">
                       <Table>
                           <TableHeader>
                               <TableRow>
@@ -240,7 +241,8 @@ export default function HealthAreasPage() {
                               </TableRow>
                               ))}
                           </TableBody>
-                      </Table>}
+                      </Table>
+                      </div>}
                   </CardContent>
               </Card>
             </main>

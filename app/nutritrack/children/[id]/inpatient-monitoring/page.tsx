@@ -504,7 +504,7 @@ export default function InpatientMonitoringPage() {
                         <Card>
                              <CardHeader><CardTitle>Therapeutic Feeding</CardTitle></CardHeader>
                              <CardContent className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-4 sm:grid-cols-2">
                                     <FormField control={control} name="therapeuticFeeding.commodityId" render={({field}) => (<FormItem><FormLabel>Product</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select feeding product" /></SelectTrigger></FormControl><SelectContent>{nutritionalTreatments.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select><FormMessage/></FormItem>)} />
                                     <FormField control={control} name="therapeuticFeeding.numberOfMeals" render={({field}) => (<FormItem><FormLabel>Number of Meals/Day</FormLabel><FormControl><Input type="number" min={1} max={12} {...field} /></FormControl><FormMessage/></FormItem>)} />
                                 </div>
@@ -598,11 +598,11 @@ export default function InpatientMonitoringPage() {
                                             <Button type="button" variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => removeMed(index)}><Trash2 className="h-4 w-4" /></Button>
                                         </div>
                                         <FormField control={control} name={`medications.${index}.commodityId`} render={({field}) => (<FormItem><FormLabel>Medication</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select treatment" /></SelectTrigger></FormControl><SelectContent>{systematicTreatments.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid gap-4 sm:grid-cols-2">
                                            <FormField control={control} name={`medications.${index}.route`} render={({field}) => (<FormItem><FormLabel>Route</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select route" /></SelectTrigger></FormControl><SelectContent><SelectItem value="oral">Oral</SelectItem><SelectItem value="anal">Anal Suppository</SelectItem><SelectItem value="im">Intramuscular</SelectItem><SelectItem value="iv">Intravenous</SelectItem><SelectItem value="perfusion">Perfusion</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
                                            <FormField control={control} name={`medications.${index}.dose`} render={({field}) => (<FormItem><FormLabel>Dose</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid gap-4 sm:grid-cols-2">
                                             <FormField control={control} name={`medications.${index}.unit`} render={({field}) => (<FormItem><FormLabel>Unit</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select unit" /></SelectTrigger></FormControl><SelectContent><SelectItem value="mg/day">mg/day</SelectItem><SelectItem value="ml/day">ml/day</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
                                             <FormField control={control} name={`medications.${index}.frequency`} render={({field}) => (<FormItem><FormLabel>Frequency (times/day)</FormLabel><FormControl><Input placeholder="e.g., 2" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                         </div>
@@ -664,7 +664,7 @@ export default function InpatientMonitoringPage() {
                          )}
                          {watchedAction === 'discharge' && (
                             <div className="p-4 border rounded-md grid grid-cols-1 gap-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-4 sm:grid-cols-2">
                                     <FormField control={control} name="dischargeDate" render={({ field }) => (
                                         <FormItem className="flex flex-col"><FormLabel>Discharge Date</FormLabel><Popover open={isDischargeDatePickerOpen} onOpenChange={setIsDischargeDatePickerOpen}><PopoverTrigger asChild><FormControl><Input placeholder="Pick a date" value={field.value ? format(field.value, "PPP") : ''} onChange={(e) => { const date = new Date(e.target.value); if (!isNaN(date.getTime())) { field.onChange(date); } }} className={cn(!field.value && "text-muted-foreground")} /></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={(date) => {field.onChange(date); setIsDischargeDatePickerOpen(false);}} /></PopoverContent></Popover><FormMessage /></FormItem>
                                     )} />

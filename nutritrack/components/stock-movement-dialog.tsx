@@ -224,7 +224,7 @@ export function StockMovementDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Manage Stock</DialogTitle>
           <DialogDescription>
@@ -263,7 +263,7 @@ export function StockMovementDialog({
                 )}
             />
 
-            <div className='grid grid-cols-2 gap-4'>
+            <div className="grid gap-4 sm:grid-cols-2">
                  <FormField
                     control={control}
                     name="date"

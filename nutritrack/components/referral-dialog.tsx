@@ -117,7 +117,7 @@ export function ReferralDialog({ isOpen, onClose, onConfirm, isSubmitting }: Ref
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Referred To</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a facility" />

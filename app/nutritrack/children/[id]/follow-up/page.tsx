@@ -842,7 +842,7 @@ export default function FollowUpPage() {
                                     </FormItem>
                                 )}
                             />
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-4 sm:grid-cols-2">
                                 <FormField control={control} name="weight" render={({ field }) => (<FormItem><FormLabel>Weight (kg)</FormLabel><FormControl><Input type="number" step="0.1" {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>)} />
                                 <FormField control={control} name="muac" render={({ field }) => (<FormItem><FormLabel>MUAC (mm)</FormLabel><FormControl><Input type="number" {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>)} />
                             </div>
@@ -898,7 +898,7 @@ export default function FollowUpPage() {
                                         <FormMessage />
                                         </FormItem>
                                     )}/>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4">
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                                         <FormField control={form.control} name="severeVomiting" render={({ field }) => (<FormItem><FormLabel>Severe Vomiting</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex items-center space-x-4 pt-2"><FormItem><FormControl><RadioGroupItem value="yes" /></FormControl><FormLabel>Yes</FormLabel></FormItem><FormItem><FormControl><RadioGroupItem value="no" /></FormControl><FormLabel>No</FormLabel></FormItem></RadioGroup></FormControl></FormItem>)} />
                                         <FormField control={form.control} name="subcostalRetraction" render={({ field }) => (<FormItem><FormLabel>Subcostal Retraction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex items-center space-x-4 pt-2"><FormItem><FormControl><RadioGroupItem value="yes" /></FormControl><FormLabel>Yes</FormLabel></FormItem><FormItem><FormControl><RadioGroupItem value="no" /></FormControl><FormLabel>No</FormLabel></FormItem></RadioGroup></FormControl></FormItem>)} />
                                         <FormField control={form.control} name="openSkinLesions" render={({ field }) => (<FormItem><FormLabel>Open Skin Lesions</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex items-center space-x-4 pt-2"><FormItem><FormControl><RadioGroupItem value="yes" /></FormControl><FormLabel>Yes</FormLabel></FormItem><FormItem><FormControl><RadioGroupItem value="no" /></FormControl><FormLabel>No</FormLabel></FormItem></RadioGroup></FormControl></FormItem>)} />

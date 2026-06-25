@@ -13,7 +13,8 @@
   .eyebrow { max-width: 100%; letter-spacing: .11em; }
 }
 
-.nutritrack-scope {
+.nutritrack-scope,
+.nutritrack-portal {
   --background: 180 14% 97%;
   --foreground: 180 5% 20%;
   --card: 0 0% 100%;
@@ -48,14 +49,24 @@
   --sidebar-settings-active-foreground: hsl(0 0% 100%);
   --sidebar-feedback-active: hsl(0 84% 60%);
   --sidebar-feedback-active-foreground: hsl(0 0% 100%);
-  min-height: 100vh;
   background: hsl(var(--background));
   color: hsl(var(--foreground));
 }
 
+.nutritrack-scope {
+  min-height: 100vh;
+}
+
+.nutritrack-portal {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
 .nutritrack-scope h1,
 .nutritrack-scope h2,
-.nutritrack-scope h3 {
+.nutritrack-scope h3,
+.nutritrack-portal h1,
+.nutritrack-portal h2,
+.nutritrack-portal h3 {
   color: inherit;
   letter-spacing: 0;
 }

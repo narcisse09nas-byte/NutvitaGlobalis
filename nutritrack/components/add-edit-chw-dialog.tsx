@@ -124,7 +124,7 @@ export function AddEditChwDialog({ isOpen, onClose, onSave, chw, healthAreas, vi
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
                 <FormField control={form.control} name="firstName" render={({ field }) => (<FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="lastName" render={({ field }) => (<FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>)} />
             </div>
@@ -140,7 +140,7 @@ export function AddEditChwDialog({ isOpen, onClose, onSave, chw, healthAreas, vi
                 </FormItem>
             )}/>
 
-             <div className="grid grid-cols-2 gap-4">
+             <div className="grid gap-4 sm:grid-cols-2">
                  <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="+223 XX XX XX XX" {...field} /></FormControl><FormMessage /></FormItem>)} />
                  <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email (Optional)</FormLabel><FormControl><Input placeholder="user@example.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
             </div>
@@ -154,7 +154,7 @@ export function AddEditChwDialog({ isOpen, onClose, onSave, chw, healthAreas, vi
                   <Select onValueChange={(value) => {
                       field.onChange(value);
                       form.setValue('villageId', ''); // Reset village when facility changes
-                  }} defaultValue={field.value}>
+                  }} value={field.value}>
                     <FormControl>
                       <SelectTrigger><SelectValue placeholder="Select a health facility" /></SelectTrigger>
                     </FormControl>
@@ -170,7 +170,7 @@ export function AddEditChwDialog({ isOpen, onClose, onSave, chw, healthAreas, vi
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Village Covered</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!healthAreaId}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={!healthAreaId}>
                     <FormControl>
                       <SelectTrigger><SelectValue placeholder="Select a village" /></SelectTrigger>
                     </FormControl>

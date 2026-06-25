@@ -22,9 +22,17 @@ import {
   FormDescription,
 } from '@/nutritrack/components/ui/form';
 import { Input } from '@/nutritrack/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/nutritrack/components/ui/select';
 import type { HealthArea } from '@/nutritrack/types';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Checkbox } from '@/nutritrack/components/ui/checkbox';
+import { Country } from 'country-state-city';
 
 const programOptions = [
     { id: 'TSFP', label: 'TSFP (MAM)' },
@@ -57,6 +65,10 @@ interface AddEditHealthAreaDialogProps {
 }
 
 export function AddEditHealthAreaDialog({ isOpen, onClose, onSave, healthArea }: AddEditHealthAreaDialogProps) {
+  const countries = useMemo(
+    () => Country.getAllCountries().sort((a, b) => a.name.localeCompare(b.name)),
+    [],
+  );
   
   const form = useForm<HealthAreaFormValues>({
     resolver: zodResolver(healthAreaSchema),
@@ -113,7 +125,7 @@ export function AddEditHealthAreaDialog({ isOpen, onClose, onSave, healthArea }:
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>{healthArea ? 'Edit Health Facility' : 'Add Health Facility'}</DialogTitle>
           <DialogDescription>
@@ -121,19 +133,34 @@ export function AddEditHealthAreaDialog({ isOpen, onClose, onSave, healthArea }:
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-4">
                  <FormField control={form.control} name="hqGlobal" render={({ field }) => (
                     <FormItem>
-                        <FormLabel>HQ/Global</FormLabel>
-                        <FormControl><Input placeholder="e.g., My-NGO" {...field} /></FormControl>
-                         <FormDescription>To identify yourself or your organization/structure.</FormDescription>
+                        <FormLabel>Organization / HQ identifier</FormLabel>
+                        <FormControl><Input placeholder="e.g., Ministry of Health, NGO or programme" {...field} /></FormControl>
+                         <FormDescription>Name used to identify the organization responsible for this facility.</FormDescription>
                         <FormMessage />
                     </FormItem>
                 )} />
-                <FormField control={form.control} name="country" render={({ field }) => (<FormItem><FormLabel>Country (Admin 0)</FormLabel><FormControl><Input placeholder="e.g., Mali" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country (Admin 0)</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select a country" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          {countries.map(country => <SelectItem key={country.isoCode} value={country.name}>{country.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField control={form.control} name="region" render={({ field }) => (<FormItem><FormLabel>Region/State (Admin 1)</FormLabel><FormControl><Input placeholder="e.g., Koulikoro" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="healthDistrict" render={({ field }) => (<FormItem><FormLabel>Division/District (Admin 2)</FormLabel><FormControl><Input placeholder="e.g., Kati" {...field} /></FormControl><FormMessage /></FormItem>)} />
                  <FormField control={form.control} name="subDivision" render={({ field }) => (<FormItem><FormLabel>Sub-Division (Admin 3, if applicable)</FormLabel><FormControl><Input placeholder="e.g., Kambila" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
@@ -150,15 +177,16 @@ export function AddEditHealthAreaDialog({ isOpen, onClose, onSave, healthArea }:
                         <FormItem>
                         <FormLabel>Initial Serial Number</FormLabel>
                         <FormControl>
-                            <Input type="number" {...field} />
+                            <Input type="number" min="0" {...field} />
                         </FormControl>
+                        <FormDescription>Starting counter used to generate the next child identification number.</FormDescription>
                         <FormMessage />
                         </FormItem>
                     )}
                     />
               </div>
 
-               <div className="md:col-span-2 space-y-2 p-4 border rounded-md">
+               <div className="space-y-2 rounded-md border border-border bg-muted/40 p-4 md:col-span-2">
                 <FormField
                     control={form.control}
                     name="programs"
@@ -170,7 +198,7 @@ export function AddEditHealthAreaDialog({ isOpen, onClose, onSave, healthArea }:
                             Select all the programs this health facility supports.
                             </FormDescription>
                         </div>
-                        <div className="flex flex-row items-center space-x-4">
+                        <div className="grid gap-3 sm:grid-cols-3">
                           {programOptions.map((item) => (
                               <FormField
                               key={item.id}

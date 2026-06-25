@@ -106,8 +106,8 @@ export function AddEditCommodityDialog({ isOpen, onClose, onSave, commodity }: A
                   <FormControl>
                     <RadioGroup
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex space-x-4"
+                      value={field.value}
+                      className="grid gap-3 sm:grid-cols-2"
                     >
                       <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
@@ -133,7 +133,7 @@ export function AddEditCommodityDialog({ isOpen, onClose, onSave, commodity }: A
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Unit of Measurement</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a unit" />
@@ -161,8 +161,8 @@ export function AddEditCommodityDialog({ isOpen, onClose, onSave, commodity }: A
                   <FormControl>
                     <RadioGroup
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex flex-wrap gap-4"
+                      value={field.value}
+                      className="grid gap-3 sm:grid-cols-2"
                     >
                       <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl><RadioGroupItem value="MAM" /></FormControl>

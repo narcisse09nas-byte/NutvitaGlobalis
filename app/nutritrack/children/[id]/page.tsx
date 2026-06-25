@@ -64,7 +64,7 @@ export default function ChildDetailPage() {
   const printComponentRef = useRef<HTMLDivElement>(null);
   
   const handlePrint = useReactToPrint({
-    content: () => printComponentRef.current,
+    contentRef: printComponentRef,
     onAfterPrint: () => setIsPreviewOpen(false),
   });
 

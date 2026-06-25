@@ -15,9 +15,9 @@ async function generateStructured<T>(
   instructions: string,
   input: unknown,
   schema: Record<string, unknown>,
-): Promise<T | null> {
+): Promise<{ data: T | null; error?: string }> {
   const key = process.env.OPENAI_API_KEY;
-  if (!key) return null;
+  if (!key) return { data: null, error: 'missing_api_key' };
   try {
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
@@ -51,12 +51,29 @@ async function generateStructured<T>(
       }),
       signal: AbortSignal.timeout(45_000),
     });
-    if (!response.ok) throw new Error(`OPENAI_${response.status}`);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      const code = payload?.error?.code || payload?.error?.type;
+      const error = response.status === 401
+        ? 'invalid_api_key'
+        : response.status === 429
+          ? 'quota_or_rate_limit'
+          : code === 'model_not_found'
+            ? 'model_not_found'
+            : `openai_http_${response.status}`;
+      console.error('External AI narrative request failed', { status: response.status, code });
+      return { data: null, error };
+    }
     const text = extractOutputText(await response.json());
-    return text ? JSON.parse(text) as T : null;
+    return { data: text ? JSON.parse(text) as T : null, error: text ? undefined : 'empty_response' };
   } catch (error) {
     console.error('External AI narrative fallback', error);
-    return null;
+    return {
+      data: null,
+      error: error instanceof DOMException && error.name === 'TimeoutError'
+        ? 'timeout'
+        : 'openai_request_failed',
+    };
   }
 }
 
@@ -71,7 +88,7 @@ export async function enrichHealthNarrative<T extends {
   improvements: string[];
   risks: string[];
 }>(analysis: T, locale: 'fr' | 'en'): Promise<T> {
-  const narrative = await generateStructured<Pick<T, 'publicSummary' | 'professionalSummary' | 'recommendations' | 'publicConclusion' | 'professionalConclusion' | 'indicatorInsights'>>(
+  const result = await generateStructured<Pick<T, 'publicSummary' | 'professionalSummary' | 'recommendations' | 'publicConclusion' | 'professionalConclusion' | 'indicatorInsights'>>(
     'health_followup_narrative',
     [
       `Langue de sortie: ${locale}.`,
@@ -123,7 +140,9 @@ export async function enrichHealthNarrative<T extends {
       required: ['publicSummary', 'professionalSummary', 'recommendations', 'publicConclusion', 'professionalConclusion', 'indicatorInsights'],
     },
   );
-  return narrative ? { ...analysis, ...narrative, aiProvider: 'openai' } : { ...analysis, aiProvider: 'local' };
+  return result.data
+    ? { ...analysis, ...result.data, aiProvider: 'openai', aiError: undefined }
+    : { ...analysis, aiProvider: 'local', aiError: result.error };
 }
 
 export async function enrichChildGrowthNarrative<T extends {
@@ -137,7 +156,7 @@ export async function enrichChildGrowthNarrative<T extends {
   attentionPoints: string[];
   alerts: unknown[];
 }>(analysis: T): Promise<T> {
-  const narrative = await generateStructured<Pick<T, 'summary' | 'professionalSummary' | 'practicalAdvice' | 'parentConclusion' | 'professionalConclusion'>>(
+  const result = await generateStructured<Pick<T, 'summary' | 'professionalSummary' | 'practicalAdvice' | 'parentConclusion' | 'professionalConclusion'>>(
     'child_growth_narrative',
     'Produisez une version parent rassurante mais precise et une version professionnelle plus technique. Comparez chaque indicateur a sa reference et a la mesure precedente lorsqu elles sont fournies. Ne minimisez jamais un oedeme, une perte ponderale ou une alerte critique.',
     {
@@ -160,5 +179,5 @@ export async function enrichChildGrowthNarrative<T extends {
       required: ['summary', 'professionalSummary', 'practicalAdvice', 'parentConclusion', 'professionalConclusion'],
     },
   );
-  return narrative ? { ...analysis, ...narrative } : analysis;
+  return result.data ? { ...analysis, ...result.data } : analysis;
 }

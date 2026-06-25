@@ -26,6 +26,7 @@ export type InsightResult = {
   publicConclusion: string;
   professionalConclusion: string;
   aiProvider?: "openai" | "local";
+  aiError?: string;
   alerts: Array<{ alert_type: string; severity: "info" | "warning" | "critical"; title: string; message: string; metric_value?: number }>;
 };
 

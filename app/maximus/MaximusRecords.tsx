@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, FilePenLine, GitBranch, Plus, Search, Send, Trash2, X, XCircle } from 'lucide-react';
 import type { MaximusModule } from '@/lib/maximus-modules';
 import { workflowActionFor } from '@/lib/maximus-workflows';
+import budgetCatalog from '@/lib/maximus-budget-lines.json';
 
 type RecordRow = {
   id: string;
@@ -16,6 +17,23 @@ type RecordRow = {
 
 type SelectOption = { value: string; label: string };
 type OptionSource = 'countries' | 'states' | 'centralKitchens' | 'salePoints' | 'ingredients' | 'budgetLines' | 'staff' | 'vendors' | 'assets' | 'menus';
+type BudgetLine = {
+  code: string;
+  category: string;
+  category_fr?: string;
+  subCategory: string;
+  subCategory_fr?: string;
+  subSubCategory: string;
+  subSubCategory_fr?: string;
+  description_en: string;
+  description_fr?: string;
+  nature?: string;
+  ohadaClass?: string;
+  ohadaAccount?: string;
+  ohadaAccountName?: string;
+  usefulLife?: string | null;
+  amortizationMethod?: string | null;
+};
 
 const statusLabels: Record<string, string> = {
   draft: 'Brouillon',
@@ -48,6 +66,21 @@ const sourceByField: Record<string, OptionSource> = {
   asset: 'assets',
   vehicle: 'assets',
 };
+const budgetLinesData = (budgetCatalog as { budgetLines: BudgetLine[] }).budgetLines;
+
+function budgetKey(language: string, key: 'category' | 'subCategory' | 'subSubCategory' | 'description') {
+  if (key === 'description') return language === 'English' ? 'description_en' : 'description_fr';
+  return language === 'English' ? key : `${key}_fr`;
+}
+
+function budgetLineValue(line: BudgetLine, language: string, key: 'category' | 'subCategory' | 'subSubCategory' | 'description') {
+  const field = budgetKey(language, key) as keyof BudgetLine;
+  return String(line[field] || (key === 'description' ? line.description_en : line[key]) || '');
+}
+
+function uniqueBudgetOptions(lines: BudgetLine[], language: string, key: 'category' | 'subCategory' | 'subSubCategory' | 'description') {
+  return [...new Set(lines.map(line => budgetLineValue(line, language, key)).filter(Boolean))];
+}
 
 export default function MaximusRecords({ module }: { module: MaximusModule }) {
   const [items, setItems] = useState<RecordRow[]>([]);
@@ -62,6 +95,7 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
   const [countries, setCountries] = useState<SelectOption[]>([]);
   const [states, setStates] = useState<SelectOption[]>([]);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [fieldFilters, setFieldFilters] = useState<Record<string, string>>({});
 
   async function load() {
     const response = await fetch(`/api/maximus/records?module=${encodeURIComponent(module.slug)}`);
@@ -70,7 +104,7 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
     else setMessage(result.message || 'Chargement impossible.');
   }
 
-  useEffect(() => { load(); }, [module.slug]);
+  useEffect(() => { load(); setFieldFilters({}); }, [module.slug]);
   useEffect(() => {
     fetch('/api/maximus/options')
       .then(response => response.ok ? response.json() : {})
@@ -93,10 +127,20 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
       .catch(() => setStates([]));
   }, [formValues.country]);
 
-  const filtered = useMemo(() => items.filter(item =>
-    (!status || item.status === status)
-    && (!search || `${item.title} ${item.reference || ''} ${JSON.stringify(item.data)}`.toLowerCase().includes(search.toLowerCase())),
-  ), [items, search, status]);
+  const registryFields = useMemo(() => {
+    const keys = module.registryColumns || module.fields.filter(field => !field.hidden).slice(0, 8).map(field => field.key);
+    return keys.map(key => module.fields.find(field => field.key === key) || { key, label: key }).filter(field => !field.hidden);
+  }, [module]);
+
+  const filtered = useMemo(() => items.filter(item => {
+    const haystack = `${item.title} ${item.reference || ''} ${JSON.stringify(item.data)}`.toLowerCase();
+    if (status && item.status !== status) return false;
+    if (search && !haystack.includes(search.toLowerCase())) return false;
+    return Object.entries(fieldFilters).every(([key, value]) => {
+      if (!value) return true;
+      return String(item.data[key] || '').toLowerCase().includes(value.toLowerCase());
+    });
+  }), [items, search, status, fieldFilters]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -167,7 +211,7 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
 
   function openEdit(item?: RecordRow) {
     setEditing(item || null);
-    setFormValues(item ? Object.fromEntries(module.fields.map(field => [field.key, String(item.data[field.key] || '')])) : {});
+    setFormValues(item ? Object.fromEntries(module.fields.map(field => [field.key, String(item.data[field.key] || '')])) : { selection_language: 'Français' });
     setFormOpen(true);
   }
 
@@ -178,6 +222,40 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
     if (source === 'states') return states;
     return dynamicOptions[source] || [];
   }
+
+  function budgetSelection(values = formValues) {
+    const language = values.selection_language || 'Français';
+    const category = values.category || '';
+    const subCategory = values.subCategory || '';
+    const subSubCategory = values.subSubCategory || '';
+    const categoryOptions = uniqueBudgetOptions(budgetLinesData, language, 'category');
+    const subCategoryLines = budgetLinesData.filter(line => !category || budgetLineValue(line, language, 'category') === category);
+    const subCategoryOptions = uniqueBudgetOptions(subCategoryLines, language, 'subCategory');
+    const subSubCategoryLines = subCategoryLines.filter(line => !subCategory || budgetLineValue(line, language, 'subCategory') === subCategory);
+    const subSubCategoryOptions = uniqueBudgetOptions(subSubCategoryLines, language, 'subSubCategory');
+    const descriptionLines = subSubCategoryLines.filter(line => !subSubCategory || budgetLineValue(line, language, 'subSubCategory') === subSubCategory);
+    const selectedLine = descriptionLines.find(line => budgetLineValue(line, language, 'description') === values.description) || null;
+    return { language, categoryOptions, subCategoryOptions, subSubCategoryOptions, descriptionLines, selectedLine };
+  }
+
+  function applyBudgetLine(line: BudgetLine | null, language: string, description: string) {
+    setFormValues(current => ({
+      ...current,
+      description,
+      code: line?.code || '',
+      category: line ? budgetLineValue(line, language, 'category') : current.category || '',
+      subCategory: line ? budgetLineValue(line, language, 'subCategory') : current.subCategory || '',
+      subSubCategory: line ? budgetLineValue(line, language, 'subSubCategory') : current.subSubCategory || '',
+      nature: line?.nature || '',
+      ohadaClass: line?.ohadaClass || '',
+      ohadaAccount: line?.ohadaAccount || '',
+      ohadaAccountName: line?.ohadaAccountName || '',
+      usefulLife: line?.usefulLife || 'N/A',
+      amortizationMethod: line?.amortizationMethod || 'N/A',
+    }));
+  }
+
+  const budget = module.specializedForm === 'budgetLines' ? budgetSelection() : null;
 
   return <div className="grid gap-6">
     <section className="flex flex-wrap items-end justify-between gap-4">
@@ -192,20 +270,40 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
     {message && <p className="rounded-md bg-emerald-50 p-4 font-bold text-emerald-800">{message}</p>}
 
     <section className="rounded-lg border bg-white">
-      <header className="flex flex-wrap items-center gap-3 border-b p-4">
-        <label className="relative min-w-[240px] flex-1">
-          <Search className="absolute left-3 top-3 h-4 text-slate-400" />
-          <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher..." className="admin-input pl-10" />
-        </label>
-        <select value={status} onChange={event => setStatus(event.target.value)} className="admin-input max-w-48">
-          <option value="">Tous les statuts</option>
-          {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
+      <header className="border-b p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h3 className="text-2xl font-black">{module.title} Register</h3>
+            <p className="mt-1 text-sm text-slate-500">Liste des éléments enregistrés dans ce module.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="relative min-w-[240px]">
+              <Search className="absolute left-3 top-3 h-4 text-slate-400" />
+              <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher..." className="admin-input pl-10" />
+            </label>
+            <select value={status} onChange={event => setStatus(event.target.value)} className="admin-input max-w-48">
+              <option value="">Tous les statuts</option>
+              {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          {registryFields.slice(0, 4).map(field => {
+            const options = fieldOptions(field.key);
+            return <label key={`filter-${field.key}`} className="grid gap-1 text-xs font-bold text-slate-500">
+              {field.label}
+              {options ? <select value={fieldFilters[field.key] || ''} onChange={event => setFieldFilters(current => ({ ...current, [field.key]: event.target.value }))} className="admin-input py-2 text-sm">
+                <option value="">Tous</option>
+                {options.map(option => <option key={`filter-${field.key}-${option.value}`} value={option.value}>{option.label}</option>)}
+              </select> : <input value={fieldFilters[field.key] || ''} onChange={event => setFieldFilters(current => ({ ...current, [field.key]: event.target.value }))} className="admin-input py-2 text-sm" placeholder="Filtrer" />}
+            </label>;
+          })}
+        </div>
       </header>
 
       {filtered.length ? <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead><tr className="text-left text-slate-500"><th className="p-4">Élément</th><th className="p-4">Référence</th><th className="p-4">Statut</th><th className="p-4">Date</th><th className="p-4 text-right">Actions</th></tr></thead>
+          <thead><tr className="text-left text-slate-500"><th className="p-4">Élément</th><th className="p-4">Référence</th>{registryFields.map(field => <th key={field.key} className="p-4">{field.label}</th>)}<th className="p-4">Statut</th><th className="p-4">Date</th><th className="p-4 text-right">Actions</th></tr></thead>
           <tbody>{filtered.map(item => {
             const action = workflowActionFor(module.slug, item.status);
             const processed = Array.isArray(item.data.workflow_processed_actions) ? item.data.workflow_processed_actions : [];
@@ -213,10 +311,11 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
             return <tr key={item.id} className="border-t">
               <td className="p-4">
                 <b>{item.title}</b>
-                <p className="mt-1 max-w-xl truncate text-xs text-slate-400">{module.fields.slice(1, 4).map(field => item.data[field.key]).filter(Boolean).join(' · ')}</p>
+                <p className="mt-1 max-w-xl truncate text-xs text-slate-400">{registryFields.slice(0, 3).map(field => item.data[field.key]).filter(Boolean).join(' · ')}</p>
                 {action && processed.includes(action.id) && <p className="mt-2 text-xs font-bold text-emerald-700">Étape suivante déjà exécutée</p>}
               </td>
               <td className="p-4">{item.reference || '-'}</td>
+              {registryFields.map(field => <td key={`${item.id}-${field.key}`} className="max-w-[240px] truncate p-4">{String(item.data[field.key] ?? '-')}</td>)}
               <td className="p-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${item.status === 'validated' ? 'bg-emerald-50 text-emerald-800' : item.status === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-700'}`}>{statusLabels[item.status] || item.status}</span></td>
               <td className="p-4">{new Date(item.created_at).toLocaleDateString('fr-FR')}</td>
               <td className="p-4"><div className="flex justify-end gap-2">
@@ -256,6 +355,87 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
           {module.fields.map(field => {
             const options = fieldOptions(field.key);
             const value = formValues[field.key] ?? String(editing?.data[field.key] || '');
+            if (field.hidden) return <input key={field.key} type="hidden" name={field.key} value={value} />;
+            if (module.specializedForm === 'budgetLines' && budget) {
+              if (field.key === 'selection_language') return <label key={field.key} className="grid gap-2 text-sm font-bold md:col-span-2">
+                {field.label}
+                <select
+                  name={field.key}
+                  value={value || 'Français'}
+                  onChange={event => setFormValues(current => ({ ...current, selection_language: event.target.value, category: '', subCategory: '', subSubCategory: '', description: '', code: '', nature: '', ohadaClass: '', ohadaAccount: '', ohadaAccountName: '', usefulLife: '', amortizationMethod: '' }))}
+                  className="admin-input"
+                >
+                  <option value="Français">Français</option>
+                  <option value="English">English</option>
+                </select>
+              </label>;
+              if (field.key === 'category') return <label key={field.key} className="grid gap-2 text-sm font-bold">
+                {field.label}
+                <select
+                  name={field.key}
+                  required={field.required}
+                  value={value}
+                  onChange={event => setFormValues(current => ({ ...current, category: event.target.value, subCategory: '', subSubCategory: '', description: '', code: '' }))}
+                  className="admin-input"
+                >
+                  <option value="">Sélectionner</option>
+                  {budget.categoryOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>;
+              if (field.key === 'subCategory') return <label key={field.key} className="grid gap-2 text-sm font-bold">
+                {field.label}
+                <select
+                  name={field.key}
+                  required={field.required}
+                  value={value}
+                  disabled={!formValues.category}
+                  onChange={event => setFormValues(current => ({ ...current, subCategory: event.target.value, subSubCategory: '', description: '', code: '' }))}
+                  className="admin-input"
+                >
+                  <option value="">Sélectionner</option>
+                  {budget.subCategoryOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>;
+              if (field.key === 'subSubCategory') return <label key={field.key} className="grid gap-2 text-sm font-bold">
+                {field.label}
+                <select
+                  name={field.key}
+                  required={field.required}
+                  value={value}
+                  disabled={!formValues.subCategory}
+                  onChange={event => setFormValues(current => ({ ...current, subSubCategory: event.target.value, description: '', code: '' }))}
+                  className="admin-input"
+                >
+                  <option value="">Sélectionner</option>
+                  {budget.subSubCategoryOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>;
+              if (field.key === 'description') return <label key={field.key} className="grid gap-2 text-sm font-bold md:col-span-2">
+                {field.label}
+                <select
+                  name={field.key}
+                  required={field.required}
+                  value={value}
+                  disabled={!formValues.subSubCategory}
+                  onChange={event => {
+                    const description = event.target.value;
+                    const line = budget.descriptionLines.find(item => budgetLineValue(item, budget.language, 'description') === description) || null;
+                    applyBudgetLine(line, budget.language, description);
+                  }}
+                  className="admin-input"
+                >
+                  <option value="">Sélectionner</option>
+                  {budget.descriptionLines.map(line => {
+                    const label = budgetLineValue(line, budget.language, 'description');
+                    return <option key={line.code} value={label}>{label}</option>;
+                  })}
+                </select>
+              </label>;
+              if (field.key === 'code') return <label key={field.key} className="grid gap-2 text-sm font-bold">
+                {field.label}
+                <input name={field.key} value={value} readOnly required={field.required} className="admin-input bg-slate-50 text-slate-500" />
+              </label>;
+            }
             return <label key={field.key} className={`grid gap-2 text-sm font-bold ${field.type === 'textarea' ? 'md:col-span-2' : ''}`}>
               {field.label}
               {field.type === 'textarea' ? <>
@@ -300,6 +480,21 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
               />}
             </label>;
           })}
+          {module.specializedForm === 'budgetLines' && budget && <div className="rounded-lg border bg-emerald-50/40 p-4 md:col-span-2">
+            <h4 className="text-center text-sm font-black">Selected Line Details</h4>
+            {budget.selectedLine ? <div className="mt-4 grid gap-4 text-sm md:grid-cols-2">
+              <div><p className="text-slate-500">Code</p><p className="font-semibold">{budget.selectedLine.code}</p></div>
+              <div><p className="text-slate-500">Description</p><p className="font-semibold">{budgetLineValue(budget.selectedLine, budget.language, 'description')}</p></div>
+              <div><p className="text-slate-500">Category</p><p className="font-semibold">{budgetLineValue(budget.selectedLine, budget.language, 'category')}</p></div>
+              <div><p className="text-slate-500">Subcategory</p><p className="font-semibold">{budgetLineValue(budget.selectedLine, budget.language, 'subCategory')}</p></div>
+              <div><p className="text-slate-500">Sub-subcategory</p><p className="font-semibold">{budgetLineValue(budget.selectedLine, budget.language, 'subSubCategory')}</p></div>
+              <div><p className="text-slate-500">Nature</p><p className="font-semibold">{budget.selectedLine.nature || '-'}</p></div>
+              <div><p className="text-slate-500">OHADA Class</p><p className="font-semibold">{budget.selectedLine.ohadaClass || '-'}</p></div>
+              <div><p className="text-slate-500">OHADA Account</p><p className="font-semibold">{budget.selectedLine.ohadaAccount || '-'}</p></div>
+              <div className="md:col-span-2"><p className="text-slate-500">OHADA Account Name</p><p className="font-semibold">{budget.selectedLine.ohadaAccountName || '-'}</p></div>
+              <div><p className="text-slate-500">Useful Life</p><p className="font-semibold">{budget.selectedLine.usefulLife || 'N/A'}</p></div>
+            </div> : <p className="mt-3 text-center text-sm text-slate-500">Complétez la sélection pour afficher les détails de la ligne.</p>}
+          </div>}
           <div className="flex justify-end gap-3 border-t pt-5 md:col-span-2">
             <button type="button" onClick={() => setFormOpen(false)} className="btn-secondary">Annuler</button>
             <button disabled={busy} className="btn-primary">{busy ? 'Enregistrement...' : 'Enregistrer'}</button>

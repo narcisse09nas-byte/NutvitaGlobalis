@@ -6,6 +6,8 @@ export type MaximusField = {
   optionSource?: 'countries' | 'states' | 'centralKitchens' | 'salePoints' | 'ingredients' | 'budgetLines' | 'staff' | 'vendors' | 'assets' | 'menus';
   dependsOn?: string;
   required?: boolean;
+  readOnly?: boolean;
+  hidden?: boolean;
 };
 
 export type MaximusModule = {
@@ -14,6 +16,8 @@ export type MaximusModule = {
   group: string;
   description: string;
   fields: MaximusField[];
+  registryColumns?: string[];
+  specializedForm?: 'budgetLines';
 };
 
 const commonStatus = ['draft', 'submitted', 'validated', 'rejected', 'archived'];
@@ -92,6 +96,19 @@ export const maximusModules: MaximusModule[] = [
     { key: 'employee', label: 'Employé', required: true }, { key: 'grade', label: 'Grade' }, { key: 'step', label: 'Échelon' }, { key: 'base_salary', label: 'Salaire de base', type: 'number' },
     { key: 'allowances', label: 'Indemnités', type: 'number' }, { key: 'deductions', label: 'Retenues', type: 'number' }, { key: 'pay_period', label: 'Période de paie' },
   ] },
+  { slug: 'hr/recruitment/offers', title: 'Offres d emploi', group: 'Ressources humaines', description: 'Creation et suivi des offres publiees sur le site NutVitaGlobalis.', registryColumns: ['position','department','contract_type','location','closing_date','publication_status'], fields: [
+    { key: 'position', label: 'Poste', required: true }, { key: 'department', label: 'Departement / unite', type: 'select', options: ['Cabinet', 'Restauration', 'Production', 'Finance', 'Ressources humaines', 'Operations', 'Autre'] },
+    { key: 'contract_type', label: 'Type de contrat', type: 'select', options: ['CDI', 'CDD', 'Consultance', 'Stage', 'Prestation', 'Autre'] }, { key: 'location', label: 'Lieu d affectation', required: true },
+    { key: 'country', label: 'Pays' }, { key: 'region', label: 'Region / Etat' }, { key: 'closing_date', label: 'Date limite', type: 'date' },
+    { key: 'publication_status', label: 'Publication', type: 'select', options: ['Brouillon', 'Pret a publier', 'Publie', 'Ferme'] },
+    { key: 'responsibilities', label: 'Responsabilites', type: 'textarea', required: true }, { key: 'requirements', label: 'Profil recherche', type: 'textarea', required: true },
+  ] },
+  { slug: 'hr/recruitment/applications', title: 'Candidatures', group: 'Ressources humaines', description: 'Reception, tri, entretiens et decisions de recrutement Maximus.', registryColumns: ['candidate_name','position','stage','score','decision','interview_date'], fields: [
+    { key: 'candidate_name', label: 'Candidat', required: true }, { key: 'position', label: 'Poste vise', required: true }, { key: 'email', label: 'Email', type: 'email' },
+    { key: 'phone', label: 'Telephone', type: 'tel' }, { key: 'stage', label: 'Etape', type: 'select', options: ['Recu', 'Preselection', 'Test', 'Entretien', 'Verification references', 'Offre', 'Rejete'] },
+    { key: 'score', label: 'Score', type: 'number' }, { key: 'interview_date', label: 'Date entretien', type: 'date' }, { key: 'decision', label: 'Decision', type: 'select', options: ['En attente', 'Retenu', 'Reserve', 'Rejete'] },
+    { key: 'notes', label: 'Notes RH', type: 'textarea' },
+  ] },
   { slug: 'partnerships/vendors', title: 'Gestion des fournisseurs', group: 'Partenaires et fournisseurs', description: 'Fournisseurs, contrats, coordonnées et statut.', fields: [
     { key: 'structure_name', label: 'Structure', required: true }, { key: 'contact_name', label: 'Contact principal', required: true }, { key: 'nature', label: 'Nature du fournisseur' },
     { key: 'contract_number', label: 'Numéro de contrat' }, { key: 'start_date', label: 'Début', type: 'date' }, { key: 'end_date', label: 'Fin', type: 'date' }, { key: 'phone', label: 'Téléphone', type: 'tel' }, { key: 'email', label: 'Email', type: 'email' }, { key: 'bank_account', label: 'Coordonnées bancaires', type: 'textarea' },
@@ -112,9 +129,20 @@ export const maximusModules: MaximusModule[] = [
     { key: 'requester', label: 'Demandeur', required: true }, { key: 'purpose', label: 'Objet du déplacement', type: 'textarea' }, { key: 'departure', label: 'Départ' }, { key: 'destination', label: 'Destination' },
     { key: 'departure_date', label: 'Date de départ', type: 'date' }, { key: 'return_date', label: 'Date de retour', type: 'date' }, { key: 'vehicle', label: 'Véhicule' }, { key: 'driver', label: 'Chauffeur' },
   ] },
-  { slug: 'finance/budget-lines', title: 'Lignes budgétaires', group: 'Finance', description: 'Structure du budget et suivi des allocations.', fields: [
-    { key: 'code', label: 'Code', required: true }, { key: 'category', label: 'Catégorie', required: true }, { key: 'sub_category', label: 'Sous-catégorie' }, { key: 'description', label: 'Description', type: 'textarea' },
-    { key: 'allocated_amount', label: 'Montant alloué', type: 'number' }, { key: 'spent_amount', label: 'Montant engagé', type: 'number' }, { key: 'comment', label: 'Commentaire', type: 'textarea' },
+  { slug: 'finance/budget-lines', title: 'Lignes budgétaires', group: 'Finance', description: 'Structure officielle des lignes budgétaires, comptes OHADA et nature OPEX/CAPEX.', specializedForm: 'budgetLines', registryColumns: ['code', 'category', 'subCategory', 'subSubCategory', 'description', 'nature', 'ohadaClass', 'ohadaAccount', 'ohadaAccountName', 'usefulLife'], fields: [
+    { key: 'selection_language', label: 'Langue de sélection', type: 'select', options: ['Français', 'English'] },
+    { key: 'code', label: 'Code budgétaire', required: true, readOnly: true },
+    { key: 'category', label: 'Category', type: 'select', required: true },
+    { key: 'subCategory', label: 'Subcategory', type: 'select', required: true },
+    { key: 'subSubCategory', label: 'Sub-subcategory', type: 'select', required: true },
+    { key: 'description', label: 'Description', type: 'select', required: true },
+    { key: 'comment', label: 'Commentaire', type: 'textarea' },
+    { key: 'nature', label: 'Nature', hidden: true },
+    { key: 'ohadaClass', label: 'OHADA Class', hidden: true },
+    { key: 'ohadaAccount', label: 'OHADA Account', hidden: true },
+    { key: 'ohadaAccountName', label: 'OHADA Account Name', hidden: true },
+    { key: 'usefulLife', label: 'Useful Life', hidden: true },
+    { key: 'amortizationMethod', label: 'Amortization Method', hidden: true },
   ] },
   { slug: 'finance/dashboard', title: 'Dashboard financier', group: 'Finance', description: 'Synthèse des budgets, engagements, paiements, caisse et trésorerie.', fields: [
     { key: 'period', label: 'Période', required: true }, { key: 'opening_balance', label: 'Solde initial', type: 'number' }, { key: 'income', label: 'Recettes', type: 'number' },
@@ -167,6 +195,21 @@ export const maximusModules: MaximusModule[] = [
   { slug: 'finance/cash-deposits', title: 'Dépôts de recettes', group: 'Finance', description: 'Dépôts des recettes des points de vente.', fields: [
     { key: 'sale_point', label: 'Point de vente', required: true }, { key: 'report_reference', label: 'Rapport de vente' }, { key: 'amount', label: 'Montant déposé', type: 'number' },
     { key: 'deposit_date', label: 'Date', type: 'date' }, { key: 'deposited_by', label: 'Déposé par' }, { key: 'bank_reference', label: 'Référence banque / caisse' },
+  ] },
+  { slug: 'communications/messages', title: 'Messagerie Maximus', group: 'Communications', description: 'Messages internes propres a Maximus, sans melange avec l administration NutVitaGlobalis.', registryColumns: ['subject','sender','recipient','priority','message_status'], fields: [
+    { key: 'subject', label: 'Sujet', required: true }, { key: 'sender', label: 'Expediteur', required: true }, { key: 'recipient', label: 'Destinataire / equipe', required: true },
+    { key: 'priority', label: 'Priorite', type: 'select', options: ['Normale', 'Haute', 'Urgente'] }, { key: 'message_status', label: 'Statut', type: 'select', options: ['Brouillon', 'Envoye', 'Lu', 'Traite'] },
+    { key: 'body', label: 'Message', type: 'textarea', required: true },
+  ] },
+  { slug: 'communications/meetings', title: 'Reunions Maximus', group: 'Communications', description: 'Planification et comptes rendus des reunions internes Maximus.', registryColumns: ['title','meeting_date','meeting_type','owner','decision_status'], fields: [
+    { key: 'title', label: 'Titre', required: true }, { key: 'meeting_date', label: 'Date', type: 'date', required: true }, { key: 'meeting_type', label: 'Type', type: 'select', options: ['Direction', 'Finance', 'Production', 'Restauration', 'RH', 'Operations', 'Autre'] },
+    { key: 'owner', label: 'Responsable' }, { key: 'participants', label: 'Participants', type: 'textarea' }, { key: 'agenda', label: 'Ordre du jour', type: 'textarea' },
+    { key: 'decisions', label: 'Decisions', type: 'textarea' }, { key: 'decision_status', label: 'Suivi', type: 'select', options: ['A suivre', 'En cours', 'Termine'] },
+  ] },
+  { slug: 'administration/users', title: 'Utilisateurs Maximus', group: 'Administration Maximus', description: 'Preparation des comptes Maximus et niveaux d acces attribues par le super administrateur.', registryColumns: ['full_name','email','access_level','assigned_modules','account_status'], fields: [
+    { key: 'full_name', label: 'Nom complet', required: true }, { key: 'email', label: 'Email', type: 'email', required: true }, { key: 'phone', label: 'Telephone', type: 'tel' },
+    { key: 'access_level', label: 'Niveau d acces', type: 'select', options: ['Super administrateur', 'Administrateur Maximus', 'Finance', 'RH', 'Production', 'Ventes', 'Lecture seule'] },
+    { key: 'assigned_modules', label: 'Modules autorises', type: 'textarea' }, { key: 'account_status', label: 'Statut', type: 'select', options: ['A creer', 'Actif', 'Suspendu', 'Desactive'] },
   ] },
   { slug: 'nutrition-analysis', title: 'Analyse nutritionnelle', group: 'Restauration', description: 'Analyse nutritionnelle des menus, portions et ingrédients.', fields: [
     { key: 'menu', label: 'Menu analysé', required: true }, { key: 'serving_size', label: 'Taille de portion' }, { key: 'energy_kcal', label: 'Énergie (kcal)', type: 'number' },

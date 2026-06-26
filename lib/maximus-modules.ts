@@ -22,7 +22,7 @@ export type MaximusModule = {
 
 const commonStatus = ['draft', 'submitted', 'validated', 'rejected', 'archived'];
 
-export const maximusModules: MaximusModule[] = [
+const baseMaximusModules: MaximusModule[] = [
   { slug: 'menus', title: 'Menus', group: 'Restauration', description: 'Menus, portions, ingrédients et processus de préparation.', fields: [
     { key: 'name', label: 'Nom du menu', required: true }, { key: 'menu_type', label: 'Type de menu', type: 'select', options: ['Standard', 'Diététique', 'Enfant', 'Événementiel', 'Autre'] },
     { key: 'meal_type', label: 'Repas', type: 'select', options: ['Petit-déjeuner', 'Déjeuner', 'Dîner', 'Collation'] }, { key: 'servings', label: 'Nombre de portions', type: 'number' },
@@ -217,6 +217,248 @@ export const maximusModules: MaximusModule[] = [
     { key: 'fiber_g', label: 'Fibres (g)', type: 'number' }, { key: 'micronutrients', label: 'Micronutriments', type: 'textarea' }, { key: 'interpretation', label: 'Interprétation', type: 'textarea' },
   ] },
 ];
+
+type ModuleEnhancement = Partial<Omit<MaximusModule, 'fields'>> & {
+  fields?: Record<string, Partial<MaximusField>>;
+};
+
+const sourceAlignedEnhancements: Record<string, ModuleEnhancement> = {
+  'menus': {
+    registryColumns: ['name','menu_type','meal_type','servings','description'],
+    fields: {
+      menu_type: { type: 'select', options: ['classic', 'special'] },
+      meal_type: { type: 'select', options: ['breakfast', 'lunch', 'dinner'] },
+      ingredients: { optionSource: 'ingredients' },
+    },
+  },
+  'sales/sale-points': {
+    registryColumns: ['name','manager_name','type','central_kitchen','staff_count','status'],
+    fields: {
+      type: { type: 'select', options: ['Restaurant', 'Health Facility', 'Company', 'Construction Site', 'Other'] },
+      central_kitchen: { optionSource: 'centralKitchens' },
+    },
+  },
+  'sales/partner-stock': {
+    registryColumns: ['movement_date','sale_point','item','category','quantity','unit','movement_type'],
+    fields: {
+      sale_point: { optionSource: 'salePoints' },
+      item: { optionSource: 'ingredients' },
+      movement_type: { type: 'select', options: ['Entrée', 'Sortie', 'Ajustement', 'Perte', 'pending', 'acknowledged'] },
+    },
+  },
+  'sales/daily-orders': {
+    registryColumns: ['order_date','sale_point','central_kitchen','menus','specific_ingredients'],
+    fields: {
+      sale_point: { optionSource: 'salePoints' },
+      central_kitchen: { optionSource: 'centralKitchens' },
+      menus: { optionSource: 'menus' },
+      specific_ingredients: { optionSource: 'ingredients' },
+    },
+  },
+  'sales/delivery-register': {
+    registryColumns: ['reference','delivery_date','sale_point','status','delivered_by','received_by'],
+    fields: {
+      sale_point: { optionSource: 'salePoints' },
+      delivered_by: { optionSource: 'staff' },
+      received_by: { optionSource: 'staff' },
+    },
+  },
+  'sales/reports': {
+    registryColumns: ['report_date','sale_point','gross_sales','cash_sales','digital_sales'],
+    fields: { sale_point: { optionSource: 'salePoints' } },
+  },
+  'supply/ingredients': {
+    registryColumns: ['name','category','budget_line','unit','unit_price','minimum_stock','supplier'],
+    fields: {
+      category: { type: 'select', options: ['Fresh Produce', 'Proteins', 'Dry Goods', 'Dairy', 'Beverages', 'Condiments & Spices', 'Cleaning & Sanitation', 'Other'] },
+      budget_line: { optionSource: 'budgetLines' },
+      supplier: { optionSource: 'vendors' },
+    },
+  },
+  'supply/consolidated-needs': {
+    registryColumns: ['period_start','period_end','central_kitchen','estimated_cost'],
+    fields: { central_kitchen: { optionSource: 'centralKitchens' } },
+  },
+  'supply/cost-estimation': {
+    registryColumns: ['title','central_kitchen','period','total_amount','budget_line'],
+    fields: {
+      central_kitchen: { optionSource: 'centralKitchens' },
+      budget_line: { optionSource: 'budgetLines' },
+    },
+  },
+  'supply/central-stock': {
+    registryColumns: ['date','item','movement_type','quantity','unit','destination','reference'],
+    fields: {
+      item: { optionSource: 'ingredients' },
+      movement_type: { type: 'select', options: ['Entrée', 'Sortie', 'Transfert', 'Ajustement', 'Perte', 'in', 'out', 'adjustment'] },
+      destination: { optionSource: 'salePoints' },
+    },
+  },
+  'production/planning': {
+    registryColumns: ['plan_name','central_kitchen','sale_point','period_start','period_end'],
+    fields: {
+      central_kitchen: { optionSource: 'centralKitchens' },
+      sale_point: { optionSource: 'salePoints' },
+      menus_quantities: { optionSource: 'menus' },
+      specific_ingredients: { optionSource: 'ingredients' },
+    },
+  },
+  'production/consolidated-orders': {
+    registryColumns: ['production_date','central_kitchen','total_portions','status'],
+    fields: { central_kitchen: { optionSource: 'centralKitchens' } },
+  },
+  'production/central-kitchens': {
+    registryColumns: ['name','manager','country','region','district','daily_capacity','status'],
+    fields: {
+      manager: { optionSource: 'staff' },
+      country: { optionSource: 'countries' },
+      region: { optionSource: 'states' },
+    },
+  },
+  'hr/staff': {
+    registryColumns: ['full_name','employee_number','position','unit','contract_type','email','phone'],
+    fields: {
+      unit: { type: 'select', options: ['Cabinet', 'Restauration', 'Production', 'Finance', 'Ressources humaines', 'Operations', 'Logistique', 'Autre'] },
+      contract_type: { type: 'select', options: ['CDI', 'CDD', 'Consultance', 'Stage', 'Prestation', 'Autre'] },
+    },
+  },
+  'hr/leave': {
+    registryColumns: ['employee','leave_type','start_date','end_date','status'],
+    fields: {
+      employee: { optionSource: 'staff' },
+      supervisor: { optionSource: 'staff' },
+      leave_type: { type: 'select', options: ['Annual Leave', 'Sick Leave', 'Maternity Leave', 'Paternity Leave', 'Permission', 'Other'] },
+    },
+  },
+  'hr/onboarding': {
+    registryColumns: ['employee','start_date','supervisor'],
+    fields: { employee: { optionSource: 'staff' }, supervisor: { optionSource: 'staff' } },
+  },
+  'hr/performance': {
+    registryColumns: ['employee','review_period','score','supervisor'],
+    fields: { employee: { optionSource: 'staff' }, supervisor: { optionSource: 'staff' } },
+  },
+  'hr/payroll': {
+    registryColumns: ['employee','grade','step','base_salary','pay_period'],
+    fields: {
+      employee: { optionSource: 'staff' },
+      grade: { type: 'select', options: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'D1', 'D2'] },
+    },
+  },
+  'hr/recruitment/offers': {
+    fields: { publication_status: { type: 'select', options: ['draft', 'open'] } },
+  },
+  'partnerships/vendors': {
+    registryColumns: ['structure_name','contact_name','nature','contract_number','start_date','end_date','status'],
+    fields: {
+      nature: { type: 'select', options: ['Food & Beverage Supplies', 'Non-Food Consumables', 'Equipment & Utensils', 'Utilities & Services', 'Technology & Software', 'Training', 'Project Management', 'Support for a Survey', 'Other'] },
+    },
+  },
+  'assets/inventory': {
+    registryColumns: ['asset_code','name','asset_type','location','acquisition_date','acquisition_value','condition','assigned_to'],
+    fields: {
+      asset_type: { type: 'select', options: ['General', 'Vehicle', 'Generator'] },
+      condition: { type: 'select', options: ['Good and Functional', 'Good and Non-functional', 'Altered'] },
+      location: { type: 'select', options: ['Head Office', 'Central Kitchen', 'Sale Point'] },
+      assigned_to: { optionSource: 'staff' },
+    },
+  },
+  'fleet/fueling': {
+    registryColumns: ['date','vehicle','litres','amount','odometer','payment_source'],
+    fields: {
+      vehicle: { optionSource: 'assets' },
+      payment_source: { type: 'select', options: ['Petty Cash', 'Tom Card', 'Other'] },
+    },
+  },
+  'fleet/maintenance': {
+    registryColumns: ['asset','planned_date','maintenance_type','provider','estimated_cost','actual_cost'],
+    fields: {
+      asset: { optionSource: 'assets' },
+      maintenance_type: { type: 'select', options: ['Preventive', 'Corrective', 'Repair', 'Inspection', 'Other'] },
+      provider: { optionSource: 'vendors' },
+    },
+  },
+  'fleet/movements': {
+    registryColumns: ['requester','departure_date','return_date','destination','vehicle','driver','status'],
+    fields: {
+      requester: { optionSource: 'staff' },
+      vehicle: { optionSource: 'assets' },
+      driver: { optionSource: 'staff' },
+    },
+  },
+  'finance/dashboard': { registryColumns: ['period','opening_balance','income','expenses','commitments','closing_balance'] },
+  'finance/reports': { registryColumns: ['title','period_start','period_end','total_budget','total_spent'] },
+  'finance/requests': {
+    registryColumns: ['title','requester','amount','budget_line','needed_by'],
+    fields: { requester: { optionSource: 'staff' }, budget_line: { optionSource: 'budgetLines' } },
+  },
+  'finance/payment-initiation': {
+    registryColumns: ['reference_type','reference','beneficiary','amount','payment_method'],
+    fields: {
+      reference_type: { type: 'select', options: ['Maintenance ID', 'Mission ID', 'Demande financière', 'Estimation de coût', 'Facture', 'Autre'] },
+      beneficiary: { optionSource: 'vendors' },
+      payment_method: { type: 'select', options: ['Cash', 'Bank Transfer', 'Mobile Money', 'Cheque'] },
+    },
+  },
+  'finance/my-payments': { registryColumns: ['reference','beneficiary','purpose','amount','due_date','payment_date'] },
+  'finance/cash-supply-requests': {
+    registryColumns: ['title','requester','amount','needed_by'],
+    fields: { requester: { optionSource: 'staff' } },
+  },
+  'finance/cost-estimations': {
+    registryColumns: ['title','requester','total_amount','budget_line','validity_date'],
+    fields: { requester: { optionSource: 'staff' }, budget_line: { optionSource: 'budgetLines' } },
+  },
+  'finance/payments': {
+    registryColumns: ['payment_reference','beneficiary','amount','payment_method','payment_date','proof_reference'],
+    fields: {
+      beneficiary: { optionSource: 'vendors' },
+      payment_method: { type: 'select', options: ['Espèces', 'Virement bancaire', 'Mobile Money', 'Chèque'] },
+    },
+  },
+  'finance/payment-register': {
+    registryColumns: ['reference','date','beneficiary','purpose','amount','method','budget_line'],
+    fields: {
+      beneficiary: { optionSource: 'vendors' },
+      method: { type: 'select', options: ['Cash', 'Bank Transfer', 'Mobile Money', 'Cheque'] },
+      budget_line: { optionSource: 'budgetLines' },
+    },
+  },
+  'finance/operational-advances': {
+    registryColumns: ['beneficiary','purpose','amount','advance_date','expensed_amount','cleared_at'],
+    fields: { beneficiary: { optionSource: 'staff' } },
+  },
+  'finance/petty-cash': {
+    registryColumns: ['date','transaction_type','source_or_beneficiary','reference','amount'],
+    fields: {
+      transaction_type: { type: 'select', options: ['Entrée', 'Sortie', 'bank', 'partner', 'other'] },
+      source_or_beneficiary: { optionSource: 'staff' },
+    },
+  },
+  'finance/bank-transfers': {
+    registryColumns: ['beneficiary','bank','account_number','amount','transfer_date','reference'],
+    fields: { beneficiary: { optionSource: 'vendors' } },
+  },
+  'finance/cash-deposits': {
+    registryColumns: ['sale_point','report_reference','amount','deposit_date','deposited_by','bank_reference'],
+    fields: { sale_point: { optionSource: 'salePoints' }, deposited_by: { optionSource: 'staff' } },
+  },
+  'nutrition-analysis': {
+    registryColumns: ['menu','serving_size','energy_kcal','protein_g','carbohydrates_g','fat_g'],
+    fields: { menu: { optionSource: 'menus' } },
+  },
+};
+
+export const maximusModules: MaximusModule[] = baseMaximusModules.map(module => {
+  const enhancement = sourceAlignedEnhancements[module.slug];
+  if (!enhancement) return module;
+  const fieldEnhancements = enhancement.fields || {};
+  return {
+    ...module,
+    ...enhancement,
+    fields: module.fields.map(field => ({ ...field, ...(fieldEnhancements[field.key] || {}) })),
+  };
+});
 
 export const maximusModuleMap = new Map(maximusModules.map(module => [module.slug, module]));
 export { commonStatus as maximusStatuses };

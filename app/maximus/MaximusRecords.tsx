@@ -216,7 +216,8 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
   }
 
   function fieldOptions(fieldKey: string) {
-    const source = sourceByField[fieldKey];
+    const field = module.fields.find(item => item.key === fieldKey);
+    const source = field?.optionSource || sourceByField[fieldKey];
     if (!source) return null;
     if (source === 'countries') return countries;
     if (source === 'states') return states;

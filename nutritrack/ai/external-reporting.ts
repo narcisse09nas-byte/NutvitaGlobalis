@@ -2,23 +2,14 @@ import 'server-only';
 import { createHash } from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { generateStructured } from '@/lib/ai-narrative';
 
 type ReportResult<T> = {
   value: T;
-  provider: 'openai' | 'local';
+  provider: 'openai' | 'gemini' | 'openrouter' | 'external' | 'local';
   model: string | null;
-  status: 'completed' | 'fallback';
+  status: 'completed' | 'fallback' | 'failed';
 };
-
-function outputText(response: any) {
-  if (typeof response?.output_text === 'string') return response.output_text;
-  for (const item of response?.output || []) {
-    for (const content of item?.content || []) {
-      if (typeof content?.text === 'string') return content.text;
-    }
-  }
-  return '';
-}
 
 export async function generateNutriTrackReport<T>({
   reportType,
@@ -42,63 +33,34 @@ export async function generateNutriTrackReport<T>({
     status: 'fallback',
   };
 
-  if (key) {
-    try {
-      const response = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          input: [
-            {
-              role: 'system',
-              content: [{
-                type: 'input_text',
-                text: [
-                  'Vous etes un analyste senior en nutrition publique et gestion de programmes.',
-                  'Produisez un rapport professionnel, factuel et directement exploitable.',
-                  'Ne posez aucun diagnostic individuel et ne fabriquez aucune donnee.',
-                  'Distinguez clairement constats, limites des donnees, risques, recommandations et actions.',
-                  'Utilisez les denominateurs disponibles, comparez les performances et signalez les donnees manquantes.',
-                  instructions,
-                ].join('\n'),
-              }],
-            },
-            {
-              role: 'user',
-              content: [{
-                type: 'input_text',
-                text: `Donnees agregees NutriTrack:\n${JSON.stringify(input)}`,
-              }],
-            },
-          ],
-          text: {
-            format: {
-              type: 'json_schema',
-              name: reportType.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60),
-              strict: true,
-              schema,
-            },
-          },
-        }),
-        signal: AbortSignal.timeout(45_000),
-      });
-      if (!response.ok) throw new Error(`OPENAI_${response.status}`);
-      const body = await response.json();
-      const text = outputText(body);
-      if (!text) throw new Error('OPENAI_EMPTY_OUTPUT');
-      result = {
-        value: JSON.parse(text) as T,
-        provider: 'openai',
-        model,
-        status: 'completed',
-      };
-    } catch (error) {
-      console.error('NutriTrack external AI fallback', error);
-    }
+  const generated = await generateStructured<T>(
+    reportType.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60),
+    [
+      'Vous etes un analyste senior en nutrition publique, prise en charge integree de la malnutrition aigue et gestion de programmes.',
+      'Produisez un rapport professionnel, factuel, consistant et directement exploitable par une equipe de district, formation sanitaire ou coordination programme.',
+      'Ne posez aucun diagnostic individuel et ne fabriquez aucune donnee.',
+      'Distinguez clairement constats, interpretation, limites des donnees, risques, recommandations et actions prioritaires.',
+      'Utilisez les denominateurs disponibles, comparez les performances, signalez les donnees manquantes et proposez des actions avec responsables implicites, priorites et echeances.',
+      instructions,
+    ].join('\n'),
+    { reportType, input },
+    schema,
+  );
+  if (generated.data) {
+    result = {
+      value: generated.data,
+      provider: generated.provider || 'external',
+      model: generated.provider === 'openai'
+        ? model
+        : generated.provider === 'gemini'
+          ? process.env.GEMINI_MODEL || null
+          : generated.provider === 'openrouter'
+            ? process.env.OPENROUTER_MODEL || null
+            : null,
+      status: 'completed',
+    };
+  } else if (key || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || process.env.OPENROUTER_API_KEY) {
+    console.error('NutriTrack external AI fallback', generated.error);
   }
 
   try {

@@ -33,6 +33,7 @@ function schemaPrompt(name: string, instructions: string, input: unknown, schema
     'Les regles, alertes et calculs fournis sont deterministes et ne doivent jamais etre contredits.',
     'N inventez aucune valeur, ne posez aucun diagnostic et recommandez une evaluation professionnelle face aux signaux importants.',
     'Le texte doit etre detaille, clair, nuance et distinguer la version grand public de la version professionnelle.',
+    'Objectif qualite: produire un rapport excellent, exploitable, consistant, avec des paragraphes substantiels et des recommandations actionnables.',
     instructions,
     '',
     `Retournez uniquement un objet JSON valide correspondant au schema "${name}".`,
@@ -64,6 +65,7 @@ async function generateWithOpenAI<T>(
               'Les regles, alertes et calculs fournis sont deterministes et ne doivent jamais etre contredits.',
               'N inventez aucune valeur, ne posez aucun diagnostic et recommandez une evaluation professionnelle face aux signaux importants.',
               'Le texte doit etre detaille, clair, nuance et distinguer la version grand public de la version professionnelle.',
+              'Objectif qualite: produire un rapport excellent, exploitable, consistant, avec des paragraphes substantiels et des recommandations actionnables.',
               instructions,
             ].join('\n'),
           }],
@@ -176,7 +178,7 @@ async function generateWithOpenRouter<T>(
   return { data: text ? safeJsonParse<T>(text) : null, provider: 'openrouter', error: text ? undefined : 'openrouter_empty_response' };
 }
 
-async function generateStructured<T>(
+export async function generateStructured<T>(
   name: string,
   instructions: string,
   input: unknown,
@@ -224,10 +226,12 @@ export async function enrichHealthNarrative<T extends {
     [
       `Langue de sortie: ${locale}.`,
       'Reecrivez CHAQUE indicateur avec un niveau de detail comparable a une note de suivi nutritionnel de qualite.',
-      'Pour la version grand public: expliquez clairement la valeur actuelle, la comparaison avec la norme, la variation depuis la premiere et la precedente mesure, les benefices possibles, les precautions et les conseils pratiques.',
-      'Pour la version professionnelle: fournissez les valeurs initiales et actuelles, les variations absolues et relatives disponibles, la vitesse d evolution, la classification, les limites, les donnees manquantes et des recommandations de suivi.',
-      'Conservez toutes les donnees historiques, references, listes de benefices et donnees manquantes fournies. Ne supprimez aucun indicateur.',
-      'Les conclusions globales doivent integrer les interactions entre anthropometrie, biologie, alimentation et activite, tout en distinguant clairement faits, hypotheses et limites.',
+      'Pour CHAQUE indicateur, produire une analyse de profondeur comparable a l exemple poids: valeur actuelle, historique disponible, comparaison a la norme/reference, variation depuis la premiere mesure et la precedente si disponible, interpretation simple, limites, donnees manquantes, risque ou benefice potentiel, puis conseil pratique.',
+      'Pour la version grand public: utiliser un langage accessible, expliquer ce que la valeur peut signifier, ce qu elle ne permet pas de conclure seule, les precautions et les actions realistes pour la semaine suivante.',
+      'Pour la version professionnelle: fournir les valeurs initiales et actuelles, les variations absolues et relatives disponibles, la vitesse d evolution, la classification/reference, les limites de mesure, les donnees manquantes, les hypotheses a verifier et des recommandations de suivi technique.',
+      'Ne reduisez jamais un indicateur a une phrase generique. Si un indicateur manque de donnees, expliquer precisement quelles donnees manquent et pourquoi elles changeraient l interpretation.',
+      'Conservez toutes les donnees historiques, references, listes de benefices, donnees manquantes et recommandations professionnelles fournies. Ne supprimez aucun indicateur et gardez le meme ordre.',
+      'Les conclusions globales doivent integrer les interactions entre anthropometrie, biologie, alimentation et activite, tout en distinguant clairement faits, hypotheses et limites. Les conclusions doivent etre robustes et utilisables dans un rapport PDF.',
     ].join('\n'),
     {
       indicatorInsights: analysis.indicatorInsights,
@@ -271,9 +275,13 @@ export async function enrichHealthNarrative<T extends {
       required: ['publicSummary', 'professionalSummary', 'recommendations', 'publicConclusion', 'professionalConclusion', 'indicatorInsights'],
     },
   );
-  return result.data
-    ? { ...analysis, ...result.data, aiProvider: result.provider || 'external', aiError: undefined }
-    : { ...analysis, aiProvider: 'local', aiError: result.error };
+  if (!result.data) return { ...analysis, aiProvider: 'local', aiError: result.error };
+  const enrichedByIndicator = new Map(result.data.indicatorInsights.map((item: any) => [String(item.indicator), item]));
+  const indicatorInsights = analysis.indicatorInsights.map((item: any) => {
+    const enriched = enrichedByIndicator.get(String(item.indicator)) as any;
+    return enriched ? { ...item, ...enriched } : item;
+  });
+  return { ...analysis, ...result.data, indicatorInsights, aiProvider: result.provider || 'external', aiError: undefined };
 }
 
 export async function enrichChildGrowthNarrative<T extends {

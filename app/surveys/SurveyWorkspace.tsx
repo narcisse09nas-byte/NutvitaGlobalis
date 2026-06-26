@@ -23,11 +23,13 @@ const labels: Record<string, string> = {
 
 export default function SurveyWorkspace() {
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [countries, setCountries] = useState<Array<{ name: string }>>([]);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     fetch('/api/surveys').then(response => response.json()).then(result => setSurveys(result.surveys || []));
+    fetch('/api/geo?type=countries').then(response => response.json()).then(setCountries).catch(() => setCountries([]));
   }, []);
 
   async function createSurvey(event: FormEvent<HTMLFormElement>) {
@@ -59,7 +61,7 @@ export default function SurveyWorkspace() {
         <div className="mt-6 grid gap-4">
           <label className="grid gap-2 text-sm font-bold">Titre<input name="title" required className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Type<select name="survey_type" className="admin-input"><option value="food_security">Securite alimentaire</option><option value="nutrition">Nutrition</option><option value="mixed">Mixte</option><option value="other">Autre</option></select></label>
-          <label className="grid gap-2 text-sm font-bold">Pays<input name="country" className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Pays<select name="country" className="admin-input"><option value="">Selectionner un pays</option>{countries.map(country => <option key={country.name} value={country.name}>{country.name}</option>)}</select></label>
           <div className="grid grid-cols-2 gap-3"><label className="grid gap-2 text-sm font-bold">Debut<input name="starts_at" type="date" className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Fin<input name="ends_at" type="date" className="admin-input" /></label></div>
           <label className="grid gap-2 text-sm font-bold">Description<textarea name="description" rows={4} className="admin-input" /></label>
           <button disabled={busy} className="btn-primary">{busy ? 'Creation...' : 'Creer l enquete'}</button>

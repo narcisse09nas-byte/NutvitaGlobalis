@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { hasLocalAdminMode } from "@/lib/supabase/config";
 
@@ -18,7 +18,12 @@ export default function PartnerClientManager({ initial, partnerId }: { initial: 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [extensionFor, setExtensionFor] = useState<Row | null>(null);
+  const [countries, setCountries] = useState<Array<{ name: string }>>([]);
   const sortedRows = useMemo(() => [...rows].sort((a, b) => Number(statusFor(b) === "actif") - Number(statusFor(a) === "actif")), [rows]);
+
+  useEffect(() => {
+    fetch("/api/geo?type=countries").then(response => response.json()).then(setCountries).catch(() => setCountries([]));
+  }, []);
 
   async function uploadReceipt(file: File | null, clientHint: string) {
     if (!file) return null;
@@ -87,7 +92,7 @@ export default function PartnerClientManager({ initial, partnerId }: { initial: 
         <label className="grid gap-2 text-sm font-bold">Nom d'utilisateur souhaite<input name="username" className="admin-input" placeholder="Ex. marie.ngono" /></label>
         <label className="grid gap-2 text-sm font-bold">Email facultatif<input name="email" type="email" className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Telephone<input name="phone" className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Pays<input name="country" className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">Pays<select name="country" className="admin-input"><option value="">Selectionner un pays</option>{countries.map(country => <option key={country.name} value={country.name}>{country.name}</option>)}</select></label>
         <label className="grid gap-2 text-sm font-bold">Ville<input name="city" className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Montant<input name="amount" type="number" min="0" defaultValue="15000" className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Paiement<select name="payment_status" className="admin-input"><option value="paid">Paye</option><option value="partial">Partiel</option><option value="unpaid">Non paye</option><option value="waived">Gratuit / exonere</option></select></label>

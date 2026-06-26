@@ -38,7 +38,13 @@ type BudgetLine = {
 const statusLabels: Record<string, string> = {
   draft: 'Brouillon',
   submitted: 'Soumis',
+  endorsed: 'Endossé',
   validated: 'Validé',
+  acknowledged: 'Accusé réception',
+  delivered: 'Livré',
+  served: 'Servi',
+  executed: 'Exécuté',
+  paid: 'Payé',
   rejected: 'Rejeté',
   archived: 'Archivé',
 };
@@ -82,7 +88,36 @@ function uniqueBudgetOptions(lines: BudgetLine[], language: string, key: 'catego
   return [...new Set(lines.map(line => budgetLineValue(line, language, key)).filter(Boolean))];
 }
 
-export default function MaximusRecords({ module }: { module: MaximusModule }) {
+function statusActionsFor(moduleSlug: string, currentStatus: string) {
+  if (currentStatus === 'draft') return [{ status: 'submitted', label: 'Soumettre' }];
+  if (currentStatus === 'submitted') {
+    if (['finance/requests', 'sales/daily-orders'].includes(moduleSlug)) {
+      return [
+        { status: 'endorsed', label: 'Endosser' },
+        { status: 'rejected', label: 'Rejeter' },
+      ];
+    }
+    return [
+      { status: 'validated', label: 'Valider' },
+      { status: 'rejected', label: 'Rejeter' },
+    ];
+  }
+  if (currentStatus === 'endorsed') return [
+    { status: 'validated', label: 'Valider' },
+    { status: 'rejected', label: 'Rejeter' },
+  ];
+  if (currentStatus === 'validated') {
+    if (moduleSlug === 'sales/daily-orders') return [{ status: 'acknowledged', label: 'Accuser réception' }];
+    if (moduleSlug === 'production/consolidated-orders') return [{ status: 'delivered', label: 'Marquer livré' }];
+    if (moduleSlug === 'sales/delivery-register') return [{ status: 'delivered', label: 'Marquer livré' }];
+    if (moduleSlug === 'finance/payments') return [{ status: 'paid', label: 'Marquer payé' }];
+    if (moduleSlug === 'finance/cash-deposits') return [{ status: 'executed', label: 'Exécuter' }];
+  }
+  if (currentStatus === 'delivered' && moduleSlug === 'production/consolidated-orders') return [{ status: 'served', label: 'Servi' }];
+  return [];
+}
+
+export default function MaximusRecords({ module, embedded = false }: { module: MaximusModule; embedded?: boolean }) {
   const [items, setItems] = useState<RecordRow[]>([]);
   const [editing, setEditing] = useState<RecordRow | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -224,7 +259,7 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
     return dynamicOptions[source] || [];
   }
 
-  function budgetSelection(values = formValues) {
+  function budgetSelection(values = formValues, descriptionKey: 'description' | 'budgetDescription' = 'description') {
     const language = values.selection_language || 'Français';
     const category = values.category || '';
     const subCategory = values.subCategory || '';
@@ -235,7 +270,7 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
     const subSubCategoryLines = subCategoryLines.filter(line => !subCategory || budgetLineValue(line, language, 'subCategory') === subCategory);
     const subSubCategoryOptions = uniqueBudgetOptions(subSubCategoryLines, language, 'subSubCategory');
     const descriptionLines = subSubCategoryLines.filter(line => !subSubCategory || budgetLineValue(line, language, 'subSubCategory') === subSubCategory);
-    const selectedLine = descriptionLines.find(line => budgetLineValue(line, language, 'description') === values.description) || null;
+    const selectedLine = descriptionLines.find(line => budgetLineValue(line, language, 'description') === values[descriptionKey]) || null;
     return { language, categoryOptions, subCategoryOptions, subSubCategoryOptions, descriptionLines, selectedLine };
   }
 
@@ -256,19 +291,94 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
     }));
   }
 
+  function applyFinanceBudgetLine(line: BudgetLine | null, language: string, description: string) {
+    setFormValues(current => ({
+      ...current,
+      budgetDescription: description,
+      budget_line: line?.code || '',
+      category: line ? budgetLineValue(line, language, 'category') : current.category || '',
+      subCategory: line ? budgetLineValue(line, language, 'subCategory') : current.subCategory || '',
+      subSubCategory: line ? budgetLineValue(line, language, 'subSubCategory') : current.subSubCategory || '',
+      budgetLineNature: line?.nature || '',
+      budgetLineOhadaClass: line?.ohadaClass || '',
+      budgetLineOhadaAccount: line?.ohadaAccount || '',
+      budgetLineOhadaAccountName: line?.ohadaAccountName || '',
+    }));
+  }
+
+  const pettyCashTotals = useMemo(() => {
+    if (module.specializedForm !== 'pettyCash') return null;
+    return items.reduce((totals, item) => {
+      const amount = Number(item.data.amount || 0);
+      const type = String(item.data.transaction_type || '').toLowerCase();
+      if (type === 'entrée' || type === 'entree' || type === 'in' || type === 'bank' || type === 'partner' || type === 'other') totals.in += amount;
+      if (type === 'sortie' || type === 'out') totals.out += amount;
+      totals.balance = totals.in - totals.out;
+      return totals;
+    }, { in: 0, out: 0, balance: 0 });
+  }, [items, module.specializedForm]);
+
+  const stockSummary = useMemo(() => {
+    if (module.slug !== 'supply/central-stock') return null;
+    return items.reduce((summary, item) => {
+      const quantity = Number(item.data.quantity || 0);
+      const type = String(item.data.movement_type || '').toLowerCase();
+      if (type === 'entrée' || type === 'entree') summary.in += quantity;
+      if (type === 'sortie' || type === 'transfert' || type === 'perte') summary.out += quantity;
+      if (type === 'ajustement') summary.adjustments += quantity;
+      summary.balance = summary.in - summary.out + summary.adjustments;
+      return summary;
+    }, { in: 0, out: 0, adjustments: 0, balance: 0 });
+  }, [items, module.slug]);
+
   const budget = module.specializedForm === 'budgetLines' ? budgetSelection() : null;
+  const financeBudget = module.specializedForm === 'financeRequest' ? budgetSelection(formValues, 'budgetDescription') : null;
 
   return <div className="grid gap-6">
-    <section className="flex flex-wrap items-end justify-between gap-4">
+    {!embedded && <section className="flex flex-wrap items-end justify-between gap-4">
       <div>
         <p className="text-xs font-black uppercase tracking-widest text-[#ef7f3b]">{module.group}</p>
         <h2 className="mt-2 text-3xl font-black">{module.title}</h2>
         <p className="mt-2 max-w-3xl leading-7 text-slate-500">{module.description}</p>
       </div>
       <button onClick={() => openEdit()} className="btn-primary"><Plus className="mr-2 h-4" />Ajouter</button>
-    </section>
+    </section>}
 
     {message && <p className="rounded-md bg-emerald-50 p-4 font-bold text-emerald-800">{message}</p>}
+
+    {pettyCashTotals && <section className="grid gap-4 md:grid-cols-3">
+      <div className="rounded-lg border bg-white p-5">
+        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Entrées</p>
+        <p className="mt-2 text-2xl font-black text-emerald-700">{pettyCashTotals.in.toLocaleString('fr-FR')} FCFA</p>
+      </div>
+      <div className="rounded-lg border bg-white p-5">
+        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Sorties</p>
+        <p className="mt-2 text-2xl font-black text-red-700">{pettyCashTotals.out.toLocaleString('fr-FR')} FCFA</p>
+      </div>
+      <div className="rounded-lg border bg-emerald-50 p-5">
+        <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Solde petite caisse</p>
+        <p className="mt-2 text-2xl font-black text-emerald-900">{pettyCashTotals.balance.toLocaleString('fr-FR')} FCFA</p>
+      </div>
+    </section>}
+
+    {stockSummary && <section className="grid gap-4 md:grid-cols-4">
+      <div className="rounded-lg border bg-white p-5">
+        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Entrées stock</p>
+        <p className="mt-2 text-2xl font-black text-emerald-700">{stockSummary.in.toLocaleString('fr-FR')}</p>
+      </div>
+      <div className="rounded-lg border bg-white p-5">
+        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Sorties / transferts</p>
+        <p className="mt-2 text-2xl font-black text-red-700">{stockSummary.out.toLocaleString('fr-FR')}</p>
+      </div>
+      <div className="rounded-lg border bg-white p-5">
+        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Ajustements</p>
+        <p className="mt-2 text-2xl font-black text-slate-800">{stockSummary.adjustments.toLocaleString('fr-FR')}</p>
+      </div>
+      <div className="rounded-lg border bg-emerald-50 p-5">
+        <p className="text-xs font-black uppercase tracking-widest text-emerald-700">Solde net</p>
+        <p className="mt-2 text-2xl font-black text-emerald-900">{stockSummary.balance.toLocaleString('fr-FR')}</p>
+      </div>
+    </section>}
 
     <section className="rounded-lg border bg-white">
       <header className="border-b p-5">
@@ -278,6 +388,7 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
             <p className="mt-1 text-sm text-slate-500">Liste des éléments enregistrés dans ce module.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            {embedded && <button onClick={() => openEdit()} className="btn-primary"><Plus className="mr-2 h-4" />Ajouter</button>}
             <label className="relative min-w-[240px]">
               <Search className="absolute left-3 top-3 h-4 text-slate-400" />
               <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher..." className="admin-input pl-10" />
@@ -309,6 +420,7 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
             const action = workflowActionFor(module.slug, item.status);
             const processed = Array.isArray(item.data.workflow_processed_actions) ? item.data.workflow_processed_actions : [];
             const workflowAvailable = action && !processed.includes(action.id);
+            const statusActions = statusActionsFor(module.slug, item.status);
             return <tr key={item.id} className="border-t">
               <td className="p-4">
                 <b>{item.title}</b>
@@ -321,11 +433,14 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
               <td className="p-4">{new Date(item.created_at).toLocaleDateString('fr-FR')}</td>
               <td className="p-4"><div className="flex justify-end gap-2">
                 <button title="Modifier" onClick={() => openEdit(item)} className="icon-action"><FilePenLine className="h-4" /></button>
-                {item.status === 'draft' && <button title="Soumettre" onClick={() => changeStatus(item, 'submitted')} className="icon-action text-blue-700"><Send className="h-4" /></button>}
-                {item.status === 'submitted' && <>
-                  <button title="Valider" onClick={() => changeStatus(item, 'validated')} className="icon-action text-emerald-700"><CheckCircle2 className="h-4" /></button>
-                  <button title="Rejeter" onClick={() => changeStatus(item, 'rejected')} className="icon-action text-red-700"><XCircle className="h-4" /></button>
-                </>}
+                {statusActions.map(statusAction => <button
+                  key={`${item.id}-${statusAction.status}`}
+                  title={statusAction.label}
+                  onClick={() => changeStatus(item, statusAction.status)}
+                  className={`icon-action ${statusAction.status === 'rejected' ? 'text-red-700' : statusAction.status === 'submitted' ? 'text-blue-700' : 'text-emerald-700'}`}
+                >
+                  {statusAction.status === 'rejected' ? <XCircle className="h-4" /> : statusAction.status === 'submitted' ? <Send className="h-4" /> : <CheckCircle2 className="h-4" />}
+                </button>)}
                 {workflowAvailable && <button disabled={workflowBusy === item.id} title={action.label} onClick={() => advanceWorkflow(item)} className="icon-action text-violet-700"><GitBranch className="h-4" /></button>}
                 <button title="Supprimer" onClick={() => remove(item)} className="icon-action text-red-700"><Trash2 className="h-4" /></button>
               </div></td>
@@ -357,6 +472,112 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
             const options = fieldOptions(field.key);
             const value = formValues[field.key] ?? String(editing?.data[field.key] || '');
             if (field.hidden) return <input key={field.key} type="hidden" name={field.key} value={value} />;
+            if (module.specializedForm === 'financeRequest' && financeBudget) {
+              if (field.key === 'selection_language') return <label key={field.key} className="grid gap-2 text-sm font-bold md:col-span-2">
+                {field.label}
+                <select
+                  name={field.key}
+                  value={value || 'Français'}
+                  onChange={event => setFormValues(current => ({ ...current, selection_language: event.target.value, category: '', subCategory: '', subSubCategory: '', budgetDescription: '', budget_line: '' }))}
+                  className="admin-input"
+                >
+                  <option value="Français">Français</option>
+                  <option value="English">English</option>
+                </select>
+              </label>;
+              if (field.key === 'category') return <label key={field.key} className="grid gap-2 text-sm font-bold">
+                {field.label}
+                <select
+                  name={field.key}
+                  required={field.required}
+                  value={value}
+                  onChange={event => setFormValues(current => ({ ...current, category: event.target.value, subCategory: '', subSubCategory: '', budgetDescription: '', budget_line: '' }))}
+                  className="admin-input"
+                >
+                  <option value="">Sélectionner</option>
+                  {financeBudget.categoryOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>;
+              if (field.key === 'subCategory') return <label key={field.key} className="grid gap-2 text-sm font-bold">
+                {field.label}
+                <select
+                  name={field.key}
+                  required={field.required}
+                  value={value}
+                  disabled={!formValues.category}
+                  onChange={event => setFormValues(current => ({ ...current, subCategory: event.target.value, subSubCategory: '', budgetDescription: '', budget_line: '' }))}
+                  className="admin-input"
+                >
+                  <option value="">Sélectionner</option>
+                  {financeBudget.subCategoryOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>;
+              if (field.key === 'subSubCategory') return <label key={field.key} className="grid gap-2 text-sm font-bold">
+                {field.label}
+                <select
+                  name={field.key}
+                  required={field.required}
+                  value={value}
+                  disabled={!formValues.subCategory}
+                  onChange={event => setFormValues(current => ({ ...current, subSubCategory: event.target.value, budgetDescription: '', budget_line: '' }))}
+                  className="admin-input"
+                >
+                  <option value="">Sélectionner</option>
+                  {financeBudget.subSubCategoryOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>;
+              if (field.key === 'budgetDescription') return <label key={field.key} className="grid gap-2 text-sm font-bold md:col-span-2">
+                {field.label}
+                <select
+                  name={field.key}
+                  required={field.required}
+                  value={value}
+                  disabled={!formValues.subSubCategory}
+                  onChange={event => {
+                    const description = event.target.value;
+                    const line = financeBudget.descriptionLines.find(item => budgetLineValue(item, financeBudget.language, 'description') === description) || null;
+                    applyFinanceBudgetLine(line, financeBudget.language, description);
+                  }}
+                  className="admin-input"
+                >
+                  <option value="">Sélectionner</option>
+                  {financeBudget.descriptionLines.map(line => {
+                    const label = budgetLineValue(line, financeBudget.language, 'description');
+                    return <option key={line.code} value={label}>{label}</option>;
+                  })}
+                </select>
+              </label>;
+              if (field.key === 'budget_line') return <label key={field.key} className="grid gap-2 text-sm font-bold">
+                {field.label}
+                <input name={field.key} value={value} readOnly required={field.required} className="admin-input bg-slate-50 text-slate-500" />
+              </label>;
+            }
+            if (module.specializedForm === 'pettyCash' && field.key === 'transaction_type') return <label key={field.key} className="grid gap-2 text-sm font-bold">
+              {field.label}
+              <select
+                name={field.key}
+                required={field.required}
+                value={value || 'Entrée'}
+                onChange={event => setFormValues(current => ({ ...current, transaction_type: event.target.value }))}
+                className="admin-input"
+              >
+                <option value="Entrée">Entrée de caisse</option>
+                <option value="Sortie">Sortie de caisse</option>
+              </select>
+            </label>;
+            if (module.specializedForm === 'pettyCash' && field.key === 'source_or_beneficiary') return <label key={field.key} className="grid gap-2 text-sm font-bold">
+              {(formValues.transaction_type || editing?.data.transaction_type) === 'Sortie' ? 'Bénéficiaire' : 'Source / déposant'}
+              {options ? <select
+                name={field.key}
+                value={value}
+                onChange={event => setFormValues(current => ({ ...current, [field.key]: event.target.value }))}
+                className="admin-input"
+              >
+                <option value="">Sélectionner</option>
+                {options.map(option => <option key={`${field.key}-${option.value}`} value={option.value}>{option.label}</option>)}
+                {!options.some(option => option.value === value) && value && <option value={value}>{value}</option>}
+              </select> : <input name={field.key} value={value} onChange={event => setFormValues(current => ({ ...current, [field.key]: event.target.value }))} className="admin-input" />}
+            </label>;
             if (module.specializedForm === 'budgetLines' && budget) {
               if (field.key === 'selection_language') return <label key={field.key} className="grid gap-2 text-sm font-bold md:col-span-2">
                 {field.label}
@@ -495,6 +716,20 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
               <div className="md:col-span-2"><p className="text-slate-500">OHADA Account Name</p><p className="font-semibold">{budget.selectedLine.ohadaAccountName || '-'}</p></div>
               <div><p className="text-slate-500">Useful Life</p><p className="font-semibold">{budget.selectedLine.usefulLife || 'N/A'}</p></div>
             </div> : <p className="mt-3 text-center text-sm text-slate-500">Complétez la sélection pour afficher les détails de la ligne.</p>}
+          </div>}
+          {module.specializedForm === 'financeRequest' && financeBudget && <div className="rounded-lg border bg-emerald-50/40 p-4 md:col-span-2">
+            <h4 className="text-center text-sm font-black">Selected Budget Line</h4>
+            {financeBudget.selectedLine ? <div className="mt-4 grid gap-4 text-sm md:grid-cols-2">
+              <div><p className="text-slate-500">Code</p><p className="font-semibold">{financeBudget.selectedLine.code}</p></div>
+              <div><p className="text-slate-500">Description</p><p className="font-semibold">{budgetLineValue(financeBudget.selectedLine, financeBudget.language, 'description')}</p></div>
+              <div><p className="text-slate-500">Category</p><p className="font-semibold">{budgetLineValue(financeBudget.selectedLine, financeBudget.language, 'category')}</p></div>
+              <div><p className="text-slate-500">Subcategory</p><p className="font-semibold">{budgetLineValue(financeBudget.selectedLine, financeBudget.language, 'subCategory')}</p></div>
+              <div><p className="text-slate-500">Sub-subcategory</p><p className="font-semibold">{budgetLineValue(financeBudget.selectedLine, financeBudget.language, 'subSubCategory')}</p></div>
+              <div><p className="text-slate-500">Nature</p><p className="font-semibold">{financeBudget.selectedLine.nature || '-'}</p></div>
+              <div><p className="text-slate-500">OHADA Class</p><p className="font-semibold">{financeBudget.selectedLine.ohadaClass || '-'}</p></div>
+              <div><p className="text-slate-500">OHADA Account</p><p className="font-semibold">{financeBudget.selectedLine.ohadaAccount || '-'}</p></div>
+              <div className="md:col-span-2"><p className="text-slate-500">OHADA Account Name</p><p className="font-semibold">{financeBudget.selectedLine.ohadaAccountName || '-'}</p></div>
+            </div> : <p className="mt-3 text-center text-sm text-slate-500">Complétez la sélection budgétaire pour afficher les détails et le compte OHADA.</p>}
           </div>}
           <div className="flex justify-end gap-3 border-t pt-5 md:col-span-2">
             <button type="button" onClick={() => setFormOpen(false)} className="btn-secondary">Annuler</button>

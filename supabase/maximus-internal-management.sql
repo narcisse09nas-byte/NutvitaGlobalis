@@ -7,7 +7,7 @@ create table if not exists public.maximus_records (
   title text not null,
   reference text,
   status text not null default 'draft'
-    check(status in ('draft','submitted','validated','rejected','archived')),
+    check(status in ('draft','submitted','endorsed','validated','acknowledged','delivered','served','executed','paid','rejected','archived')),
   data jsonb not null default '{}'::jsonb,
   created_by uuid references auth.users(id) on delete set null,
   updated_by uuid references auth.users(id) on delete set null,
@@ -18,6 +18,12 @@ create table if not exists public.maximus_records (
 alter table public.maximus_records add column if not exists workflow_key text;
 alter table public.maximus_records add column if not exists parent_id uuid references public.maximus_records(id) on delete set null;
 alter table public.maximus_records add column if not exists completed_at timestamptz;
+
+alter table public.maximus_records
+  drop constraint if exists maximus_records_status_check;
+alter table public.maximus_records
+  add constraint maximus_records_status_check
+  check(status in ('draft','submitted','endorsed','validated','acknowledged','delivered','served','executed','paid','rejected','archived'));
 
 create index if not exists maximus_records_module_status
 on public.maximus_records(module,status,created_at desc);

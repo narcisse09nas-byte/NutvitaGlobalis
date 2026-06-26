@@ -10,6 +10,10 @@ import type { MaximusModule } from '@/lib/maximus-modules';
 import { maximusModules } from '@/lib/maximus-modules';
 import MaximusRecords from './MaximusRecords';
 import MaximusWorkflowOverview from './MaximusWorkflowOverview';
+import ProductionSalesRecords from './specialized/ProductionSalesRecords';
+import AssetFleetRecords from './specialized/AssetFleetRecords';
+import PeopleAdminRecords from './specialized/PeopleAdminRecords';
+import MenuNutritionRecords from './specialized/MenuNutritionRecords';
 
 const groupIcons = {
   'Restauration': Utensils,
@@ -67,9 +71,17 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
         <div><p className="text-xs font-black uppercase tracking-widest text-[#ef7f3b]">Gestion interne</p><h1 className="text-2xl font-black">{workflowView ? 'Flux centralisés' : module?.title || 'Tableau de bord'}</h1></div>
         <div className="flex items-center gap-3"><div className="hidden text-right sm:block"><p className="text-sm font-black">{adminName}</p><p className="text-xs text-slate-500">Super administrateur</p></div><span className="grid h-11 w-11 place-items-center rounded-full bg-[#123d32] font-black text-white">{adminName.slice(0, 2).toUpperCase()}</span></div>
       </header>
-      <div className="p-5 lg:p-8">{workflowView ? <MaximusWorkflowOverview /> : module ? <MaximusRecords module={module} /> : <Dashboard />}</div>
+      <div className="p-5 lg:p-8">{workflowView ? <MaximusWorkflowOverview /> : module ? <ModuleRenderer module={module} /> : <Dashboard />}</div>
     </section>
   </main>;
+}
+
+function ModuleRenderer({ module }: { module: MaximusModule }) {
+  if (module.group === 'Production' || module.group === 'Ventes') return <ProductionSalesRecords module={module} />;
+  if (module.group === 'Actifs' || module.group === 'Flotte') return <AssetFleetRecords module={module} />;
+  if (module.group === 'Ressources humaines' || module.group === 'Communications' || module.group === 'Administration Maximus') return <PeopleAdminRecords module={module} />;
+  if (module.group === 'Restauration') return <MenuNutritionRecords module={module} />;
+  return <MaximusRecords module={module} />;
 }
 
 function Dashboard() {

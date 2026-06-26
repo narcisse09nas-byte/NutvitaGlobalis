@@ -17,10 +17,22 @@ export type MaximusModule = {
   description: string;
   fields: MaximusField[];
   registryColumns?: string[];
-  specializedForm?: 'budgetLines';
+  specializedForm?: 'budgetLines' | 'financeRequest' | 'pettyCash';
 };
 
-const commonStatus = ['draft', 'submitted', 'validated', 'rejected', 'archived'];
+const commonStatus = [
+  'draft',
+  'submitted',
+  'endorsed',
+  'validated',
+  'acknowledged',
+  'delivered',
+  'served',
+  'executed',
+  'paid',
+  'rejected',
+  'archived',
+];
 
 const baseMaximusModules: MaximusModule[] = [
   { slug: 'menus', title: 'Menus', group: 'Restauration', description: 'Menus, portions, ingrédients et processus de préparation.', fields: [
@@ -78,7 +90,8 @@ const baseMaximusModules: MaximusModule[] = [
   ] },
   { slug: 'hr/staff', title: 'Répertoire du personnel', group: 'Ressources humaines', description: 'Dossiers du personnel et affectations.', fields: [
     { key: 'full_name', label: 'Nom complet', required: true }, { key: 'employee_number', label: 'Matricule' }, { key: 'position', label: 'Poste', required: true }, { key: 'unit', label: 'Unité' },
-    { key: 'email', label: 'Email', type: 'email' }, { key: 'phone', label: 'Téléphone', type: 'tel' }, { key: 'start_date', label: 'Date de prise de service', type: 'date' }, { key: 'contract_type', label: 'Type de contrat' },
+    { key: 'email', label: 'Email', type: 'email' }, { key: 'phone', label: 'Téléphone', type: 'tel' }, { key: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
+    { key: 'start_date', label: 'Date de prise de service', type: 'date' }, { key: 'contract_type', label: 'Type de contrat' }, { key: 'grade', label: 'Grade' },
   ] },
   { slug: 'hr/leave', title: 'Congés et absences', group: 'Ressources humaines', description: 'Demandes de congé, circuits de validation et soldes.', fields: [
     { key: 'employee', label: 'Employé', required: true }, { key: 'leave_type', label: 'Type de congé', type: 'select', options: ['Annuel', 'Maladie', 'Maternité', 'Paternité', 'Permission', 'Autre'] },
@@ -115,10 +128,13 @@ const baseMaximusModules: MaximusModule[] = [
   ] },
   { slug: 'assets/inventory', title: 'Inventaire des actifs', group: 'Actifs', description: 'Équipements, véhicules, générateurs et affectations.', fields: [
     { key: 'asset_code', label: 'Code actif', required: true }, { key: 'name', label: 'Désignation', required: true }, { key: 'asset_type', label: 'Type', type: 'select', options: ['Équipement', 'Véhicule', 'Générateur', 'Mobilier', 'Informatique', 'Autre'] },
-    { key: 'acquisition_date', label: 'Date d’acquisition', type: 'date' }, { key: 'acquisition_value', label: 'Valeur', type: 'number' }, { key: 'location', label: 'Localisation' }, { key: 'assigned_to', label: 'Affecté à' }, { key: 'condition', label: 'État' },
+    { key: 'acquisition_date', label: 'Date d’acquisition', type: 'date' }, { key: 'acquisition_value', label: 'Valeur', type: 'number' }, { key: 'location', label: 'Localisation' },
+    { key: 'asset_status', label: 'Status', type: 'select', options: ['In Stock', 'Pending Assignment', 'Assigned', 'Written-Off', 'Under Maintenance', 'Other'] },
+    { key: 'assigned_to', label: 'Affecté à' }, { key: 'condition', label: 'État' },
   ] },
   { slug: 'fleet/fueling', title: 'Carburant', group: 'Flotte', description: 'Ravitaillements, kilométrage et consommation.', fields: [
-    { key: 'vehicle', label: 'Véhicule / générateur', required: true }, { key: 'date', label: 'Date', type: 'date' }, { key: 'litres', label: 'Litres', type: 'number' }, { key: 'amount', label: 'Montant', type: 'number' },
+    { key: 'vehicle', label: 'Véhicule / générateur', required: true }, { key: 'date', label: 'Date', type: 'date' }, { key: 'fuel_type', label: 'Fuel Type', type: 'select', options: ['Essence', 'Diesel'] },
+    { key: 'litres', label: 'Litres', type: 'number' }, { key: 'amount', label: 'Montant', type: 'number' },
     { key: 'odometer', label: 'Kilométrage', type: 'number' }, { key: 'payment_source', label: 'Source de paiement' }, { key: 'station', label: 'Station' },
   ] },
   { slug: 'fleet/maintenance', title: 'Maintenance', group: 'Flotte', description: 'Entretiens, réparations, tâches et coûts.', fields: [
@@ -152,9 +168,16 @@ const baseMaximusModules: MaximusModule[] = [
     { key: 'title', label: 'Titre du rapport', required: true }, { key: 'period_start', label: 'Début', type: 'date' }, { key: 'period_end', label: 'Fin', type: 'date' },
     { key: 'total_budget', label: 'Budget total', type: 'number' }, { key: 'total_spent', label: 'Total dépensé', type: 'number' }, { key: 'findings', label: 'Constats', type: 'textarea' }, { key: 'recommendations', label: 'Recommandations', type: 'textarea' },
   ] },
-  { slug: 'finance/requests', title: 'Demandes financières', group: 'Finance', description: 'Demandes générales et circuit de validation.', fields: [
-    { key: 'title', label: 'Objet de la demande', required: true }, { key: 'requester', label: 'Demandeur', required: true }, { key: 'amount', label: 'Montant', type: 'number', required: true },
-    { key: 'budget_line', label: 'Ligne budgétaire' }, { key: 'needed_by', label: 'Date souhaitée', type: 'date' }, { key: 'justification', label: 'Justification', type: 'textarea', required: true },
+  { slug: 'finance/requests', title: 'Demandes financières', group: 'Finance', description: 'Demandes générales et circuit de validation.', specializedForm: 'financeRequest', fields: [
+    { key: 'title', label: 'Request Title', required: true }, { key: 'requester', label: 'Demandeur', required: true }, { key: 'description', label: 'Description', type: 'textarea', required: true },
+    { key: 'amount', label: 'Amount (FCFA)', type: 'number', required: true },
+    { key: 'selection_language', label: 'Language for Selection', type: 'select', options: ['Français', 'English'] },
+    { key: 'category', label: 'Category', type: 'select', required: true },
+    { key: 'subCategory', label: 'Subcategory', type: 'select', required: true },
+    { key: 'subSubCategory', label: 'Sub-subcategory', type: 'select', required: true },
+    { key: 'budgetDescription', label: 'Description budgétaire', type: 'select', required: true },
+    { key: 'budget_line', label: 'Selected Budget Code', required: true, readOnly: true },
+    { key: 'needed_by', label: 'Date souhaitée', type: 'date' }, { key: 'justification', label: 'Justification complémentaire', type: 'textarea' },
   ] },
   { slug: 'finance/payment-initiation', title: 'Initiation des paiements', group: 'Finance', description: 'Préparation des paiements à partir des références validées.', fields: [
     { key: 'reference_type', label: 'Type de référence', type: 'select', options: ['Demande financière', 'Estimation de coût', 'Facture', 'Autre'] }, { key: 'reference', label: 'Référence', required: true },
@@ -270,7 +293,8 @@ const sourceAlignedEnhancements: Record<string, ModuleEnhancement> = {
   'supply/ingredients': {
     registryColumns: ['name','category','budget_line','unit','unit_price','minimum_stock','supplier'],
     fields: {
-      category: { type: 'select', options: ['Fresh Produce', 'Proteins', 'Dry Goods', 'Dairy', 'Beverages', 'Condiments & Spices', 'Cleaning & Sanitation', 'Other'] },
+      category: { type: 'select', options: ['Staple food', 'VPO/Meat-Fish_Egg', 'Vegetables', 'Fruits', 'Nuts and Legumes', 'Oils', 'Spices', 'Dairy', 'Other'] },
+      unit: { type: 'select', options: ['kg', 'g', 'L', 'ml', 'unit(s)'] },
       budget_line: { optionSource: 'budgetLines' },
       supplier: { optionSource: 'vendors' },
     },
@@ -290,7 +314,8 @@ const sourceAlignedEnhancements: Record<string, ModuleEnhancement> = {
     registryColumns: ['date','item','movement_type','quantity','unit','destination','reference'],
     fields: {
       item: { optionSource: 'ingredients' },
-      movement_type: { type: 'select', options: ['Entrée', 'Sortie', 'Transfert', 'Ajustement', 'Perte', 'in', 'out', 'adjustment'] },
+      movement_type: { type: 'select', options: ['Entrée', 'Sortie', 'Transfert', 'Ajustement', 'Perte'] },
+      unit: { type: 'select', options: ['kg', 'g', 'L', 'ml', 'unit(s)'] },
       destination: { optionSource: 'salePoints' },
     },
   },
@@ -316,10 +341,12 @@ const sourceAlignedEnhancements: Record<string, ModuleEnhancement> = {
     },
   },
   'hr/staff': {
-    registryColumns: ['full_name','employee_number','position','unit','contract_type','email','phone'],
+    registryColumns: ['employee_number','full_name','position','unit','contract_type','grade','email','phone'],
     fields: {
-      unit: { type: 'select', options: ['Cabinet', 'Restauration', 'Production', 'Finance', 'Ressources humaines', 'Operations', 'Logistique', 'Autre'] },
-      contract_type: { type: 'select', options: ['CDI', 'CDD', 'Consultance', 'Stage', 'Prestation', 'Autre'] },
+      position: { type: 'select', options: ['Manager', 'Admin Officer', 'Accounting', 'Human ressources Officer', 'Human Ressources Assistant', 'Kitchen chef', 'Kitchen Assistant', 'Dishwasher', 'Cashier', 'Logistic officer', 'Logistic Assistant', 'Purchasing Manager', 'Sales Manager', 'Storekeeper', 'Delivery Driver', 'Transport Assistant/Drivers', 'Hygiene and Safety Officer', 'Cleaning Staff', 'Maintenance Technician', 'Marketing Officer', 'Social Media Manager', 'Customer Service Representative', 'Waiter / Waitress (Restaurant Server)', 'Other'] },
+      unit: { type: 'select', options: ['Supply chain', 'Admin/Fin/RH', 'Manager', 'Seller', 'Production', 'Care provider', 'Communication/Partnership', 'Support service'] },
+      contract_type: { type: 'select', options: ['Permanent Contract (Indefinite Term) - CDI', 'Fixed-Term Contract - CDD', 'Temporary/Interim Contract', 'Internship or Apprenticeship Agreement', 'Casual or Seasonal Work Contract', 'Probationary Clause'] },
+      grade: { type: 'select', options: ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5'] },
     },
   },
   'hr/leave': {
@@ -355,18 +382,20 @@ const sourceAlignedEnhancements: Record<string, ModuleEnhancement> = {
     },
   },
   'assets/inventory': {
-    registryColumns: ['asset_code','name','asset_type','location','acquisition_date','acquisition_value','condition','assigned_to'],
+    registryColumns: ['asset_code','name','asset_type','location','acquisition_date','acquisition_value','asset_status','assigned_to'],
     fields: {
       asset_type: { type: 'select', options: ['General', 'Vehicle', 'Generator'] },
+      asset_status: { type: 'select', options: ['In Stock', 'Pending Assignment', 'Assigned', 'Written-Off', 'Under Maintenance', 'Other'] },
       condition: { type: 'select', options: ['Good and Functional', 'Good and Non-functional', 'Altered'] },
       location: { type: 'select', options: ['Head Office', 'Central Kitchen', 'Sale Point'] },
       assigned_to: { optionSource: 'staff' },
     },
   },
   'fleet/fueling': {
-    registryColumns: ['date','vehicle','litres','amount','odometer','payment_source'],
+    registryColumns: ['date','vehicle','fuel_type','litres','amount','odometer','payment_source'],
     fields: {
       vehicle: { optionSource: 'assets' },
+      fuel_type: { type: 'select', options: ['Essence', 'Diesel'] },
       payment_source: { type: 'select', options: ['Petty Cash', 'Tom Card', 'Other'] },
     },
   },
@@ -389,8 +418,9 @@ const sourceAlignedEnhancements: Record<string, ModuleEnhancement> = {
   'finance/dashboard': { registryColumns: ['period','opening_balance','income','expenses','commitments','closing_balance'] },
   'finance/reports': { registryColumns: ['title','period_start','period_end','total_budget','total_spent'] },
   'finance/requests': {
-    registryColumns: ['title','requester','amount','budget_line','needed_by'],
-    fields: { requester: { optionSource: 'staff' }, budget_line: { optionSource: 'budgetLines' } },
+    specializedForm: 'financeRequest',
+    registryColumns: ['title','requester','amount','budget_line','category','needed_by'],
+    fields: { requester: { optionSource: 'staff' } },
   },
   'finance/payment-initiation': {
     registryColumns: ['reference_type','reference','beneficiary','amount','payment_method'],
@@ -429,6 +459,7 @@ const sourceAlignedEnhancements: Record<string, ModuleEnhancement> = {
     fields: { beneficiary: { optionSource: 'staff' } },
   },
   'finance/petty-cash': {
+    specializedForm: 'pettyCash',
     registryColumns: ['date','transaction_type','source_or_beneficiary','reference','amount'],
     fields: {
       transaction_type: { type: 'select', options: ['Entrée', 'Sortie', 'bank', 'partner', 'other'] },

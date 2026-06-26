@@ -25,7 +25,7 @@ export type InsightResult = {
   indicatorInsights: IndicatorInsight[];
   publicConclusion: string;
   professionalConclusion: string;
-  aiProvider?: "openai" | "local";
+  aiProvider?: "openai" | "gemini" | "openrouter" | "external" | "local";
   aiError?: string;
   alerts: Array<{ alert_type: string; severity: "info" | "warning" | "critical"; title: string; message: string; metric_value?: number }>;
 };

@@ -10,69 +10,200 @@ function extractOutputText(response: any) {
   return '';
 }
 
+type AiProvider = 'openai' | 'gemini' | 'openrouter';
+type StructuredResult<T> = { data: T | null; provider?: AiProvider; error?: string };
+
+function providerOrder(): AiProvider[] {
+  const configured = (process.env.AI_PROVIDER_ORDER || 'openai,gemini,openrouter')
+    .split(',')
+    .map(item => item.trim().toLowerCase())
+    .filter((item): item is AiProvider => ['openai', 'gemini', 'openrouter'].includes(item));
+  return configured.length ? configured : ['openai', 'gemini', 'openrouter'];
+}
+
+function safeJsonParse<T>(text: string): T | null {
+  if (!text.trim()) return null;
+  const cleaned = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+  return JSON.parse(cleaned) as T;
+}
+
+function schemaPrompt(name: string, instructions: string, input: unknown, schema: Record<string, unknown>) {
+  return [
+    'Vous redigez une aide a la decision nutritionnelle pour NutVitaGlobalis.',
+    'Les regles, alertes et calculs fournis sont deterministes et ne doivent jamais etre contredits.',
+    'N inventez aucune valeur, ne posez aucun diagnostic et recommandez une evaluation professionnelle face aux signaux importants.',
+    'Le texte doit etre detaille, clair, nuance et distinguer la version grand public de la version professionnelle.',
+    instructions,
+    '',
+    `Retournez uniquement un objet JSON valide correspondant au schema "${name}".`,
+    `Schema JSON: ${JSON.stringify(schema)}`,
+    `Donnees: ${JSON.stringify(input)}`,
+  ].join('\n');
+}
+
+async function generateWithOpenAI<T>(
+  name: string,
+  instructions: string,
+  input: unknown,
+  schema: Record<string, unknown>,
+): Promise<StructuredResult<T>> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return { data: null, error: 'openai_missing_api_key' };
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || 'gpt-5.5',
+      input: [
+        {
+          role: 'system',
+          content: [{
+            type: 'input_text',
+            text: [
+              'Vous redigez une aide a la decision nutritionnelle pour NutVitaGlobalis.',
+              'Les regles, alertes et calculs fournis sont deterministes et ne doivent jamais etre contredits.',
+              'N inventez aucune valeur, ne posez aucun diagnostic et recommandez une evaluation professionnelle face aux signaux importants.',
+              'Le texte doit etre detaille, clair, nuance et distinguer la version grand public de la version professionnelle.',
+              instructions,
+            ].join('\n'),
+          }],
+        },
+        { role: 'user', content: [{ type: 'input_text', text: JSON.stringify(input) }] },
+      ],
+      text: {
+        format: {
+          type: 'json_schema',
+          name,
+          strict: true,
+          schema,
+        },
+      },
+    }),
+    signal: AbortSignal.timeout(45_000),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    const code = payload?.error?.code || payload?.error?.type;
+    return {
+      data: null,
+      error: response.status === 401
+        ? 'openai_invalid_api_key'
+        : response.status === 429
+          ? 'openai_quota_or_rate_limit'
+          : code === 'model_not_found'
+            ? 'openai_model_not_found'
+            : `openai_http_${response.status}`,
+    };
+  }
+  const text = extractOutputText(await response.json());
+  return { data: text ? safeJsonParse<T>(text) : null, provider: 'openai', error: text ? undefined : 'openai_empty_response' };
+}
+
+async function generateWithGemini<T>(
+  name: string,
+  instructions: string,
+  input: unknown,
+  schema: Record<string, unknown>,
+): Promise<StructuredResult<T>> {
+  const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+  if (!key) return { data: null, error: 'gemini_missing_api_key' };
+  const model = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: schemaPrompt(name, instructions, input, schema) }] }],
+      generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
+    }),
+    signal: AbortSignal.timeout(45_000),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    return {
+      data: null,
+      error: response.status === 401 || response.status === 403
+        ? 'gemini_invalid_api_key'
+        : response.status === 429
+          ? 'gemini_quota_or_rate_limit'
+          : payload?.error?.status === 'NOT_FOUND'
+            ? 'gemini_model_not_found'
+            : `gemini_http_${response.status}`,
+    };
+  }
+  const payload = await response.json();
+  const text = payload?.candidates?.[0]?.content?.parts?.map((part: any) => part.text).filter(Boolean).join('\n') || '';
+  return { data: text ? safeJsonParse<T>(text) : null, provider: 'gemini', error: text ? undefined : 'gemini_empty_response' };
+}
+
+async function generateWithOpenRouter<T>(
+  name: string,
+  instructions: string,
+  input: unknown,
+  schema: Record<string, unknown>,
+): Promise<StructuredResult<T>> {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) return { data: null, error: 'openrouter_missing_api_key' };
+  const model = process.env.OPENROUTER_MODEL;
+  if (!model) return { data: null, error: 'openrouter_missing_model' };
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://www.nutvitaglobalis.com',
+      'X-Title': 'NutVitaGlobalis',
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'user', content: schemaPrompt(name, instructions, input, schema) }],
+    }),
+    signal: AbortSignal.timeout(45_000),
+  });
+  if (!response.ok) {
+    return {
+      data: null,
+      error: response.status === 401 || response.status === 403
+        ? 'openrouter_invalid_api_key'
+        : response.status === 429
+          ? 'openrouter_quota_or_rate_limit'
+          : `openrouter_http_${response.status}`,
+    };
+  }
+  const payload = await response.json();
+  const text = payload?.choices?.[0]?.message?.content || '';
+  return { data: text ? safeJsonParse<T>(text) : null, provider: 'openrouter', error: text ? undefined : 'openrouter_empty_response' };
+}
+
 async function generateStructured<T>(
   name: string,
   instructions: string,
   input: unknown,
   schema: Record<string, unknown>,
-): Promise<{ data: T | null; error?: string }> {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return { data: null, error: 'missing_api_key' };
+): Promise<StructuredResult<T>> {
+  const errors: string[] = [];
   try {
-    const response = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || 'gpt-5.5',
-        input: [
-          {
-            role: 'system',
-            content: [{
-              type: 'input_text',
-              text: [
-                'Vous redigez une aide a la decision nutritionnelle pour NutVitaGlobalis.',
-                'Les regles, alertes et calculs fournis sont deterministes et ne doivent jamais etre contredits.',
-                'N inventez aucune valeur, ne posez aucun diagnostic et recommandez une evaluation professionnelle face aux signaux importants.',
-                'Le texte doit etre detaille, clair, nuance et distinguer la version grand public de la version professionnelle.',
-                instructions,
-              ].join('\n'),
-            }],
-          },
-          { role: 'user', content: [{ type: 'input_text', text: JSON.stringify(input) }] },
-        ],
-        text: {
-          format: {
-            type: 'json_schema',
-            name,
-            strict: true,
-            schema,
-          },
-        },
-      }),
-      signal: AbortSignal.timeout(45_000),
-    });
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      const code = payload?.error?.code || payload?.error?.type;
-      const error = response.status === 401
-        ? 'invalid_api_key'
-        : response.status === 429
-          ? 'quota_or_rate_limit'
-          : code === 'model_not_found'
-            ? 'model_not_found'
-            : `openai_http_${response.status}`;
-      console.error('External AI narrative request failed', { status: response.status, code });
-      return { data: null, error };
+    for (const provider of providerOrder()) {
+      const result = provider === 'openai'
+        ? await generateWithOpenAI<T>(name, instructions, input, schema)
+        : provider === 'gemini'
+          ? await generateWithGemini<T>(name, instructions, input, schema)
+          : await generateWithOpenRouter<T>(name, instructions, input, schema);
+      if (result.data) return result;
+      if (result.error) errors.push(result.error);
     }
-    const text = extractOutputText(await response.json());
-    return { data: text ? JSON.parse(text) as T : null, error: text ? undefined : 'empty_response' };
+    console.error('External AI narrative providers failed', { errors });
+    return { data: null, error: errors.join('|') || 'external_ai_unavailable' };
   } catch (error) {
     console.error('External AI narrative fallback', error);
     return {
       data: null,
       error: error instanceof DOMException && error.name === 'TimeoutError'
         ? 'timeout'
-        : 'openai_request_failed',
+        : error instanceof SyntaxError
+          ? 'invalid_ai_json'
+          : 'external_ai_request_failed',
     };
   }
 }
@@ -141,7 +272,7 @@ export async function enrichHealthNarrative<T extends {
     },
   );
   return result.data
-    ? { ...analysis, ...result.data, aiProvider: 'openai', aiError: undefined }
+    ? { ...analysis, ...result.data, aiProvider: result.provider || 'external', aiError: undefined }
     : { ...analysis, aiProvider: 'local', aiError: result.error };
 }
 

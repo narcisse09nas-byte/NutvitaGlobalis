@@ -66,18 +66,18 @@ export default function InsightPanel({ initial, alerts, reports }: { initial: In
       </div>
       {message && <p className="rounded-xl bg-mint p-4 font-bold text-forest">{message}</p>}
       {insight?.aiProvider && (
-        <p className={`rounded-xl p-4 text-sm font-bold ${insight.aiProvider === "openai" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>
-          {insight.aiProvider === "openai"
-            ? "Analyse enrichie par le module IA externe."
-            : insight.aiError === "invalid_api_key"
-              ? "La cle OpenAI configuree est invalide ou revoquee. Creez une nouvelle cle API, mettez a jour OPENAI_API_KEY dans Vercel, puis redeployez."
-              : insight.aiError === "model_not_found"
-                ? "Le modele OpenAI configure n est pas accessible a ce projet. Verifiez OPENAI_MODEL."
-                : insight.aiError === "quota_or_rate_limit"
-                  ? "Le quota OpenAI est epuise ou la limite de requetes a ete atteinte. Verifiez la facturation et les limites du projet OpenAI."
+        <p className={`rounded-xl p-4 text-sm font-bold ${["openai", "gemini", "openrouter", "external"].includes(insight.aiProvider) ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>
+          {["openai", "gemini", "openrouter", "external"].includes(insight.aiProvider)
+            ? `Analyse enrichie par IA externe${insight.aiProvider !== "external" ? ` (${insight.aiProvider})` : ""}.`
+            : String(insight.aiError || "").includes("invalid_api_key")
+              ? "La cle IA configuree est invalide ou revoquee. Verifiez OPENAI_API_KEY, GEMINI_API_KEY ou OPENROUTER_API_KEY dans Vercel, puis redeployez."
+              : String(insight.aiError || "").includes("model_not_found")
+                ? "Le modele IA configure n est pas accessible. Verifiez OPENAI_MODEL, GEMINI_MODEL ou OPENROUTER_MODEL."
+                : String(insight.aiError || "").includes("quota_or_rate_limit")
+                  ? "Le quota d un fournisseur IA externe est epuise ou la limite de requetes a ete atteinte. Ajoutez un fournisseur de secours ou verifiez les limites du projet."
                   : insight.aiError === "timeout"
-                    ? "Le service OpenAI n a pas repondu dans le delai prevu. Reessayez dans quelques instants."
-                    : "Analyse produite par le moteur local de secours. Verifiez la configuration OpenAI du deploiement."}
+                    ? "Le service IA externe n a pas repondu dans le delai prevu. Reessayez dans quelques instants."
+                    : "Analyse produite par le moteur local de secours. Verifiez la configuration IA externe du deploiement."}
         </p>
       )}
 

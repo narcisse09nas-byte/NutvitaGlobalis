@@ -3,6 +3,8 @@ export type MaximusField = {
   label: string;
   type?: 'text' | 'number' | 'date' | 'email' | 'tel' | 'textarea' | 'select';
   options?: string[];
+  optionSource?: 'countries' | 'states' | 'centralKitchens' | 'salePoints' | 'ingredients' | 'budgetLines' | 'staff' | 'vendors' | 'assets' | 'menus';
+  dependsOn?: string;
   required?: boolean;
 };
 

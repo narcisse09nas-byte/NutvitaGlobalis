@@ -14,6 +14,9 @@ type RecordRow = {
   created_at: string;
 };
 
+type SelectOption = { value: string; label: string };
+type OptionSource = 'countries' | 'states' | 'centralKitchens' | 'salePoints' | 'ingredients' | 'budgetLines' | 'staff' | 'vendors' | 'assets' | 'menus';
+
 const statusLabels: Record<string, string> = {
   draft: 'Brouillon',
   submitted: 'Soumis',
@@ -23,6 +26,28 @@ const statusLabels: Record<string, string> = {
 };
 
 const workflowItemFields = new Set(['menus', 'menus_quantities', 'items', 'specific_ingredients']);
+const sourceByField: Record<string, OptionSource> = {
+  country: 'countries',
+  region: 'states',
+  state: 'states',
+  state_region: 'states',
+  central_kitchen: 'centralKitchens',
+  sale_point: 'salePoints',
+  item: 'ingredients',
+  ingredient: 'ingredients',
+  menu: 'menus',
+  budget_line: 'budgetLines',
+  supplier: 'vendors',
+  vendor: 'vendors',
+  provider: 'vendors',
+  employee: 'staff',
+  supervisor: 'staff',
+  requester: 'staff',
+  beneficiary: 'staff',
+  assigned_to: 'staff',
+  asset: 'assets',
+  vehicle: 'assets',
+};
 
 export default function MaximusRecords({ module }: { module: MaximusModule }) {
   const [items, setItems] = useState<RecordRow[]>([]);
@@ -33,6 +58,10 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [workflowBusy, setWorkflowBusy] = useState('');
+  const [dynamicOptions, setDynamicOptions] = useState<Record<string, SelectOption[]>>({});
+  const [countries, setCountries] = useState<SelectOption[]>([]);
+  const [states, setStates] = useState<SelectOption[]>([]);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
 
   async function load() {
     const response = await fetch(`/api/maximus/records?module=${encodeURIComponent(module.slug)}`);
@@ -42,6 +71,27 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
   }
 
   useEffect(() => { load(); }, [module.slug]);
+  useEffect(() => {
+    fetch('/api/maximus/options')
+      .then(response => response.ok ? response.json() : {})
+      .then(setDynamicOptions)
+      .catch(() => setDynamicOptions({}));
+    fetch('/api/geo?type=countries')
+      .then(response => response.ok ? response.json() : [])
+      .then((items: Array<{ code?: string; name: string }>) => setCountries(items.map(item => ({ value: item.name, label: item.name }))))
+      .catch(() => setCountries([]));
+  }, []);
+  useEffect(() => {
+    const country = formValues.country || '';
+    if (!country) {
+      setStates([]);
+      return;
+    }
+    fetch(`/api/geo?type=states&country=${encodeURIComponent(country)}`)
+      .then(response => response.ok ? response.json() : [])
+      .then((items: Array<{ code?: string; name: string }>) => setStates(items.map(item => ({ value: item.name, label: item.name }))))
+      .catch(() => setStates([]));
+  }, [formValues.country]);
 
   const filtered = useMemo(() => items.filter(item =>
     (!status || item.status === status)
@@ -117,7 +167,16 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
 
   function openEdit(item?: RecordRow) {
     setEditing(item || null);
+    setFormValues(item ? Object.fromEntries(module.fields.map(field => [field.key, String(item.data[field.key] || '')])) : {});
     setFormOpen(true);
+  }
+
+  function fieldOptions(fieldKey: string) {
+    const source = sourceByField[fieldKey];
+    if (!source) return null;
+    if (source === 'countries') return countries;
+    if (source === 'states') return states;
+    return dynamicOptions[source] || [];
   }
 
   return <div className="grid gap-6">
@@ -184,15 +243,53 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
         </header>
         <form onSubmit={save} className="grid gap-4 p-5 md:grid-cols-2">
           <label className="grid gap-2 text-sm font-bold md:col-span-2">Référence interne<input name="reference" defaultValue={editing?.reference || ''} className="admin-input" /></label>
-          {module.fields.map(field => <label key={field.key} className={`grid gap-2 text-sm font-bold ${field.type === 'textarea' ? 'md:col-span-2' : ''}`}>
-            {field.label}
-            {field.type === 'textarea' ? <>
-              <textarea name={field.key} required={field.required} defaultValue={String(editing?.data[field.key] || '')} rows={4} className="admin-input" />
-              {workflowItemFields.has(field.key) && <span className="text-xs font-normal text-slate-500">Une ligne par article : désignation | quantité | unité | prix unitaire. Exemple : Menu poulet | 20 | portion | 2500</span>}
-            </> : field.type === 'select' ? <select name={field.key} required={field.required} defaultValue={String(editing?.data[field.key] || '')} className="admin-input">
-              <option value="">Sélectionner</option>{field.options?.map(option => <option key={option}>{option}</option>)}
-            </select> : <input name={field.key} type={field.type || 'text'} required={field.required} defaultValue={String(editing?.data[field.key] || '')} className="admin-input" />}
-          </label>)}
+          {module.fields.map(field => {
+            const options = fieldOptions(field.key);
+            const value = formValues[field.key] ?? String(editing?.data[field.key] || '');
+            return <label key={field.key} className={`grid gap-2 text-sm font-bold ${field.type === 'textarea' ? 'md:col-span-2' : ''}`}>
+              {field.label}
+              {field.type === 'textarea' ? <>
+                <textarea
+                  name={field.key}
+                  required={field.required}
+                  value={value}
+                  onChange={event => setFormValues(current => ({ ...current, [field.key]: event.target.value }))}
+                  rows={4}
+                  className="admin-input"
+                />
+                {workflowItemFields.has(field.key) && <span className="text-xs font-normal text-slate-500">Une ligne par article : désignation | quantité | unité | prix unitaire. Exemple : Menu poulet | 20 | portion | 2500</span>}
+              </> : options ? <select
+                name={field.key}
+                required={field.required}
+                value={value}
+                onChange={event => setFormValues(current => ({
+                  ...current,
+                  [field.key]: event.target.value,
+                  ...(field.key === 'country' ? { region: '', state: '', state_region: '' } : {}),
+                }))}
+                className="admin-input"
+              >
+                <option value="">Sélectionner</option>
+                {options.map(option => <option key={`${field.key}-${option.value}`} value={option.value}>{option.label}</option>)}
+                {!options.some(option => option.value === value) && value && <option value={value}>{value}</option>}
+              </select> : field.type === 'select' ? <select
+                name={field.key}
+                required={field.required}
+                value={value}
+                onChange={event => setFormValues(current => ({ ...current, [field.key]: event.target.value }))}
+                className="admin-input"
+              >
+                <option value="">Sélectionner</option>{field.options?.map(option => <option key={option}>{option}</option>)}
+              </select> : <input
+                name={field.key}
+                type={field.type || 'text'}
+                required={field.required}
+                value={value}
+                onChange={event => setFormValues(current => ({ ...current, [field.key]: event.target.value }))}
+                className="admin-input"
+              />}
+            </label>;
+          })}
           <div className="flex justify-end gap-3 border-t pt-5 md:col-span-2">
             <button type="button" onClick={() => setFormOpen(false)} className="btn-secondary">Annuler</button>
             <button disabled={busy} className="btn-primary">{busy ? 'Enregistrement...' : 'Enregistrer'}</button>

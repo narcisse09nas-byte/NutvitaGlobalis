@@ -19,7 +19,7 @@ export async function renderHealthReport(profile: Record<string, any>, anthropom
     professionalIndicators: "Indicator analysis - professional version",
     publicConclusion: "Client conclusion",
     professionalConclusion: "Professional conclusion",
-    aiSource: insight.aiProvider === "openai" ? "Narrative enriched by external AI" : "Local analytical fallback",
+    aiSource: insight.aiProvider && insight.aiProvider !== "local" ? "Narrative enriched by external AI" : "Local analytical fallback",
     measures: `Available measurements: ${anthropometry.length} anthropometric, ${biology.length} biological, ${food.length} food and ${lifestyle.length} lifestyle assessments.`,
     warning: "This automated report is not a medical diagnosis. Every alert must be interpreted by a qualified professional.",
     page: "page",
@@ -36,7 +36,7 @@ export async function renderHealthReport(profile: Record<string, any>, anthropom
     professionalIndicators: "Analyse par indicateur - version professionnelle",
     publicConclusion: "Conclusion grand public",
     professionalConclusion: "Conclusion professionnelle",
-    aiSource: insight.aiProvider === "openai" ? "Narration enrichie par IA externe" : "Moteur analytique local de secours",
+    aiSource: insight.aiProvider && insight.aiProvider !== "local" ? "Narration enrichie par IA externe" : "Moteur analytique local de secours",
     measures: `Mesures disponibles: ${anthropometry.length} anthropometriques, ${biology.length} biologiques, ${food.length} entrees alimentaires et ${lifestyle.length} evaluations du mode de vie.`,
     warning: "Ce rapport automatise ne constitue pas un diagnostic medical. Toute alerte doit etre interpretee par un professionnel qualifie.",
     page: "page",
@@ -48,7 +48,7 @@ export async function renderHealthReport(profile: Record<string, any>, anthropom
   const text = (value: string, size = 10, font = regular, color = rgb(.16, .23, .22)) => { for (const line of wrap(value, size > 15 ? 58 : 88)) { if (y < 85) addPage(); page.drawText(line, { x: 50, y, size, font, color }); y -= size + 5; } };
   text(labels.title, 20, bold, rgb(.07, .24, .19));
   text(`${profile.full_name || "Client"} - ${period.start} ${labels.fromTo} ${period.end}`, 10, regular, rgb(.4, .45, .44)); y -= 15;
-  text(labels.aiSource, 8, bold, insight.aiProvider === "openai" ? rgb(.12, .49, .33) : rgb(.55, .35, .1)); y -= 8;
+  text(labels.aiSource, 8, bold, insight.aiProvider && insight.aiProvider !== "local" ? rgb(.12, .49, .33) : rgb(.55, .35, .1)); y -= 8;
   text(labels.publicSummary, 14, bold, rgb(.12, .49, .33)); text(insight.publicSummary, 10); y -= 10;
   text(labels.clinicalSummary, 14, bold, rgb(.12, .49, .33)); text(insight.professionalSummary, 10); y -= 10;
 

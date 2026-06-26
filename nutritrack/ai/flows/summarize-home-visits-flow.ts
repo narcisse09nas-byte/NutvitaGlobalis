@@ -36,7 +36,13 @@ export async function summarizeHomeVisits(input: SummarizeHomeVisitsInput): Prom
   };
   const { value } = await generateNutriTrackReport<SummarizeHomeVisitsOutput>({
     reportType: "home_visits_summary",
-    instructions: "Analysez les constats de visites communautaires. Faites ressortir les tendances recurrentes, les signaux d alerte, les causes possibles d abandon, les limites des donnees et les actions prioritaires pour les ASC et la FOSA. Le champ summary doit etre un texte structure et consistant en francais.",
+    instructions: [
+      "Analysez les constats de visites communautaires comme une note de coordination programme complete.",
+      "Distinguez visites de routine, suivis d'evolution defavorable et recherche des abandons.",
+      "Faites ressortir les tendances recurrentes, les signaux d'alerte, les causes probables, les hypotheses a verifier, les limites des donnees et les implications pour les ASC, la FOSA et le superviseur.",
+      "Le champ summary doit etre structure en paragraphes consistants: constats majeurs, interpretation, risques, priorites operationnelles et prochaines actions.",
+      "Evitez les phrases generiques; chaque recommandation doit etre reliee aux constats fournis.",
+    ].join(" "),
     input,
     schema: {
       type: "object",

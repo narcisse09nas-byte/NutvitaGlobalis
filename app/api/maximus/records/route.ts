@@ -16,6 +16,35 @@ function normalizeWorkflowData(input: Record<string, unknown>) {
   return data;
 }
 
+function referenceInitial(module: string, title: string) {
+  const source = title || module.split('/').at(-1) || 'M';
+  const normalized = source.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return (normalized.match(/[A-Za-z]/)?.[0] || 'M').toUpperCase();
+}
+
+function candidateReference(module: string, title: string) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = new Uint8Array(7);
+  crypto.getRandomValues(bytes);
+  const suffix = Array.from(bytes, byte => alphabet[byte % alphabet.length]).join('');
+  return `${referenceInitial(module, title)}${suffix}`;
+}
+
+async function generateReference(ctx: Awaited<ReturnType<typeof context>>, module: string, title: string) {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const candidate = candidateReference(module, title);
+    if ('local' in ctx && ctx.local) {
+      if (!localMaximusRecords().some(item => item.reference === candidate)) return candidate;
+      continue;
+    }
+    if ('supabase' in ctx && ctx.supabase) {
+      const { data } = await ctx.supabase.from('maximus_records').select('id').eq('reference', candidate).maybeSingle();
+      if (!data) return candidate;
+    }
+  }
+  return candidateReference(module, title);
+}
+
 async function context() {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
     if ((await cookies()).get('nutvita_local_admin')?.value !== '1') {
@@ -53,14 +82,15 @@ export async function POST(request: Request) {
   const firstField = definition.fields.find(field => field.required) || definition.fields[0];
   const title = String(body.title || data[firstField?.key] || definition.title).trim();
   if (!title) return NextResponse.json({ message: 'Le titre ou le champ principal est obligatoire.' }, { status: 400 });
+  const reference = String(body.reference || '').trim() || await generateReference(ctx, module, definition.title);
   if (ctx.local) {
     const now = new Date().toISOString();
-    const saved = { id: crypto.randomUUID(), module, title, reference: body.reference || null, status: 'draft', data, created_at: now, updated_at: now };
+    const saved = { id: crypto.randomUUID(), module, title, reference, status: 'draft', data, created_at: now, updated_at: now };
     localMaximusRecords().push(saved);
     return NextResponse.json({ item: saved });
   }
   const { data: saved, error } = await ctx.supabase.from('maximus_records').insert({
-    module, title, reference: body.reference || null, status: 'draft', data,
+    module, title, reference, status: 'draft', data,
     created_by: ctx.user.id, updated_by: ctx.user.id,
   }).select('*').single();
   if (error) return NextResponse.json({ message: error.message }, { status: 400 });

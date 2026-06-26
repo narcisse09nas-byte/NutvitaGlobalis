@@ -95,11 +95,19 @@ export async function renderChildGrowthReport(child: GrowthRow, rows: GrowthRow[
     text("Analyse par indicateur - version parents", 14, bold, rgb(.12, .49, .33));
     for (const item of analysis.indicatorInsights) {
       text(`${item.indicator}${item.latest ? ` (${item.latest})` : ""}: ${item.parentInterpretation}`, 9);
+      if (item.reference) text(`Reference: ${item.reference}`, 8, regular, rgb(.38, .45, .44));
+      if (item.changeSummary) text(`Tendance: ${item.changeSummary}`, 8, regular, rgb(.38, .45, .44));
+      if (item.history?.length) text(`Historique: ${item.history.slice(-6).map(entry => `${entry.date} ${entry.value}${entry.secondary ? ` (${entry.secondary})` : ""}`).join(" | ")}`, 8, regular, rgb(.38, .45, .44));
+      if (item.benefits?.length) for (const benefit of item.benefits.slice(0, 3)) text(`Benefice/point positif: ${benefit}`, 8, regular, rgb(.16, .43, .31));
       text(`Conseil: ${item.recommendation}`, 8, regular, rgb(.38, .45, .44));
     }
     y -= 8;
     text("Analyse par indicateur - version professionnelle", 14, bold, rgb(.12, .49, .33));
-    for (const item of analysis.indicatorInsights) text(`${item.indicator} [${item.status}]: ${item.professionalInterpretation}`, 9);
+    for (const item of analysis.indicatorInsights) {
+      text(`${item.indicator} [${item.status}]: ${item.professionalInterpretation}`, 9);
+      if (item.missingData?.length) text(`Donnees manquantes: ${item.missingData.join("; ")}`, 8, regular, rgb(.65, .3, .08));
+      if (item.professionalRecommendations?.length) for (const recommendation of item.professionalRecommendations.slice(0, 4)) text(`- ${recommendation}`, 8, regular, rgb(.38, .45, .44));
+    }
     y -= 8;
   }
   text("Conseils aux parents", 14, bold, rgb(.12, .49, .33));

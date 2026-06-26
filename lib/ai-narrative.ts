@@ -290,14 +290,22 @@ export async function enrichChildGrowthNarrative<T extends {
   practicalAdvice: string[];
   parentConclusion: string;
   professionalConclusion: string;
-  indicatorInsights: unknown[];
+  indicatorInsights: any[];
   positives: string[];
   attentionPoints: string[];
   alerts: unknown[];
 }>(analysis: T): Promise<T> {
-  const result = await generateStructured<Pick<T, 'summary' | 'professionalSummary' | 'practicalAdvice' | 'parentConclusion' | 'professionalConclusion'>>(
+  const result = await generateStructured<Pick<T, 'summary' | 'professionalSummary' | 'practicalAdvice' | 'parentConclusion' | 'professionalConclusion' | 'indicatorInsights'>>(
     'child_growth_narrative',
-    'Produisez une version parent rassurante mais precise et une version professionnelle plus technique. Comparez chaque indicateur a sa reference et a la mesure precedente lorsqu elles sont fournies. Ne minimisez jamais un oedeme, une perte ponderale ou une alerte critique.',
+    [
+      'Produisez une version parent rassurante mais precise et une version professionnelle plus technique.',
+      'Pour CHAQUE indicateur de croissance, produire une analyse consistante: valeur actuelle, historique disponible, comparaison a la reference OMS ou a la norme configuree, comparaison avec la mesure precedente si disponible, tendance depuis le debut du suivi, limites de mesure, donnees manquantes, implications possibles et recommandation pratique.',
+      'La version parent doit expliquer simplement ce que la valeur peut signifier et ce qu elle ne permet pas de conclure seule.',
+      'La version professionnelle doit inclure la classification, les seuils, les hypotheses a verifier, la qualite de mesure, le contexte clinique et les actions de suivi.',
+      'Ne minimisez jamais un oedeme, une perte ponderale, un MUAC bas, une cassure de croissance ou une alerte critique.',
+      'Conservez tous les indicateurs, dans le meme ordre, et conservez les champs history, reference, changeSummary, benefits, missingData et professionalRecommendations quand ils sont fournis.',
+      'Les conclusions globales doivent integrer anthropometrie, MUAC, oedemes, appetit, maladies recentes, limites des donnees et priorites de suivi.',
+    ].join('\n'),
     {
       indicatorInsights: analysis.indicatorInsights,
       positives: analysis.positives,
@@ -314,9 +322,49 @@ export async function enrichChildGrowthNarrative<T extends {
         practicalAdvice: { type: 'array', items: { type: 'string' } },
         parentConclusion: { type: 'string' },
         professionalConclusion: { type: 'string' },
+        indicatorInsights: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              indicator: { type: 'string' },
+              latest: { type: ['string', 'null'] },
+              status: { type: 'string', enum: ['usual', 'watch', 'urgent', 'incomplete'] },
+              parentInterpretation: { type: 'string' },
+              professionalInterpretation: { type: 'string' },
+              recommendation: { type: 'string' },
+              history: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: {
+                    date: { type: 'string' },
+                    value: { type: 'string' },
+                    secondary: { type: ['string', 'null'] },
+                  },
+                  required: ['date', 'value', 'secondary'],
+                },
+              },
+              reference: { type: ['string', 'null'] },
+              changeSummary: { type: ['string', 'null'] },
+              benefits: { type: 'array', items: { type: 'string' } },
+              missingData: { type: 'array', items: { type: 'string' } },
+              professionalRecommendations: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['indicator', 'latest', 'status', 'parentInterpretation', 'professionalInterpretation', 'recommendation', 'history', 'reference', 'changeSummary', 'benefits', 'missingData', 'professionalRecommendations'],
+          },
+        },
       },
-      required: ['summary', 'professionalSummary', 'practicalAdvice', 'parentConclusion', 'professionalConclusion'],
+      required: ['summary', 'professionalSummary', 'practicalAdvice', 'parentConclusion', 'professionalConclusion', 'indicatorInsights'],
     },
   );
-  return result.data ? { ...analysis, ...result.data } : analysis;
+  if (!result.data) return analysis;
+  const enriched = new Map((result.data.indicatorInsights || []).map((item: any) => [item.indicator, item]));
+  const indicatorInsights = analysis.indicatorInsights.map((item: any) => {
+    const match = enriched.get(item.indicator);
+    return match ? { ...item, ...match } : item;
+  });
+  return { ...analysis, ...result.data, indicatorInsights };
 }

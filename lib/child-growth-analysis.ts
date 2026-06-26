@@ -10,6 +10,12 @@ export type GrowthIndicatorInsight = {
   parentInterpretation: string;
   professionalInterpretation: string;
   recommendation: string;
+  history?: Array<{ date: string; value: string; secondary?: string }>;
+  reference?: string;
+  changeSummary?: string;
+  benefits?: string[];
+  missingData?: string[];
+  professionalRecommendations?: string[];
 };
 export type ChildGrowthAnalysis = {
   summary: string;
@@ -38,6 +44,52 @@ function zStatus(value: number | null) {
 
 function addInsight(items: GrowthIndicatorInsight[], item: GrowthIndicatorInsight) {
   items.push(item);
+}
+
+function dateLabel(value: any) {
+  const date = new Date(value);
+  return Number.isNaN(+date) ? "" : date.toLocaleDateString("fr-FR");
+}
+
+function indicatorHistory(rows: GrowthRow[], key: string, unit = "", digits = 1, secondaryKey?: string, secondaryUnit = "") {
+  return rows
+    .filter(row => number(row[key]) !== null)
+    .slice(-8)
+    .map(row => ({
+      date: dateLabel(row.measured_at),
+      value: `${Number(row[key]).toFixed(digits)}${unit}`,
+      ...(secondaryKey && number(row[secondaryKey]) !== null ? { secondary: `${Number(row[secondaryKey]).toFixed(secondaryUnit === " z" ? 2 : 1)}${secondaryUnit}` } : {}),
+    }));
+}
+
+function changeSummary(rows: GrowthRow[], key: string, label: string, unit = "", digits = 1) {
+  const valid = rows.filter(row => number(row[key]) !== null);
+  if (valid.length < 2) return `La tendance de ${label} necessite au moins deux mesures comparables.`;
+  const first = valid[0], previous = valid.at(-2)!, latest = valid.at(-1)!;
+  const current = Number(latest[key]);
+  const before = Number(previous[key]);
+  const initial = Number(first[key]);
+  const deltaPrevious = current - before;
+  const deltaInitial = current - initial;
+  const elapsedPrevious = Math.max(1, days(previous.measured_at, latest.measured_at));
+  const elapsedInitial = Math.max(1, days(first.measured_at, latest.measured_at));
+  return `${label}: variation de ${deltaPrevious >= 0 ? "+" : ""}${deltaPrevious.toFixed(digits)}${unit} depuis la mesure precedente (${elapsedPrevious.toFixed(0)} jours) et de ${deltaInitial >= 0 ? "+" : ""}${deltaInitial.toFixed(digits)}${unit} depuis le debut du suivi (${elapsedInitial.toFixed(0)} jours).`;
+}
+
+function zReference(name: string) {
+  return `${name}: reference OMS attendue entre -2 z et +2 z; vigilance sous -2 z ou au-dessus de +2 z; situation severe sous -3 z ou au-dessus de +3 z.`;
+}
+
+function zParentText(name: string, value: number | null, base: string) {
+  if (value === null) return `${name}: donnee non encore renseignee ou reference non calculee.`;
+  const zone = value < -3 || value > 3 ? "tres en dehors de la zone attendue" : value < -2 || value > 2 ? "en dehors de la zone habituelle" : "dans la zone habituelle";
+  return `${base} La valeur actuelle est ${value.toFixed(2)} z-score, ce qui la place ${zone} par rapport aux references OMS. Cette information doit etre lue avec la qualite de la mesure, l'age, le sexe, l'appetit, les maladies recentes et les autres indicateurs.`;
+}
+
+function zProfessionalText(name: string, value: number | null, pro: string) {
+  if (value === null) return `${name}: donnee absente ou z-score non calcule; interpretation limitee sans reference OMS complete.`;
+  const classification = value < -3 || value > 3 ? "zone severe" : value < -2 || value > 2 ? "zone de vigilance" : "zone usuelle";
+  return `${pro} Valeur actuelle ${value.toFixed(2)} z, classification automatique: ${classification}. Confirmer avec references OMS, sexe, age exact, qualite de mesure, oedemes, contexte infectieux et trajectoire longitudinale.`;
 }
 
 export function analyzeChildGrowth(child: GrowthRow, source: GrowthRow[]): ChildGrowthAnalysis {
@@ -81,28 +133,39 @@ export function analyzeChildGrowth(child: GrowthRow, source: GrowthRow[]): Child
       indicator: "Poids",
       latest: fmt(weight, " kg"),
       status: change < -.05 ? "urgent" : elapsed >= 30 && Math.abs(change) < .1 ? "watch" : "usual",
-      parentInterpretation: `Le poids a change de ${change.toFixed(2)} kg depuis la derniere mesure.`,
-      professionalInterpretation: `Variation ponderale ${change.toFixed(2)} kg sur ${Math.max(1, elapsed).toFixed(0)} jours. Interpreter selon age, maladie recente, oedemes et qualite de mesure.`,
+      parentInterpretation: `Le poids actuel est compare a la mesure precedente: il a change de ${change.toFixed(2)} kg en ${Math.max(1, elapsed).toFixed(0)} jours. Cette tendance est encourageante si elle accompagne une bonne alimentation, un bon appetit et l'absence de maladie; elle devient preoccupante en cas de perte, d'appetit faible, de diarrhee, de fievre ou d'oedemes.`,
+      professionalInterpretation: `Variation ponderale ${change.toFixed(2)} kg sur ${Math.max(1, elapsed).toFixed(0)} jours. Interpreter selon age exact, reference poids-pour-age/poids-pour-taille, maladie recente, oedemes, apports alimentaires, hydratation et qualite de mesure.`,
       recommendation: "Repeter les mesures avec le meme materiel et surveiller l'appetit.",
+      history: indicatorHistory(rows, "weight_kg", " kg", 1, "bmi", ""),
+      reference: "Le poids brut doit toujours etre interprete avec l'age, la taille/longueur, le sexe et les references OMS; il ne suffit pas seul pour classer l'etat nutritionnel.",
+      changeSummary: changeSummary(rows, "weight_kg", "Poids", " kg", 2),
+      benefits: change >= 0 ? ["Une progression ponderale reguliere peut traduire de meilleurs apports et une recuperation apres maladie.", "La tendance est plus fiable lorsqu'elle est confirmee par plusieurs mesures comparables."] : [],
+      missingData: [wfa === null ? "Poids-pour-age z-score" : "", wfh === null ? "Poids-pour-taille z-score" : "", latest.edema === undefined ? "Verification des oedemes" : ""].filter(Boolean),
+      professionalRecommendations: ["Verifier la technique de pesee et la calibration de la balance.", "Interpreter la variation ponderale avec WFA, WFH/BMIFA, MUAC, oedemes et contexte clinique.", "Rechercher infection, anorexie, diarrhee ou changement d'alimentation en cas de perte ou stagnation."],
     });
   } else {
     addInsight(indicatorInsights, {
       indicator: "Poids",
       latest: fmt(weight, " kg"),
       status: weight === null ? "incomplete" : "usual",
-      parentInterpretation: weight === null ? "Le poids n'est pas encore renseigne." : "Une premiere valeur de poids est disponible.",
-      professionalInterpretation: "La tendance ponderale exige au moins deux mesures datees.",
+      parentInterpretation: weight === null ? "Le poids n'est pas encore renseigne." : "Une premiere valeur de poids est disponible. Elle sert de point de depart; une nouvelle mesure permettra de savoir si l'enfant prend, perd ou stabilise son poids.",
+      professionalInterpretation: "La tendance ponderale exige au moins deux mesures datees. Interpreter la valeur ponctuelle avec age, sexe, taille, MUAC, oedemes et z-scores disponibles.",
       recommendation: "Ajouter une nouvelle mesure lors du prochain suivi.",
+      history: indicatorHistory(rows, "weight_kg", " kg", 1, "bmi", ""),
+      reference: "Poids a interpreter avec age, sexe, taille/longueur et references OMS.",
+      changeSummary: changeSummary(rows, "weight_kg", "Poids", " kg", 2),
+      missingData: weight === null ? ["Poids actuel", "Mesure precedente"] : ["Mesure precedente comparable"],
+      professionalRecommendations: ["Programmer une mesure de controle avec le meme equipement.", "Completer WFA, WFH/BMIFA, MUAC et oedemes pour classer le risque."],
     });
   }
 
   const growthIndicators = [
-    { key: "Taille / longueur", value: height, unit: " cm", z: hfa, parent: "La taille aide a suivre la croissance lineaire.", pro: "Taille-pour-age utile pour depister retard de croissance ou mesure atypique." },
-    { key: "Poids-pour-age", value: wfa, unit: " z", z: wfa, parent: "Cet indicateur compare le poids a l'age de l'enfant.", pro: "WFA reflete une situation composite et doit etre interprete avec taille-pour-age et poids-pour-taille." },
-    { key: "Taille-pour-age", value: hfa, unit: " z", z: hfa, parent: "Cet indicateur aide a reperer un retard de croissance dans le temps.", pro: "HFA sous -2 z suggere un risque de retard de croissance; sous -3 z, signal severe." },
-    { key: "Poids-pour-taille", value: wfh, unit: " z", z: wfh, parent: "Cet indicateur aide a reperer un amaigrissement ou un exces de poids par rapport a la taille.", pro: "WFH est central pour l'evaluation de malnutrition aigue ou surpoids selon age/taille." },
-    { key: "IMC-pour-age", value: bmifa ?? bmi, unit: bmifa === null && bmi !== null ? "" : " z", z: bmifa, parent: "L'IMC complete l'analyse du poids et de la taille.", pro: "BMI-for-age doit etre interprete selon references OMS, sexe et age." },
-    { key: "Perimetre cranien", value: hcfa ?? head, unit: hcfa === null && head !== null ? " cm" : " z", z: hcfa, parent: "Le perimetre cranien aide a suivre la croissance de la tete chez le jeune enfant.", pro: "HCFA exige prudence technique; verifier position du ruban et contexte neurologique." },
+    { key: "Taille / longueur", value: height, rawKey: "height_cm", unit: " cm", z: hfa, parent: "La taille aide a suivre la croissance lineaire.", pro: "Taille-pour-age utile pour depister retard de croissance ou mesure atypique.", reference: zReference("Taille-pour-age"), missing: ["Age exact", "Sexe", "Technique de mesure couche/debout"] },
+    { key: "Poids-pour-age", value: wfa, rawKey: "weight_for_age_z", unit: " z", z: wfa, parent: "Cet indicateur compare le poids a l'age de l'enfant.", pro: "WFA reflete une situation composite et doit etre interprete avec taille-pour-age et poids-pour-taille.", reference: zReference("Poids-pour-age"), missing: ["Taille/longueur", "Oedemes", "Contexte infectieux"] },
+    { key: "Taille-pour-age", value: hfa, rawKey: "height_for_age_z", unit: " z", z: hfa, parent: "Cet indicateur aide a reperer un retard de croissance dans le temps.", pro: "HFA sous -2 z suggere un risque de retard de croissance; sous -3 z, signal severe.", reference: zReference("Taille-pour-age"), missing: ["Historique alimentaire", "Morbidite chronique", "Qualite de la mesure"] },
+    { key: "Poids-pour-taille", value: wfh, rawKey: "weight_for_height_z", unit: " z", z: wfh, parent: "Cet indicateur aide a reperer un amaigrissement ou un exces de poids par rapport a la taille.", pro: "WFH est central pour l'evaluation de malnutrition aigue ou surpoids selon age/taille.", reference: zReference("Poids-pour-taille"), missing: ["Oedemes", "Appetit", "Maladie recente"] },
+    { key: "IMC-pour-age", value: bmifa ?? bmi, rawKey: bmifa === null && bmi !== null ? "bmi" : "bmi_for_age_z", unit: bmifa === null && bmi !== null ? "" : " z", z: bmifa, parent: "L'IMC complete l'analyse du poids et de la taille.", pro: "BMI-for-age doit etre interprete selon references OMS, sexe et age.", reference: zReference("IMC-pour-age"), missing: ["Reference BMI-for-age", "Taille actuelle", "Poids actuel"] },
+    { key: "Perimetre cranien", value: hcfa ?? head, rawKey: hcfa === null && head !== null ? "head_circumference_cm" : "head_circumference_for_age_z", unit: hcfa === null && head !== null ? " cm" : " z", z: hcfa, parent: "Le perimetre cranien aide a suivre la croissance de la tete chez le jeune enfant.", pro: "HCFA exige prudence technique; verifier position du ruban et contexte neurologique.", reference: zReference("Perimetre cranien-pour-age"), missing: ["Age exact", "Technique du ruban", "Examen neurologique si anomalie"] },
   ];
 
   for (const item of growthIndicators) {
@@ -112,9 +175,20 @@ export function analyzeChildGrowth(child: GrowthRow, source: GrowthRow[]): Child
       indicator: item.key,
       latest: fmt(item.value, item.unit, item.unit === " z" ? 2 : 1),
       status,
-      parentInterpretation: item.value === null ? `${item.key}: donnee non encore renseignee.` : item.parent,
-      professionalInterpretation: item.value === null ? `${item.key}: donnee absente ou reference non calculee.` : `${item.pro} Valeur actuelle: ${Number(item.value).toFixed(item.unit === " z" ? 2 : 1)}${item.unit}.`,
+      parentInterpretation: item.unit === " z" ? zParentText(item.key, item.z, item.parent) : item.value === null ? `${item.key}: donnee non encore renseignee.` : `${item.parent} Valeur actuelle: ${Number(item.value).toFixed(1)}${item.unit}. La tendance doit etre comparee aux mesures precedentes et aux references OMS adaptees a l'age et au sexe.`,
+      professionalInterpretation: item.unit === " z" ? zProfessionalText(item.key, item.z, item.pro) : item.value === null ? `${item.key}: donnee absente ou reference non calculee.` : `${item.pro} Valeur actuelle: ${Number(item.value).toFixed(1)}${item.unit}. Completer par le z-score correspondant et verifier la technique de mesure.`,
       recommendation: status === "urgent" ? "Avis professionnel rapide recommande." : status === "watch" ? "Recontroler et suivre de pres." : "Poursuivre le suivi regulier.",
+      history: indicatorHistory(rows, item.rawKey, item.unit, item.unit === " z" ? 2 : 1),
+      reference: item.reference,
+      changeSummary: changeSummary(rows, item.rawKey, item.key, item.unit, item.unit === " z" ? 2 : 1),
+      benefits: status === "usual" ? ["Une valeur dans la zone usuelle est rassurante lorsqu'elle reste coherente avec les autres indicateurs et l'etat clinique.", "La surveillance reguliere permet de detecter plus tot une cassure de courbe."] : [],
+      missingData: item.value === null ? item.missing : item.missing.filter(key => {
+        if (key.includes("Oedemes")) return latest.edema === undefined;
+        if (key.includes("Appetit")) return !latest.appetite;
+        if (key.includes("Maladie")) return !latest.recent_illnesses;
+        return false;
+      }),
+      professionalRecommendations: ["Verifier la qualite de mesure et l'identite des references utilisees.", "Interpreter l'indicateur avec les autres z-scores, MUAC, oedemes, appetit et morbidite recente.", "Planifier un controle rapproche si la valeur quitte la zone -2 z a +2 z ou si la trajectoire se casse."],
     });
   }
 
@@ -134,6 +208,11 @@ export function analyzeChildGrowth(child: GrowthRow, source: GrowthRow[]): Child
     parentInterpretation: muac === null ? "Le perimetre brachial n'est pas encore renseigne." : "Le perimetre brachial aide a reperer rapidement un risque nutritionnel chez les jeunes enfants.",
     professionalInterpretation: "MUAC a interpreter surtout entre 6 et 59 mois, avec verification de l'oedeme et de l'etat clinique.",
     recommendation: muac !== null && muac < 12.5 ? "Confirmer la mesure et demander un avis professionnel." : "Continuer les mesures de routine si l'enfant est dans la tranche d'age concernee.",
+    history: indicatorHistory(rows, "muac_cm", " cm", 1),
+    reference: "Chez les enfants de 6 a 59 mois: MUAC < 11,5 cm suggere une malnutrition aigue severe; 11,5 a <12,5 cm suggere une malnutrition aigue moderee; >=12,5 cm est habituellement rassurant si aucun oedeme n'est present.",
+    changeSummary: changeSummary(rows, "muac_cm", "PB / MUAC", " cm", 1),
+    missingData: [age < 6 || age > 59 ? "MUAC surtout interpretable entre 6 et 59 mois" : "", latest.edema === undefined ? "Verification des oedemes" : ""].filter(Boolean),
+    professionalRecommendations: ["Confirmer la mesure au milieu du bras gauche avec ruban adapte.", "En cas de MUAC bas, rechercher oedemes bilateraux, anorexie, complications medicales et criteres de reference.", "Suivre la tendance MUAC a chaque visite chez les enfants eligibles."],
   });
 
   for (const item of analyzeCustomIndicators(rows, "measured_at")) {
@@ -160,6 +239,15 @@ export function analyzeChildGrowth(child: GrowthRow, source: GrowthRow[]): Child
       parentInterpretation: `La valeur actuelle est ${item.current} ${item.unit}. ${outside ? `Elle est ${item.relation === "below" ? "sous" : "au-dessus de"} la plage renseignee.` : item.relation === "within" ? "Elle se situe dans la plage renseignee." : "Aucune norme n'a encore ete renseignee."} ${previousText}`,
       professionalInterpretation: `Valeur actuelle ${item.current} ${item.unit}; ${normalText}; tendance ${item.trend}. ${previousText} Valider la norme selon l'age, le sexe, la methode de mesure et le contexte clinique.`,
       recommendation: outside ? "Confirmer la mesure et demander un avis professionnel." : "Poursuivre les mesures comparables pour consolider la tendance.",
+      history: rows.slice(-8).map(row => {
+        const raw = row.custom_values?.[item.name];
+        const value = typeof raw === "object" && raw ? raw.value : raw;
+        return value === undefined || value === null || value === "" ? null : { date: dateLabel(row.measured_at), value: `${value} ${item.unit}`.trim() };
+      }).filter(Boolean) as Array<{ date: string; value: string }>,
+      reference: item.normalMin !== null || item.normalMax !== null ? `Plage configuree: ${item.normalMin ?? "-infini"} a ${item.normalMax ?? "+infini"} ${item.unit}.` : "Aucune norme n'a encore ete configuree pour cet indicateur personnalise.",
+      changeSummary: previousText,
+      missingData: item.normalMin === null && item.normalMax === null ? ["Norme minimale/maximale de l'indicateur personnalise"] : [],
+      professionalRecommendations: ["Documenter la source de la norme personnalisee.", "Comparer la tendance aux mesures precedentes et au contexte clinique.", "Adapter les seuils selon age, sexe, methode et protocole local lorsque pertinent."],
     });
   }
 
@@ -170,6 +258,9 @@ export function analyzeChildGrowth(child: GrowthRow, source: GrowthRow[]): Child
     parentInterpretation: "Des oedemes ont ete signales. Cela doit etre verifie rapidement.",
     professionalInterpretation: "Oedeme bilateral suspect: confirmer cliniquement et orienter selon protocole local de malnutrition aigue severe.",
     recommendation: "Consulter rapidement un professionnel de sante.",
+    reference: "La presence d'oedemes bilateraux peut suffire a classer une malnutrition aigue severe selon les protocoles nutritionnels; confirmation clinique indispensable.",
+    missingData: ["Lateralite et grade des oedemes", "Appetit/test d'appetit", "Complications medicales"],
+    professionalRecommendations: ["Confirmer les oedemes bilateraux declives.", "Evaluer criteres de complications et orientation selon protocole PCIMA/IMAM local.", "Ne pas interpreter le poids seul en presence d'oedemes."],
   });
 
   const recentIllness = rows.slice(-3).filter(row => String(row.recent_illnesses || "").trim().length > 2);
@@ -184,6 +275,14 @@ export function analyzeChildGrowth(child: GrowthRow, source: GrowthRow[]): Child
     parentInterpretation: "L'appetit et les maladies recentes peuvent expliquer une baisse ou une stagnation de croissance.",
     professionalInterpretation: "Correlate anthropometric trajectory with infection history, appetite, feeding practices and hydration.",
     recommendation: "Surveiller les apports pendant et apres maladie; consulter si l'enfant mange nettement moins.",
+    history: rows.slice(-5).map(row => ({
+      date: dateLabel(row.measured_at),
+      value: row.appetite ? `Appetit: ${row.appetite}` : "Appetit non renseigne",
+      secondary: row.recent_illnesses ? String(row.recent_illnesses) : undefined,
+    })),
+    reference: "Une baisse d'appetit, des infections recentes, diarrhees ou fievres peuvent preceder une perte de poids ou une cassure de croissance.",
+    missingData: [!latest.appetite ? "Appetit actuel" : "", !latest.recent_illnesses ? "Maladies recentes" : "", "Details sur les apports alimentaires"].filter(Boolean),
+    professionalRecommendations: ["Rechercher infections recentes, diarrhee, vomissements, fievre et diminution des apports.", "Relier ces informations aux variations de poids, MUAC et WFH/BMIFA.", "Planifier conseils d'alimentation pendant et apres maladie."],
   });
 
   const stale = days(latest.measured_at, new Date());

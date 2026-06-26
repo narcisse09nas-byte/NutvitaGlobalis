@@ -242,7 +242,17 @@ export default function MaximusRecords({ module }: { module: MaximusModule }) {
           <button onClick={() => { setFormOpen(false); setEditing(null); }} className="icon-action"><X className="h-5" /></button>
         </header>
         <form onSubmit={save} className="grid gap-4 p-5 md:grid-cols-2">
-          <label className="grid gap-2 text-sm font-bold md:col-span-2">Référence interne<input name="reference" defaultValue={editing?.reference || ''} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold md:col-span-2">
+            Référence interne
+            <input
+              name="reference"
+              defaultValue={editing?.reference || ''}
+              readOnly={!editing}
+              placeholder="Générée automatiquement, ex. I7K3P9Q2"
+              className="admin-input read-only:bg-slate-50 read-only:text-slate-500"
+            />
+            {!editing && <span className="text-xs font-medium text-slate-500">Automatique: 8 caractères, initiale du module puis lettres/chiffres.</span>}
+          </label>
           {module.fields.map(field => {
             const options = fieldOptions(field.key);
             const value = formValues[field.key] ?? String(editing?.data[field.key] || '');

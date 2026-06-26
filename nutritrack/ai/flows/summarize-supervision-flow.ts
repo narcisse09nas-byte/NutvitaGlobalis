@@ -39,7 +39,14 @@ export async function summarizeSupervision(input: SummarizeSupervisionInput): Pr
   };
   const { value } = await generateNutriTrackReport<SummarizeSupervisionOutput>({
     reportType: "supervision_report",
-    instructions: "Redigez un rapport de supervision complet. Analysez le score global et la dispersion des criteres, reliez les commentaires aux scores, identifiez les risques pour la qualite des soins, puis proposez des recommandations priorisees et un plan d action SMART avec responsables, echeances et moyens de verification. Utilisez des retours a la ligne dans recommendations et actionPlan.",
+    instructions: [
+      "Redigez un rapport de supervision de niveau professionnel, directement exploitable par un programme de prise en charge de la malnutrition aigue.",
+      "Le resume doit presenter le contexte, le score global, la dispersion des criteres, les forces, les faiblesses, les signaux critiques et les limites des donnees.",
+      "Reliez explicitement les commentaires aux scores et expliquez les consequences possibles sur la qualite des soins, la continuite du traitement, la securite des patients et la disponibilite des intrants.",
+      "Les recommandations doivent etre priorisees par urgence et impact, sans rester generiques.",
+      "Le plan d action doit etre SMART: action concrete, responsable, echeance, preuve attendue, indicateur de suivi et modalite de verification.",
+      "Utilisez des retours a la ligne dans recommendations et actionPlan afin que le rapport PDF reste lisible.",
+    ].join(" "),
     input,
     schema: {
       type: "object",

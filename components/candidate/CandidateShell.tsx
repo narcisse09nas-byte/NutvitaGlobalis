@@ -13,6 +13,7 @@ const links = [
   ["/candidat/entretien", "Entretien", VideoCameraIcon],
   ["/candidat/messages", "Messages", ChatBubbleLeftRightIcon],
   ["/candidat/contrats", "Mes contrats", DocumentTextIcon],
+  ["/signatures", "Signatures electroniques", DocumentTextIcon],
 ] as const;
 
 export default function CandidateShell({ children, email }: { children: React.ReactNode; email: string }) {

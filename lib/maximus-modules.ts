@@ -35,6 +35,12 @@ const commonStatus = [
 ];
 
 const baseMaximusModules: MaximusModule[] = [
+  { slug: 'partnerships/bank-details', title: 'Vendor Bank Details', group: 'Partenaires et fournisseurs', description: 'Comptes bancaires des fournisseurs valides.', fields: [] },
+  { slug: 'hr/payslip-components', title: 'Payslip Components', group: 'Ressources humaines', description: 'Composantes reutilisables des bulletins de paie.', fields: [] },
+  { slug: 'hr/salary-grid', title: 'Salary Grid', group: 'Ressources humaines', description: 'Grille salariale par grade et echelon.', fields: [] },
+  { slug: 'hr/my-training', title: 'My Training', group: 'Ressources humaines', description: 'Formations obligatoires, developpement et certificats.', fields: [] },
+  { slug: 'hr/missions', title: 'Missions', group: 'Ressources humaines', description: 'Demandes de mission, per diem et validation financiere.', fields: [] },
+  { slug: 'hr/staff-bank-details', title: 'Staff Bank Details', group: 'Ressources humaines', description: 'Comptes bancaires des employes valides.', fields: [] },
   { slug: 'menus', title: 'Menus', group: 'Restauration', description: 'Menus, portions, ingrédients et processus de préparation.', fields: [
     { key: 'name', label: 'Nom du menu', required: true }, { key: 'menu_type', label: 'Type de menu', type: 'select', options: ['Standard', 'Diététique', 'Enfant', 'Événementiel', 'Autre'] },
     { key: 'meal_type', label: 'Repas', type: 'select', options: ['Petit-déjeuner', 'Déjeuner', 'Dîner', 'Collation'] }, { key: 'servings', label: 'Nombre de portions', type: 'number' },
@@ -122,9 +128,26 @@ const baseMaximusModules: MaximusModule[] = [
     { key: 'score', label: 'Score', type: 'number' }, { key: 'interview_date', label: 'Date entretien', type: 'date' }, { key: 'decision', label: 'Decision', type: 'select', options: ['En attente', 'Retenu', 'Reserve', 'Rejete'] },
     { key: 'notes', label: 'Notes RH', type: 'textarea' },
   ] },
+  { slug: 'hr/recruitment/tests', title: 'Tests ecrits', group: 'Ressources humaines', description: 'Conception, validation, attribution et correction multiple des epreuves.', registryColumns: ['test_title','position','duration','status','assigned_candidates'], fields: [
+    { key: 'test_title', label: 'Titre de l epreuve', required: true }, { key: 'position', label: 'Offre / poste', required: true },
+    { key: 'duration', label: 'Duree en minutes', type: 'number' }, { key: 'pass_score', label: 'Note de passage', type: 'number' }, { key: 'instructions', label: 'Instructions', type: 'textarea' },
+  ] },
+  { slug: 'hr/recruitment/proctoring', title: 'Surveillance des tests', group: 'Ressources humaines', description: 'Camera, partage d ecran et journal des incidents des epreuves surveillees.', fields: [] },
+  { slug: 'hr/recruitment/interviews', title: 'Entretiens de recrutement', group: 'Ressources humaines', description: 'Reunions, jurys, evaluations multiples et notes moyennes.', registryColumns: ['candidate_name','position','scheduled_at','meeting_url','average_score','status'], fields: [
+    { key: 'candidate_name', label: 'Candidat', required: true }, { key: 'position', label: 'Poste', required: true }, { key: 'scheduled_at', label: 'Date et heure', type: 'date' },
+    { key: 'meeting_url', label: 'Lien de reunion' }, { key: 'jury', label: 'Jury et participants', type: 'textarea' }, { key: 'agenda', label: 'Ordre du jour', type: 'textarea' },
+  ] },
+  { slug: 'hr/recruitment/audit', title: 'Rapports de recrutement', group: 'Ressources humaines', description: 'Rapports IA de progression et de cloture avec chronologie et intervenants.', registryColumns: ['process','scope','period','generated_at','provider'], fields: [
+    { key: 'process', label: 'Processus', required: true }, { key: 'scope', label: 'Portee', type: 'select', options: ['Progression', 'Final'] }, { key: 'period', label: 'Periode' }, { key: 'summary', label: 'Synthese', type: 'textarea' },
+  ] },
   { slug: 'partnerships/vendors', title: 'Gestion des fournisseurs', group: 'Partenaires et fournisseurs', description: 'Fournisseurs, contrats, coordonnées et statut.', fields: [
     { key: 'structure_name', label: 'Structure', required: true }, { key: 'contact_name', label: 'Contact principal', required: true }, { key: 'nature', label: 'Nature du fournisseur' },
     { key: 'contract_number', label: 'Numéro de contrat' }, { key: 'start_date', label: 'Début', type: 'date' }, { key: 'end_date', label: 'Fin', type: 'date' }, { key: 'phone', label: 'Téléphone', type: 'tel' }, { key: 'email', label: 'Email', type: 'email' }, { key: 'bank_account', label: 'Coordonnées bancaires', type: 'textarea' },
+  ] },
+  { slug: 'partnerships/vendor-recruitment', title: 'Recrutement fournisseurs', group: 'Partenaires et fournisseurs', description: 'Appels, candidatures, visites terrain, rapports et decisions.', registryColumns: ['company_name','call','stage','site_visit_score','decision'], fields: [
+    { key: 'company_name', label: 'Fournisseur candidat', required: true }, { key: 'call', label: 'Appel fournisseur', required: true },
+    { key: 'stage', label: 'Etape', type: 'select', options: ['Recu', 'Analyse', 'Visite terrain', 'Decision', 'Contractualise', 'Rejete'] },
+    { key: 'site_visit_score', label: 'Score visite terrain', type: 'number' }, { key: 'field_report', label: 'Rapport terrain', type: 'textarea' },
   ] },
   { slug: 'assets/inventory', title: 'Inventaire des actifs', group: 'Actifs', description: 'Équipements, véhicules, générateurs et affectations.', fields: [
     { key: 'asset_code', label: 'Code actif', required: true }, { key: 'name', label: 'Désignation', required: true }, { key: 'asset_type', label: 'Type', type: 'select', options: ['Équipement', 'Véhicule', 'Générateur', 'Mobilier', 'Informatique', 'Autre'] },
@@ -141,6 +164,7 @@ const baseMaximusModules: MaximusModule[] = [
     { key: 'asset', label: 'Véhicule / équipement', required: true }, { key: 'maintenance_type', label: 'Type d’entretien' }, { key: 'planned_date', label: 'Date prévue', type: 'date' },
     { key: 'provider', label: 'Prestataire' }, { key: 'tasks', label: 'Travaux à réaliser', type: 'textarea' }, { key: 'estimated_cost', label: 'Coût estimé', type: 'number' }, { key: 'actual_cost', label: 'Coût réel', type: 'number' },
   ] },
+  { slug: 'fleet/tom-cards', title: 'Gestion des cartes Tom', group: 'Flotte', description: 'Cartes carburant, affectations, rechargements et historique.', fields: [] },
   { slug: 'fleet/movements', title: 'Mouvements', group: 'Flotte', description: 'Demandes de déplacement, missions, chauffeurs et trajets.', fields: [
     { key: 'requester', label: 'Demandeur', required: true }, { key: 'purpose', label: 'Objet du déplacement', type: 'textarea' }, { key: 'departure', label: 'Départ' }, { key: 'destination', label: 'Destination' },
     { key: 'departure_date', label: 'Date de départ', type: 'date' }, { key: 'return_date', label: 'Date de retour', type: 'date' }, { key: 'vehicle', label: 'Véhicule' }, { key: 'driver', label: 'Chauffeur' },
@@ -229,6 +253,11 @@ const baseMaximusModules: MaximusModule[] = [
     { key: 'owner', label: 'Responsable' }, { key: 'participants', label: 'Participants', type: 'textarea' }, { key: 'agenda', label: 'Ordre du jour', type: 'textarea' },
     { key: 'decisions', label: 'Decisions', type: 'textarea' }, { key: 'decision_status', label: 'Suivi', type: 'select', options: ['A suivre', 'En cours', 'Termine'] },
   ] },
+  { slug: 'communications/recruitment', title: 'Appels a candidatures', group: 'Communications', description: 'Creation des offres, TOR, soumission, endorsement et publication.', registryColumns: ['position','department','contract_type','closing_date','publication_status'], fields: [
+    { key: 'position', label: 'Poste', required: true }, { key: 'department', label: 'Departement', required: true },
+    { key: 'contract_type', label: 'Type de contrat', type: 'select', options: ['CDI', 'CDD', 'Consultance', 'Stage', 'Prestation', 'Autre'] },
+    { key: 'closing_date', label: 'Date limite', type: 'date' }, { key: 'terms_of_reference', label: 'Termes de reference', type: 'textarea', required: true },
+  ] },
   { slug: 'administration/users', title: 'Utilisateurs Maximus', group: 'Administration Maximus', description: 'Preparation des comptes Maximus et niveaux d acces attribues par le super administrateur.', registryColumns: ['full_name','email','access_level','assigned_modules','account_status'], fields: [
     { key: 'full_name', label: 'Nom complet', required: true }, { key: 'email', label: 'Email', type: 'email', required: true }, { key: 'phone', label: 'Telephone', type: 'tel' },
     { key: 'access_level', label: 'Niveau d acces', type: 'select', options: ['Super administrateur', 'Administrateur Maximus', 'Finance', 'RH', 'Production', 'Ventes', 'Lecture seule'] },
@@ -243,6 +272,7 @@ const baseMaximusModules: MaximusModule[] = [
 
 type ModuleEnhancement = Partial<Omit<MaximusModule, 'fields'>> & {
   fields?: Record<string, Partial<MaximusField>>;
+  replaceFields?: MaximusField[];
 };
 
 const sourceAlignedEnhancements: Record<string, ModuleEnhancement> = {
@@ -291,7 +321,16 @@ const sourceAlignedEnhancements: Record<string, ModuleEnhancement> = {
     fields: { sale_point: { optionSource: 'salePoints' } },
   },
   'supply/ingredients': {
-    registryColumns: ['name','category','budget_line','unit','unit_price','minimum_stock','supplier'],
+    title: 'Manage Ingredients',
+    description: 'Here is the list of all available ingredients in the system.',
+    registryColumns: ['name','category','budget_line','unit','unit_price'],
+    replaceFields: [
+      { key: 'name', label: 'Ingredient Name', required: true },
+      { key: 'category', label: 'Category', type: 'select', required: true, options: ['Staple food', 'VPO/Meat-Fish_Egg', 'Vegetables', 'Fruits', 'Nuts and Legumes', 'Oils', 'Spices', 'Dairy', 'Other'] },
+      { key: 'budget_line', label: 'Budget Line', required: true },
+      { key: 'unit', label: 'Standard Unit', type: 'select', required: true, options: ['kg', 'g', 'L', 'ml', 'unit(s)'] },
+      { key: 'unit_price', label: 'Price (FCFA)', type: 'number' },
+    ],
     fields: {
       category: { type: 'select', options: ['Staple food', 'VPO/Meat-Fish_Egg', 'Vegetables', 'Fruits', 'Nuts and Legumes', 'Oils', 'Spices', 'Dairy', 'Other'] },
       unit: { type: 'select', options: ['kg', 'g', 'L', 'ml', 'unit(s)'] },
@@ -333,7 +372,19 @@ const sourceAlignedEnhancements: Record<string, ModuleEnhancement> = {
     fields: { central_kitchen: { optionSource: 'centralKitchens' } },
   },
   'production/central-kitchens': {
+    title: 'Central Kitchens',
+    description: 'A list of all central kitchen facilities.',
     registryColumns: ['name','manager','country','region','district','daily_capacity','status'],
+    replaceFields: [
+      { key: 'name', label: 'Kitchen Name', required: true },
+      { key: 'manager', label: 'Manager', required: true },
+      { key: 'staff_count', label: 'Number of Staff', type: 'number' },
+      { key: 'sale_points_count', label: 'Attached Sale Points', type: 'number' },
+      { key: 'country', label: 'Country', required: true },
+      { key: 'region', label: 'Region/Province/State (Admin 1)', required: true },
+      { key: 'district', label: 'City' },
+      { key: 'address', label: 'Address (Quarter/Street)' },
+    ],
     fields: {
       manager: { optionSource: 'staff' },
       country: { optionSource: 'countries' },
@@ -406,6 +457,9 @@ const sourceAlignedEnhancements: Record<string, ModuleEnhancement> = {
       maintenance_type: { type: 'select', options: ['Preventive', 'Corrective', 'Repair', 'Inspection', 'Other'] },
       provider: { optionSource: 'vendors' },
     },
+  },
+  'fleet/tom-cards': {
+    registryColumns: ['card_number','assigned_vehicle_registration','card_status','issue_date','expiry_date'],
   },
   'fleet/movements': {
     registryColumns: ['requester','departure_date','return_date','destination','vehicle','driver','status'],
@@ -487,7 +541,7 @@ export const maximusModules: MaximusModule[] = baseMaximusModules.map(module => 
   return {
     ...module,
     ...enhancement,
-    fields: module.fields.map(field => ({ ...field, ...(fieldEnhancements[field.key] || {}) })),
+    fields: (enhancement.replaceFields || module.fields).map(field => ({ ...field, ...(fieldEnhancements[field.key] || {}) })),
   };
 });
 

@@ -27,6 +27,8 @@ export default function InterviewManager({ applications, initial, adminId }: { a
     jury_emails: "",
     participant_emails: "",
     admin_notes: "",
+    provider: "external",
+    meeting_url: "",
   });
   const [questions, setQuestions] = useState<InterviewQuestion[]>([{ prompt: "", assigned_email: "", private_notes: "" }]);
   const [message, setMessage] = useState("");
@@ -85,6 +87,16 @@ export default function InterviewManager({ applications, initial, adminId }: { a
       <label className="grid gap-2 text-sm font-bold">Duree (minutes)
         <input type="number" className="admin-input" value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: Number(e.target.value) })} />
       </label>
+      <label className="grid gap-2 text-sm font-bold">Mode
+        <select className="admin-input" value={form.provider} onChange={e => setForm({ ...form, provider: e.target.value })}>
+          <option value="external">Lien externe (recommande)</option>
+          <option value="jitsi">Jitsi integre</option>
+          <option value="physical">Entretien physique</option>
+        </select>
+      </label>
+      {form.provider !== "jitsi" && <label className="grid gap-2 text-sm font-bold md:col-span-3">{form.provider === "physical" ? "Lieu" : "Lien HTTPS"}
+        <input required className="admin-input" value={form.meeting_url} onChange={e => setForm({ ...form, meeting_url: e.target.value })} placeholder={form.provider === "physical" ? "Adresse de l'entretien" : "https://..."} />
+      </label>}
       <label className="grid gap-2 text-sm font-bold md:col-span-2">Membres du jury
         <textarea className="admin-input min-h-24" value={form.jury_emails} onChange={e => setForm({ ...form, jury_emails: e.target.value })} placeholder="emails separes par virgule ou retour a la ligne" />
       </label>
@@ -124,7 +136,7 @@ export default function InterviewManager({ applications, initial, adminId }: { a
 
     {selected && <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/70 p-3"><div className="mx-auto my-4 max-w-7xl rounded-3xl bg-slate-100 p-5">
       <div className="mb-5 flex justify-between"><div><h2 className="text-2xl font-black">Entretien de {selected.recruitment_applications?.full_name}</h2><p>{new Date(selected.scheduled_at).toLocaleString("fr-FR")}</p><button onClick={() => navigator.clipboard.writeText(selected.meeting_url || "")} className="mt-2 text-sm font-bold text-leaf">Copier le lien de reunion</button></div><button onClick={() => setSelected(null)} className="text-3xl">x</button></div>
-      <VideoRoom roomName={selected.room_name} displayName="Equipe NutVitaGlobalis" />
+      <VideoRoom roomName={selected.room_name} displayName="Equipe NutVitaGlobalis" provider={selected.provider} meetingUrl={selected.meeting_url} />
       <div className="mt-6 grid gap-6 xl:grid-cols-2"><section className="rounded-2xl border bg-white p-6"><h3 className="text-xl font-black">Grille d'evaluation</h3><div className="mt-5 grid gap-4 sm:grid-cols-2">{criteria.map(([name, label]) => <label key={name} className="grid gap-2 text-sm font-bold">{label}<select className="admin-input" value={selected.interview_evaluations?.[0]?.[name] || ""} onChange={e => setEvaluation(name, Number(e.target.value))}><option value="">Non note</option>{[1, 2, 3, 4, 5].map(x => <option key={x}>{x}</option>)}</select></label>)}</div><label className="mt-4 grid gap-2 text-sm font-bold">Notes internes<textarea rows={4} className="admin-input" value={selected.admin_notes || ""} onChange={e => setSelected({ ...selected, admin_notes: e.target.value })} /></label><label className="mt-4 grid gap-2 text-sm font-bold">Recommandation<select className="admin-input" value={selected.interview_evaluations?.[0]?.recommendation || "pending"} onChange={e => setEvaluation("recommendation", e.target.value)}><option value="pending">A decider</option><option value="select">Recommander</option><option value="reject">Ne pas recommander</option></select></label><div className="mt-5 flex gap-3"><button onClick={() => evaluate(false)} className="btn-secondary">Enregistrer</button><button onClick={() => evaluate(true)} className="btn-primary">Terminer l'entretien</button></div></section><RecruitmentChat applicationId={selected.application_id} currentUserId={adminId} candidateId={selected.candidate_id} isAdmin /></div>
     </div></div>}
   </div>;

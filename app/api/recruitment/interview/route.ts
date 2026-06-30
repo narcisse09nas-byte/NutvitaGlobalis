@@ -25,14 +25,23 @@ export async function POST(request: Request) {
   const { data: app } = await supabase.from("recruitment_applications").select("*").eq("id", body.application_id).single();
   if (!app) return NextResponse.json({ message: "Candidature introuvable." }, { status: 404 });
 
+  const provider = ["jitsi", "external", "physical"].includes(body.provider) ? body.provider : "external";
   const roomName = body.room_name || `NutVita-${app.id.slice(0, 8)}-${crypto.randomUUID().slice(0, 8)}`;
-  const meetingUrl = `https://${process.env.NEXT_PUBLIC_JITSI_DOMAIN || "meet.jit.si"}/${roomName}`;
+  const meetingUrl = provider === "jitsi"
+    ? `https://${process.env.NEXT_PUBLIC_JITSI_DOMAIN || "meet.jit.si"}/${roomName}`
+    : String(body.meeting_url || "").trim();
+  if (provider === "external" && !meetingUrl.startsWith("https://")) {
+    return NextResponse.json({ message: "Un lien HTTPS valide est requis." }, { status: 400 });
+  }
+  if (provider === "physical" && !meetingUrl) {
+    return NextResponse.json({ message: "Le lieu de l'entretien est requis." }, { status: 400 });
+  }
   const { data: interview, error } = await supabase.from("video_interviews").insert({
     application_id: app.id,
     candidate_id: app.candidate_id,
     scheduled_at: body.scheduled_at,
     duration_minutes: Number(body.duration_minutes || 45),
-    provider: "jitsi",
+    provider,
     room_name: roomName,
     meeting_url: meetingUrl,
     status: "scheduled",
@@ -75,14 +84,15 @@ export async function POST(request: Request) {
   }
 
   await supabase.from("recruitment_applications").update({ status: "invited_to_interview" }).eq("id", app.id);
-  await supabase.from("recruitment_history").insert({ application_id: app.id, actor_id: user.id, action: "Entretien planifie", from_status: app.status, to_status: "invited_to_interview", note: `Lien: ${meetingUrl}` });
-  await supabase.from("recruitment_notifications").insert({ candidate_id: app.candidate_id, title: "Entretien video planifie", message: `Votre entretien est prevu le ${new Date(body.scheduled_at).toLocaleString("fr-FR")}. Lien: ${meetingUrl}` });
+  const accessLabel = provider === "physical" ? "Lieu" : "Lien";
+  await supabase.from("recruitment_history").insert({ application_id: app.id, actor_id: user.id, action: "Entretien planifie", from_status: app.status, to_status: "invited_to_interview", note: `${accessLabel}: ${meetingUrl}` });
+  await supabase.from("recruitment_notifications").insert({ candidate_id: app.candidate_id, title: "Entretien planifie", message: `Votre entretien est prevu le ${new Date(body.scheduled_at).toLocaleString("fr-FR")}. ${accessLabel}: ${meetingUrl}` });
 
   await Promise.allSettled(invited.map(email => resend("/emails", {
     from: process.env.MAIL_FROM ?? "NutVitaGlobalis <contact@nutvitaglobalis.com>",
     to: [email],
-    subject: "Invitation a un entretien video NutVitaGlobalis",
-    text: `Bonjour,\n\nUn entretien video NutVitaGlobalis est planifie le ${new Date(body.scheduled_at).toLocaleString("fr-FR")}.\nLien de reunion: ${meetingUrl}\n\nLes questions d'entretien sont visibles uniquement aux administrateurs et aux membres du jury connectes.\n\nEquipe NutVitaGlobalis`,
+    subject: "Invitation a un entretien NutVitaGlobalis",
+    text: `Bonjour,\n\nUn entretien NutVitaGlobalis est planifie le ${new Date(body.scheduled_at).toLocaleString("fr-FR")}.\n${accessLabel}: ${meetingUrl}\n\nLes questions d'entretien sont visibles uniquement aux administrateurs et aux membres du jury connectes.\n\nEquipe NutVitaGlobalis`,
   })));
 
   return NextResponse.json({ ok: true, interview });

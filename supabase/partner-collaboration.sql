@@ -46,6 +46,15 @@ create table if not exists public.collaboration_conversations (
   consultation_id uuid references public.partner_consultations(id) on delete set null,
   created_by uuid not null references auth.users(id), created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
+alter table public.collaboration_conversations add column if not exists workspace_scope text not null default 'nutvita';
+alter table public.collaboration_conversations add column if not exists priority text not null default 'normal';
+alter table public.collaboration_conversations add column if not exists archived_at timestamptz;
+alter table public.collaboration_conversations drop constraint if exists collaboration_conversations_workspace_scope_check;
+alter table public.collaboration_conversations add constraint collaboration_conversations_workspace_scope_check
+  check(workspace_scope in ('nutvita','maximus','recruitment_nutritionist','recruitment_staff','vendor'));
+alter table public.collaboration_conversations drop constraint if exists collaboration_conversations_priority_check;
+alter table public.collaboration_conversations add constraint collaboration_conversations_priority_check
+  check(priority in ('low','normal','high','urgent'));
 create table if not exists public.collaboration_members (
   conversation_id uuid not null references public.collaboration_conversations(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -57,6 +66,34 @@ create table if not exists public.collaboration_messages (
   sender_id uuid not null references auth.users(id), body text, attachment_path text, attachment_name text,
   created_at timestamptz not null default now(), check(coalesce(length(trim(body)),0)>0 or attachment_path is not null)
 );
+alter table public.collaboration_messages add column if not exists parent_message_id uuid references public.collaboration_messages(id) on delete set null;
+alter table public.collaboration_messages add column if not exists edited_at timestamptz;
+alter table public.collaboration_messages add column if not exists message_type text not null default 'message';
+alter table public.collaboration_messages drop constraint if exists collaboration_messages_message_type_check;
+alter table public.collaboration_messages add constraint collaboration_messages_message_type_check
+  check(message_type in ('message','system','recruitment_event'));
+
+create table if not exists public.collaboration_email_dispatches (
+  id uuid primary key default gen_random_uuid(),
+  workspace_scope text not null check(workspace_scope in ('nutvita','maximus','recruitment_nutritionist','recruitment_staff','vendor')),
+  sender_id uuid not null references auth.users(id) on delete cascade,
+  sender_email text not null,
+  recipients jsonb not null default '[]'::jsonb,
+  cc jsonb not null default '[]'::jsonb,
+  bcc jsonb not null default '[]'::jsonb,
+  subject text not null,
+  body_text text not null,
+  attachment_path text,
+  attachment_name text,
+  provider text not null default 'resend',
+  provider_message_id text,
+  status text not null default 'queued' check(status in ('queued','sent','failed')),
+  error_message text,
+  related_type text,
+  related_id uuid,
+  sent_at timestamptz,
+  created_at timestamptz not null default now()
+);
 create table if not exists public.collaboration_calls (
   id uuid primary key default gen_random_uuid(), conversation_id uuid references public.collaboration_conversations(id) on delete set null,
   consultation_id uuid references public.partner_consultations(id) on delete set null,
@@ -65,6 +102,7 @@ create table if not exists public.collaboration_calls (
   status text not null default 'scheduled' check(status in ('scheduled','active','completed','cancelled')),
   created_by uuid not null references auth.users(id), created_at timestamptz not null default now()
 );
+alter table public.collaboration_calls add column if not exists meeting_url text;
 create table if not exists public.collaboration_call_members (
   call_id uuid not null references public.collaboration_calls(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -74,6 +112,8 @@ create table if not exists public.collaboration_call_members (
 create index if not exists partner_consultations_partner_date on public.partner_consultations(partner_id,scheduled_at desc);
 create index if not exists partner_consultations_client_date on public.partner_consultations(client_id,scheduled_at desc);
 create index if not exists collaboration_messages_conversation_date on public.collaboration_messages(conversation_id,created_at);
+create index if not exists collaboration_conversations_scope_date on public.collaboration_conversations(workspace_scope,updated_at desc);
+create index if not exists collaboration_email_sender_date on public.collaboration_email_dispatches(sender_id,created_at desc);
 
 alter table public.staff_profiles enable row level security;
 alter table public.partner_consultations enable row level security;
@@ -83,6 +123,7 @@ alter table public.collaboration_members enable row level security;
 alter table public.collaboration_messages enable row level security;
 alter table public.collaboration_calls enable row level security;
 alter table public.collaboration_call_members enable row level security;
+alter table public.collaboration_email_dispatches enable row level security;
 
 create or replace function public.current_partner_id() returns uuid language sql stable security definer set search_path=public as $$
   select id from public.dietitian_profiles where candidate_id=(select auth.uid()) and status='active' limit 1
@@ -91,25 +132,48 @@ create or replace function public.is_conversation_member(p_conversation uuid) re
   select exists(select 1 from public.collaboration_members where conversation_id=p_conversation and user_id=(select auth.uid())) or public.is_admin()
 $$;
 
+drop policy if exists "Partners read own consultations" on public.partner_consultations;
 create policy "Partners read own consultations" on public.partner_consultations for select to authenticated using(partner_id=public.current_partner_id() or client_id=(select auth.uid()) or public.is_admin());
+drop policy if exists "Partners read created clients" on public.client_profiles;
 create policy "Partners read created clients" on public.client_profiles for select to authenticated using(id=(select auth.uid()) or created_by_partner_id=public.current_partner_id() or public.is_admin());
+drop policy if exists "Partners create own consultations" on public.partner_consultations;
 create policy "Partners create own consultations" on public.partner_consultations for insert to authenticated with check(partner_id=public.current_partner_id() or public.is_admin());
+drop policy if exists "Partners update own consultations" on public.partner_consultations;
 create policy "Partners update own consultations" on public.partner_consultations for update to authenticated using(partner_id=public.current_partner_id() or public.is_admin()) with check(partner_id=public.current_partner_id() or public.is_admin());
+drop policy if exists "Partners read own ledger" on public.partner_ledger;
 create policy "Partners read own ledger" on public.partner_ledger for select to authenticated using(partner_id=public.current_partner_id() or public.is_admin());
+drop policy if exists "Staff directory readable" on public.staff_profiles;
 create policy "Staff directory readable" on public.staff_profiles for select to authenticated using(status='active' or public.is_admin());
+drop policy if exists "Admins manage staff" on public.staff_profiles;
 create policy "Admins manage staff" on public.staff_profiles for all to authenticated using(public.is_admin()) with check(public.is_admin());
+drop policy if exists "Members read conversations" on public.collaboration_conversations;
 create policy "Members read conversations" on public.collaboration_conversations for select to authenticated using(public.is_conversation_member(id));
+drop policy if exists "Authenticated create conversations" on public.collaboration_conversations;
 create policy "Authenticated create conversations" on public.collaboration_conversations for insert to authenticated with check(created_by=(select auth.uid()));
+drop policy if exists "Members read memberships" on public.collaboration_members;
 create policy "Members read memberships" on public.collaboration_members for select to authenticated using(public.is_conversation_member(conversation_id));
+drop policy if exists "Creators add members" on public.collaboration_members;
 create policy "Creators add members" on public.collaboration_members for insert to authenticated with check(user_id=(select auth.uid()) or exists(select 1 from public.collaboration_conversations c where c.id=conversation_id and c.created_by=(select auth.uid())) or public.is_admin());
+drop policy if exists "Members read messages" on public.collaboration_messages;
 create policy "Members read messages" on public.collaboration_messages for select to authenticated using(public.is_conversation_member(conversation_id));
+drop policy if exists "Members send messages" on public.collaboration_messages;
 create policy "Members send messages" on public.collaboration_messages for insert to authenticated with check(sender_id=(select auth.uid()) and public.is_conversation_member(conversation_id));
+drop policy if exists "Call participants read" on public.collaboration_calls;
 create policy "Call participants read" on public.collaboration_calls for select to authenticated using(public.is_admin() or created_by=(select auth.uid()) or exists(select 1 from public.collaboration_call_members m where m.call_id=id and m.user_id=(select auth.uid())));
+drop policy if exists "Authenticated create calls" on public.collaboration_calls;
 create policy "Authenticated create calls" on public.collaboration_calls for insert to authenticated with check(created_by=(select auth.uid()));
+drop policy if exists "Call participants read members" on public.collaboration_call_members;
 create policy "Call participants read members" on public.collaboration_call_members for select to authenticated using(user_id=(select auth.uid()) or public.is_admin() or exists(select 1 from public.collaboration_calls c where c.id=call_id and c.created_by=(select auth.uid())));
+drop policy if exists "Call creators add members" on public.collaboration_call_members;
 create policy "Call creators add members" on public.collaboration_call_members for insert to authenticated with check(exists(select 1 from public.collaboration_calls c where c.id=call_id and c.created_by=(select auth.uid())) or public.is_admin());
+drop policy if exists "Email senders read dispatches" on public.collaboration_email_dispatches;
+create policy "Email senders read dispatches" on public.collaboration_email_dispatches for select to authenticated using(sender_id=(select auth.uid()) or public.is_admin());
+drop policy if exists "Email senders create dispatches" on public.collaboration_email_dispatches;
+create policy "Email senders create dispatches" on public.collaboration_email_dispatches for insert to authenticated with check(sender_id=(select auth.uid()));
 
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values('collaboration-files','collaboration-files',false,15728640,array['application/pdf','image/jpeg','image/png','text/plain']) on conflict(id) do nothing;
+drop policy if exists "Collaboration members upload" on storage.objects;
 create policy "Collaboration members upload" on storage.objects for insert to authenticated with check(bucket_id='collaboration-files');
+drop policy if exists "Collaboration members read" on storage.objects;
 create policy "Collaboration members read" on storage.objects for select to authenticated using(bucket_id='collaboration-files');

@@ -35,6 +35,19 @@ type BudgetLine = {
   amortizationMethod?: string | null;
 };
 
+type SourceDisplay = {
+  pageTitle: string;
+  addLabel: string;
+  registerTitle: string;
+  registerDescription: string;
+  formTitle: string;
+  formDescription?: string;
+  hideFilters?: boolean;
+  hideReference?: boolean;
+  emptyTable?: boolean;
+  columns: Array<{ key: string; label: string; render?: (item: RecordRow) => string }>;
+};
+
 const statusLabels: Record<string, string> = {
   draft: 'Brouillon',
   submitted: 'Soumis',
@@ -73,6 +86,187 @@ const sourceByField: Record<string, OptionSource> = {
   vehicle: 'assets',
 };
 const budgetLinesData = (budgetCatalog as { budgetLines: BudgetLine[] }).budgetLines;
+
+const sourceDisplays: Record<string, SourceDisplay> = {
+  'supply/ingredients': {
+    pageTitle: 'Manage Ingredients',
+    addLabel: 'Add Ingredient',
+    registerTitle: 'Master Ingredient List',
+    registerDescription: 'Here is the list of all available ingredients in the system.',
+    formTitle: 'Add a New Ingredient',
+    formDescription: 'Add a new master ingredient to be used in menus and stock management.',
+    hideFilters: true,
+    hideReference: true,
+    emptyTable: true,
+    columns: [
+      { key: 'name', label: 'Name' },
+      { key: 'category', label: 'Category' },
+      { key: 'budget_line', label: 'Budget Code' },
+      { key: 'status', label: 'Status', render: item => item.status },
+      { key: 'unit', label: 'Unit' },
+      { key: 'unit_price', label: 'Price (FCFA)' },
+      { key: 'last_updated', label: 'Last Updated', render: item => new Date(item.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' }) },
+    ],
+  },
+  'sales/sale-points': {
+    pageTitle: 'Sale Points Register',
+    addLabel: 'Create Sale Point',
+    registerTitle: 'Sale Points List',
+    registerDescription: 'List of registered sale points.',
+    formTitle: 'Create New Sale Point',
+    hideFilters: true,
+    columns: [
+      { key: 'reference', label: 'Sale Point ID', render: item => item.reference || item.id.slice(0, 8) },
+      { key: 'name', label: 'Name' },
+      { key: 'manager_name', label: 'Manager' },
+      { key: 'type', label: 'Type' },
+      { key: 'central_kitchen', label: 'Attached Kitchen' },
+      { key: 'status', label: 'Status', render: item => item.status },
+    ],
+  },
+  'sales/daily-orders': {
+    pageTitle: 'Daily Orders',
+    addLabel: 'Create Order',
+    registerTitle: 'Orders Register',
+    registerDescription: 'Daily orders submitted by sale points.',
+    formTitle: 'Create Daily Order',
+    hideFilters: true,
+    columns: [
+      { key: 'reference', label: 'Order ID', render: item => item.reference || item.id.slice(0, 8) },
+      { key: 'order_date', label: 'Date' },
+      { key: 'sale_point', label: 'Sale Point' },
+      { key: 'status', label: 'Status', render: item => item.status },
+    ],
+  },
+  'sales/delivery-register': {
+    pageTitle: 'Delivery Register',
+    addLabel: 'Create Delivery Slip',
+    registerTitle: 'Delivery Slips Register',
+    registerDescription: 'Delivery slips generated from acknowledged daily orders.',
+    formTitle: 'Create Delivery Slip',
+    hideFilters: true,
+    columns: [
+      { key: 'reference', label: 'Slip ID', render: item => item.reference || item.id.slice(0, 8) },
+      { key: 'delivery_date', label: 'Delivery Date' },
+      { key: 'sale_point', label: 'Sale Point' },
+      { key: 'status', label: 'Status', render: item => item.status },
+    ],
+  },
+  'sales/reports': {
+    pageTitle: 'Sales Reports',
+    addLabel: 'Create Sales Report',
+    registerTitle: 'Sales Reports Register',
+    registerDescription: 'Daily sales reports and revenue declarations.',
+    formTitle: 'Create New Sales Report',
+    hideFilters: true,
+    columns: [
+      { key: 'report_date', label: 'Report Date' },
+      { key: 'sale_point', label: 'Sale Point' },
+      { key: 'gross_sales', label: 'Total Revenue' },
+      { key: 'status', label: 'Status', render: item => item.status },
+      { key: 'deposit', label: 'Deposit', render: item => String(item.data.bank_reference || item.data.deposit_status || '-') },
+    ],
+  },
+  'production/central-kitchens': {
+    pageTitle: 'Central Kitchens',
+    addLabel: 'Create Kitchen',
+    registerTitle: 'Kitchens Register',
+    registerDescription: 'A list of all central kitchen facilities.',
+    formTitle: 'Create New Central Kitchen',
+    formDescription: 'Fill in the details for the new kitchen facility.',
+    hideFilters: true,
+    hideReference: true,
+    columns: [
+      { key: 'reference', label: 'Kitchen ID', render: item => item.reference || item.id.slice(0, 8) },
+      { key: 'name', label: 'Name' },
+      { key: 'manager', label: 'Manager' },
+      { key: 'location', label: 'Location', render: item => [item.data.country, item.data.region, item.data.district, item.data.address].filter(Boolean).join(', ') || '-' },
+      { key: 'status', label: 'Status', render: item => item.status },
+    ],
+  },
+  'supply/central-stock': {
+    pageTitle: 'Stock Movements',
+    addLabel: 'Add Movement',
+    registerTitle: 'Stock Movements',
+    registerDescription: 'Central kitchen stock movements.',
+    formTitle: 'New Stock Movement',
+    hideFilters: true,
+    columns: [
+      { key: 'date', label: 'Date' },
+      { key: 'item', label: 'Ingredient' },
+      { key: 'movement_type', label: 'Type' },
+      { key: 'quantity', label: 'Quantity' },
+      { key: 'destination', label: 'Source / Recipient' },
+      { key: 'unit_price', label: 'Price (FCFA)' },
+    ],
+  },
+  'assets/inventory': {
+    pageTitle: 'Assets',
+    addLabel: 'Add Asset',
+    registerTitle: 'Asset Register',
+    registerDescription: 'List of registered assets.',
+    formTitle: 'Add New Asset',
+    hideFilters: true,
+    columns: [
+      { key: 'asset_code', label: 'Asset ID' },
+      { key: 'name', label: 'Name' },
+      { key: 'asset_type', label: 'Type' },
+      { key: 'location', label: 'Location' },
+      { key: 'acquisition_date', label: 'Acquisition Date' },
+      { key: 'acquisition_value', label: 'Acquisition Cost (FCFA)' },
+      { key: 'asset_status', label: 'Status', render: item => String(item.data.asset_status || item.status) },
+      { key: 'assigned_to', label: 'Assigned To' },
+    ],
+  },
+  'fleet/fueling': {
+    pageTitle: 'Fueling',
+    addLabel: 'Add Fuel Log',
+    registerTitle: 'Fueling History',
+    registerDescription: 'Vehicle fuel logs and consumption tracking.',
+    formTitle: 'New Fuel Log',
+    hideFilters: true,
+    columns: [
+      { key: 'date', label: 'Date' },
+      { key: 'vehicle', label: 'Vehicle' },
+      { key: 'litres', label: 'Qty (L)' },
+      { key: 'amount', label: 'Cost (FCFA)' },
+      { key: 'odometer', label: 'Mileage (km)' },
+      { key: 'consumption', label: 'Consumption', render: item => String(item.data.consumption || '-') },
+      { key: 'status', label: 'Status', render: item => item.status },
+    ],
+  },
+  'fleet/maintenance': {
+    pageTitle: 'Maintenance',
+    addLabel: 'New Log',
+    registerTitle: 'Maintenance Log',
+    registerDescription: 'Vehicle and asset maintenance register.',
+    formTitle: 'New Maintenance Log',
+    hideFilters: true,
+    columns: [
+      { key: 'asset', label: 'Vehicle' },
+      { key: 'planned_date', label: 'Date' },
+      { key: 'provider', label: 'Vendor' },
+      { key: 'actual_cost', label: 'Total Cost (FCFA)', render: item => String(item.data.actual_cost || item.data.estimated_cost || '-') },
+      { key: 'status', label: 'Status', render: item => item.status },
+    ],
+  },
+  'fleet/movements': {
+    pageTitle: 'Fleet Movements',
+    addLabel: 'New Vehicle Request',
+    registerTitle: 'Movement Requests',
+    registerDescription: 'Vehicle movement requests and mission logs.',
+    formTitle: 'New Vehicle Request',
+    hideFilters: true,
+    columns: [
+      { key: 'requester', label: 'Requestor' },
+      { key: 'reason', label: 'Reason' },
+      { key: 'destination', label: 'Destinations' },
+      { key: 'vehicle', label: 'Assigned Vehicle' },
+      { key: 'driver', label: 'Assigned Driver' },
+      { key: 'status', label: 'Status', render: item => item.status },
+    ],
+  },
+};
 
 function budgetKey(language: string, key: 'category' | 'subCategory' | 'subSubCategory' | 'description') {
   if (key === 'description') return language === 'English' ? 'description_en' : 'description_fr';
@@ -118,6 +312,7 @@ function statusActionsFor(moduleSlug: string, currentStatus: string) {
 }
 
 export default function MaximusRecords({ module, embedded = false }: { module: MaximusModule; embedded?: boolean }) {
+  const sourceDisplay = sourceDisplays[module.slug];
   const [items, setItems] = useState<RecordRow[]>([]);
   const [editing, setEditing] = useState<RecordRow | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -338,10 +533,10 @@ export default function MaximusRecords({ module, embedded = false }: { module: M
     {!embedded && <section className="flex flex-wrap items-end justify-between gap-4">
       <div>
         <p className="text-xs font-black uppercase tracking-widest text-[#ef7f3b]">{module.group}</p>
-        <h2 className="mt-2 text-3xl font-black">{module.title}</h2>
+        <h2 className="mt-2 text-3xl font-black">{sourceDisplay?.pageTitle || module.title}</h2>
         <p className="mt-2 max-w-3xl leading-7 text-slate-500">{module.description}</p>
       </div>
-      <button onClick={() => openEdit()} className="btn-primary"><Plus className="mr-2 h-4" />Ajouter</button>
+      <button onClick={() => openEdit()} className={sourceDisplay ? 'inline-flex items-center justify-center rounded-md bg-[#168a3a] px-5 py-3 font-bold text-white shadow-sm transition hover:bg-[#11752f]' : 'btn-primary'}><Plus className="mr-2 h-4" />{sourceDisplay?.addLabel || 'Ajouter'}</button>
     </section>}
 
     {message && <p className="rounded-md bg-emerald-50 p-4 font-bold text-emerald-800">{message}</p>}
@@ -384,11 +579,12 @@ export default function MaximusRecords({ module, embedded = false }: { module: M
       <header className="border-b p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h3 className="text-2xl font-black">{module.title} Register</h3>
-            <p className="mt-1 text-sm text-slate-500">Liste des éléments enregistrés dans ce module.</p>
+            <h3 className="text-2xl font-black">{sourceDisplay?.registerTitle || `${module.title} Register`}</h3>
+            <p className="mt-1 text-sm text-slate-500">{sourceDisplay?.registerDescription || 'Liste des éléments enregistrés dans ce module.'}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {embedded && <button onClick={() => openEdit()} className="btn-primary"><Plus className="mr-2 h-4" />Ajouter</button>}
+            {embedded && <button onClick={() => openEdit()} className={sourceDisplay ? 'inline-flex items-center justify-center rounded-md bg-[#168a3a] px-5 py-3 font-bold text-white shadow-sm transition hover:bg-[#11752f]' : 'btn-primary'}><Plus className="mr-2 h-4" />{sourceDisplay?.addLabel || 'Ajouter'}</button>}
+            {!sourceDisplay?.hideFilters && <>
             <label className="relative min-w-[240px]">
               <Search className="absolute left-3 top-3 h-4 text-slate-400" />
               <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Rechercher..." className="admin-input pl-10" />
@@ -397,9 +593,10 @@ export default function MaximusRecords({ module, embedded = false }: { module: M
               <option value="">Tous les statuts</option>
               {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
+            </>}
           </div>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
+        {!sourceDisplay?.hideFilters && <div className="mt-4 grid gap-3 md:grid-cols-4">
           {registryFields.slice(0, 4).map(field => {
             const options = fieldOptions(field.key);
             return <label key={`filter-${field.key}`} className="grid gap-1 text-xs font-bold text-slate-500">
@@ -410,10 +607,32 @@ export default function MaximusRecords({ module, embedded = false }: { module: M
               </select> : <input value={fieldFilters[field.key] || ''} onChange={event => setFieldFilters(current => ({ ...current, [field.key]: event.target.value }))} className="admin-input py-2 text-sm" placeholder="Filtrer" />}
             </label>;
           })}
-        </div>
+        </div>}
       </header>
 
-      {filtered.length ? <div className="overflow-x-auto">
+      {sourceDisplay ? <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="text-left text-slate-500">
+              {sourceDisplay.columns.map(column => <th key={column.key} className="p-4">{column.label}</th>)}
+              <th className="p-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>{filtered.map(item => <tr key={item.id} className="border-t">
+            {sourceDisplay.columns.map(column => <td key={`${item.id}-${column.key}`} className="p-4">
+              {column.key === 'status'
+                ? <span className={`rounded-full px-3 py-1 text-xs font-black ${item.status === 'validated' ? 'bg-emerald-50 text-emerald-800' : item.status === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-700'}`}>{column.render?.(item) || item.status}</span>
+                : String(column.render?.(item) ?? item.data[column.key] ?? '-')}
+            </td>)}
+            <td className="p-4">
+              <div className="flex justify-end gap-2">
+                <button title="Modifier" onClick={() => openEdit(item)} className="icon-action"><FilePenLine className="h-4" /></button>
+                <button title="Supprimer" onClick={() => remove(item)} className="icon-action text-red-700"><Trash2 className="h-4" /></button>
+              </div>
+            </td>
+          </tr>)}</tbody>
+        </table>
+      </div> : filtered.length ? <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead><tr className="text-left text-slate-500"><th className="p-4">Élément</th><th className="p-4">Référence</th>{registryFields.map(field => <th key={field.key} className="p-4">{field.label}</th>)}<th className="p-4">Statut</th><th className="p-4">Date</th><th className="p-4 text-right">Actions</th></tr></thead>
           <tbody>{filtered.map(item => {
@@ -451,13 +670,17 @@ export default function MaximusRecords({ module, embedded = false }: { module: M
     </section>
 
     {formOpen && <div className="fixed inset-0 z-[70] overflow-y-auto bg-slate-950/60 p-4">
-      <div className="mx-auto my-8 max-w-4xl rounded-lg bg-white shadow-2xl">
+      <div className={`mx-auto my-8 rounded-lg bg-white shadow-2xl ${sourceDisplay ? 'max-w-xl' : 'max-w-4xl'}`}>
         <header className="flex items-center justify-between border-b p-5">
-          <div><p className="text-xs font-black uppercase text-[#ef7f3b]">{editing ? 'Modification' : 'Nouvel élément'}</p><h3 className="mt-1 text-xl font-black">{module.title}</h3></div>
+          <div>
+            {!sourceDisplay && <p className="text-xs font-black uppercase text-[#ef7f3b]">{editing ? 'Modification' : 'Nouvel élément'}</p>}
+            <h3 className="mt-1 text-xl font-black">{sourceDisplay ? (editing ? sourceDisplay.formTitle.replace('Add a New', 'Edit') : sourceDisplay.formTitle) : module.title}</h3>
+            {sourceDisplay?.formDescription && <p className="mt-2 text-sm text-slate-500">{sourceDisplay.formDescription}</p>}
+          </div>
           <button onClick={() => { setFormOpen(false); setEditing(null); }} className="icon-action"><X className="h-5" /></button>
         </header>
-        <form onSubmit={save} className="grid gap-4 p-5 md:grid-cols-2">
-          <label className="grid gap-2 text-sm font-bold md:col-span-2">
+        <form onSubmit={save} className={`grid gap-4 p-5 ${sourceDisplay ? 'md:grid-cols-2' : 'md:grid-cols-2'}`}>
+          {!sourceDisplay?.hideReference && <label className="grid gap-2 text-sm font-bold md:col-span-2">
             Référence interne
             <input
               name="reference"
@@ -467,7 +690,7 @@ export default function MaximusRecords({ module, embedded = false }: { module: M
               className="admin-input read-only:bg-slate-50 read-only:text-slate-500"
             />
             {!editing && <span className="text-xs font-medium text-slate-500">Automatique: 8 caractères, initiale du module puis lettres/chiffres.</span>}
-          </label>
+          </label>}
           {module.fields.map(field => {
             const options = fieldOptions(field.key);
             const value = formValues[field.key] ?? String(editing?.data[field.key] || '');
@@ -658,7 +881,8 @@ export default function MaximusRecords({ module, embedded = false }: { module: M
                 <input name={field.key} value={value} readOnly required={field.required} className="admin-input bg-slate-50 text-slate-500" />
               </label>;
             }
-            return <label key={field.key} className={`grid gap-2 text-sm font-bold ${field.type === 'textarea' ? 'md:col-span-2' : ''}`}>
+            const sourceFullWidth = sourceDisplay && ['name', 'category', 'budget_line', 'manager', 'address'].includes(field.key);
+            return <label key={field.key} className={`grid gap-2 text-sm font-bold ${field.type === 'textarea' || sourceFullWidth ? 'md:col-span-2' : ''}`}>
               {field.label}
               {field.type === 'textarea' ? <>
                 <textarea
@@ -698,6 +922,13 @@ export default function MaximusRecords({ module, embedded = false }: { module: M
                 required={field.required}
                 value={value}
                 onChange={event => setFormValues(current => ({ ...current, [field.key]: event.target.value }))}
+                placeholder={
+                  sourceDisplay && module.slug === 'supply/ingredients' && field.key === 'name' ? 'e.g., Basmati Rice'
+                  : sourceDisplay && module.slug === 'production/central-kitchens' && field.key === 'name' ? 'e.g., Douala Central Kitchen'
+                  : sourceDisplay && module.slug === 'production/central-kitchens' && field.key === 'address' ? 'e.g., Bonanjo'
+                  : sourceDisplay && field.key === 'unit_price' ? '0'
+                  : undefined
+                }
                 className="admin-input"
               />}
             </label>;

@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useMemo, useState } from 'react';
 import {
   Archive, Boxes, Building2, Car, ChevronDown, ChevronRight, ClipboardList,
-  GitBranch, Handshake, LayoutDashboard, Menu, ShoppingCart, Users, Utensils, Wallet, X,
+  FileSignature, GitBranch, Handshake, LayoutDashboard, Menu, ShoppingCart, Users, Utensils, Wallet, X,
 } from 'lucide-react';
 import type { MaximusModule } from '@/lib/maximus-modules';
 import { maximusModules } from '@/lib/maximus-modules';
@@ -14,6 +15,50 @@ import ProductionSalesRecords from './specialized/ProductionSalesRecords';
 import AssetFleetRecords from './specialized/AssetFleetRecords';
 import PeopleAdminRecords from './specialized/PeopleAdminRecords';
 import MenuNutritionRecords from './specialized/MenuNutritionRecords';
+import ConsolidatedDailyOrders from './specialized/ConsolidatedDailyOrders';
+import ProductionManagement from './specialized/ProductionManagement';
+import StaffDirectory from './specialized/StaffDirectory';
+import StaffBankDetails from './specialized/StaffBankDetails';
+import RecruitmentOffers from './specialized/RecruitmentOffers';
+import RecruitmentApplications from './specialized/RecruitmentApplications';
+import WrittenTestDesigner from './specialized/WrittenTestDesigner';
+import TestProctoringCockpit from './specialized/TestProctoringCockpit';
+import RecruitmentLifecycle from './specialized/RecruitmentLifecycle';
+import VendorRecruitment from './specialized/VendorRecruitment';
+import RecruitmentAuditReports from './specialized/RecruitmentAuditReports';
+import LeaveManagement from './specialized/LeaveManagement';
+import MissionManagement from './specialized/MissionManagement';
+import PerformanceManagement from './specialized/PerformanceManagement';
+import MyTrainingPlan from './specialized/MyTrainingPlan';
+import PayslipManagement from './specialized/PayslipManagement';
+import SalaryGridManagement from './specialized/SalaryGridManagement';
+import PayslipComponents from './specialized/PayslipComponents';
+import SalePointStockManagement from './specialized/SalePointStockManagement';
+import ConsolidatedWeeklyNeeds from './specialized/ConsolidatedWeeklyNeeds';
+import CostEstimationManagement from './specialized/CostEstimationManagement';
+import CentralStockManagement from './specialized/CentralStockManagement';
+import VendorManagement from './specialized/VendorManagement';
+import VendorBankDetails from './specialized/VendorBankDetails';
+import OnboardingManagement from './specialized/OnboardingManagement';
+import AssetManagement from './specialized/AssetManagement';
+import MaintenanceLog from './specialized/MaintenanceLog';
+import TomCardManagement from './specialized/TomCardManagement';
+import NutritionalAnalysis from './specialized/NutritionalAnalysis';
+import FinancialReports from './specialized/FinancialReports';
+import BudgetaryLines from './specialized/BudgetaryLines';
+import FinancialRequests from './specialized/FinancialRequests';
+import PaymentInitiation from './specialized/PaymentInitiation';
+import PaymentRegisters from './specialized/PaymentRegisters';
+import CostEstimationRegister from './specialized/CostEstimationRegister';
+import OperationalAdvances from './specialized/OperationalAdvances';
+import PettyCashManagement from './specialized/PettyCashManagement';
+import BankTransfersManagement from './specialized/BankTransfersManagement';
+import CashDepositsManagement from './specialized/CashDepositsManagement';
+import CommunicationCenter from '@/components/communications/CommunicationCenter';
+
+const FinancialDashboard = dynamic(() => import('./specialized/FinancialDashboard'), {
+  loading: () => <div className="grid h-72 place-items-center text-sm text-slate-500">Loading financial dashboard...</div>,
+});
 
 const groupIcons = {
   'Restauration': Utensils,
@@ -54,6 +99,7 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
         <Link href="/maximus/workflows" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${workflowView ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><GitBranch className="h-5" />Flux centralisés</Link>
         <Link href="/maximus/communications/messages" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/messages' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />Messagerie Maximus</Link>
         <Link href="/maximus/communications/meetings" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/meetings' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />Réunions Maximus</Link>
+        <Link href="/signatures" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white/75 hover:bg-white/10"><FileSignature className="h-5" />Signatures électroniques</Link>
         <Link href="/maximus/menus" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'menus' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><Utensils className="h-5" />Menus</Link>
         {groups.map(([group, items]) => {
           const Icon = groupIcons[group as keyof typeof groupIcons] || ClipboardList;
@@ -77,6 +123,49 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
 }
 
 function ModuleRenderer({ module }: { module: MaximusModule }) {
+  if (module.slug === 'communications/messages') return <CommunicationCenter scope="maximus" />;
+  if (module.slug === 'hr/recruitment/proctoring') return <TestProctoringCockpit />;
+  if (module.slug === 'hr/recruitment/interviews') return <RecruitmentLifecycle />;
+  if (module.slug === 'partnerships/vendor-recruitment') return <VendorRecruitment />;
+  if (module.slug === 'hr/recruitment/audit') return <RecruitmentAuditReports />;
+  if (module.slug === 'hr/recruitment/tests') return <WrittenTestDesigner />;
+  if (module.slug === 'hr/recruitment/applications') return <RecruitmentApplications />;
+  if (module.slug === 'communications/recruitment') return <RecruitmentOffers />;
+  if (module.slug === 'finance/cash-deposits') return <CashDepositsManagement />;
+  if (module.slug === 'finance/bank-transfers') return <BankTransfersManagement />;
+  if (module.slug === 'finance/petty-cash') return <PettyCashManagement />;
+  if (module.slug === 'finance/operational-advances') return <OperationalAdvances />;
+  if (module.slug === 'finance/cost-estimations') return <CostEstimationRegister />;
+  if (module.slug === 'finance/my-payments') return <PaymentRegisters mode="mine" />;
+  if (module.slug === 'finance/payment-register') return <PaymentRegisters mode="register" />;
+  if (module.slug === 'finance/payment-initiation') return <PaymentInitiation />;
+  if (module.slug === 'finance/requests') return <FinancialRequests />;
+  if (module.slug === 'finance/budget-lines') return <BudgetaryLines />;
+  if (module.slug === 'finance/reports') return <FinancialReports />;
+  if (module.slug === 'finance/dashboard') return <FinancialDashboard />;
+  if (module.slug === 'nutrition-analysis') return <NutritionalAnalysis />;
+  if (module.slug === 'fleet/tom-cards') return <TomCardManagement />;
+  if (module.slug === 'fleet/maintenance') return <MaintenanceLog />;
+  if (module.slug === 'assets/inventory') return <AssetManagement />;
+  if (module.slug === 'hr/onboarding') return <OnboardingManagement />;
+  if (module.slug === 'partnerships/bank-details') return <VendorBankDetails />;
+  if (module.slug === 'partnerships/vendors') return <VendorManagement />;
+  if (module.slug === 'supply/central-stock') return <CentralStockManagement />;
+  if (module.slug === 'supply/cost-estimation') return <CostEstimationManagement />;
+  if (module.slug === 'supply/consolidated-needs') return <ConsolidatedWeeklyNeeds />;
+  if (module.slug === 'sales/partner-stock') return <SalePointStockManagement />;
+  if (module.slug === 'hr/payslip-components') return <PayslipComponents />;
+  if (module.slug === 'hr/salary-grid') return <SalaryGridManagement />;
+  if (module.slug === 'hr/payroll') return <PayslipManagement />;
+  if (module.slug === 'hr/my-training') return <MyTrainingPlan />;
+  if (module.slug === 'hr/performance') return <PerformanceManagement />;
+  if (module.slug === 'hr/missions') return <MissionManagement />;
+  if (module.slug === 'hr/leave') return <LeaveManagement />;
+  if (module.slug === 'hr/recruitment/offers') return <RecruitmentOffers />;
+  if (module.slug === 'hr/staff-bank-details') return <StaffBankDetails />;
+  if (module.slug === 'hr/staff') return <StaffDirectory />;
+  if (module.slug === 'production/planning') return <ProductionManagement />;
+  if (module.slug === 'production/consolidated-orders') return <ConsolidatedDailyOrders />;
   if (module.group === 'Production' || module.group === 'Ventes') return <ProductionSalesRecords module={module} />;
   if (module.group === 'Actifs' || module.group === 'Flotte') return <AssetFleetRecords module={module} />;
   if (module.group === 'Ressources humaines' || module.group === 'Communications' || module.group === 'Administration Maximus') return <PeopleAdminRecords module={module} />;

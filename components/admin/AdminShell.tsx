@@ -67,6 +67,7 @@ const navGroups = [
   ]},
   {title:"Gouvernance", tone:"bg-slate-400/15", links:[
     ["/admin/contrats", "Contrats", DocumentCheckIcon, all],
+    ["/signatures", "Signatures electroniques", DocumentCheckIcon, all],
     ["/admin/juridique", "Juridique", DocumentTextIcon, all],
     ["/admin/utilisateurs-admin", "Administrateurs", ShieldCheckIcon, all],
     ["/admin/audit", "Audit", ShieldCheckIcon, all],

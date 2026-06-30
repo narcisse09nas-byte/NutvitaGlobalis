@@ -17,6 +17,7 @@ const sources = {
 
 type SourceKey = keyof typeof sources;
 type Option = { value: string; label: string };
+type OptionRow = { data: Record<string, unknown>; title: string; status?: string };
 
 async function context() {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
@@ -38,10 +39,12 @@ function labelFor(data: Record<string, unknown>, fields: readonly string[]) {
   return parts.join(' - ');
 }
 
-function optionsFromRows(rows: Array<{ data: Record<string, unknown>; title: string }>, key: SourceKey): Option[] {
+function optionsFromRows(rows: OptionRow[], key: SourceKey): Option[] {
   const source = sources[key];
   const seen = new Set<string>();
   return rows
+    .filter(row => key !== 'vendors' || row.status === 'validated')
+    .filter(row => key !== 'assets' || !row.data.record_type || row.data.record_type === 'asset')
     .filter(row => row && typeof row.data === 'object')
     .map(row => {
       const label = labelFor(row.data, source.fields) || row.title;
@@ -62,7 +65,7 @@ export async function GET() {
   const moduleList: string[] = [...new Set(Object.values(sources).map(source => source.module))];
   const rows = ctx.local
     ? localMaximusRecords().filter(row => moduleList.includes(row.module))
-    : (await ctx.supabase.from('maximus_records').select('module,title,data').in('module', moduleList).order('created_at', { ascending: false })).data || [];
+    : (await ctx.supabase.from('maximus_records').select('module,title,data,status').in('module', moduleList).order('created_at', { ascending: false })).data || [];
 
   const payload = Object.keys(sources).reduce((acc, key) => {
     const sourceKey = key as SourceKey;

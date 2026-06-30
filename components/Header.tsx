@@ -21,6 +21,7 @@ export default function Header() {
     ["/", t.home],
     ["/services", locale === "en" ? "Our services" : "Nos services"],
     ["/ressources", t.resources],
+    ["/carrieres", locale === "en" ? "Careers" : "Carrieres"],
     ["/recrutement-dieteticiens", t.recruitment],
     ["/a-propos", t.about],
     ["/contact", t.contact],

@@ -41,6 +41,7 @@ export default function ClientShellClient({ children, email, access }: { childre
     ["/espace-client/messages", "Messages", ChatBubbleLeftRightIcon, access.health || access.teleconsultation],
     ["/espace-client/appels", "Appels video", VideoCameraIcon, access.teleconsultation],
     ["/espace-client/contrats", "Contrats et consentements", DocumentCheckIcon, true],
+    ["/signatures", "Signatures electroniques", DocumentCheckIcon, true],
     ["/espace-client/confidentialite", "Confidentialite", ShieldCheckIcon, true],
     ["/espace-client/securite", "Mot de passe", KeyIcon, true],
   ];

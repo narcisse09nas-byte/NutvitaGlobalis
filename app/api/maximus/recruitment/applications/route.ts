@@ -4,20 +4,16 @@ import { createClient } from '@/lib/supabase/server';
 import { hasLocalAdminMode, hasSupabaseConfig } from '@/lib/supabase/config';
 import { localMaximusEvents, localMaximusRecords } from '@/lib/maximus-local-store';
 import { resend } from '@/lib/api';
+import { requireMaximusApi } from '@/lib/maximus-api-auth';
 
-async function context() {
+async function context(required: 'viewer' | 'editor') {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
     if ((await cookies()).get('nutvita_local_admin')?.value !== '1') {
       return { error: NextResponse.json({ message: 'Session administrateur locale requise.' }, { status: 401 }) };
     }
     return { local: true as const, user: { id: 'local-super-admin', email: 'local@nutvita.test' } };
   }
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: NextResponse.json({ message: 'Authentification requise.' }, { status: 401 }) };
-  const { data: admin } = await supabase.from('admin_users').select('role,active').eq('id', user.id).maybeSingle();
-  if (!admin?.active || admin.role !== 'super_admin') return { error: NextResponse.json({ message: 'Acces refuse.' }, { status: 403 }) };
-  return { supabase, user };
+  return requireMaximusApi('hr/recruitment/applications', required);
 }
 
 async function notify(
@@ -48,9 +44,9 @@ async function notify(
 }
 
 export async function GET() {
-  const ctx = await context();
+  const ctx = await context('viewer');
   if ('error' in ctx) return ctx.error;
-  if ('local' in ctx && ctx.local) {
+  if ('local' in ctx) {
     const rows = localMaximusRecords().filter(row => row.module === 'hr/recruitment/applications').reverse();
     const offers = localMaximusRecords().filter(row => row.module === 'hr/recruitment/offers');
     return NextResponse.json({
@@ -86,13 +82,13 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const ctx = await context();
+  const ctx = await context('editor');
   if ('error' in ctx) return ctx.error;
   const body = await request.json();
   const id = String(body.id || '');
   const action = String(body.action || '');
   if (!id) return NextResponse.json({ message: 'Candidature requise.' }, { status: 400 });
-  if ('local' in ctx && ctx.local) {
+  if ('local' in ctx) {
     const row = localMaximusRecords().find(item => item.id === id && item.module === 'hr/recruitment/applications');
     if (!row) return NextResponse.json({ message: 'Candidature introuvable.' }, { status: 404 });
     const from = String(row.data.stage || row.status);

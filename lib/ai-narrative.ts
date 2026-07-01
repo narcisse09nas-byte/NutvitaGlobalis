@@ -220,11 +220,27 @@ export async function enrichHealthNarrative<T extends {
   trends: string[];
   improvements: string[];
   risks: string[];
+  crossIndicatorAnalysis?: string[];
+  actionPlan?: {
+    days30: string[];
+    days90: string[];
+    days180: string[];
+    daily: string[];
+    weekly: string[];
+    monthly: string[];
+    priorityIndicators: string[];
+  };
+  motivation?: string;
+  limitations?: string[];
 }>(analysis: T, locale: 'fr' | 'en'): Promise<T> {
-  const result = await generateStructured<Pick<T, 'publicSummary' | 'professionalSummary' | 'recommendations' | 'publicConclusion' | 'professionalConclusion' | 'indicatorInsights'>>(
-    'health_followup_narrative',
+  const result = await generateStructured<Pick<T, 'publicSummary' | 'professionalSummary' | 'recommendations' | 'publicConclusion' | 'professionalConclusion' | 'indicatorInsights' | 'crossIndicatorAnalysis' | 'actionPlan' | 'motivation' | 'limitations'>>(
+    'ncie_health_followup_report',
     [
+      'Tu es NutVitaGlobalis Clinical Intelligence Engine (NCIE) v1.0, specialise en nutrition clinique, sante publique, dietetique, anthropometrie, biochimie et epidemiologie nutritionnelle.',
+      'Applique une approche fondee sur les preuves et compatible avec les recommandations reconnues (OMS, UNICEF, FAO, ESPEN, ASPEN, ADA, NICE, AHA, ESC, HAS) uniquement lorsqu elles sont pertinentes.',
+      'Tu ne poses jamais de diagnostic definitif, ne prescris pas et ne modifies jamais un traitement. Tu distingues faits, hypotheses, risques, incertitudes et donnees manquantes.',
       `Langue de sortie: ${locale}.`,
+      'Produire un resume executif de 250 mots maximum couvrant progres, risques, defis et recommandations prioritaires.',
       'Reecrivez CHAQUE indicateur avec un niveau de detail comparable a une note de suivi nutritionnel de qualite.',
       'Pour CHAQUE indicateur, produire une analyse de profondeur comparable a l exemple poids: valeur actuelle, historique disponible, comparaison a la norme/reference, variation depuis la premiere mesure et la precedente si disponible, interpretation simple, limites, donnees manquantes, risque ou benefice potentiel, puis conseil pratique.',
       'Pour la version grand public: utiliser un langage accessible, expliquer ce que la valeur peut signifier, ce qu elle ne permet pas de conclure seule, les precautions et les actions realistes pour la semaine suivante.',
@@ -232,6 +248,10 @@ export async function enrichHealthNarrative<T extends {
       'Ne reduisez jamais un indicateur a une phrase generique. Si un indicateur manque de donnees, expliquer precisement quelles donnees manquent et pourquoi elles changeraient l interpretation.',
       'Conservez toutes les donnees historiques, references, listes de benefices, donnees manquantes et recommandations professionnelles fournies. Ne supprimez aucun indicateur et gardez le meme ordre.',
       'Les conclusions globales doivent integrer les interactions entre anthropometrie, biologie, alimentation et activite, tout en distinguant clairement faits, hypotheses et limites. Les conclusions doivent etre robustes et utilisables dans un rapport PDF.',
+      'Produire une analyse transversale des interactions uniquement lorsqu elles sont plausibles au regard des donnees; ne jamais presenter une correlation comme une causalite.',
+      'Produire un plan d action concret a 30, 90 et 180 jours, avec actions quotidiennes, hebdomadaires et mensuelles. Ne proposer aucun objectif chiffre non justifie par les donnees.',
+      'La motivation doit valoriser les progres sans culpabiliser. La version professionnelle doit mentionner les hypotheses nutritionnelles possibles sans conclure a un diagnostic.',
+      'Conserver les limites deterministes fournies et en ajouter uniquement si elles decoulent des donnees. Si une analyse est impossible, ecrire explicitement N/A et expliquer pourquoi.',
     ].join('\n'),
     {
       indicatorInsights: analysis.indicatorInsights,
@@ -239,6 +259,9 @@ export async function enrichHealthNarrative<T extends {
       improvements: analysis.improvements,
       risks: analysis.risks,
       existingRecommendations: analysis.recommendations,
+      deterministicCrossIndicatorAnalysis: analysis.crossIndicatorAnalysis,
+      deterministicActionPlan: analysis.actionPlan,
+      deterministicLimitations: analysis.limitations,
     },
     {
       type: 'object',
@@ -271,8 +294,25 @@ export async function enrichHealthNarrative<T extends {
             required: ['indicator', 'latest', 'status', 'publicInterpretation', 'professionalInterpretation', 'recommendation', 'history', 'reference', 'changeSummary', 'benefits', 'missingData', 'professionalRecommendations'],
           },
         },
+        crossIndicatorAnalysis: { type: 'array', items: { type: 'string' } },
+        actionPlan: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            days30: { type: 'array', items: { type: 'string' } },
+            days90: { type: 'array', items: { type: 'string' } },
+            days180: { type: 'array', items: { type: 'string' } },
+            daily: { type: 'array', items: { type: 'string' } },
+            weekly: { type: 'array', items: { type: 'string' } },
+            monthly: { type: 'array', items: { type: 'string' } },
+            priorityIndicators: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['days30', 'days90', 'days180', 'daily', 'weekly', 'monthly', 'priorityIndicators'],
+        },
+        motivation: { type: 'string' },
+        limitations: { type: 'array', items: { type: 'string' } },
       },
-      required: ['publicSummary', 'professionalSummary', 'recommendations', 'publicConclusion', 'professionalConclusion', 'indicatorInsights'],
+      required: ['publicSummary', 'professionalSummary', 'recommendations', 'publicConclusion', 'professionalConclusion', 'indicatorInsights', 'crossIndicatorAnalysis', 'actionPlan', 'motivation', 'limitations'],
     },
   );
   if (!result.data) return { ...analysis, aiProvider: 'local', aiError: result.error };
@@ -294,10 +334,28 @@ export async function enrichChildGrowthNarrative<T extends {
   positives: string[];
   attentionPoints: string[];
   alerts: unknown[];
+  whoCurveAnalysis?: string[];
+  growthStory?: string;
+  influencingFactors?: Array<{ factor: string; analysis: string; status: string }>;
+  developmentAnalysis?: Array<{ domain: string; analysis: string; status: string }>;
+  actionPlan?: {
+    days7: string[];
+    days30: string[];
+    days90: string[];
+    days180: string[];
+    daily: string[];
+    weekly: string[];
+    monthly: string[];
+  };
+  limitations?: string[];
 }>(analysis: T): Promise<T> {
-  const result = await generateStructured<Pick<T, 'summary' | 'professionalSummary' | 'practicalAdvice' | 'parentConclusion' | 'professionalConclusion' | 'indicatorInsights'>>(
-    'child_growth_narrative',
+  const result = await generateStructured<Pick<T, 'summary' | 'professionalSummary' | 'practicalAdvice' | 'parentConclusion' | 'professionalConclusion' | 'indicatorInsights' | 'whoCurveAnalysis' | 'growthStory' | 'influencingFactors' | 'developmentAnalysis' | 'actionPlan' | 'limitations'>>(
+    'ncgie_child_growth_report',
     [
+      'Tu es NutVitaGlobalis Child Growth Intelligence Engine (NCGIE) v1.0, specialise en croissance de l enfant, nutrition pediatrique, anthropometrie OMS, IYCF, PCIMA/CMAM, IMCI et sante publique.',
+      'Utilise uniquement les donnees et classifications fournies. Ne recalcule jamais un z-score et ne remplace jamais une classification deterministe.',
+      'Ne pose jamais de diagnostic definitif. Distingue observations, hypotheses, facteurs protecteurs, risques, limites et besoins de confirmation clinique.',
+      'Produis un resume executif de 250 mots maximum couvrant situation generale, progres, risques et objectifs.',
       'Produisez une version parent rassurante mais precise et une version professionnelle plus technique.',
       'Pour CHAQUE indicateur de croissance, produire une analyse consistante: valeur actuelle, historique disponible, comparaison a la reference OMS ou a la norme configuree, comparaison avec la mesure precedente si disponible, tendance depuis le debut du suivi, limites de mesure, donnees manquantes, implications possibles et recommandation pratique.',
       'La version parent doit expliquer simplement ce que la valeur peut signifier et ce qu elle ne permet pas de conclure seule.',
@@ -305,6 +363,11 @@ export async function enrichChildGrowthNarrative<T extends {
       'Ne minimisez jamais un oedeme, une perte ponderale, un MUAC bas, une cassure de croissance ou une alerte critique.',
       'Conservez tous les indicateurs, dans le meme ordre, et conservez les champs history, reference, changeSummary, benefits, missingData et professionalRecommendations quand ils sont fournis.',
       'Les conclusions globales doivent integrer anthropometrie, MUAC, oedemes, appetit, maladies recentes, limites des donnees et priorites de suivi.',
+      'Raconte l histoire de croissance dans l ordre chronologique sans inventer d evenement.',
+      'Analyse chaque facteur influencant et chaque domaine du developpement. Quand une information manque, ecris explicitement N/A.',
+      'Les courbes OMS doivent etre interpretees en termes de position, franchissement de couloir, cassure, ralentissement ou rattrapage uniquement si les series le permettent.',
+      'Le plan personnalise doit couvrir 7, 30, 90 et 180 jours, puis les actions quotidiennes, hebdomadaires et mensuelles.',
+      'Toute alerte doit etre reliee aux donnees disponibles et orienter vers une evaluation professionnelle adaptee, sans formulation alarmiste injustifiee.',
     ].join('\n'),
     {
       indicatorInsights: analysis.indicatorInsights,
@@ -312,6 +375,12 @@ export async function enrichChildGrowthNarrative<T extends {
       attentionPoints: analysis.attentionPoints,
       alerts: analysis.alerts,
       existingAdvice: analysis.practicalAdvice,
+      deterministicWhoCurveAnalysis: analysis.whoCurveAnalysis,
+      deterministicGrowthStory: analysis.growthStory,
+      deterministicInfluencingFactors: analysis.influencingFactors,
+      deterministicDevelopmentAnalysis: analysis.developmentAnalysis,
+      deterministicActionPlan: analysis.actionPlan,
+      deterministicLimitations: analysis.limitations,
     },
     {
       type: 'object',
@@ -356,8 +425,51 @@ export async function enrichChildGrowthNarrative<T extends {
             required: ['indicator', 'latest', 'status', 'parentInterpretation', 'professionalInterpretation', 'recommendation', 'history', 'reference', 'changeSummary', 'benefits', 'missingData', 'professionalRecommendations'],
           },
         },
+        whoCurveAnalysis: { type: 'array', items: { type: 'string' } },
+        growthStory: { type: 'string' },
+        influencingFactors: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              factor: { type: 'string' },
+              analysis: { type: 'string' },
+              status: { type: 'string', enum: ['documented', 'missing', 'attention'] },
+            },
+            required: ['factor', 'analysis', 'status'],
+          },
+        },
+        developmentAnalysis: {
+          type: 'array',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              domain: { type: 'string' },
+              analysis: { type: 'string' },
+              status: { type: 'string', enum: ['documented', 'missing', 'attention'] },
+            },
+            required: ['domain', 'analysis', 'status'],
+          },
+        },
+        actionPlan: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            days7: { type: 'array', items: { type: 'string' } },
+            days30: { type: 'array', items: { type: 'string' } },
+            days90: { type: 'array', items: { type: 'string' } },
+            days180: { type: 'array', items: { type: 'string' } },
+            daily: { type: 'array', items: { type: 'string' } },
+            weekly: { type: 'array', items: { type: 'string' } },
+            monthly: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['days7', 'days30', 'days90', 'days180', 'daily', 'weekly', 'monthly'],
+        },
+        limitations: { type: 'array', items: { type: 'string' } },
       },
-      required: ['summary', 'professionalSummary', 'practicalAdvice', 'parentConclusion', 'professionalConclusion', 'indicatorInsights'],
+      required: ['summary', 'professionalSummary', 'practicalAdvice', 'parentConclusion', 'professionalConclusion', 'indicatorInsights', 'whoCurveAnalysis', 'growthStory', 'influencingFactors', 'developmentAnalysis', 'actionPlan', 'limitations'],
     },
   );
   if (!result.data) return analysis;

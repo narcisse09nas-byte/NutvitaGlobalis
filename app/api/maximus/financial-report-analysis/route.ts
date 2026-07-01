@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { hasLocalAdminMode, hasSupabaseConfig } from '@/lib/supabase/config';
 import { generateStructured } from '@/lib/ai-narrative';
+import { requireMaximusApi } from '@/lib/maximus-api-auth';
 
 type Narrative = {
   executive_summary: string;
@@ -16,11 +17,8 @@ async function authorized() {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
     return (await cookies()).get('nutvita_local_admin')?.value === '1';
   }
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return false;
-  const { data: admin } = await supabase.from('admin_users').select('role,active').eq('id', user.id).maybeSingle();
-  return Boolean(admin?.active && admin.role === 'super_admin');
+  const ctx = await requireMaximusApi('finance/reports', 'viewer');
+  return !('error' in ctx);
 }
 
 export async function POST(request: Request) {

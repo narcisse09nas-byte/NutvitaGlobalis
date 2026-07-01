@@ -3,6 +3,7 @@ import { analyzeHealthData } from "@/lib/health-analysis";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { enrichHealthNarrative } from "@/lib/ai-narrative";
+import { applyNcieFramework } from "@/lib/ncie-health-analysis";
 
 export async function POST() {
   const supabase = await createClient();
@@ -19,7 +20,10 @@ export async function POST() {
   ]);
   if (!profile) return NextResponse.json({ message: "Profil client introuvable." }, { status: 404 });
   const locale = profile?.preferred_language === "en" ? "en" : "fr";
-  const deterministicInsight = analyzeHealthData(anthropometry || [], biology || [], food || [], lifestyle || [], locale);
+  const deterministicInsight = applyNcieFramework(
+    analyzeHealthData(anthropometry || [], biology || [], food || [], lifestyle || [], locale),
+    anthropometry || [], biology || [], food || [], lifestyle || [], locale,
+  );
   const insight = await enrichHealthNarrative(deterministicInsight, locale);
   const allDates = [...(anthropometry || []).map(row => row.measured_at), ...(biology || []).map(row => row.measured_at), ...(food || []).map(row => row.entry_date), ...(lifestyle || []).map(row => row.assessment_date)].filter(Boolean).sort();
   const periodStart = allDates[0]?.slice(0, 10) || new Date().toISOString().slice(0, 10), periodEnd = allDates.at(-1)?.slice(0, 10) || new Date().toISOString().slice(0, 10);

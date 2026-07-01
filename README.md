@@ -187,6 +187,23 @@ Le premier administrateur existant devient automatiquement `super_admin` si
 aucun super-administrateur n'existe. `/api/geo` utilise CountriesNow pour les
 pays, subdivisions et villes, avec cache et fallback manuel local.
 
+## Acces delegues Maximus
+
+Apres les migrations Maximus et recrutement, executer
+`supabase/maximus-access-control.sql`. Cette migration ajoute le registre des
+utilisateurs Maximus, les unites metier multiples, les modules complementaires
+et les fonctions `Viewer`, `Editor`, `Creator` et `Validator`.
+
+- le super administrateur cree ou invite les comptes depuis
+  `/maximus/administration/users` ;
+- un admin assistant dispose de toutes les fonctions, uniquement dans ses
+  perimetres ;
+- un utilisateur peut cumuler plusieurs unites, par exemple RH et Logistique,
+  et recevoir en plus des modules specifiques ;
+- un responsable ne voit que les pages de ses perimetres attribues ;
+- les controles sont appliques dans les pages, les API et les politiques RLS
+  Supabase.
+
 ## Développement
 
 ```bash

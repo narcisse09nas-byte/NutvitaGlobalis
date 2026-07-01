@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { requireMaximusApi } from '@/lib/maximus-api-auth';
 import { maximusModuleMap, maximusStatuses } from '@/lib/maximus-modules';
 import { hasLocalAdminMode, hasSupabaseConfig } from '@/lib/supabase/config';
 import { localMaximusRecords } from '@/lib/maximus-local-store';
@@ -45,45 +46,48 @@ async function generateReference(ctx: Awaited<ReturnType<typeof context>>, modul
   return candidateReference(module, title);
 }
 
-async function context() {
+async function context(module: string, required: 'viewer' | 'editor' | 'creator' | 'validator') {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
     if ((await cookies()).get('nutvita_local_admin')?.value !== '1') {
       return { error: NextResponse.json({ message: 'Session administrateur locale requise.' }, { status: 401 }) };
     }
     return { local: true as const, user: { id: 'local-super-admin' } };
   }
+  return requireMaximusApi(module, required);
+}
+
+async function recordModule(id: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: NextResponse.json({ message: 'Authentification requise.' }, { status: 401 }) };
-  const { data: admin } = await supabase.from('admin_users').select('role,active').eq('id', user.id).maybeSingle();
-  if (!admin?.active || admin.role !== 'super_admin') return { error: NextResponse.json({ message: 'Accès super administrateur requis.' }, { status: 403 }) };
-  return { supabase, user };
+  if (!user) return '';
+  const { data } = await supabase.from('maximus_records').select('module').eq('id', id).maybeSingle();
+  return String(data?.module || '');
 }
 
 export async function GET(request: Request) {
   const module = new URL(request.url).searchParams.get('module') || '';
   if (!maximusModuleMap.has(module)) return NextResponse.json({ message: 'Module Maximus invalide.' }, { status: 400 });
-  const ctx = await context();
-  if (ctx.error) return ctx.error;
-  if (ctx.local) return NextResponse.json({ items: localMaximusRecords().filter(item => item.module === module).reverse() });
+  const ctx = await context(module, 'viewer');
+  if ('error' in ctx && ctx.error) return ctx.error;
+  if ('local' in ctx) return NextResponse.json({ items: localMaximusRecords().filter(item => item.module === module).reverse() });
   const { data, error } = await ctx.supabase.from('maximus_records').select('*').eq('module', module).order('created_at', { ascending: false });
   if (error) return NextResponse.json({ message: error.message }, { status: 400 });
   return NextResponse.json({ items: data || [] });
 }
 
 export async function POST(request: Request) {
-  const ctx = await context();
-  if (ctx.error) return ctx.error;
   const body = await request.json();
   const module = String(body.module || '');
   const definition = maximusModuleMap.get(module);
   if (!definition) return NextResponse.json({ message: 'Module Maximus invalide.' }, { status: 400 });
+  const ctx = await context(module, 'creator');
+  if ('error' in ctx && ctx.error) return ctx.error;
   const data = normalizeWorkflowData(body.data && typeof body.data === 'object' ? body.data as Record<string, unknown> : {});
   const firstField = definition.fields.find(field => field.required) || definition.fields[0];
   const title = String(body.title || data[firstField?.key] || definition.title).trim();
   if (!title) return NextResponse.json({ message: 'Le titre ou le champ principal est obligatoire.' }, { status: 400 });
   const reference = String(body.reference || '').trim() || await generateReference(ctx, module, definition.title);
-  if (ctx.local) {
+  if ('local' in ctx) {
     const now = new Date().toISOString();
     const saved = { id: crypto.randomUUID(), module, title, reference, status: 'draft', data, created_at: now, updated_at: now };
     localMaximusRecords().push(saved);
@@ -98,16 +102,22 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const ctx = await context();
-  if (ctx.error) return ctx.error;
   const body = await request.json();
   const id = String(body.id || '');
+  if (!id) return NextResponse.json({ message: 'Identifiant requis.' }, { status: 400 });
+  const module = hasLocalAdminMode() && !hasSupabaseConfig()
+    ? String(localMaximusRecords().find(row => row.id === id)?.module || '')
+    : await recordModule(id);
+  if (!maximusModuleMap.has(module)) return NextResponse.json({ message: 'Element Maximus introuvable ou inaccessible.' }, { status: 404 });
+  const required = ['validated', 'rejected', 'archived'].includes(String(body.status || '')) ? 'validator' : 'editor';
+  const ctx = await context(module, required);
+  if ('error' in ctx && ctx.error) return ctx.error;
   const payload: Record<string, unknown> = { updated_by: ctx.user.id };
   if (body.data && typeof body.data === 'object') payload.data = normalizeWorkflowData(body.data as Record<string, unknown>);
   if (body.title) payload.title = String(body.title);
   if (body.reference !== undefined) payload.reference = body.reference || null;
   if (body.status && maximusStatuses.includes(body.status)) payload.status = body.status;
-  if (ctx.local) {
+  if ('local' in ctx) {
     const item = localMaximusRecords().find(row => row.id === id);
     if (!item) return NextResponse.json({ message: 'Élément introuvable.' }, { status: 404 });
     if (payload.data) item.data = payload.data as Record<string, unknown>;
@@ -123,11 +133,15 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const ctx = await context();
-  if (ctx.error) return ctx.error;
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ message: 'Identifiant requis.' }, { status: 400 });
-  if (ctx.local) {
+  const module = hasLocalAdminMode() && !hasSupabaseConfig()
+    ? String(localMaximusRecords().find(row => row.id === id)?.module || '')
+    : await recordModule(id);
+  if (!maximusModuleMap.has(module)) return NextResponse.json({ message: 'Element Maximus introuvable ou inaccessible.' }, { status: 404 });
+  const ctx = await context(module, 'validator');
+  if ('error' in ctx && ctx.error) return ctx.error;
+  if ('local' in ctx) {
     const index = localMaximusRecords().findIndex(item => item.id === id);
     if (index >= 0) localMaximusRecords().splice(index, 1);
     return NextResponse.json({ ok: true });

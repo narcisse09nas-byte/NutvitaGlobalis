@@ -55,6 +55,7 @@ import PettyCashManagement from './specialized/PettyCashManagement';
 import BankTransfersManagement from './specialized/BankTransfersManagement';
 import CashDepositsManagement from './specialized/CashDepositsManagement';
 import CommunicationCenter from '@/components/communications/CommunicationCenter';
+import MaximusUserManagement from './specialized/MaximusUserManagement';
 
 const FinancialDashboard = dynamic(() => import('./specialized/FinancialDashboard'), {
   loading: () => <div className="grid h-72 place-items-center text-sm text-slate-500">Loading financial dashboard...</div>,
@@ -72,13 +73,13 @@ const groupIcons = {
   'Finance': Wallet,
 } as const;
 
-export default function MaximusWorkspace({ adminName, module, workflowView = false }: { adminName: string; module?: MaximusModule; workflowView?: boolean }) {
+export default function MaximusWorkspace({ adminName, module, workflowView = false, allowedModules, isSuperAdmin = true }: { adminName: string; module?: MaximusModule; workflowView?: boolean; allowedModules?: string[]; isSuperAdmin?: boolean }) {
   const groups = useMemo(() => {
     const result = new Map<string, MaximusModule[]>();
-    maximusModules.filter(item => item.group !== 'Restauration').forEach(item => result.set(item.group, [...(result.get(item.group) || []), item]));
+    maximusModules.filter(item => item.group !== 'Restauration' && (!allowedModules || allowedModules.includes(item.slug))).forEach(item => result.set(item.group, [...(result.get(item.group) || []), item]));
     const financeOrder = ['finance/dashboard','finance/reports','finance/budget-lines','finance/requests','finance/payment-initiation','finance/my-payments','finance/cash-supply-requests','finance/cost-estimations','finance/payments','finance/payment-register','finance/operational-advances','finance/petty-cash','finance/bank-transfers','finance/cash-deposits'];
     return Array.from(result).map(([group, items]) => [group, group === 'Finance' ? [...items].sort((a, b) => financeOrder.indexOf(a.slug) - financeOrder.indexOf(b.slug)) : items] as const);
-  }, []);
+  }, [allowedModules]);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     Restauration: true,
     Ventes: true,
@@ -96,11 +97,11 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
       </div>
       <nav className="p-3">
         <Link href="/maximus" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${!module && !workflowView ? 'bg-[#ef7f3b] text-white' : 'text-white/75 hover:bg-white/10'}`}><LayoutDashboard className="h-5" />Tableau de bord</Link>
-        <Link href="/maximus/workflows" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${workflowView ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><GitBranch className="h-5" />Flux centralisés</Link>
-        <Link href="/maximus/communications/messages" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/messages' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />Messagerie Maximus</Link>
-        <Link href="/maximus/communications/meetings" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/meetings' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />Réunions Maximus</Link>
+        {isSuperAdmin && <Link href="/maximus/workflows" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${workflowView ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><GitBranch className="h-5" />Flux centralisés</Link>}
+        {(!allowedModules || allowedModules.includes('communications/messages')) && <Link href="/maximus/communications/messages" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/messages' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />Messagerie Maximus</Link>}
+        {(!allowedModules || allowedModules.includes('communications/meetings')) && <Link href="/maximus/communications/meetings" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/meetings' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />Réunions Maximus</Link>}
         <Link href="/signatures" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white/75 hover:bg-white/10"><FileSignature className="h-5" />Signatures électroniques</Link>
-        <Link href="/maximus/menus" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'menus' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><Utensils className="h-5" />Menus</Link>
+        {(!allowedModules || allowedModules.includes('menus')) && <Link href="/maximus/menus" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'menus' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><Utensils className="h-5" />Menus</Link>}
         {groups.map(([group, items]) => {
           const Icon = groupIcons[group as keyof typeof groupIcons] || ClipboardList;
           return <div key={group} className="mt-2">
@@ -108,14 +109,14 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
             {openGroups[group] && <div className="ml-5 border-l border-white/15 pl-2">{items.map(item => <Link key={item.slug} href={`/maximus/${item.slug}`} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm ${module?.slug === item.slug ? 'bg-white/15 font-bold text-white' : 'text-white/65 hover:bg-white/10 hover:text-white'}`}><ClipboardList className="h-4" />{item.title}</Link>)}</div>}
           </div>;
         })}
-        <Link href="/maximus/nutrition-analysis" onClick={() => setMobileOpen(false)} className={`mt-2 flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'nutrition-analysis' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><Utensils className="h-5" />Analyse nutritionnelle</Link>
+        {(!allowedModules || allowedModules.includes('nutrition-analysis')) && <Link href="/maximus/nutrition-analysis" onClick={() => setMobileOpen(false)} className={`mt-2 flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'nutrition-analysis' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><Utensils className="h-5" />Analyse nutritionnelle</Link>}
       </nav>
     </aside>
 
     <section className="min-h-screen lg:pl-72">
       <header className="flex min-h-20 items-center justify-between border-b bg-white px-6 pl-20 lg:pl-8">
         <div><p className="text-xs font-black uppercase tracking-widest text-[#ef7f3b]">Gestion interne</p><h1 className="text-2xl font-black">{workflowView ? 'Flux centralisés' : module?.title || 'Tableau de bord'}</h1></div>
-        <div className="flex items-center gap-3"><div className="hidden text-right sm:block"><p className="text-sm font-black">{adminName}</p><p className="text-xs text-slate-500">Super administrateur</p></div><span className="grid h-11 w-11 place-items-center rounded-full bg-[#123d32] font-black text-white">{adminName.slice(0, 2).toUpperCase()}</span></div>
+        <div className="flex items-center gap-3"><div className="hidden text-right sm:block"><p className="text-sm font-black">{adminName}</p><p className="text-xs text-slate-500">{isSuperAdmin ? 'Super administrateur' : 'Utilisateur Maximus'}</p></div><span className="grid h-11 w-11 place-items-center rounded-full bg-[#123d32] font-black text-white">{adminName.slice(0, 2).toUpperCase()}</span></div>
       </header>
       <div className="p-5 lg:p-8">{workflowView ? <MaximusWorkflowOverview /> : module ? <ModuleRenderer module={module} /> : <Dashboard />}</div>
     </section>
@@ -123,6 +124,7 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
 }
 
 function ModuleRenderer({ module }: { module: MaximusModule }) {
+  if (module.slug === 'administration/users') return <MaximusUserManagement />;
   if (module.slug === 'communications/messages') return <CommunicationCenter scope="maximus" />;
   if (module.slug === 'hr/recruitment/proctoring') return <TestProctoringCockpit />;
   if (module.slug === 'hr/recruitment/interviews') return <RecruitmentLifecycle />;

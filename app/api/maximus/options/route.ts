@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { hasLocalAdminMode, hasSupabaseConfig } from '@/lib/supabase/config';
 import { localMaximusRecords } from '@/lib/maximus-local-store';
 
@@ -29,9 +30,15 @@ async function context() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: NextResponse.json({ message: 'Authentification requise.' }, { status: 401 }) };
-  const { data: admin } = await supabase.from('admin_users').select('role,active').eq('id', user.id).maybeSingle();
-  if (!admin?.active || admin.role !== 'super_admin') return { error: NextResponse.json({ message: 'Acces super administrateur requis.' }, { status: 403 }) };
-  return { supabase };
+  const [{ data: admin }, { data: access }] = await Promise.all([
+    supabase.from('admin_users').select('role,active').eq('id', user.id).eq('active', true).maybeSingle(),
+    supabase.from('maximus_user_access').select('active').eq('user_id', user.id).eq('active', true).maybeSingle(),
+  ]);
+  if (admin?.role !== 'super_admin' && !access?.active) {
+    return { error: NextResponse.json({ message: 'Compte Maximus actif requis.' }, { status: 403 }) };
+  }
+  // Only labels and identifiers from the allow-listed sources below are exposed.
+  return { supabase: createAdminClient() };
 }
 
 function labelFor(data: Record<string, unknown>, fields: readonly string[]) {

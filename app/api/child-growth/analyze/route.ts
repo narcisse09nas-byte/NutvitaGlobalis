@@ -4,6 +4,7 @@ import { sendSystemEmail } from "@/lib/system-email";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { enrichChildGrowthNarrative } from "@/lib/ai-narrative";
+import { applyNcgieFramework } from "@/lib/ncgie-child-growth-analysis";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
   if (!child) return NextResponse.json({ message: "Enfant introuvable." }, { status: 404 });
   const validSubscription=(subscription||[]).find((item:any)=>(item.child_id===String(child_id)||!item.child_id)&&(item.subscription_plans?.service_type==="child_growth"||String(item.plan_id).includes("child-growth")));
   if (!validSubscription) return NextResponse.json({ message: "Un abonnement actif est requis pour cet enfant." }, { status: 402 });
-  const deterministicAnalysis = analyzeChildGrowth(child, rows || []);
+  const deterministicAnalysis = applyNcgieFramework(analyzeChildGrowth(child, rows || []), child, rows || []);
   const analysis = await enrichChildGrowthNarrative(deterministicAnalysis);
   const admin = createAdminClient();
   try {

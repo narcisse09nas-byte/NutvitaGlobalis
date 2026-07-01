@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { hasSupabaseConfig } from '@/lib/supabase/config';
+import { requireMaximusApi } from '@/lib/maximus-api-auth';
 
 const allowedEvents = new Set([
   'consent_granted', 'session_started', 'heartbeat', 'online', 'offline',
@@ -20,10 +21,8 @@ async function userContext() {
 }
 
 export async function GET() {
-  const ctx = await userContext();
+  const ctx = await requireMaximusApi('hr/recruitment/proctoring', 'viewer');
   if ('error' in ctx) return ctx.error;
-  const { data: admin } = await ctx.supabase.from('admin_users').select('role,active').eq('id', ctx.user.id).maybeSingle();
-  if (!admin?.active || admin.role !== 'super_admin') return NextResponse.json({ message: 'Acces surveillant requis.' }, { status: 403 });
   const { data, error } = await ctx.supabase.from('maximus_test_assignments')
     .select('id,status,proctor_room,proctoring_consent_at,camera_started_at,screen_started_at,last_heartbeat_at,proctoring_summary,started_at,expires_at,submitted_at,maximus_written_tests(id,title,proctoring_mode,require_camera,require_screen_share,track_tab_switches,track_disconnects,track_audio_activity,track_face_presence),maximus_staff_applications(id,full_name,email,maximus_job_offers(title,reference)),maximus_proctoring_events(id,event_type,severity,details,client_recorded_at,created_at)')
     .neq('maximus_written_tests.proctoring_mode', 'none')

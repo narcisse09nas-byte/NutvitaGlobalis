@@ -14,6 +14,28 @@ export type IndicatorInsight = {
   benefits?: string[];
   missingData?: string[];
   professionalRecommendations?: string[];
+  presentation?: string;
+  comparisonReference?: string;
+  comparisonPrevious?: string;
+  comparisonFirst?: string;
+  peakAnalysis?: string;
+  statistics?: {
+    count: number;
+    minimum?: number;
+    maximum?: number;
+    mean?: number;
+    median?: number;
+    standardDeviation?: number;
+    range?: number;
+    coefficientOfVariation?: number;
+    averageVisitChange?: number;
+    linearTrend?: string;
+  };
+  correlationNotes?: string[];
+  clinicalInterpretation?: string;
+  projections?: { days30: string; days90: string; days180: string };
+  prioritizedRecommendations?: string[];
+  confidence?: { score: number; explanation: string };
 };
 export type InsightResult = {
   professionalSummary: string;
@@ -25,6 +47,23 @@ export type InsightResult = {
   indicatorInsights: IndicatorInsight[];
   publicConclusion: string;
   professionalConclusion: string;
+  globalScore?: number;
+  scoreColor?: "green" | "orange" | "red";
+  domainScores?: Record<string, number | null>;
+  crossIndicatorAnalysis?: string[];
+  actionPlan?: {
+    days30: string[];
+    days90: string[];
+    days180: string[];
+    daily: string[];
+    weekly: string[];
+    monthly: string[];
+    priorityIndicators: string[];
+  };
+  motivation?: string;
+  limitations?: string[];
+  scientificVersion?: string;
+  aiVersion?: string;
   aiProvider?: "openai" | "gemini" | "openrouter" | "external" | "local";
   aiError?: string;
   alerts: Array<{ alert_type: string; severity: "info" | "warning" | "critical"; title: string; message: string; metric_value?: number }>;

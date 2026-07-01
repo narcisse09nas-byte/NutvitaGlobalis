@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { hasLocalAdminMode, hasSupabaseConfig } from '@/lib/supabase/config';
 import { localMaximusEvents, localMaximusRecords } from '@/lib/maximus-local-store';
 import { resend } from '@/lib/api';
+import { requireMaximusApi } from '@/lib/maximus-api-auth';
 
 type TestStatus = 'draft' | 'submitted' | 'endorsed' | 'validated' | 'rejected' | 'archived';
 const transitions: Record<TestStatus, TestStatus[]> = {
@@ -31,17 +32,12 @@ function proctoringConfig(body: Record<string, unknown>) {
   };
 }
 
-async function context() {
+async function context(required: 'viewer' | 'creator' | 'validator') {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
     if ((await cookies()).get('nutvita_local_admin')?.value !== '1') return { error: NextResponse.json({ message: 'Session locale requise.' }, { status: 401 }) };
     return { local: true as const, user: { id: 'local-super-admin', email: 'local@nutvita.test' } };
   }
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: NextResponse.json({ message: 'Authentification requise.' }, { status: 401 }) };
-  const { data: admin } = await supabase.from('admin_users').select('role,active').eq('id', user.id).maybeSingle();
-  if (!admin?.active || admin.role !== 'super_admin') return { error: NextResponse.json({ message: 'Acces refuse.' }, { status: 403 }) };
-  return { supabase, user };
+  return requireMaximusApi('hr/recruitment/tests', required);
 }
 
 function normalizedQuestions(value: unknown) {
@@ -71,9 +67,9 @@ function normalizedQuestions(value: unknown) {
 }
 
 export async function GET() {
-  const ctx = await context();
+  const ctx = await context('viewer');
   if ('error' in ctx) return ctx.error;
-  if ('local' in ctx && ctx.local) {
+  if ('local' in ctx) {
     const offers = localMaximusRecords().filter(row => row.module === 'hr/recruitment/offers');
     const tests = localMaximusRecords().filter(row => row.module === 'hr/recruitment/tests').reverse().map(row => ({
       id: row.id, offer_id: row.data.offer_id, title: row.title, instructions: row.data.instructions,
@@ -103,7 +99,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const ctx = await context();
+  const ctx = await context('creator');
   if ('error' in ctx) return ctx.error;
   const body = await request.json();
   let questions;
@@ -111,7 +107,7 @@ export async function POST(request: Request) {
   const title = String(body.title || '').trim();
   const offerId = String(body.offer_id || '');
   if (!title || !offerId || !questions.length) return NextResponse.json({ message: 'Offre, titre et au moins une question sont obligatoires.' }, { status: 400 });
-  if ('local' in ctx && ctx.local) {
+  if ('local' in ctx) {
     const now = new Date().toISOString();
     const row = { id: crypto.randomUUID(), module: 'hr/recruitment/tests', title, reference: `T${crypto.randomUUID().replaceAll('-', '').slice(0, 7).toUpperCase()}`, status: 'draft', data: { offer_id: offerId, instructions: body.instructions, duration_minutes: Number(body.duration_minutes || 60), pass_score: Number(body.pass_score || 50), questions, ...proctoringConfig(body) }, created_at: now, updated_at: now };
     localMaximusRecords().push(row);
@@ -139,12 +135,12 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const ctx = await context();
+  const ctx = await context('validator');
   if ('error' in ctx) return ctx.error;
   const body = await request.json();
   const id = String(body.id || '');
   if (!id) return NextResponse.json({ message: 'Epreuve requise.' }, { status: 400 });
-  if ('local' in ctx && ctx.local) {
+  if ('local' in ctx) {
     const row = localMaximusRecords().find(item => item.id === id && item.module === 'hr/recruitment/tests');
     if (!row) return NextResponse.json({ message: 'Epreuve introuvable.' }, { status: 404 });
     if (body.action === 'transition') {
@@ -216,10 +212,10 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const ctx = await context();
+  const ctx = await context('validator');
   if ('error' in ctx) return ctx.error;
   const id = new URL(request.url).searchParams.get('id') || '';
-  if ('local' in ctx && ctx.local) {
+  if ('local' in ctx) {
     const rows = localMaximusRecords();
     const index = rows.findIndex(row => row.id === id && row.module === 'hr/recruitment/tests');
     if (index < 0) return NextResponse.json({ message: 'Epreuve introuvable.' }, { status: 404 });

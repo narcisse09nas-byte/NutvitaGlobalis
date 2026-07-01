@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { hasLocalAdminMode, hasSupabaseConfig } from '@/lib/supabase/config';
 import { localMaximusEvents, localMaximusRecords } from '@/lib/maximus-local-store';
+import { requireMaximusApi } from '@/lib/maximus-api-auth';
 
 type OfferStatus = 'draft' | 'submitted' | 'endorsed' | 'validated' | 'rejected' | 'published' | 'closed' | 'archived';
 
@@ -24,7 +25,7 @@ function offerReference() {
   return `J${Array.from(bytes, byte => alphabet[byte % alphabet.length]).join('')}`;
 }
 
-async function context() {
+async function context(required: 'viewer' | 'creator' | 'editor' | 'validator') {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
     const cookieStore = await cookies();
     if (cookieStore.get('nutvita_local_admin')?.value !== '1') {
@@ -38,14 +39,7 @@ async function context() {
       },
     };
   }
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: NextResponse.json({ message: 'Authentification requise.' }, { status: 401 }) };
-  const { data: admin } = await supabase.from('admin_users').select('role,active').eq('id', user.id).maybeSingle();
-  if (!admin?.active || admin.role !== 'super_admin') {
-    return { error: NextResponse.json({ message: 'Acces super administrateur requis.' }, { status: 403 }) };
-  }
-  return { supabase, user };
+  return requireMaximusApi('hr/recruitment/offers', required);
 }
 
 function localOffers() {
@@ -71,7 +65,7 @@ async function logEvent(
   toStatus: string,
   details: Record<string, unknown> = {},
 ) {
-  if ('local' in ctx && ctx.local) {
+  if ('local' in ctx) {
     localMaximusEvents().push({
       id: crypto.randomUUID(),
       source_record_id: offerId,
@@ -96,16 +90,16 @@ async function logEvent(
 }
 
 export async function GET() {
-  const ctx = await context();
+  const ctx = await context('viewer');
   if ('error' in ctx) return ctx.error;
-  if ('local' in ctx && ctx.local) return NextResponse.json({ items: localOffers() });
+  if ('local' in ctx) return NextResponse.json({ items: localOffers() });
   const { data, error } = await ctx.supabase.from('maximus_job_offers').select('*').order('created_at', { ascending: false });
   if (error) return NextResponse.json({ message: error.message }, { status: 400 });
   return NextResponse.json({ items: data || [] });
 }
 
 export async function POST(request: Request) {
-  const ctx = await context();
+  const ctx = await context('creator');
   if ('error' in ctx) return ctx.error;
   const body = await request.json();
   const title = String(body.title || '').trim();
@@ -133,7 +127,7 @@ export async function POST(request: Request) {
     closing_at: body.closing_at || null,
     status: 'draft' as OfferStatus,
   };
-  if ('local' in ctx && ctx.local) {
+  if ('local' in ctx) {
     const now = new Date().toISOString();
     const row = {
       id: crypto.randomUUID(),
@@ -159,13 +153,13 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const ctx = await context();
+  const ctx = await context('validator');
   if ('error' in ctx) return ctx.error;
   const body = await request.json();
   const id = String(body.id || '');
   if (!id) return NextResponse.json({ message: 'Offre requise.' }, { status: 400 });
 
-  if ('local' in ctx && ctx.local) {
+  if ('local' in ctx) {
     const row = localMaximusRecords().find(item => item.id === id && item.module === 'hr/recruitment/offers');
     if (!row) return NextResponse.json({ message: 'Offre introuvable.' }, { status: 404 });
     const current = row.status as OfferStatus;
@@ -228,10 +222,10 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const ctx = await context();
+  const ctx = await context('validator');
   if ('error' in ctx) return ctx.error;
   const id = new URL(request.url).searchParams.get('id') || '';
-  if ('local' in ctx && ctx.local) {
+  if ('local' in ctx) {
     const rows = localMaximusRecords();
     const index = rows.findIndex(item => item.id === id && item.module === 'hr/recruitment/offers');
     if (index < 0) return NextResponse.json({ message: 'Offre introuvable.' }, { status: 404 });

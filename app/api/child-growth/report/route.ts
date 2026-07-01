@@ -3,6 +3,8 @@ import {analyzeChildGrowth} from "@/lib/child-growth-analysis";
 import {renderChildGrowthReport} from "@/lib/child-growth-report-pdf";
 import {createAdminClient} from "@/lib/supabase/admin";
 import {createClient} from "@/lib/supabase/server";
+import {applyNcgieFramework} from "@/lib/ncgie-child-growth-analysis";
+import {enrichChildGrowthNarrative} from "@/lib/ai-narrative";
 
 export async function POST(request:Request){
   const supabase=await createClient();
@@ -22,7 +24,7 @@ export async function POST(request:Request){
   if(!rows?.length)return NextResponse.json({message:"Ajoutez au moins une mesure."},{status:400});
 
   const computed=analyzeChildGrowth(child,rows);
-  const analysis=latest?{
+  const merged=latest?{
     ...computed,
     summary:latest.summary,
     positives:latest.positives||computed.positives,
@@ -35,13 +37,14 @@ export async function POST(request:Request){
     professionalConclusion:latest.professional_conclusion||computed.professionalConclusion,
     consultationRecommended:latest.consultation_recommended,
   }:computed;
+  const analysis=await enrichChildGrowthNarrative(applyNcgieFramework(merged,child,rows));
   const period={start:String(rows[0].measured_at).slice(0,10),end:String(rows.at(-1).measured_at).slice(0,10)};
   const admin=createAdminClient();
   const reportId=crypto.randomUUID();
   const path=`${user.id}/child-growth-reports/${reportId}.pdf`;
   try{
     if(!validSubscription.child_id)await admin.from("subscriptions").update({child_id:child.id}).eq("id",validSubscription.id);
-    const bytes=await renderChildGrowthReport(child,rows,analysis,period);
+    const bytes=await renderChildGrowthReport(child,rows,analysis,period,{reportId});
     const upload=await admin.storage.from("document-vault").upload(path,bytes,{contentType:"application/pdf",upsert:false});
     if(upload.error)throw upload.error;
     const {data:report,error}=await admin.from("child_growth_reports").insert({

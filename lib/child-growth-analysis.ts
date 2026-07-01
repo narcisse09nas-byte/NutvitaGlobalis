@@ -16,6 +16,26 @@ export type GrowthIndicatorInsight = {
   benefits?: string[];
   missingData?: string[];
   professionalRecommendations?: string[];
+  presentation?: string;
+  currentSituation?: string;
+  whoComparison?: string;
+  previousComparison?: string;
+  firstComparison?: string;
+  peakAnalysis?: string;
+  statistics?: {
+    count: number;
+    minimum?: number;
+    maximum?: number;
+    mean?: number;
+    standardDeviation?: number;
+    averageChange?: number;
+    trend?: string;
+  };
+  correlationNotes?: string[];
+  clinicalInterpretation?: string;
+  projections?: { month1: string; month3: string; month6: string; month12: string };
+  prioritizedRecommendations?: string[];
+  confidence?: { score: number; explanation: string };
 };
 export type ChildGrowthAnalysis = {
   summary: string;
@@ -29,6 +49,24 @@ export type ChildGrowthAnalysis = {
   professionalConclusion: string;
   consultationRecommended: boolean;
   alerts: GrowthAlert[];
+  globalScore?: number;
+  scoreColor?: "green" | "orange" | "red";
+  domainScores?: Record<string, number | null>;
+  whoCurveAnalysis?: string[];
+  growthStory?: string;
+  influencingFactors?: Array<{ factor: string; analysis: string; status: "documented" | "missing" | "attention" }>;
+  developmentAnalysis?: Array<{ domain: string; analysis: string; status: "documented" | "missing" | "attention" }>;
+  actionPlan?: {
+    days7: string[];
+    days30: string[];
+    days90: string[];
+    days180: string[];
+    daily: string[];
+    weekly: string[];
+    monthly: string[];
+  };
+  limitations?: string[];
+  aiVersion?: string;
 };
 
 const number = (value: any) => value === null || value === undefined || value === "" ? null : Number(value);

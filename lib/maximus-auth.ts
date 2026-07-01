@@ -3,8 +3,9 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { hasLocalAdminMode, hasSupabaseConfig } from "@/lib/supabase/config";
 import { createLocalClient, localAdmin } from "@/lib/supabase/local";
+import { modulesForAccess } from "@/lib/maximus-access";
 
-export async function requireMaximusAccess() {
+export async function requireMaximusAccess(module?: string) {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
     const cookieStore = await cookies();
     if (cookieStore.get("nutvita_local_admin")?.value !== "1") redirect("/maximus/login");
@@ -14,7 +15,7 @@ export async function requireMaximusAccess() {
       full_name: process.env.LOCAL_ADMIN_NAME || localAdmin.full_name,
       role: "super_admin",
     };
-    return { supabase: createLocalClient(), user: admin, admin };
+    return { supabase: createLocalClient(), user: admin, admin, isSuperAdmin: true, allowedModules: undefined };
   }
 
   if (!hasSupabaseConfig()) redirect("/maximus/login?setup=1");
@@ -22,17 +23,21 @@ export async function requireMaximusAccess() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/maximus/login");
 
-  const { data: admin } = await supabase
-    .from("admin_users")
-    .select("id,email,full_name,role,active")
-    .eq("id", user.id)
-    .eq("active", true)
-    .maybeSingle();
-
-  if (!admin) {
+  const [{ data: admin }, { data: access }] = await Promise.all([
+    supabase.from("admin_users").select("id,email,full_name,role,active").eq("id", user.id).eq("active", true).maybeSingle(),
+    supabase.from("maximus_user_access").select("*").eq("user_id", user.id).eq("active", true).maybeSingle(),
+  ]);
+  const isSuperAdmin = admin?.role === "super_admin";
+  if (!isSuperAdmin && !access) {
     await supabase.auth.signOut();
     redirect("/maximus/login?unauthorized=1");
   }
-  if (admin.role !== "super_admin") redirect("/maximus/login?acces=refuse");
-  return { supabase, user, admin };
+  const allowedModules = isSuperAdmin ? undefined : modulesForAccess(
+    Array.isArray(access!.units) && access!.units.length ? access!.units : [access!.unit],
+    Array.isArray(access!.module_access) ? access!.module_access : [],
+  );
+  if (module === "administration/users" && !isSuperAdmin) redirect("/maximus?acces=refuse");
+  if (module && !isSuperAdmin && !allowedModules?.includes(module)) redirect("/maximus?acces=refuse");
+  const identity = isSuperAdmin ? admin : { id: user.id, email: access!.email, full_name: access!.full_name, role: access!.role, active: access!.active };
+  return { supabase, user, admin: identity, access, isSuperAdmin, allowedModules };
 }

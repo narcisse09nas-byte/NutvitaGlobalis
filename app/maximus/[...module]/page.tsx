@@ -7,6 +7,6 @@ export default async function MaximusModulePage({ params }: { params: Promise<{ 
   const slug = (await params).module.join('/');
   const module = maximusModuleMap.get(slug);
   if (!module) notFound();
-  const { admin } = await requireMaximusAccess();
-  return <MaximusWorkspace adminName={admin.full_name || admin.email} module={module} />;
+  const { admin, allowedModules, isSuperAdmin } = await requireMaximusAccess(slug);
+  return <MaximusWorkspace adminName={admin.full_name || admin.email} module={module} allowedModules={allowedModules} isSuperAdmin={isSuperAdmin} />;
 }

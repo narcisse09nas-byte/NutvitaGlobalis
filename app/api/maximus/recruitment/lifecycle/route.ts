@@ -3,14 +3,10 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resend } from '@/lib/api';
 import { createEmploymentProposalPdf, createSignatureEnvelope } from '@/lib/signature-documents';
+import { requireMaximusApi } from '@/lib/maximus-api-auth';
 
-async function context() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: NextResponse.json({ message: 'Authentification requise.' }, { status: 401 }) };
-  const { data: admin } = await supabase.from('admin_users').select('role,active').eq('id', user.id).maybeSingle();
-  if (!admin?.active || admin.role !== 'super_admin') return { error: NextResponse.json({ message: 'Acces RH requis.' }, { status: 403 }) };
-  return { supabase, user };
+async function context(required: 'viewer' | 'editor') {
+  return requireMaximusApi('hr/recruitment/interviews', required);
 }
 
 async function email(to: string, subject: string, text: string) {
@@ -18,7 +14,7 @@ async function email(to: string, subject: string, text: string) {
 }
 
 export async function GET() {
-  const ctx = await context();
+  const ctx = await context('viewer');
   if ('error' in ctx) return ctx.error;
   const [{ data: applications }, { data: interviews }, { data: proposals }] = await Promise.all([
     ctx.supabase.from('maximus_staff_applications').select('id,offer_id,candidate_id,full_name,email,status,written_test_score,interview_score,maximus_job_offers(title,reference,contract_type)').in('status', ['test_graded','invited_to_interview','interview_completed','offer_proposed','offer_accepted','offer_declined','hired']).order('updated_at', { ascending: false }),
@@ -29,7 +25,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const ctx = await context();
+  const ctx = await context('editor');
   if ('error' in ctx) return ctx.error;
   const body = await request.json();
   const action = String(body.action || '');

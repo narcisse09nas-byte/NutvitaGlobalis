@@ -1,22 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { requireMaximusApi } from '@/lib/maximus-api-auth';
 
 const transitions: Record<string, string[]> = {
   draft: ['submitted'], submitted: ['endorsed', 'rejected'], endorsed: ['validated', 'rejected'],
   validated: ['published'], published: ['closed'], rejected: ['draft'], closed: ['archived'], archived: [],
 };
 
-async function context() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: NextResponse.json({ message: 'Authentification requise.' }, { status: 401 }) };
-  const { data: admin } = await supabase.from('admin_users').select('role,active').eq('id', user.id).maybeSingle();
-  if (!admin?.active || admin.role !== 'super_admin') return { error: NextResponse.json({ message: 'Acces Partenariats requis.' }, { status: 403 }) };
-  return { supabase, user };
+async function context(required: 'viewer' | 'creator' | 'validator') {
+  return requireMaximusApi('partnerships/vendor-recruitment', required);
 }
 
 export async function GET() {
-  const ctx = await context();
+  const ctx = await context('viewer');
   if ('error' in ctx) return ctx.error;
   const [{ data: calls }, { data: applications }, { data: visits }] = await Promise.all([
     ctx.supabase.from('maximus_vendor_calls').select('*').order('created_at', { ascending: false }),
@@ -27,7 +23,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const ctx = await context();
+  const ctx = await context('creator');
   if ('error' in ctx) return ctx.error;
   const body = await request.json();
   if (body.action === 'create_call') {
@@ -61,7 +57,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const ctx = await context();
+  const ctx = await context('validator');
   if ('error' in ctx) return ctx.error;
   const body = await request.json();
   if (body.action === 'transition_call') {

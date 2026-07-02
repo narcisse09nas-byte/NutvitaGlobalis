@@ -106,6 +106,8 @@ export async function POST(request: Request) {
       .eq("status", "active")
       .gt("expires_at", now)
       .filter("child_id", purchase.childId ? "eq" : "is", purchase.childId || null)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
     const { data: existingPendingSubscription } = await admin
       .from("subscriptions")
@@ -121,7 +123,17 @@ export async function POST(request: Request) {
       ? await admin.from("payments").select("id").eq("subscription_id", existingPendingSubscription.id).eq("status", "pending").maybeSingle()
       : { data: null };
     if (existingPending) {
-      return NextResponse.json({ url: `/espace-client/paiements/${existingPending.id}` });
+      if (freeAccessMode()) {
+        try {
+          await finalizePayment(admin, existingPending.id, `free-retry-${Date.now()}`, { action: "temporary_free_access_retry" });
+          return NextResponse.json({ url: "/espace-client?activation=gratuite" });
+        } catch (error) {
+          await admin.from("payments").update({ status: "failed", raw_event: { action: "temporary_free_access_retry", error: error instanceof Error ? error.message : "Finalisation impossible" } }).eq("id", existingPending.id);
+          await admin.from("subscriptions").update({ status: "cancelled" }).eq("id", existingPendingSubscription!.id);
+        }
+      } else {
+        return NextResponse.json({ url: `/espace-client/paiements/${existingPending.id}` });
+      }
     }
     extendsSubscriptionId = existingActive?.id || upgradeFromSubscriptionId || null;
     const { data, error } = await admin.from("subscriptions").insert({ client_id: user.id, child_id: purchase.childId || null, plan_id: purchase.id, provider: dbProvider, status: "pending", renewal_period_months: purchase.duration, extends_subscription_id: extendsSubscriptionId, upgrade_from_subscription_id: upgradeFromSubscriptionId, purchase_action: upgradeFromSubscriptionId ? "upgrade" : existingActive ? "extend" : "activate" }).select().single();
@@ -144,8 +156,16 @@ export async function POST(request: Request) {
   }
   if (paymentError || !payment) return NextResponse.json({ message: paymentError?.message || "Paiement impossible." }, { status: 500 });
   if (freeAccessMode()) {
-    await finalizePayment(admin, payment.id, `free-${reference}`, { action: "temporary_free_access", reason: "payments_paused_until_company_legal_documents_ready" });
-    return NextResponse.json({ url: "/espace-client?activation=gratuite" });
+    try {
+      await finalizePayment(admin, payment.id, `free-${reference}`, { action: "temporary_free_access", reason: "payments_paused_until_company_legal_documents_ready" });
+      return NextResponse.json({ url: "/espace-client?activation=gratuite" });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Finalisation impossible";
+      await admin.from("payments").update({ status: "failed", raw_event: { action: "temporary_free_access", error: reason } }).eq("id", payment.id);
+      if (subscriptionId) await admin.from("subscriptions").update({ status: "cancelled" }).eq("id", subscriptionId);
+      console.error("Temporary free activation failed", { paymentId: payment.id, subscriptionId, reason });
+      return NextResponse.json({ message: `Activation non finalisee: ${reason}` }, { status: 500 });
+    }
   }
   if (manualMethod) return NextResponse.json({ url: `/espace-client/paiements/${payment.id}` });
 

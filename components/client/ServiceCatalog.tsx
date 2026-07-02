@@ -39,9 +39,9 @@ export default function ServiceCatalog({ plans, packs, courses, children, subscr
           <select className="admin-input" value={selectedChild} onChange={e=>setSelectedChild(e.target.value)}>
             {children.map(child=><option key={child.id} value={child.id}>{child.full_name||[child.first_name,child.last_name].filter(Boolean).join(" ")||"Enfant"}</option>)}
           </select>
-        </label> : <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Vous pouvez acheter ce suivi maintenant. Apres activation, vous ajouterez l'enfant a suivre dans l'espace croissance.</p>}
+        </label> : <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Ajoutez d abord l enfant dans l espace Croissance enfant. Chaque abonnement doit être associé à un enfant précis.</p>}
       </div>}
-      <button onClick={()=>checkout(item)} className="btn-primary w-full">{active?"Etendre gratuitement":"Activer gratuitement"}</button>
+      <button onClick={()=>checkout(item)} disabled={item.group==="child_growth"&&!selectedChild} className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50">{item.group==="child_growth"&&!selectedChild?"Ajouter un enfant avant activation":active?"Etendre gratuitement":"Activer gratuitement"}</button>
     </article>})}</div>
     {!rows.length && <p className="rounded-2xl bg-white p-8 text-slate-500">Aucun service disponible dans cette categorie.</p>}
   </div>;

@@ -88,6 +88,24 @@ alter table public.user_consents add column if not exists source text;
 alter table public.user_consents add column if not exists version text;
 alter table public.subscriptions add column if not exists upgrade_from_subscription_id uuid references public.subscriptions(id) on delete set null;
 alter table public.subscriptions add column if not exists purchase_action text not null default 'activate';
+alter table public.subscriptions add column if not exists started_at timestamptz;
+alter table public.subscriptions add column if not exists expires_at timestamptz;
+alter table public.subscriptions add column if not exists current_period_start timestamptz;
+alter table public.subscriptions add column if not exists current_period_end timestamptz;
+alter table public.subscriptions add column if not exists renewal_period_months integer not null default 12;
+alter table public.subscriptions add column if not exists extends_subscription_id uuid references public.subscriptions(id) on delete set null;
+
+alter table public.payments add column if not exists source_amount_xof numeric;
+alter table public.payments add column if not exists exchange_rate_xof_per_usd numeric;
+alter table public.payments add column if not exists price_excluding_tax numeric;
+alter table public.payments add column if not exists tax_rate numeric not null default 0;
+alter table public.payments add column if not exists tax_amount numeric not null default 0;
+alter table public.payments add column if not exists total_including_tax numeric;
+alter table public.payments add column if not exists product_name text;
+alter table public.payments add column if not exists purchase_type text not null default 'subscription';
+alter table public.payments add column if not exists product_id text;
+alter table public.payments add column if not exists manual_method text;
+alter table public.payments add column if not exists invoice_id uuid references public.invoices(id) on delete set null;
 
 create or replace function public.can_access_collaboration_call(p_call_id uuid)
 returns boolean language sql stable security definer set search_path=public as $$

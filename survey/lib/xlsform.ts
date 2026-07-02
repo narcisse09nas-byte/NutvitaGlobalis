@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 
 export type SurveyQuestion = {
   id: string;
-  type: 'text' | 'integer' | 'decimal' | 'date' | 'time' | 'geopoint' | 'select_one' | 'select_multiple' | 'note' | 'calculate' | 'begin_group' | 'begin_repeat';
+  type: 'text' | 'integer' | 'decimal' | 'date' | 'time' | 'geopoint' | 'select_one' | 'select_multiple' | 'note' | 'calculate' | 'begin_group' | 'end_group' | 'begin_repeat' | 'end_repeat';
   name: string;
   label: string;
   labels?: Record<string, string>;
@@ -27,6 +27,8 @@ export type SurveyQuestion = {
   media_image?: string;
   media_audio?: string;
   media_video?: string;
+  moduleId?: string;
+  indicatorMetadata?: Record<string, unknown>;
 };
 
 function clean(value: unknown) {
@@ -52,7 +54,20 @@ export function parseXlsForm(buffer: ArrayBuffer) {
   });
   const questions: SurveyQuestion[] = surveyRows.flatMap((row, index) => {
     const sourceType = clean(row.type);
-    if (!sourceType || sourceType.startsWith('begin ') || sourceType.startsWith('end ')) return [];
+    if (!sourceType) return [];
+    const structuralType = sourceType.replace(' ', '_');
+    if (['begin_group','end_group','begin_repeat','end_repeat'].includes(structuralType)) {
+      return [{
+        id: crypto.randomUUID(),
+        type: structuralType as SurveyQuestion['type'],
+        name: clean(row.name) || `${structuralType}_${index + 1}`,
+        label: clean(row.label || row['label::French (fr)']),
+        labels: { fr: clean(row['label::French (fr)'] || row.label), en: clean(row['label::English (en)']) },
+        relevant: clean(row.relevant),
+        repeat_count: clean(row.repeat_count),
+        appearance: clean(row.appearance),
+      }];
+    }
     const [rawType, listName] = sourceType.split(/\s+/, 2);
     const type = rawType === 'integer'
       ? 'integer'
@@ -116,7 +131,7 @@ export function exportQuestionnaireWorkbook(title: string, questions: SurveyQues
     type: question.type === 'select_one' || question.type === 'select_multiple'
       ? `${question.type} ${question.listName || question.name}`
       : question.type.replace('_', ' '),
-    name: question.name,
+    name: question.type === 'end_group' || question.type === 'end_repeat' ? '' : question.name,
     label: question.labels?.fr || question.label,
     'label::French (fr)': question.labels?.fr || question.label,
     'label::English (en)': question.labels?.en || '',

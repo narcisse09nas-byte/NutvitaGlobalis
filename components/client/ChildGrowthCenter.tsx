@@ -6,6 +6,8 @@ import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import GeoFields from "@/components/accounts/GeoFields";
 import { createClient } from "@/lib/supabase/client";
 import { customIndicatorTemplates } from "@/lib/tracking-indicators";
+import ChildNutritionVaccination from "@/components/client/ChildNutritionVaccination";
+import { calculateNutriTrackZScores, completedAgeMonths } from "@/lib/child-growth-zscores";
 
 type Row = Record<string, any>;
 
@@ -16,7 +18,7 @@ function formPayload(form: HTMLFormElement) {
   return payload;
 }
 
-export default function ChildGrowthCenter({ parentId, initialChildren, initialMeasurements, subscriptions, plan, taxRate, initialAnalyses, initialAlerts, initialReports }: { parentId: string; initialChildren: Row[]; initialMeasurements: Row[]; subscriptions: Row[]; plan: Row | null; taxRate: number; initialAnalyses:Row[]; initialAlerts:Row[]; initialReports:Row[] }) {
+export default function ChildGrowthCenter({ parentId, initialChildren, initialMeasurements, subscriptions, plan, taxRate, initialAnalyses, initialAlerts, initialReports, initialFeeding, initialVaccinations }: { parentId: string; initialChildren: Row[]; initialMeasurements: Row[]; subscriptions: Row[]; plan: Row | null; taxRate: number; initialAnalyses:Row[]; initialAlerts:Row[]; initialReports:Row[]; initialFeeding:Row[]; initialVaccinations:Row[] }) {
   const [children, setChildren] = useState(initialChildren);
   const [measurements, setMeasurements] = useState(initialMeasurements);
   const [selected, setSelected] = useState(initialChildren[0]?.id || "");
@@ -26,10 +28,15 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
   const child = children.find(item => item.id === selected);
   const rows = useMemo(() => measurements.filter(item => item.child_id === selected).sort((a, b) => +new Date(a.measured_at) - +new Date(b.measured_at)), [measurements, selected]);
   const customTemplates = useMemo(() => customIndicatorTemplates(rows), [rows]);
-  const subscription = subscriptions.find(item => item.status === "active" && (item.child_id === selected || (!item.child_id && (item.subscription_plans?.service_type === "child_growth" || String(item.plan_id).includes("child-growth")))));
+  const subscription = subscriptions.find(item => item.status === "active" && item.child_id === selected);
+  const childSubscriptionCount = subscriptions.filter(item => item.subscription_plans?.service_type === "child_growth" || String(item.plan_id).includes("child-growth")).length;
 
   async function addChild(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (children.length > 0 && children.length >= childSubscriptionCount) {
+      setMessage("Chaque abonnement croissance est reserve a un seul enfant. Activez un nouvel abonnement avant d ajouter un autre enfant.");
+      return;
+    }
     const form = event.currentTarget;
     const payload = formPayload(form);
     payload.currently_breastfed = payload.currently_breastfed === "true";
@@ -49,6 +56,17 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
       try { payload.custom_values = JSON.parse(String(payload.custom_values)); }
       catch { payload.custom_values = {}; }
     }
+    const zScores = calculateNutriTrackZScores({
+      birthDate: child.birth_date,
+      measuredAt: String(payload.measured_at),
+      sex: child.sex,
+      weightKg: Number(payload.weight_kg),
+      heightCm: Number(payload.height_cm),
+    });
+    payload.age_months = zScores.ageMonths;
+    payload.weight_for_age_z = zScores.weightForAgeZ;
+    payload.height_for_age_z = zScores.heightForAgeZ;
+    payload.weight_for_height_z = zScores.weightForHeightZ;
     const { data, error } = await createClient().from("child_growth_measurements").insert({ ...payload, child_id: selected, recorded_by: parentId }).select().single();
     if (error) setMessage(error.message);
     else { setMeasurements([...measurements, data]); form.reset(); setMessage("Mesure enregistree. Analyse en cours..."); await analyzeNow(); }
@@ -61,7 +79,9 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
     if (weight === null) return;
     const height = window.prompt("Taille (cm)", row.height_cm == null ? "" : String(row.height_cm));
     if (height === null) return;
-    const { data, error } = await createClient().from("child_growth_measurements").update({ measured_at: `${measuredAt}T12:00:00`, weight_kg: weight === "" ? null : Number(weight), height_cm: height === "" ? null : Number(height) }).eq("id", row.id).select().single();
+    const nextWeight=weight===""?null:Number(weight),nextHeight=height===""?null:Number(height);
+    const zScores=nextWeight&&nextHeight?calculateNutriTrackZScores({birthDate:child.birth_date,measuredAt,sex:child.sex,weightKg:nextWeight,heightCm:nextHeight}):null;
+    const { data, error } = await createClient().from("child_growth_measurements").update({ measured_at: `${measuredAt}T12:00:00`, weight_kg: nextWeight, height_cm: nextHeight, age_months:zScores?.ageMonths??null, weight_for_age_z:zScores?.weightForAgeZ??null, height_for_age_z:zScores?.heightForAgeZ??null, weight_for_height_z:zScores?.weightForHeightZ??null }).eq("id", row.id).select().single();
     if (error) setMessage(error.message);
     else { setMeasurements(measurements.map(item => item.id === row.id ? data : item)); setMessage("Mesure modifiee."); }
   }
@@ -124,6 +144,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
           <Field name="measured_at" label="Date de mesure" type="datetime-local" required />
           <Field name="weight_kg" label="Poids (kg)" type="number" step="0.01" />
           <Field name="height_cm" label="Taille / longueur (cm)" type="number" step="0.1" />
+          <Select name="measurement_method" label="Methode de mesure OMS" defaultValue={(completedAgeMonths(child.birth_date,new Date().toISOString())??0)<24?"recumbent_length":"standing_height"} options={[["recumbent_length", "Longueur couchee"], ["standing_height", "Taille debout"]]} />
           <Field name="head_circumference_cm" label="Perimetre cranien (cm)" type="number" step="0.1" />
           <Field name="muac_cm" label="PB / MUAC (cm)" type="number" step="0.1" />
           <Select name="edema" label="Oedemes nutritionnels" options={[["false", "Non"], ["true", "Oui"]]} />
@@ -139,6 +160,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
         <div className="flex flex-wrap gap-3"><button onClick={analyzeNow} disabled={loading} className="btn-primary">{loading?'Traitement...':'Actualiser l analyse'}</button><button onClick={createReport} disabled={loading} className="btn-secondary">Generer le rapport PDF</button></div>
         <GrowthCharts rows={rows} />
         <MeasurementHistory rows={rows} onEdit={editMeasure} onDelete={deleteMeasure} />
+        <ChildNutritionVaccination key={child.id} child={child} userId={parentId} feeding={initialFeeding.filter(item=>item.child_id===child.id)} vaccinations={initialVaccinations.filter(item=>item.child_id===child.id)}/>
         <section className="rounded-2xl border bg-white p-6"><h2 className="text-xl font-black">Analyse IA explicable</h2><p className="mt-4 leading-7">{savedAnalysis?.summary||analysis.summary}</p>{(savedAnalysis?.positives||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-leaf">+ {item}</p>)}{(savedAnalysis?.attention_points||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-orange">! {item}</p>)}<p className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{analysis.advice}</p>{(savedAnalysis?.indicator_insights||savedAnalysis?.indicatorInsights||[]).length>0&&<div className="mt-5 grid gap-3">{(savedAnalysis?.indicator_insights||savedAnalysis?.indicatorInsights||[]).map((item:any)=><article key={item.indicator} className="rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap justify-between gap-2"><b>{item.indicator}</b><span className="text-xs font-bold uppercase text-slate-500">{item.status}</span></div><p className="mt-2 text-sm text-slate-700">{item.parentInterpretation}</p><p className="mt-2 text-xs text-slate-500">{item.professionalInterpretation}</p></article>)}</div>}</section>
         <AlertPanel alerts={childAlerts}/>
         <AdvicePanel items={savedAnalysis?.parent_advice||[]}/>
@@ -150,7 +172,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
 
 function Field({ name, label, type = "text", step, required = false }: any) { return <label className="grid gap-2 text-sm font-bold">{label}<input name={name} type={type} step={step} required={required} className="admin-input" /></label>; }
 function Area({ name, label }: { name: string; label: string }) { return <label className="grid gap-2 text-sm font-bold">{label}<textarea name={name} className="admin-input min-h-24" /></label>; }
-function Select({ name, label, options }: { name: string; label: string; options: string[][] }) { return <label className="grid gap-2 text-sm font-bold">{label}<select name={name} required className="admin-input">{options.map(([value, text]) => <option key={value || "empty"} value={value}>{text}</option>)}</select></label>; }
+function Select({ name, label, options, defaultValue }: { name: string; label: string; options: string[][]; defaultValue?:string }) { return <label className="grid gap-2 text-sm font-bold">{label}<select name={name} required defaultValue={defaultValue} className="admin-input">{options.map(([value, text]) => <option key={value || "empty"} value={value}>{text}</option>)}</select></label>; }
 function Line({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) { return <div className={`flex justify-between ${strong ? "border-t pt-2 text-lg" : ""}`}><span>{label}</span><b>{value}</b></div>; }
 
 function ChildCustomIndicators({templates}:{templates:Array<{name:string;unit?:string;normal_min?:number|null;normal_max?:number|null}>}) {
@@ -164,7 +186,7 @@ function ChildCustomIndicators({templates}:{templates:Array<{name:string;unit?:s
 }
 
 function analyze(rows: Row[]) {
-  if (rows.length < 2) return { summary: "Ajoutez au moins deux mesures pour visualiser une tendance.", advice: "Les z-scores sont calcules uniquement apres import des tables OMS officielles adaptees a l'age et au sexe." };
+  if (rows.length < 2) return { summary: "Ajoutez au moins deux mesures pour visualiser une tendance.", advice: "Les z-scores P/A, T/A et P/T sont calcules automatiquement selon l age, le sexe, le poids et la taille renseignes." };
   const first = rows[0], last = rows.at(-1)!;
   const months = Math.max(0.1, (+new Date(last.measured_at) - +new Date(first.measured_at)) / 2629800000);
   const weightChange = Number(last.weight_kg || 0) - Number(first.weight_kg || 0);

@@ -26,7 +26,9 @@ create table if not exists public.payment_webhook_logs (
 );
 create index if not exists webhook_logs_provider_date on public.payment_webhook_logs(provider,created_at desc);
 alter table public.payment_webhook_logs enable row level security;
+drop policy if exists "Admins read payment webhook logs" on public.payment_webhook_logs;
 create policy "Admins read payment webhook logs" on public.payment_webhook_logs for select to authenticated using(public.is_admin());
+drop policy if exists "Admins manage payment webhook logs" on public.payment_webhook_logs;
 create policy "Admins manage payment webhook logs" on public.payment_webhook_logs for all to authenticated using(public.is_admin()) with check(public.is_admin());
 
 -- Reserved structures for later promotions, installments and wallet features.
@@ -38,6 +40,7 @@ create table if not exists public.promo_codes (
   created_at timestamptz not null default now()
 );
 alter table public.promo_codes enable row level security;
+drop policy if exists "Admins manage promo codes" on public.promo_codes;
 create policy "Admins manage promo codes" on public.promo_codes for all to authenticated using(public.is_admin()) with check(public.is_admin());
 
 -- Compatibility names requested by the product specification.

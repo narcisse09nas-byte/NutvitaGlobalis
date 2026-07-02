@@ -26,10 +26,6 @@ function statistics(item: GrowthIndicatorInsight) {
   };
 }
 
-function statusScore(status: GrowthIndicatorInsight["status"]) {
-  return status === "usual" ? 88 : status === "watch" ? 55 : status === "urgent" ? 22 : 42;
-}
-
 export function applyNcgieFramework(analysis: ChildGrowthAnalysis, child: GrowthRow, source: GrowthRow[]): ChildGrowthAnalysis {
   const rows = [...source].sort((a, b) => +new Date(a.measured_at) - +new Date(b.measured_at));
   const latestRow = rows.at(-1);
@@ -85,24 +81,6 @@ export function applyNcgieFramework(analysis: ChildGrowthAnalysis, child: Growth
     if (latestRow?.complementary_feeding || child.feeding_mode) item.correlationNotes.push("Les pratiques alimentaires documentees doivent etre rapprochees de la trajectoire sans conclure a une causalite.");
   }
 
-  const domainMap: Record<string, string[]> = {
-    Poids: ["poids"],
-    Taille: ["taille / longueur"],
-    "Croissance lineaire": ["taille-pour-age"],
-    Nutrition: ["muac", "poids-pour-taille", "oedeme"],
-    Developpement: ["developpement"],
-    Alimentation: ["appetit", "alimentation"],
-    Vaccination: ["vaccination"],
-    "Mode de vie": ["activite", "sommeil"],
-    "Suivi medical": ["maladie", "fievre", "diarrhee", "toux"],
-  };
-  const domainScores: Record<string, number | null> = {};
-  for (const [domain, terms] of Object.entries(domainMap)) {
-    const matching = indicators.filter(item => has(item, terms));
-    domainScores[domain] = matching.length ? Math.round(matching.reduce((sum, item) => sum + statusScore(item.status), 0) / matching.length) : null;
-  }
-  const available = Object.values(domainScores).filter((score): score is number => score !== null);
-  const globalScore = available.length ? Math.round(available.reduce((sum, score) => sum + score, 0) / available.length) : 45;
   const first = rows[0];
   const influencingFactors = [
     ["Allaitement", latestRow?.breastfeeding_status || child.feeding_mode],
@@ -138,9 +116,6 @@ export function applyNcgieFramework(analysis: ChildGrowthAnalysis, child: Growth
   return {
     ...analysis,
     indicatorInsights: indicators,
-    globalScore,
-    scoreColor: globalScore >= 75 ? "green" : globalScore >= 50 ? "orange" : "red",
-    domainScores,
     whoCurveAnalysis: [
       rows.length < 2 ? "N/A: une seule visite ne permet pas d analyser la trajectoire OMS." : "La trajectoire doit etre examinee pour tout franchissement durable de couloir, cassure ou rattrapage.",
       ...indicators.filter(item => item.latest?.includes(" z")).map(item => `${item.indicator}: ${item.latest}; statut ${item.status}.`),

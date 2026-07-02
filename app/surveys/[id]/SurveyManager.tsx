@@ -9,6 +9,8 @@ import {
   FlaskConical, MapPinned, Plus, Save, Send, Settings2, Trash2, Users,
 } from 'lucide-react';
 import { analyzeDataset, crossTab } from '@/survey/lib/analysis';
+import { analyzeEnaSmartPlausibility } from '@/survey/lib/ena-smart-plausibility';
+import { calculateSurveyIndicators } from '@/survey/lib/food-security-indicators';
 import { exportQuestionnaireWorkbook, parseXlsForm, type SurveyQuestion } from '@/survey/lib/xlsform';
 import { calculateLFAzScore, calculateWFAzScore, calculateWFLzScore, classifyLFAzScore, classifyWFLzScore } from '@/survey/lib/who-growth-standards';
 
@@ -102,13 +104,34 @@ function Team({ items, mutate, setMessage }: { surveyId: string; items: Row[]; m
   return <div className="grid gap-6"><Panel title="Equipe de l enquete" text="Proprietaire, managers, superviseurs, enqueteurs, guides et analystes."><form onSubmit={submit} className="grid gap-3 md:grid-cols-3"><input name="first_name" required placeholder="Prenom" className="admin-input" /><input name="last_name" required placeholder="Nom" className="admin-input" /><select name="role" className="admin-input"><option>Manager</option><option>Superviseur</option><option>Enqueteur</option><option>Guide de terrain</option><option>Analyste</option><option>Autre</option></select><input name="email" type="email" placeholder="Email" className="admin-input" /><input name="phone" placeholder="Telephone" className="admin-input" /><button className="btn-primary"><Plus className="mr-2 h-4" />Ajouter</button></form></Panel><Panel title={`${items.length} membre(s)`}>{items.length ? <div className="overflow-x-auto"><table className="min-w-full text-sm"><thead><tr className="text-left text-slate-500"><th className="p-3">Nom</th><th className="p-3">Role</th><th className="p-3">Contact</th><th /></tr></thead><tbody>{items.map(item => <tr key={item.id} className="border-t"><td className="p-3 font-bold">{item.first_name} {item.last_name}</td><td className="p-3">{item.role}</td><td className="p-3">{item.email || item.phone || '-'}</td><td className="p-3 text-right"><button onClick={() => mutate('team', 'DELETE', undefined, item.id)} className="text-red-700"><Trash2 className="h-4" /></button></td></tr>)}</tbody></table></div> : <Empty text="Aucun membre ajoute." />}</Panel></div>;
 }
 
-function Sampling({ clusters, samples, mutate, setMessage }: { clusters: Row[]; samples: Row[]; mutate: any; setMessage: (value: string) => void }) {
+function Sampling({clusters,samples,mutate,setMessage}:{clusters:Row[];samples:Row[];mutate:any;setMessage:(value:string)=>void}){
+  const [villages,setVillages]=useState([{code:'',name:'',population:''}]),[unit,setUnit]=useState<'clusters'|'villages'>('clusters'),[count,setCount]=useState(1);
+  async function add(event:FormEvent<HTMLFormElement>){event.preventDefault();const form=event.currentTarget,fd=new FormData(form),clean=villages.filter(item=>item.name.trim()).map((item,index)=>({id:`${fd.get('cluster_code')}-${item.code||index+1}`,code:item.code||`${fd.get('cluster_code')}-${index+1}`,name:item.name.trim(),population:Number(item.population)||0}));await mutate('clusters','POST',{cluster_code:fd.get('cluster_code'),cluster_name:fd.get('cluster_name'),region:fd.get('region')||null,district:fd.get('district')||null,population:Number(fd.get('population'))||clean.reduce((sum,item)=>sum+item.population,0),villages:clean});form.reset();setVillages([{code:'',name:'',population:''}]);setMessage('Élément ajouté à la base de sondage.');}
+  async function draw(){const units=unit==='clusters'?clusters.map(cluster=>({id:cluster.id,name:cluster.cluster_name,population:Number(cluster.population||0),cluster})):clusters.flatMap(cluster=>(cluster.villages||[]).map((village:Row)=>({id:village.id,name:village.name,population:Number(village.population||0),cluster,village}))),total=units.reduce((sum,item)=>sum+item.population,0),target=Math.min(Math.max(1,count),units.length);if(!total||!target)return setMessage('Ajoutez des unités avec une population positive.');const interval=total/target,start=Math.random()*interval,selected=new Map<string,Row>();let cumulative=0,point=start;for(const item of units){const previous=cumulative;cumulative+=item.population;while(point<=cumulative&&selected.size<target){selected.set(item.id,{...item,probability:item.population/total,interval_start:previous,interval_end:cumulative});point+=interval;}}if(unit==='clusters'){for(const item of selected.values())if(!samples.some(sample=>sample.cluster_id===item.cluster.id))await mutate('samples','POST',{cluster_id:item.cluster.id,probability:item.probability,interval_start:item.interval_start,interval_end:item.interval_end,selected_villages:[]});}else{const grouped=new Map<string,Row[]>();for(const item of selected.values())grouped.set(item.cluster.id,[...(grouped.get(item.cluster.id)||[]),{...item.village,probability:item.probability}]);for(const [clusterId,selectedVillages] of grouped){const existing=samples.find(sample=>sample.cluster_id===clusterId);if(existing)await mutate('samples','PATCH',{selected_villages:selectedVillages},existing.id);else await mutate('samples','POST',{cluster_id:clusterId,probability:selectedVillages.reduce((sum,item)=>sum+Number(item.probability),0),selected_villages:selectedVillages});}}setMessage(`${selected.size} ${unit==='clusters'?'grappe(s)':'village(s)/ZD'} tiré(e)(s).`);}
+  const max=unit==='clusters'?clusters.length:clusters.reduce((sum,item)=>sum+(item.villages||[]).length,0);
+  return <div className="grid gap-6"><Panel title="Étape 1 : Base de sondage" text="Ajoutez les villages/ZD progressivement avec leur population."><form onSubmit={add} className="grid gap-3 md:grid-cols-3"><input name="cluster_code" required placeholder="Code grappe" className="admin-input"/><input name="cluster_name" required placeholder="Nom grappe" className="admin-input"/><input name="population" type="number" min="0" placeholder="Population grappe (optionnelle)" className="admin-input"/><input name="region" placeholder="Région" className="admin-input"/><input name="district" placeholder="District" className="admin-input"/><div className="md:col-span-3"><div className="flex justify-between"><b>Villages / zones de dénombrement</b><button type="button" onClick={()=>setVillages(current=>[...current,{code:'',name:'',population:''}])} className="btn-secondary"><Plus className="mr-2 h-4"/>Ajouter</button></div><div className="mt-3 grid gap-2">{villages.map((village,index)=><div key={index} className="grid gap-2 md:grid-cols-[160px_1fr_180px_auto]"><input value={village.code} onChange={e=>setVillages(current=>current.map((item,i)=>i===index?{...item,code:e.target.value}:item))} placeholder="Code ZD" className="admin-input"/><input value={village.name} onChange={e=>setVillages(current=>current.map((item,i)=>i===index?{...item,name:e.target.value}:item))} placeholder="Nom village/ZD" className="admin-input"/><input value={village.population} onChange={e=>setVillages(current=>current.map((item,i)=>i===index?{...item,population:e.target.value}:item))} type="number" min="0" placeholder="Population" className="admin-input"/><button type="button" onClick={()=>setVillages(current=>current.filter((_,i)=>i!==index))} className="rounded-md bg-red-50 px-3 text-red-700"><Trash2 className="h-4"/></button></div>)}</div></div><button className="btn-primary md:col-span-3">Ajouter à la base</button></form><div className="mt-5 grid gap-3">{clusters.map(cluster=><article key={cluster.id} className="rounded-md border p-4"><div className="flex justify-between"><b>{cluster.cluster_code} - {cluster.cluster_name}</b><button onClick={()=>mutate('clusters','DELETE',undefined,cluster.id)} className="text-red-700"><Trash2 className="h-4"/></button></div><p className="text-sm text-slate-500">{Number(cluster.population||0).toLocaleString('fr-FR')} habitants</p>{(cluster.villages||[]).map((village:Row)=><p key={village.id} className="mt-2 rounded bg-slate-50 px-3 py-2 text-sm">{village.code} - {village.name}<b className="float-right">{Number(village.population||0).toLocaleString('fr-FR')}</b></p>)}</article>)}</div></Panel><Panel title="Étape 2 : Tirage PPS" text="Choisissez l’unité et le nombre exact à tirer." actions={<div className="flex flex-wrap gap-2"><select value={unit} onChange={e=>setUnit(e.target.value as typeof unit)} className="admin-input"><option value="clusters">Grappes</option><option value="villages">Villages / ZD</option></select><input type="number" min="1" max={Math.max(1,max)} value={count} onChange={e=>setCount(Number(e.target.value))} className="admin-input w-24"/><button onClick={draw} className="btn-primary">Tirer</button></div>}>{samples.length?<div className="grid gap-3">{samples.map(sample=>{const cluster=clusters.find(item=>item.id===sample.cluster_id);return <article key={sample.id} className="rounded-md border border-emerald-200 bg-emerald-50 p-4"><b>{cluster?.cluster_name}</b>{sample.selected_villages?.length?sample.selected_villages.map((village:Row)=><p key={village.id} className="text-sm">{village.code} - {village.name}</p>):<p className="text-sm">Grappe sélectionnée</p>}</article>})}</div>:<Empty text="Aucun élément tiré."/>}</Panel></div>;
+}
+
+function SamplingLegacy({ clusters, samples, mutate, setMessage }: { clusters: Row[]; samples: Row[]; mutate: any; setMessage: (value: string) => void }) {
   const [sampleSize, setSampleSize] = useState(1);
+  const [drawUnit,setDrawUnit]=useState<'clusters'|'villages'>('clusters');
   async function addCluster(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = event.currentTarget; const values = Object.fromEntries(new FormData(form));
-    await mutate('clusters', 'POST', { ...values, population: Number(values.population), villages: String(values.villages || '').split('\n').map((name, index) => ({ id: `${values.cluster_code}-${index + 1}`, name: name.trim(), population: 0 })).filter(item => item.name) }); form.reset(); setMessage('Grappe ajoutee a la base de sondage.');
+    const villages=String(values.villages||'').split('\n').map((line,index)=>{const [code,name,population]=line.split('|').map(value=>value.trim());return{id:`${values.cluster_code}-${code||index+1}`,code:code||`${values.cluster_code}-${index+1}`,name:name||code,population:Number(population)||0}}).filter(item=>item.name);
+    const population=Number(values.population)||villages.reduce((sum,item)=>sum+item.population,0);
+    await mutate('clusters', 'POST', { ...values, population, villages }); form.reset(); setMessage('Grappe et villages/ZD ajoutes a la base de sondage.');
   }
   async function drawPps() {
+    if(drawUnit==='villages'){
+      const units=clusters.flatMap(cluster=>(cluster.villages||[]).map((village:Row)=>({cluster,village,population:Number(village.population||0)})));
+      const total=units.reduce((sum,item)=>sum+item.population,0),count=Math.min(Math.max(1,sampleSize),units.length);
+      if(!total||!count)return setMessage('Renseignez la population de chaque village/ZD avant le tirage.');
+      const interval=total/count,start=Math.random()*interval,selected:Row[]=[];let cumulative=0,point=start;
+      for(const unit of units){cumulative+=unit.population;while(point<=cumulative&&selected.length<count){if(!selected.some(item=>item.village.id===unit.village.id))selected.push(unit);point+=interval;}}
+      const grouped=new Map<string,Row[]>();selected.forEach(item=>grouped.set(item.cluster.id,[...(grouped.get(item.cluster.id)||[]),item.village]));
+      for(const [clusterId,selectedVillages] of grouped){const existing=samples.find(sample=>sample.cluster_id===clusterId);if(existing)await mutate('samples','PATCH',{selected_villages:selectedVillages},existing.id);else await mutate('samples','POST',{cluster_id:clusterId,probability:selectedVillages.reduce((sum,item)=>sum+Number(item.population||0),0)/total,selected_villages:selectedVillages});}
+      setMessage(`${selected.length} village(s)/ZD tire(e)(s).`);return;
+    }
     const total = clusters.reduce((sum, cluster) => sum + Number(cluster.population || 0), 0);
     const count = Math.min(Math.max(1, sampleSize), clusters.length);
     if (!total || !count) return setMessage('Renseignez les populations avant le tirage PPS.');
@@ -154,6 +177,7 @@ function Collection({ forms, responses, mutate, setMessage }: { forms: Row[]; re
 }
 
 function QuestionField({ question }: { question: SurveyQuestion }) {
+  if (question.type === 'end_group' || question.type === 'end_repeat') return null;
   if (question.type === 'note') return <p className="rounded-md bg-slate-50 p-4 text-sm">{question.label}</p>;
   if (question.type === 'begin_group' || question.type === 'begin_repeat') return <h3 className="border-b pb-2 text-lg font-black">{question.label}</h3>;
   if (question.type === 'calculate') return null;
@@ -172,6 +196,10 @@ function Analysis({ survey, mutate, setMessage }: { survey: Row; mutate: any; se
   const [ai, setAi] = useState<Row | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const analysis = useMemo(() => rows.length ? analyzeDataset(rows) : null, [rows]);
+  const standardizedIndicators = useMemo(
+    () => rows.map((row, index) => ({ row: index + 1, ...calculateSurveyIndicators(row) })),
+    [rows],
+  );
   const table = first && second ? crossTab(rows, first, second) : null;
   async function load(file?: File) {
     if (!file) return; setFileName(file.name);
@@ -185,7 +213,7 @@ function Analysis({ survey, mutate, setMessage }: { survey: Row; mutate: any; se
   }
   async function saveReport() {
     if (!analysis) return;
-    await mutate('reports', 'POST', { title: `Analyse ${survey.title} - ${new Date().toLocaleDateString('fr-FR')}`, report_type: 'data_quality', source_file_name: fileName, dataset_summary: { rows: analysis.rowCount, columns: analysis.columnCount }, quality_report: analysis, analysis_results: { cross_tab: table, nutritional_status: nutrition }, ai_interpretation: ai || {} });
+    await mutate('reports', 'POST', { title: `Analyse ${survey.title} - ${new Date().toLocaleDateString('fr-FR')}`, report_type: 'data_quality', source_file_name: fileName, dataset_summary: { rows: analysis.rowCount, columns: analysis.columnCount }, quality_report: analysis, analysis_results: { cross_tab: table, nutritional_status: nutrition, standardized_indicators: standardizedIndicators }, ai_interpretation: ai || {} });
     setMessage('Analyse ajoutee au rapport de l enquete.');
   }
   function calculateNutrition() {
@@ -198,6 +226,7 @@ function Analysis({ survey, mutate, setMessage }: { survey: Row; mutate: any; se
       return { whz, whzCategory: classifyWFLzScore(whz), haz, hazCategory: classifyLFAzScore(haz), waz };
     });
     const valid = calculated.filter(item => item.whz !== null);
+    const plausibility = analyzeEnaSmartPlausibility(rows, mapping);
     setNutrition({
       valid: valid.length,
       wasting: valid.filter(item => Number(item.whz) < -2).length,
@@ -205,11 +234,12 @@ function Analysis({ survey, mutate, setMessage }: { survey: Row; mutate: any; se
       stunting: calculated.filter(item => item.haz !== null && Number(item.haz) < -2).length,
       severeStunting: calculated.filter(item => item.haz !== null && Number(item.haz) < -3).length,
       underweight: calculated.filter(item => item.waz !== null && Number(item.waz) < -2).length,
+      enaSmartPlausibility: plausibility,
     });
   }
   async function generateAi() {
     if (!analysis) return; setAiBusy(true);
-    const response = await fetch(`/api/surveys/${survey.id}/ai-analysis`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ summary: { rows: analysis.rowCount, columns: analysis.columnCount }, quality: analysis, nutritionalStatus: nutrition, crossTab: table }) });
+    const response = await fetch(`/api/surveys/${survey.id}/ai-analysis`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ summary: { rows: analysis.rowCount, columns: analysis.columnCount }, quality: analysis, nutritionalStatus: nutrition, enaSmartPlausibility: nutrition?.enaSmartPlausibility, crossTab: table }) });
     const result = await response.json(); setAiBusy(false);
     if (response.ok) setAi(result.analysis); else setMessage(result.message || 'Analyse IA impossible.');
   }

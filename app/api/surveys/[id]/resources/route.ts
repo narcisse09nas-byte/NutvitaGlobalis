@@ -56,7 +56,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ message: 'Authentification requise.' }, { status: 401 });
   const body = await request.json();
-  const itemId = String(body.id || '');
+  const itemId = String(body.id || new URL(request.url).searchParams.get('item') || '');
+  if (!itemId) return NextResponse.json({ message: 'Identifiant de ressource requis.' }, { status: 400 });
   const payload = { ...body };
   delete payload.id;
   delete payload.survey_id;

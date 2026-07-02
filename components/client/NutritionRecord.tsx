@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import { customIndicatorTemplates } from "@/lib/tracking-indicators";
+import HealthDietaryDiversity from "@/components/client/HealthDietaryDiversity";
 
 type Row = Record<string, any>;
 type CustomMeasure = {
@@ -18,6 +19,7 @@ const tabs = [
   ["anthro", "Anthropometrie"],
   ["biology", "Biologie"],
   ["food", "Alimentation"],
+  ["diversity", "Diversite alimentaire"],
   ["lifestyle", "Mode de vie"],
   ["consultations", "Consultations"],
 ] as const;
@@ -46,6 +48,7 @@ export default function NutritionRecord({
   food,
   lifestyle,
   consultations,
+  dietary,
 }: {
   clientId: string;
   anthropometry: Row[];
@@ -53,6 +56,7 @@ export default function NutritionRecord({
   food: Row[];
   lifestyle: Row[];
   consultations: Row[];
+  dietary: Row[];
 }) {
   const [tab, setTab] = useState<(typeof tabs)[number][0]>("anthro");
   const [anthroRows, setAnthro] = useState(anthropometry);
@@ -149,6 +153,7 @@ export default function NutritionRecord({
     {tab === "food" && <><form onSubmit={event => add("food_history", event, setFood, foodRows)} className="mb-6 grid gap-4 rounded-2xl border bg-white p-6 md:grid-cols-2"><h2 className="text-xl font-black md:col-span-2">Ajouter une entree alimentaire</h2><label className="grid gap-2 text-sm font-bold">Date de l'alimentation<input name="entry_date" type="date" defaultValue={today()} max={today()} required className="admin-input"/></label><label className="grid gap-2 text-sm font-bold">Type d'enregistrement<select name="entry_type" className="admin-input"><option value="24h_recall">Rappel de 24 heures</option><option value="food_frequency">Frequence alimentaire</option><option value="food_diary">Journal alimentaire</option><option value="habits">Habitudes alimentaires</option></select></label><label className="grid gap-2 text-sm font-bold">Apport energetique estime (kcal)<input name="calories" type="number" min="0" step="1" className="admin-input"/></label><label className="grid gap-2 text-sm font-bold">Proteines estimees (g)<input name="protein_g" type="number" min="0" step="0.1" className="admin-input"/></label><textarea name="notes" required rows={6} className="admin-input md:col-span-2" placeholder="Decrivez les repas, quantites, horaires et sensations..."/><button className="btn-primary justify-self-start md:col-span-2">Ajouter au journal</button></form><History rows={foodRows} columns={[["entry_date", "Date"], ["entry_type", "Type"], ["calories", "Calories"], ["notes", "Contenu"]]} food onEdit={(row,columns)=>edit("food_history",row,columns,setFood,foodRows,true)} onDelete={id=>remove("food_history",id,setFood,foodRows)}/></>}
 
     {tab === "lifestyle" && <LifestyleForm rows={lifestyleRows} onSubmit={addLifestyle}/>}
+    {tab === "diversity" && <HealthDietaryDiversity clientId={clientId} initial={dietary}/>}
 
     {tab === "consultations" && <div className="grid gap-4">{consultations.map(item => <article key={item.id} className="rounded-2xl border bg-white p-6"><p className="text-xs font-bold uppercase text-leaf">{new Date(item.consultation_date).toLocaleString("fr-FR")}</p><h2 className="mt-2 text-xl font-black">{item.summary || "Consultation nutritionnelle"}</h2><div className="mt-4 grid gap-3 text-sm"><p><b>Objectifs :</b> {item.objectives || "-"}</p><p><b>Recommandations :</b> {item.recommendations || "-"}</p><p><b>Plan alimentaire :</b> {item.meal_plan || "-"}</p></div></article>)}{!consultations.length && <p className="rounded-2xl bg-white p-8 text-center text-slate-400">Aucune consultation enregistree.</p>}</div>}
   </div>;

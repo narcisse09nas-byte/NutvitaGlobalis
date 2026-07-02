@@ -53,6 +53,9 @@ export async function POST(request: Request) {
     const { data: plan } = await supabase.from("subscription_plans").select("*").eq("id", String(body.plan_id)).eq("active", true).single();
     if (plan) {
       let childId: string | undefined;
+      if (plan.service_type === "child_growth" && !body.child_id) {
+        return NextResponse.json({ message: "Selectionnez l enfant auquel cet abonnement sera exclusivement associe." }, { status: 400 });
+      }
       if (plan.service_type === "child_growth" && body.child_id) {
         const { data: child } = await supabase.from("children").select("id").eq("id", String(body.child_id)).eq("parent_id", user.id).maybeSingle();
         if (!child) return NextResponse.json({ message: "Selectionnez un enfant valide." }, { status: 400 });

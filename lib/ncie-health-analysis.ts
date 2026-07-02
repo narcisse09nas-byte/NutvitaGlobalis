@@ -43,10 +43,6 @@ function confidence(item: IndicatorInsight, count: number) {
   };
 }
 
-function scoreForStatus(status: IndicatorInsight["status"]) {
-  return status === "improving" ? 88 : status === "stable" ? 78 : status === "watch" ? 52 : status === "urgent" ? 25 : 45;
-}
-
 function has(item: IndicatorInsight, terms: string[]) {
   const name = item.indicator.toLowerCase();
   return terms.some(term => name.includes(term));
@@ -99,18 +95,6 @@ export function applyNcieFramework(
     };
   });
 
-  const domainDefinitions: Record<string, string[]> = {
-    Nutrition: ["aliment", "nutrition", "calorie", "protein"],
-    "Activite physique": ["activite", "exercise"],
-    Hydratation: ["hydrat", "eau corporelle"],
-    "Composition corporelle": ["poids", "imc", "masse", "taille", "hanche", "muac", "graisse"],
-    Metabolisme: ["glyc", "hba1c", "metabol", "cholesterol", "triglycer"],
-    Cardiovasculaire: ["pression", "tension", "pouls", "cardio"],
-    "Mode de vie": ["mode de vie", "habitude"],
-    Stress: ["stress"],
-    Sommeil: ["sommeil"],
-    Adherence: ["adherence", "observance"],
-  };
   const weightIndicator = indicators.find(item => has(item, ["poids", "weight"]));
   const bmiIndicator = indicators.find(item => has(item, ["imc", "bmi"]));
   const waistIndicator = indicators.find(item => has(item, ["tour de taille", "waist"]));
@@ -126,13 +110,6 @@ export function applyNcieFramework(
     if (item === glucoseIndicator && food.length) notes.push("La glycemie doit etre rapprochee du contexte alimentaire et du moment de prelevement; les donnees disponibles ne prouvent pas une causalite.");
     item.correlationNotes = notes;
   }
-  const domainScores: Record<string, number | null> = {};
-  for (const [domain, terms] of Object.entries(domainDefinitions)) {
-    const matching = indicators.filter(item => has(item, terms));
-    domainScores[domain] = matching.length ? Math.round(matching.reduce((sum, item) => sum + scoreForStatus(item.status), 0) / matching.length) : null;
-  }
-  const availableScores = Object.values(domainScores).filter((value): value is number => value !== null);
-  const globalScore = availableScores.length ? Math.round(availableScores.reduce((sum, value) => sum + value, 0) / availableScores.length) : 45;
   const limitations = [
     ...new Set(indicators.flatMap(item => item.missingData || [])),
     ...(anthropometry.length < 2 ? ["Serie anthropometrique longitudinale insuffisante."] : []),
@@ -144,9 +121,6 @@ export function applyNcieFramework(
   return {
     ...analysis,
     indicatorInsights: indicators,
-    globalScore,
-    scoreColor: globalScore >= 75 ? "green" : globalScore >= 50 ? "orange" : "red",
-    domainScores,
     crossIndicatorAnalysis: [
       "Les relations observees sont descriptives et ne prouvent pas un lien de causalite.",
       ...(indicators.some(item => has(item, ["poids"])) && indicators.some(item => has(item, ["imc"])) ? ["Poids et IMC doivent etre interpretes ensemble, avec le tour de taille et la composition corporelle si disponibles."] : []),

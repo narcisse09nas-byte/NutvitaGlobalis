@@ -9,6 +9,7 @@ import {
   Plus, Repeat2, Save, Send, Trash2, Type, Upload,
 } from 'lucide-react';
 import { exportQuestionnaireWorkbook, type SurveyQuestion } from '@/survey/lib/xlsform';
+import { instantiateSurveyModule, nutritionSurveyModules } from '@/survey/lib/nutrition-modules';
 
 type Row = Record<string, any>;
 type ChoiceList = { name: string; choices: { value: string; labels: Record<string, string> }[] };
@@ -82,7 +83,23 @@ export default function QuestionnaireBuilder({ survey, initialForm }: { survey: 
   }
 
   function addQuestion(type: SurveyQuestion['type']) {
+    if(type==='begin_group'||type==='begin_repeat'){
+      const repeat=type==='begin_repeat',index=questions.length+1,kind=repeat?'repeat':'group';
+      setQuestions(current=>[
+        ...current,
+        {...emptyQuestion(type,index),name:`${kind}_${index}`,label:repeat?'Groupe répétitif':'Nouveau groupe',appearance:'field-list'},
+        {...emptyQuestion(repeat?'end_repeat':'end_group',index+1),name:`end_${kind}_${index}`,label:''},
+      ]);
+      return;
+    }
     setQuestions(current => [...current, emptyQuestion(type, current.length)]);
+  }
+
+  function addModule(id:string){
+    const template=nutritionSurveyModules.find(item=>item.id===id);
+    if(!template)return;
+    setQuestions(current=>[...current,...instantiateSurveyModule(template)]);
+    setMessage(`Module « ${template.title} » ajouté avec ses variables et règles d'analyse.`);
   }
 
   function addChoiceList() {
@@ -216,6 +233,10 @@ export default function QuestionnaireBuilder({ survey, initialForm }: { survey: 
           <Panel title="Ajouter une question ou un groupe">
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{questionTypes.map(({ type, label, icon: Icon }) => <button key={type} onClick={() => addQuestion(type)} className="flex h-12 items-center justify-center gap-3 rounded-md border bg-white text-sm font-bold hover:border-emerald-500 hover:bg-emerald-50"><Icon className="h-4" />{label}</button>)}</div>
           </Panel>
+          <Panel title="Modules spécialisés">
+            <p className="mb-4 text-sm text-slate-500">Chaque bloc conserve ses variables, contrôles de qualité et formules pour les analyses ultérieures.</p>
+            <div className="grid gap-3 md:grid-cols-2">{nutritionSurveyModules.map(module=><article key={module.id} className="rounded-md border p-4"><h3 className="font-black">{module.title}</h3><p className="mt-1 text-sm text-slate-500">{module.description}</p><p className="mt-2 text-xs font-bold text-emerald-700">{module.source}</p><button onClick={()=>addModule(module.id)} className="btn-secondary mt-4"><Plus className="mr-2 h-4"/>Ajouter ce module</button></article>)}</div>
+          </Panel>
         </section>
 
         <aside className="grid h-fit gap-6 xl:sticky xl:top-24">
@@ -260,6 +281,7 @@ function Preview({ questions, close }: { questions: SurveyQuestion[]; close: () 
 }
 function PreviewField({ question }: { question: SurveyQuestion }) {
   const label = question.labels?.fr || question.label || question.name;
+  if (question.type === 'end_group' || question.type === 'end_repeat') return null;
   if (question.type === 'note') return <p className="rounded-md bg-slate-50 p-4">{label}</p>;
   if (question.type === 'begin_group' || question.type === 'begin_repeat') return <h3 className="border-b pb-2 text-lg font-black">{label}</h3>;
   if (question.type === 'select_one') return <Field label={label}><select className="admin-input"><option>Selectionner</option>{question.options?.map(option => <option key={option.value}>{option.label}</option>)}</select></Field>;

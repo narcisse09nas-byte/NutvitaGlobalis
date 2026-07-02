@@ -8,6 +8,10 @@ alter table public.client_profiles add column if not exists city_code text;
 alter table public.client_profiles add column if not exists other_city text;
 alter table public.client_profiles add column if not exists accepted_terms_at timestamptz;
 alter table public.client_profiles add column if not exists accepted_privacy_at timestamptz;
+alter table public.client_profiles add column if not exists account_type text not null default 'client';
+alter table public.client_profiles drop constraint if exists client_profiles_account_type_check;
+alter table public.client_profiles add constraint client_profiles_account_type_check
+  check(account_type='client');
 
 alter table public.candidate_profiles add column if not exists whatsapp_phone text;
 alter table public.candidate_profiles add column if not exists country text;

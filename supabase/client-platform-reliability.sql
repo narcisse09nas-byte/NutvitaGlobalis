@@ -2,6 +2,11 @@
 -- Run after accounts-growth-admin.sql, child-growth-who-upgrade.sql,
 -- platform-compliance-ops.sql, multilingual-fr-en.sql and partner-collaboration.sql.
 
+alter table public.client_profiles add column if not exists account_type text not null default 'client';
+alter table public.client_profiles drop constraint if exists client_profiles_account_type_check;
+alter table public.client_profiles add constraint client_profiles_account_type_check
+  check(account_type='client');
+
 alter table public.children add column if not exists state_code text;
 alter table public.children add column if not exists country_code text;
 alter table public.children add column if not exists other_city text;

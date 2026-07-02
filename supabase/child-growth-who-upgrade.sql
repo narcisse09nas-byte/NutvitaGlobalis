@@ -55,11 +55,14 @@ create unique index if not exists who_growth_age_reference
 create unique index if not exists who_growth_height_reference
   on public.who_growth_standards(indicator,sex,length_height_cm) where length_height_cm is not null;
 alter table public.who_growth_standards enable row level security;
+drop policy if exists "Authenticated read WHO growth standards" on public.who_growth_standards;
 create policy "Authenticated read WHO growth standards" on public.who_growth_standards
   for select to authenticated using(true);
+drop policy if exists "Admins manage WHO growth standards" on public.who_growth_standards;
 create policy "Admins manage WHO growth standards" on public.who_growth_standards
   for all to authenticated using(public.is_admin()) with check(public.is_admin());
 
+drop policy if exists "Admins manage child growth measurements" on public.child_growth_measurements;
 create policy "Admins manage child growth measurements" on public.child_growth_measurements
   for all to authenticated using(public.is_admin()) with check(public.is_admin());
 

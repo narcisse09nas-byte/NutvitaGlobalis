@@ -21,14 +21,17 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
     const duration = Math.max(1, Number(plan.duration_months || payment.subscriptions?.renewal_period_months || 12));
     const targetSubscriptionId = payment.subscriptions?.extends_subscription_id || payment.subscription_id;
     let activationStart = start;
+    let target: any = null;
     if (payment.subscriptions?.extends_subscription_id) {
-      const { data: target, error: targetError } = await admin.from("subscriptions").select("expires_at,started_at").eq("id", targetSubscriptionId).single();
+      const result = await admin.from("subscriptions").select("expires_at,started_at").eq("id", targetSubscriptionId).single();
+      target = result.data;
+      const targetError = result.error;
       failIfError("Lecture de l abonnement a etendre", targetError);
-      if (target?.expires_at && +new Date(target.expires_at) > +start) activationStart = new Date(target.expires_at);
+      if (!payment.subscriptions?.upgrade_from_subscription_id && target?.expires_at && +new Date(target.expires_at) > +start) activationStart = new Date(target.expires_at);
     }
-    end = new Date(activationStart);
-    end.setUTCMonth(end.getUTCMonth() + duration);
-    const activated = await admin.from("subscriptions").update({ status: "active", started_at: activationStart.toISOString(), expires_at: end.toISOString(), current_period_start: activationStart.toISOString(), current_period_end: end.toISOString(), renewal_period_months: duration }).eq("id", targetSubscriptionId);
+    end = payment.subscriptions?.upgrade_from_subscription_id && target?.expires_at ? new Date(target.expires_at) : new Date(activationStart);
+    if (!payment.subscriptions?.upgrade_from_subscription_id) end.setUTCMonth(end.getUTCMonth() + duration);
+    const activated = await admin.from("subscriptions").update({ status: "active", plan_id: payment.subscriptions?.upgrade_from_subscription_id ? payment.subscriptions.plan_id : undefined, started_at: payment.subscriptions?.upgrade_from_subscription_id && target?.started_at ? target.started_at : activationStart.toISOString(), expires_at: end.toISOString(), current_period_start: activationStart.toISOString(), current_period_end: end.toISOString(), renewal_period_months: duration }).eq("id", targetSubscriptionId);
     failIfError(payment.subscriptions?.extends_subscription_id ? "Extension de l abonnement" : "Activation de l abonnement", activated.error);
     if (payment.subscriptions?.extends_subscription_id) {
       failIfError("Cloture de la demande d extension", (await admin.from("subscriptions").update({ status: "cancelled", started_at: start.toISOString(), expires_at: end.toISOString() }).eq("id", payment.subscription_id)).error);

@@ -19,7 +19,7 @@ export default function ServiceCatalog({ plans, packs, courses, children, subscr
   function activeSubscription(item:any){
     if(item.kind!=="subscription")return null;
     const now=Date.now();
-    return subscriptions.find(sub=>sub.plan_id===item.id&&sub.status==="active"&&(!sub.expires_at||+new Date(sub.expires_at)>now))||null;
+    return subscriptions.find(sub=>sub.plan_id===item.id&&sub.status==="active"&&(!sub.expires_at||+new Date(sub.expires_at)>now)&&(item.group!=="child_growth"||sub.child_id===selectedChild))||null;
   }
   function checkout(item: any) {
     const childParam = item.group === "child_growth" && selectedChild ? `&child_id=${encodeURIComponent(selectedChild)}` : "";
@@ -37,7 +37,7 @@ export default function ServiceCatalog({ plans, packs, courses, children, subscr
       {item.group === "child_growth" && <div className="mb-4">
         {children.length ? <label className="grid gap-2 text-sm font-bold">Enfant concerne
           <select className="admin-input" value={selectedChild} onChange={e=>setSelectedChild(e.target.value)}>
-            {children.map(child=><option key={child.id} value={child.id}>{[child.first_name,child.last_name].filter(Boolean).join(" ")||"Enfant"}</option>)}
+            {children.map(child=><option key={child.id} value={child.id}>{child.full_name||[child.first_name,child.last_name].filter(Boolean).join(" ")||"Enfant"}</option>)}
           </select>
         </label> : <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Vous pouvez acheter ce suivi maintenant. Apres activation, vous ajouterez l'enfant a suivre dans l'espace croissance.</p>}
       </div>}

@@ -38,6 +38,7 @@ export default function LegalDocumentManager({ documents, translations, versions
       active: publish ? true : (doc?.active ?? true),
       requires_signature: Boolean(template.requiresSignature),
       signature_type: template.signatureType || null,
+      content: sectionsToText(sections),
       published_at: publish ? new Date().toISOString() : doc?.published_at || null,
       updated_at: new Date().toISOString(),
     };

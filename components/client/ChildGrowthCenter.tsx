@@ -54,6 +54,25 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
     else { setMeasurements([...measurements, data]); form.reset(); setMessage("Mesure enregistree. Analyse en cours..."); await analyzeNow(); }
   }
 
+  async function editMeasure(row: Row) {
+    const measuredAt = window.prompt("Date de mesure (AAAA-MM-JJ)", String(row.measured_at || "").slice(0, 10));
+    if (measuredAt === null) return;
+    const weight = window.prompt("Poids (kg)", row.weight_kg == null ? "" : String(row.weight_kg));
+    if (weight === null) return;
+    const height = window.prompt("Taille (cm)", row.height_cm == null ? "" : String(row.height_cm));
+    if (height === null) return;
+    const { data, error } = await createClient().from("child_growth_measurements").update({ measured_at: `${measuredAt}T12:00:00`, weight_kg: weight === "" ? null : Number(weight), height_cm: height === "" ? null : Number(height) }).eq("id", row.id).select().single();
+    if (error) setMessage(error.message);
+    else { setMeasurements(measurements.map(item => item.id === row.id ? data : item)); setMessage("Mesure modifiee."); }
+  }
+
+  async function deleteMeasure(id: string) {
+    if (!window.confirm("Supprimer definitivement cette mesure ?")) return;
+    const { error } = await createClient().from("child_growth_measurements").delete().eq("id", id);
+    if (error) setMessage(error.message);
+    else { setMeasurements(measurements.filter(item => item.id !== id)); setMessage("Mesure supprimee."); }
+  }
+
   async function checkout() {
     if (!plan || !selected) return;
     setLoading(true);
@@ -119,7 +138,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
         </form>
         <div className="flex flex-wrap gap-3"><button onClick={analyzeNow} disabled={loading} className="btn-primary">{loading?'Traitement...':'Actualiser l analyse'}</button><button onClick={createReport} disabled={loading} className="btn-secondary">Generer le rapport PDF</button></div>
         <GrowthCharts rows={rows} />
-        <MeasurementHistory rows={rows} />
+        <MeasurementHistory rows={rows} onEdit={editMeasure} onDelete={deleteMeasure} />
         <section className="rounded-2xl border bg-white p-6"><h2 className="text-xl font-black">Analyse IA explicable</h2><p className="mt-4 leading-7">{savedAnalysis?.summary||analysis.summary}</p>{(savedAnalysis?.positives||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-leaf">+ {item}</p>)}{(savedAnalysis?.attention_points||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-orange">! {item}</p>)}<p className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{analysis.advice}</p>{(savedAnalysis?.indicator_insights||savedAnalysis?.indicatorInsights||[]).length>0&&<div className="mt-5 grid gap-3">{(savedAnalysis?.indicator_insights||savedAnalysis?.indicatorInsights||[]).map((item:any)=><article key={item.indicator} className="rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap justify-between gap-2"><b>{item.indicator}</b><span className="text-xs font-bold uppercase text-slate-500">{item.status}</span></div><p className="mt-2 text-sm text-slate-700">{item.parentInterpretation}</p><p className="mt-2 text-xs text-slate-500">{item.professionalInterpretation}</p></article>)}</div>}</section>
         <AlertPanel alerts={childAlerts}/>
         <AdvicePanel items={savedAnalysis?.parent_advice||[]}/>
@@ -153,10 +172,10 @@ function analyze(rows: Row[]) {
   return { summary: `Sur ${months.toFixed(1)} mois, le poids a varie de ${weightChange.toFixed(2)} kg et la taille de ${heightChange.toFixed(1)} cm.`, advice: last.interpretation || (last.edema ? "Des oedemes ont ete signales. Contactez rapidement un professionnel de sante." : "Poursuivez des mesures regulieres et faites evaluer toute stagnation ou perte de poids.") };
 }
 
-function MeasurementHistory({ rows }: { rows: Row[] }) {
+function MeasurementHistory({ rows, onEdit, onDelete }: { rows: Row[]; onEdit: (row:Row)=>void; onDelete:(id:string)=>void }) {
   if (!rows.length) return null;
   const last = [...rows].reverse();
-  return <section className="overflow-x-auto rounded-2xl border bg-white"><div className="p-5"><h2 className="text-xl font-black">Historique anthropometrique</h2><p className="mt-1 text-xs text-slate-500">Les valeurs z-score apparaissent apres import des references OMS.</p></div><table className="w-full min-w-[1050px] text-left text-sm"><thead><tr className="border-y bg-slate-50">{["Date", "Age", "Poids", "Taille", "IMC", "P/A", "T/A", "P/T", "IMC/A", "PC/A", "MUAC", "Risque"].map(label => <th key={label} className="p-3">{label}</th>)}</tr></thead><tbody>{last.map(row => <tr key={row.id} className="border-b"><td className="p-3">{new Date(row.measured_at).toLocaleDateString("fr-FR")}</td><td className="p-3">{value(row.age_months, " mois")}</td><td className="p-3">{value(row.weight_kg, " kg")}</td><td className="p-3">{value(row.height_cm, " cm")}</td><td className="p-3">{value(row.bmi)}</td><td className="p-3">{z(row.weight_for_age_z)}</td><td className="p-3">{z(row.height_for_age_z)}</td><td className="p-3">{z(row.weight_for_height_z)}</td><td className="p-3">{z(row.bmi_for_age_z)}</td><td className="p-3">{z(row.head_circumference_for_age_z)}</td><td className="p-3">{value(row.muac_cm, " cm")}</td><td className="p-3"><Risk value={row.risk_category} /></td></tr>)}</tbody></table></section>;
+  return <section className="overflow-x-auto rounded-2xl border bg-white"><div className="p-5"><h2 className="text-xl font-black">Historique anthropometrique</h2><p className="mt-1 text-xs text-slate-500">Les valeurs z-score apparaissent apres import des references OMS.</p></div><table className="w-full min-w-[1150px] text-left text-sm"><thead><tr className="border-y bg-slate-50">{["Date", "Age", "Poids", "Taille", "IMC", "P/A", "T/A", "P/T", "IMC/A", "PC/A", "MUAC", "Risque", "Actions"].map(label => <th key={label} className="p-3">{label}</th>)}</tr></thead><tbody>{last.map(row => <tr key={row.id} className="border-b"><td className="p-3">{new Date(row.measured_at).toLocaleDateString("fr-FR")}</td><td className="p-3">{value(row.age_months, " mois")}</td><td className="p-3">{value(row.weight_kg, " kg")}</td><td className="p-3">{value(row.height_cm, " cm")}</td><td className="p-3">{value(row.bmi)}</td><td className="p-3">{z(row.weight_for_age_z)}</td><td className="p-3">{z(row.height_for_age_z)}</td><td className="p-3">{z(row.weight_for_height_z)}</td><td className="p-3">{z(row.bmi_for_age_z)}</td><td className="p-3">{z(row.head_circumference_for_age_z)}</td><td className="p-3">{value(row.muac_cm, " cm")}</td><td className="p-3"><Risk value={row.risk_category} /></td><td className="p-3"><div className="flex gap-2"><button onClick={()=>onEdit(row)} className="rounded-lg border px-3 py-2 text-xs font-bold">Modifier</button><button onClick={()=>onDelete(row.id)} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700">Supprimer</button></div></td></tr>)}</tbody></table></section>;
 }
 function value(input: any, suffix = "") { return input === null || input === undefined ? "-" : `${Number(input).toFixed(1)}${suffix}`; }
 function z(input: any) { return input === null || input === undefined ? "En attente" : Number(input).toFixed(2); }

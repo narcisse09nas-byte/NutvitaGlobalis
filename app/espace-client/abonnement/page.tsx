@@ -5,11 +5,12 @@ import { getApplicableTax } from "@/lib/taxes";
 
 export default async function SubscriptionPage() {
   const { supabase, user, profile } = await requireClient();
-  const [{ data: plans }, { data: current }, { data: invoices }, tax] = await Promise.all([
+  const [{ data: plans }, { data: subscriptions }, { data: children }, { data: invoices }, tax] = await Promise.all([
     supabase.from("subscription_plans").select("*").eq("active", true).in("service_type", ["health_tracking", "child_growth"]).order("service_type").order("tier"),
-    supabase.from("subscriptions").select("*, subscription_plans(name,tier)").eq("client_id", user.id).is("child_id", null).in("status", ["active", "pending"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("subscriptions").select("*, subscription_plans(name,tier,service_type), children(full_name)").eq("client_id", user.id).in("status", ["active", "pending"]).order("created_at", { ascending: false }),
+    supabase.from("children").select("id,full_name").eq("parent_id", user.id).eq("active", true).order("full_name"),
     supabase.from("invoices").select("*").eq("client_id", user.id).order("issued_at", { ascending: false }),
     getApplicableTax(supabase, profile?.country_code),
   ]);
-  return <ClientShell email={user.email || ""}><div className="mb-7"><h1 className="text-3xl font-black">Mes abonnements</h1><p className="mt-2 text-slate-500">Retrouvez les offres de suivi disponibles. Les paiements sont temporairement en stand-by; l'activation est gratuite pour l'instant.</p></div><SubscriptionPlans plans={plans || []} current={current} taxRate={Number(tax.rate)} invoices={invoices || []} /></ClientShell>;
+  return <ClientShell email={user.email || ""}><div className="mb-7"><h1 className="text-3xl font-black">Mes abonnements</h1><p className="mt-2 text-slate-500">Chaque service et chaque enfant conservent leur propre abonnement, leur historique et leur date d expiration.</p></div><SubscriptionPlans plans={plans || []} subscriptions={subscriptions || []} children={children || []} taxRate={Number(tax.rate)} invoices={invoices || []} /></ClientShell>;
 }

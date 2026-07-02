@@ -13,15 +13,18 @@ export default function TeleconsultationConsent({ userId, accepted }: { userId: 
       setMessage("Veuillez saisir votre nom complet pour signer.");
       return;
     }
-    const { error } = await createClient().from("user_consents").upsert({
+    const supabase = createClient();
+    const { data: legal } = await supabase.from("legal_documents").select("id,current_version").eq("document_key", "consentement-teleconsultation").eq("status", "published").maybeSingle();
+    const { error } = await supabase.from("user_consents").upsert({
       user_id: userId,
+      legal_document_id: legal?.id || null,
       consent_type: "teleconsultation",
       accepted: true,
       signature_text: signature.trim(),
       signed_at: new Date().toISOString(),
       source: "checkout",
-      version: "1.0",
-    });
+      version: legal?.current_version || "1.0",
+    }, { onConflict: "user_id,consent_type" });
     if (error) setMessage(error.message);
     else {
       setSigned(true);

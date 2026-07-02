@@ -5,7 +5,7 @@ import { getApplicableTax, priceBreakdown } from "@/lib/taxes";
 import {xofPerUsd,xofToUsd} from "@/lib/currency";
 import { finalizePayment } from "@/lib/payment-finalization";
 
-type Purchase = { type: "subscription" | "formation" | "consultation"; id: string; name: string; price: number; currency: string; duration: number; childId?: string };
+type Purchase = { type: "subscription" | "formation" | "consultation"; id: string; name: string; price: number; currency: string; duration: number; childId?: string; serviceType?: string; tier?: string };
 type Provider = "cinetpay" | "paypal" | "manual_mobile_money" | "manual_bank_transfer";
 const freeAccessMode = () => process.env.NUTVITA_PAYMENTS_PAUSED !== "false";
 
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         if (!child) return NextResponse.json({ message: "Selectionnez un enfant valide." }, { status: 400 });
         childId = child.id;
       }
-      purchase = { type: "subscription", id: plan.id, name: plan.name, price: Number(plan.price_excluding_tax ?? plan.amount), currency: plan.currency, duration: Math.max(1, Number(plan.duration_months || 12)), childId };
+      purchase = { type: "subscription", id: plan.id, name: plan.name, price: Number(plan.price_excluding_tax ?? plan.amount), currency: plan.currency, duration: Math.max(1, Number(plan.duration_months || 12)), childId, serviceType: plan.service_type, tier: plan.tier };
     }
   } else if (body.purchase_type === "formation") {
     const { data } = await supabase.from("formations").select("id,title,price").eq("id", String(body.product_id)).eq("status", "published").single();
@@ -70,7 +70,23 @@ export async function POST(request: Request) {
   }
   if (!purchase) return NextResponse.json({ message: "Produit ou service introuvable." }, { status: 404 });
 
-  const admin = createAdminClient(), tax = await getApplicableTax(admin, profile.country_code, purchase.type), sourceAmountXof = freeAccessMode() ? 0 : purchase.price, exchangeRate = xofPerUsd();
+  const admin = createAdminClient();
+  let upgradeFromSubscriptionId: string | null = null;
+  if (purchase.type === "subscription" && purchase.tier === "premium") {
+    const now = new Date().toISOString();
+    const { data: activeServices } = await admin.from("subscriptions").select("id,plan_id,expires_at,subscription_plans(service_type,tier,price_excluding_tax,amount)").eq("client_id", user.id).eq("status", "active").gt("expires_at", now).filter("child_id", purchase.childId ? "eq" : "is", purchase.childId || null);
+    const basic: any = (activeServices || []).find((item: any) => {
+      const related = Array.isArray(item.subscription_plans) ? item.subscription_plans[0] : item.subscription_plans;
+      return item.plan_id !== purchase!.id && related?.service_type === purchase!.serviceType && related?.tier === "basic";
+    });
+    if (basic) {
+      const related = Array.isArray(basic.subscription_plans) ? basic.subscription_plans[0] : basic.subscription_plans;
+      upgradeFromSubscriptionId = basic.id;
+      purchase.price = Math.max(0, purchase.price - Number(related?.price_excluding_tax ?? related?.amount ?? 0));
+      purchase.name = `Migration Premium - ${purchase.name}`;
+    }
+  }
+  const tax = await getApplicableTax(admin, profile.country_code, purchase.type), sourceAmountXof = freeAccessMode() ? 0 : purchase.price, exchangeRate = xofPerUsd();
   const localPayment = provider === "cinetpay" || Boolean(manualMethod);
   const breakdown = freeAccessMode() ? priceBreakdown(0, 0) : localPayment ? priceBreakdown(sourceAmountXof, Number(tax.rate)) : priceBreakdown(xofToUsd(sourceAmountXof), Number(tax.rate));
   purchase.currency = localPayment ? "XAF" : "USD";
@@ -86,6 +102,7 @@ export async function POST(request: Request) {
       .eq("plan_id", purchase.id)
       .eq("status", "active")
       .gt("expires_at", now)
+      .filter("child_id", purchase.childId ? "eq" : "is", purchase.childId || null)
       .maybeSingle();
     const { data: existingPendingSubscription } = await admin
       .from("subscriptions")
@@ -93,6 +110,7 @@ export async function POST(request: Request) {
       .eq("client_id", user.id)
       .eq("plan_id", purchase.id)
       .eq("status", "pending")
+      .filter("child_id", purchase.childId ? "eq" : "is", purchase.childId || null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -102,8 +120,8 @@ export async function POST(request: Request) {
     if (existingPending) {
       return NextResponse.json({ url: `/espace-client/paiements/${existingPending.id}` });
     }
-    extendsSubscriptionId = existingActive?.id || null;
-    const { data, error } = await admin.from("subscriptions").insert({ client_id: user.id, child_id: purchase.childId || null, plan_id: purchase.id, provider: dbProvider, status: "pending", renewal_period_months: purchase.duration, extends_subscription_id: extendsSubscriptionId }).select().single();
+    extendsSubscriptionId = existingActive?.id || upgradeFromSubscriptionId || null;
+    const { data, error } = await admin.from("subscriptions").insert({ client_id: user.id, child_id: purchase.childId || null, plan_id: purchase.id, provider: dbProvider, status: "pending", renewal_period_months: purchase.duration, extends_subscription_id: extendsSubscriptionId, upgrade_from_subscription_id: upgradeFromSubscriptionId, purchase_action: upgradeFromSubscriptionId ? "upgrade" : existingActive ? "extend" : "activate" }).select().single();
     if (error) {
       if (String(error.message || "").includes("extends_subscription_id") || error.code === "PGRST204") {
         return NextResponse.json({ message: "La migration Supabase manual-payments.sql doit etre executee avant les extensions d'abonnement." }, { status: 500 });
@@ -111,7 +129,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: error.message }, { status: 500 });
     }
     subscriptionId = data.id;
-    if (extendsSubscriptionId) purchase.name = `Extension - ${purchase.name}`;
+    if (extendsSubscriptionId && !upgradeFromSubscriptionId) purchase.name = `Extension - ${purchase.name}`;
   }
   const paymentPayload = { client_id: user.id, subscription_id: subscriptionId, provider: dbProvider, manual_method: manualMethod, checkout_reference: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, source_amount_xof:sourceAmountXof, exchange_rate_xof_per_usd:exchangeRate, price_excluding_tax: breakdown.priceExcludingTax, tax_rate: breakdown.taxRate, tax_amount: breakdown.taxAmount, total_including_tax: breakdown.totalIncludingTax, purchase_type: purchase.type, product_id: purchase.type === "subscription" ? null : purchase.id, product_name: purchase.name };
   let { data: payment, error: paymentError } = await admin.from("payments").insert(paymentPayload).select().single();

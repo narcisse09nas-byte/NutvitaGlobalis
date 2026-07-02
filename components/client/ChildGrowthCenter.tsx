@@ -18,7 +18,7 @@ function formPayload(form: HTMLFormElement) {
   return payload;
 }
 
-export default function ChildGrowthCenter({ parentId, initialChildren, initialMeasurements, subscriptions, plan, taxRate, initialAnalyses, initialAlerts, initialReports, initialFeeding, initialVaccinations }: { parentId: string; initialChildren: Row[]; initialMeasurements: Row[]; subscriptions: Row[]; plan: Row | null; taxRate: number; initialAnalyses:Row[]; initialAlerts:Row[]; initialReports:Row[]; initialFeeding:Row[]; initialVaccinations:Row[] }) {
+export default function ChildGrowthCenter({ parentId, initialChildren, initialMeasurements, subscriptions, plan, taxRate, initialAnalyses, initialAlerts, initialReports, initialFeeding, initialVaccinations, locale = "fr" }: { parentId: string; initialChildren: Row[]; initialMeasurements: Row[]; subscriptions: Row[]; plan: Row | null; taxRate: number; initialAnalyses:Row[]; initialAlerts:Row[]; initialReports:Row[]; initialFeeding:Row[]; initialVaccinations:Row[]; locale?: "fr" | "en" }) {
   const [children, setChildren] = useState(initialChildren);
   const [measurements, setMeasurements] = useState(initialMeasurements);
   const [selected, setSelected] = useState(initialChildren[0]?.id || "");
@@ -51,7 +51,6 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
     const form = event.currentTarget;
     const payload = formPayload(form);
     payload.edema = payload.edema === "true";
-    payload.vaccinations_up_to_date = payload.vaccinations_up_to_date === "true" ? true : payload.vaccinations_up_to_date === "false" ? false : null;
     if (payload.custom_values) {
       try { payload.custom_values = JSON.parse(String(payload.custom_values)); }
       catch { payload.custom_values = {}; }
@@ -139,8 +138,9 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
       </section>}
       {child && subscription && <>
         <section className="rounded-2xl bg-mint p-5"><b>Suivi actif pour {child.full_name}</b><p className="mt-1 text-sm">Du {new Date(subscription.started_at).toLocaleDateString("fr-FR")} au {new Date(subscription.expires_at).toLocaleDateString("fr-FR")}</p></section>
-        <form onSubmit={addMeasure} className="grid gap-4 rounded-2xl border bg-white p-6 md:grid-cols-3">
-          <h2 className="text-xl font-black md:col-span-3">Nouvelle mesure</h2>
+        <section className="grid gap-7 rounded-2xl border bg-white p-6">
+        <form onSubmit={addMeasure} className="grid gap-4 md:grid-cols-3">
+          <h2 className="text-xl font-black md:col-span-3">{locale === "en" ? "New measurement" : "Nouvelle mesure"}</h2>
           <Field name="measured_at" label="Date de mesure" type="datetime-local" required />
           <Field name="weight_kg" label="Poids (kg)" type="number" step="0.01" />
           <Field name="height_cm" label="Taille / longueur (cm)" type="number" step="0.1" />
@@ -150,17 +150,16 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
           <Select name="edema" label="Oedemes nutritionnels" options={[["false", "Non"], ["true", "Oui"]]} />
           <Select name="appetite" label="Appetit" options={[["good", "Bon"], ["reduced", "Diminue"], ["poor", "Faible"], ["unknown", "Non evalue"]]} />
           <Select name="breastfeeding_status" label="Statut d'allaitement" options={[["current", "En cours"], ["stopped", "Arrete"], ["not_applicable", "Non applicable"]]} />
-          <Select name="vaccinations_up_to_date" label="Vaccination a jour" options={[["true", "Oui"], ["false", "Non"], ["", "Non renseigne"]]} />
-          <Area name="complementary_feeding" label="Alimentation complementaire" />
           <Area name="recent_illnesses" label="Maladies recentes" />
           <ChildCustomIndicators key={selected} templates={customTemplates}/>
           <Area name="notes" label="Commentaires" />
           <button className="btn-primary justify-self-start md:col-span-3">Enregistrer</button>
         </form>
+        <ChildNutritionVaccination key={child.id} child={child} userId={parentId} feeding={initialFeeding.filter(item=>item.child_id===child.id)} vaccinations={initialVaccinations.filter(item=>item.child_id===child.id)} locale={locale} embedded/>
+        </section>
         <div className="flex flex-wrap gap-3"><button onClick={analyzeNow} disabled={loading} className="btn-primary">{loading?'Traitement...':'Actualiser l analyse'}</button><button onClick={createReport} disabled={loading} className="btn-secondary">Generer le rapport PDF</button></div>
         <GrowthCharts rows={rows} />
         <MeasurementHistory rows={rows} onEdit={editMeasure} onDelete={deleteMeasure} />
-        <ChildNutritionVaccination key={child.id} child={child} userId={parentId} feeding={initialFeeding.filter(item=>item.child_id===child.id)} vaccinations={initialVaccinations.filter(item=>item.child_id===child.id)}/>
         <section className="rounded-2xl border bg-white p-6"><h2 className="text-xl font-black">Analyse IA explicable</h2><p className="mt-4 leading-7">{savedAnalysis?.summary||analysis.summary}</p>{(savedAnalysis?.positives||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-leaf">+ {item}</p>)}{(savedAnalysis?.attention_points||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-orange">! {item}</p>)}<p className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{analysis.advice}</p>{(savedAnalysis?.indicator_insights||savedAnalysis?.indicatorInsights||[]).length>0&&<div className="mt-5 grid gap-3">{(savedAnalysis?.indicator_insights||savedAnalysis?.indicatorInsights||[]).map((item:any)=><article key={item.indicator} className="rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap justify-between gap-2"><b>{item.indicator}</b><span className="text-xs font-bold uppercase text-slate-500">{item.status}</span></div><p className="mt-2 text-sm text-slate-700">{item.parentInterpretation}</p><p className="mt-2 text-xs text-slate-500">{item.professionalInterpretation}</p></article>)}</div>}</section>
         <AlertPanel alerts={childAlerts}/>
         <AdvicePanel items={savedAnalysis?.parent_advice||[]}/>

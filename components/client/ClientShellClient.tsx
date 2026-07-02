@@ -32,7 +32,7 @@ export default function ClientShellClient({ children, email, access }: { childre
     ["/espace-client", "Tableau de bord", HomeIcon, true],
     ["/espace-client/services", "Acheter un service", CreditCardIcon, true],
     ["/espace-client/profil", "Mon profil", UserCircleIcon, true],
-    ["/espace-client/dossier", "Dossier nutritionnel", ClipboardDocumentListIcon, access.health],
+    ["/espace-client/dossier", "Enregistrer mes parametres", ClipboardDocumentListIcon, access.health],
     ["/espace-client/tendances", "Tendances", ChartBarIcon, access.health],
     ["/espace-client/analyse", "Analyse et rapports", SparklesIcon, access.health],
     ["/espace-client/abonnement", "Mes abonnements", CreditCardIcon, true],

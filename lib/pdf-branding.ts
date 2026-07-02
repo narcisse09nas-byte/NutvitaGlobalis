@@ -1,6 +1,7 @@
 import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import QRCode from "qrcode";
 import { type PDFDocument, type PDFImage, type PDFPage, rgb } from "pdf-lib";
 
 const pageWidth = 595;
@@ -38,5 +39,19 @@ export async function createNutvitaDocumentBranding(pdf: PDFDocument) {
     page.drawRectangle({ x: 0, y: 0, width: pageWidth, height: pageHeight, color: rgb(1, 1, 1) });
     page.drawImage(headerImage, { x: 0, y: pageHeight - 110, width: pageWidth, height: 110 });
     page.drawImage(footerImage, { x: 0, y: 0, width: pageWidth, height: 66 });
+  };
+}
+
+export async function createReportQrCode(pdf: PDFDocument, url: string) {
+  const dataUrl = await QRCode.toDataURL(url, {
+    width: 260,
+    margin: 1,
+    errorCorrectionLevel: "M",
+    color: { dark: "#123d32", light: "#ffffff" },
+  });
+  const image = await pdf.embedPng(Buffer.from(dataUrl.split(",")[1], "base64"));
+  return (page: PDFPage, label: string) => {
+    page.drawImage(image, { x: 493, y: 615, width: 54, height: 54 });
+    page.drawText(label, { x: 470, y: 604, size: 6, color: rgb(.35, .4, .39) });
   };
 }

@@ -25,6 +25,23 @@ create table if not exists public.survey_responses (
   submitted_at timestamptz not null default now()
 );
 
+alter table public.survey_responses add column if not exists response_reference text;
+alter table public.survey_responses add column if not exists source_type text not null default 'local';
+alter table public.survey_responses add column if not exists form_id uuid;
+alter table public.survey_responses add column if not exists cluster_id uuid;
+alter table public.survey_responses add column if not exists village_code text;
+alter table public.survey_responses add column if not exists village_name text;
+alter table public.survey_responses add column if not exists enumerator_id uuid;
+alter table public.survey_responses add column if not exists sequence_no integer;
+alter table public.survey_responses add column if not exists import_batch text;
+alter table public.survey_responses add column if not exists source_row integer;
+alter table public.survey_responses drop constraint if exists survey_responses_source_type_check;
+alter table public.survey_responses add constraint survey_responses_source_type_check
+  check(source_type in ('local','imported','api'));
+create unique index if not exists survey_response_reference
+on public.survey_responses(survey_id,response_reference)
+where response_reference is not null;
+
 create table if not exists public.survey_team_members (
   id uuid primary key default gen_random_uuid(),
   survey_id uuid not null references public.survey_projects(id) on delete cascade,
@@ -37,6 +54,26 @@ create table if not exists public.survey_team_members (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.survey_team_members add column if not exists member_code text;
+update public.survey_team_members
+set member_code=upper(left(regexp_replace(coalesce(first_name,'')||coalesce(last_name,''),'[^a-zA-Z0-9]','','g'),3))||right(replace(id::text,'-',''),3)
+where member_code is null;
+create unique index if not exists survey_team_member_code
+on public.survey_team_members(survey_id,member_code);
+
+create or replace function public.set_survey_member_code()
+returns trigger language plpgsql set search_path=public as $$
+begin
+  if nullif(new.member_code,'') is null then
+    new.member_code := upper(left(regexp_replace(coalesce(new.first_name,'')||coalesce(new.last_name,''),'[^a-zA-Z0-9]','','g'),3))
+      || right(replace(new.id::text,'-',''),3);
+  end if;
+  return new;
+end $$;
+drop trigger if exists set_survey_member_code on public.survey_team_members;
+create trigger set_survey_member_code before insert or update of first_name,last_name,member_code
+on public.survey_team_members for each row execute function public.set_survey_member_code();
 
 create table if not exists public.survey_clusters (
   id uuid primary key default gen_random_uuid(),
@@ -85,6 +122,23 @@ create table if not exists public.survey_forms (
   unique(survey_id,form_code)
 );
 
+alter table public.survey_forms add column if not exists odk_status text not null default 'not_configured';
+alter table public.survey_forms add column if not exists odk_configuration jsonb not null default '{}'::jsonb;
+alter table public.survey_forms add column if not exists odk_deployed_at timestamptz;
+alter table public.survey_forms drop constraint if exists survey_forms_odk_status_check;
+alter table public.survey_forms add constraint survey_forms_odk_status_check
+  check(odk_status in ('not_configured','configured','deployed','revoked','error'));
+
+alter table public.survey_responses drop constraint if exists survey_responses_form_id_fkey;
+alter table public.survey_responses add constraint survey_responses_form_id_fkey
+  foreign key(form_id) references public.survey_forms(id) on delete set null;
+alter table public.survey_responses drop constraint if exists survey_responses_cluster_id_fkey;
+alter table public.survey_responses add constraint survey_responses_cluster_id_fkey
+  foreign key(cluster_id) references public.survey_clusters(id) on delete set null;
+alter table public.survey_responses drop constraint if exists survey_responses_enumerator_id_fkey;
+alter table public.survey_responses add constraint survey_responses_enumerator_id_fkey
+  foreign key(enumerator_id) references public.survey_team_members(id) on delete set null;
+
 create table if not exists public.survey_analysis_reports (
   id uuid primary key default gen_random_uuid(),
   survey_id uuid not null references public.survey_projects(id) on delete cascade,
@@ -122,6 +176,66 @@ returns boolean language sql stable security definer set search_path=public as $
     where project.id=p_survey_id and project.owner_user_id=(select auth.uid())
   );
 $$;
+
+create or replace function public.register_local_survey_response(
+  p_survey_id uuid,
+  p_form_id uuid,
+  p_cluster_id uuid,
+  p_village_code text,
+  p_village_name text,
+  p_enumerator_id uuid,
+  p_answers jsonb
+) returns public.survey_responses
+language plpgsql security definer set search_path=public as $$
+declare
+  cluster_record public.survey_clusters;
+  enumerator_record public.survey_team_members;
+  form_record public.survey_forms;
+  next_sequence integer;
+  generated_reference text;
+  created_response public.survey_responses;
+  safe_cluster text;
+  safe_village text;
+  safe_enumerator text;
+begin
+  if (select auth.uid()) is null then raise exception 'Authentification requise.'; end if;
+  select * into cluster_record from public.survey_clusters
+  where id=p_cluster_id and survey_id=p_survey_id;
+  select * into enumerator_record from public.survey_team_members
+  where id=p_enumerator_id and survey_id=p_survey_id;
+  select * into form_record from public.survey_forms
+  where id=p_form_id and survey_id=p_survey_id and status='endorsed';
+  if cluster_record.id is null then raise exception 'Grappe invalide.'; end if;
+  if enumerator_record.id is null then raise exception 'Enqueteur invalide.'; end if;
+  if form_record.id is null then raise exception 'Questionnaire valide introuvable.'; end if;
+  if not public.can_manage_survey(p_survey_id)
+    and not exists(select 1 from public.survey_team_members where id=p_enumerator_id and survey_id=p_survey_id)
+  then raise exception 'Acces refuse.'; end if;
+
+  safe_cluster := upper(left(regexp_replace(cluster_record.cluster_code,'[^a-zA-Z0-9]','','g'),12));
+  safe_village := upper(left(regexp_replace(coalesce(p_village_code,p_village_name),'[^a-zA-Z0-9]','','g'),12));
+  safe_enumerator := upper(left(regexp_replace(coalesce(enumerator_record.member_code,enumerator_record.id::text),'[^a-zA-Z0-9]','','g'),12));
+  if safe_village='' then raise exception 'Code village/ZD requis.'; end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(p_survey_id::text||':'||cluster_record.id::text||':'||safe_village,0));
+  select coalesce(max(sequence_no),0)+1 into next_sequence
+  from public.survey_responses
+  where survey_id=p_survey_id and cluster_id=p_cluster_id and village_code=p_village_code and source_type='local';
+  generated_reference := format('G-%s-V-%s-E-%s-Q-%s',safe_cluster,safe_village,safe_enumerator,lpad(next_sequence::text,4,'0'));
+
+  insert into public.survey_responses(
+    survey_id,submitted_by,cluster_reference,response_reference,source_type,
+    form_id,cluster_id,village_code,village_name,enumerator_id,sequence_no,response_data
+  ) values(
+    p_survey_id,(select auth.uid()),cluster_record.cluster_code,generated_reference,'local',
+    p_form_id,p_cluster_id,p_village_code,p_village_name,p_enumerator_id,next_sequence,
+    jsonb_build_object('form_id',form_record.id,'form_code',form_record.form_code,'answers',coalesce(p_answers,'{}'::jsonb))
+  ) returning * into created_response;
+  return created_response;
+end $$;
+
+revoke all on function public.register_local_survey_response(uuid,uuid,uuid,text,text,uuid,jsonb) from public;
+grant execute on function public.register_local_survey_response(uuid,uuid,uuid,text,text,uuid,jsonb) to authenticated;
 
 drop policy if exists "Survey owners manage projects" on public.survey_projects;
 create policy "Survey owners manage projects" on public.survey_projects for all to authenticated

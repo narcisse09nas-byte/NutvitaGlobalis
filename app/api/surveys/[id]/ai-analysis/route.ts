@@ -36,7 +36,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       'Pour chaque constat important, preciser le signal observe, l interpretation possible, les limites, la verification requise et l action recommandee.',
       'Distinguez constats, limites, risques et recommandations. Mentionnez ponderations, effet de grappe, denominateurs, valeurs manquantes et plausibilite quand applicable.',
     ].join('\n'),
-    { survey, dataset: body.summary, quality: body.quality, nutritionalStatus: body.nutritionalStatus, crossTab: body.crossTab },
+    {
+      survey,
+      dataset: body.summary,
+      quality: body.quality,
+      nutritionalStatus: body.nutritionalStatus,
+      crossTab: body.crossTab,
+      statisticalResult: body.statisticalResult,
+      deterministicInterpretation: body.deterministicInterpretation,
+    },
     schema,
   );
   return NextResponse.json({ analysis: generated.data || fallback, provider: generated.provider || 'local' });

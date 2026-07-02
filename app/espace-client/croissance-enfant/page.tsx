@@ -2,9 +2,11 @@ import ClientShell from "@/components/client/ClientShell";
 import ChildGrowthCenter from "@/components/client/ChildGrowthCenter";
 import {requireClient} from "@/lib/client";
 import {getApplicableTax} from "@/lib/taxes";
+import {getCurrentLocale} from "@/lib/i18n-server";
 
 export default async function ChildGrowthPage(){
   const {supabase,user,profile}=await requireClient();
+  const locale=await getCurrentLocale();
   const now=new Date().toISOString();
   const [{data:children},{data:measurements},{data:subscriptions},{data:plan},{data:analyses},{data:alerts},{data:reports},{data:feeding},{data:vaccinations},tax]=await Promise.all([
     supabase.from('children').select('*').eq('parent_id',user.id).eq('active',true).order('created_at'),
@@ -18,5 +20,5 @@ export default async function ChildGrowthPage(){
     supabase.from('child_vaccination_assessments').select('*').order('assessed_at',{ascending:false}),
     getApplicableTax(supabase,profile?.country_code,'subscription'),
   ]);
-  return <ClientShell email={user.email||''}><div className="mb-7"><h1 className="text-3xl font-black">Suivi Promotion Croissance Enfant</h1><p className="mt-2 text-slate-500">Acces gratuit temporaire pendant la mise en stand-by des paiements.</p></div><ChildGrowthCenter parentId={user.id} initialChildren={children||[]} initialMeasurements={measurements||[]} subscriptions={subscriptions||[]} plan={plan} taxRate={Number(tax.rate)} initialAnalyses={analyses||[]} initialAlerts={alerts||[]} initialReports={reports||[]} initialFeeding={feeding||[]} initialVaccinations={vaccinations||[]}/></ClientShell>
+  return <ClientShell email={user.email||''}><div className="mb-7"><h1 className="text-3xl font-black">Suivi Promotion Croissance Enfant</h1><p className="mt-2 text-slate-500">Acces gratuit temporaire pendant la mise en stand-by des paiements.</p></div><ChildGrowthCenter parentId={user.id} initialChildren={children||[]} initialMeasurements={measurements||[]} subscriptions={subscriptions||[]} plan={plan} taxRate={Number(tax.rate)} initialAnalyses={analyses||[]} initialAlerts={alerts||[]} initialReports={reports||[]} initialFeeding={feeding||[]} initialVaccinations={vaccinations||[]} locale={locale}/></ClientShell>
 }

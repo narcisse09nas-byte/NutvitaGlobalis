@@ -11,6 +11,8 @@ export type EnaSmartMapping = {
   height: string;
   muac?: string;
   cluster?: string;
+  village?: string;
+  enumerator?: string;
   id?: string;
 };
 
@@ -25,6 +27,16 @@ type NumericSummary = {
 function numeric(value: unknown) {
   const result = Number(String(value ?? '').replace(',', '.'));
   return Number.isFinite(result) ? result : null;
+}
+
+function mean(values: number[]) {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
+
+function variance(values: number[]) {
+  if (values.length < 2) return 0;
+  const average = mean(values);
+  return values.reduce((sum, value) => sum + (value - average) ** 2, 0) / (values.length - 1);
 }
 
 function summarize(values: Array<number | null>): NumericSummary {
@@ -88,6 +100,8 @@ export function analyzeEnaSmartPlausibility(rows: Record<string, unknown>[], map
       row: index + 1,
       id: mapping.id ? row[mapping.id] : null,
       cluster: mapping.cluster ? row[mapping.cluster] : null,
+      village: mapping.village ? row[mapping.village] : null,
+      enumerator: mapping.enumerator ? row[mapping.enumerator] : null,
       age,
       sex,
       weight,
@@ -113,6 +127,52 @@ export function analyzeEnaSmartPlausibility(rows: Record<string, unknown>[], map
 
   const flagged = observations.filter(item => item.flags.length);
   const flagPercentage = observations.length ? flagged.length * 100 / observations.length : 0;
+  const groupSummary = (field: 'cluster' | 'village' | 'enumerator') => {
+    const levels = [...new Set(observations.map(item => String(item[field] ?? '')).filter(Boolean))];
+    return levels.map(level => {
+      const group = observations.filter(item => String(item[field] ?? '') === level);
+      const groupFlags = group.filter(item => item.flags.length).length;
+      return {
+        value: level,
+        n: group.length,
+        flagged: groupFlags,
+        flagPercentage: group.length ? Number((groupFlags * 100 / group.length).toFixed(1)) : 0,
+        whzStandardDeviation: summarize(group.map(item => item.whz)).standardDeviation,
+        ageRatio: (() => {
+          const young = group.filter(item => item.age !== null && item.age >= 6 && item.age <= 29).length;
+          const old = group.filter(item => item.age !== null && item.age >= 30 && item.age <= 59).length;
+          return old ? Number((young / old).toFixed(2)) : null;
+        })(),
+        sexRatio: (() => {
+          const groupBoys = group.filter(item => item.sex === 'male').length;
+          const groupGirls = group.filter(item => item.sex === 'female').length;
+          return groupGirls ? Number((groupBoys / groupGirls).toFixed(2)) : null;
+        })(),
+      };
+    });
+  };
+  const clusterCases = [...new Set(observations.map(item => String(item.cluster ?? '')).filter(Boolean))].map(cluster => {
+    const group = observations.filter(item => String(item.cluster ?? '') === cluster && item.flags.length === 0);
+    return {
+      cluster,
+      wasting: group.filter(item => item.whz !== null && item.whz < -2).length,
+      severeWasting: group.filter(item => item.whz !== null && item.whz < -3).length,
+      stunting: group.filter(item => item.haz !== null && item.haz < -2).length,
+      underweight: group.filter(item => item.waz !== null && item.waz < -2).length,
+    };
+  });
+  const dispersion = (key: 'wasting' | 'severeWasting' | 'stunting' | 'underweight') => {
+    const values = clusterCases.map(item => item[key]);
+    const average = mean(values);
+    return {
+      clusters: values.length,
+      meanCases: average,
+      indexOfDispersion: average && values.length > 1 ? variance(values) / average : null,
+      interpretation: !average || values.length < 2
+        ? 'non_evaluable'
+        : variance(values) / average > 1.5 ? 'concentration_possible' : variance(values) / average < .5 ? 'distribution_uniforme_possible' : 'distribution_compatible_avec_aleatoire',
+    };
+  };
   return {
     engine: 'ENA-SMART-inspired plausibility v1',
     reference: 'WHO Child Growth Standards 2006',
@@ -143,5 +203,17 @@ export function analyzeEnaSmartPlausibility(rows: Record<string, unknown>[], map
       .filter(([, lines]) => lines.length > 1)
       .map(([id, lines]) => ({ id, lines })),
     flags: flagged.map(item => ({ row: item.row, id: item.id, cluster: item.cluster, reasons: item.flags })),
+    groupQuality: {
+      clusters: groupSummary('cluster'),
+      villages: groupSummary('village'),
+      enumerators: groupSummary('enumerator'),
+    },
+    dispersion: {
+      wasting: dispersion('wasting'),
+      severeWasting: dispersion('severeWasting'),
+      stunting: dispersion('stunting'),
+      underweight: dispersion('underweight'),
+    },
+    observations,
   };
 }

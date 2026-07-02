@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import QRCode from 'react-qr-code';
 import {
   Activity, BarChart3, ClipboardList, Database, Download, FileSpreadsheet,
   FlaskConical, MapPinned, Plus, Save, Send, Settings2, Trash2, Users,
@@ -13,6 +14,7 @@ import { analyzeEnaSmartPlausibility } from '@/survey/lib/ena-smart-plausibility
 import { calculateSurveyIndicators } from '@/survey/lib/food-security-indicators';
 import { exportQuestionnaireWorkbook, parseXlsForm, type SurveyQuestion } from '@/survey/lib/xlsform';
 import { calculateLFAzScore, calculateWFAzScore, calculateWFLzScore, classifyLFAzScore, classifyWFLzScore } from '@/survey/lib/who-growth-standards';
+import SurveyAnalysisWorkspace from './SurveyAnalysisWorkspace';
 
 type Row = Record<string, any>;
 type Resource = 'team' | 'clusters' | 'samples' | 'forms' | 'responses' | 'reports';
@@ -69,8 +71,8 @@ export default function SurveyManager({ initialSurvey }: { initialSurvey: Row })
         {activeTab === 'team' && <Team surveyId={survey.id} items={resources.team} mutate={mutate} setMessage={setMessage} />}
         {activeTab === 'sampling' && <Sampling clusters={resources.clusters} samples={resources.samples} mutate={mutate} setMessage={setMessage} />}
         {activeTab === 'questionnaire' && <Questionnaires surveyId={survey.id} forms={resources.forms} mutate={mutate} setMessage={setMessage} />}
-        {activeTab === 'collection' && <Collection forms={resources.forms} responses={resources.responses} mutate={mutate} setMessage={setMessage} />}
-        {activeTab === 'analysis' && <Analysis survey={survey} mutate={mutate} setMessage={setMessage} />}
+        {activeTab === 'collection' && <Collection forms={resources.forms} responses={resources.responses} clusters={resources.clusters} team={resources.team} mutate={mutate} setMessage={setMessage} />}
+        {activeTab === 'analysis' && <Analysis survey={survey} forms={resources.forms} responses={resources.responses} mutate={mutate} setMessage={setMessage} />}
         {activeTab === 'reports' && <Reports surveyId={survey.id} reports={resources.reports} />}
       </section>
     </div>
@@ -150,6 +152,7 @@ function SamplingLegacy({ clusters, samples, mutate, setMessage }: { clusters: R
 function Questionnaires({ surveyId, forms, mutate, setMessage }: { surveyId: string; forms: Row[]; mutate: any; setMessage: (value: string) => void }) {
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [title, setTitle] = useState('');
+  const [odkForm, setOdkForm] = useState<Row | null>(null);
   const addQuestion = () => setQuestions(current => [...current, { id: crypto.randomUUID(), type: 'text', name: `question_${current.length + 1}`, label: '' }]);
   async function importFile(file?: File) {
     if (!file) return; const parsed = parseXlsForm(await file.arrayBuffer()); setQuestions(parsed.questions); setTitle(file.name.replace(/\.[^.]+$/, '')); setMessage(`${parsed.questions.length} question(s) importee(s) du XLSForm.`);
@@ -162,10 +165,191 @@ function Questionnaires({ surveyId, forms, mutate, setMessage }: { surveyId: str
   async function status(form: Row, next: string) {
     await mutate('forms', 'PATCH', { id: form.id, status: next, status_history: [...(form.status_history || []), { status: next, at: new Date().toISOString() }] }); setMessage(`Statut du formulaire: ${next}.`);
   }
-  return <div className="grid gap-6"><Panel title="Etape 3: Conception du questionnaire" text="Importez un XLSForm ou utilisez le constructeur complet avec propriétés avancées, langues, groupes et listes de choix."><div className="flex flex-wrap gap-3"><label className="btn-secondary cursor-pointer"><FileSpreadsheet className="mr-2 h-4" />Importer XLSForm<input type="file" accept=".xlsx,.xls" className="hidden" onChange={event => importFile(event.target.files?.[0])} /></label><Link href={`/surveys/${surveyId}/questionnaire`} className="btn-primary"><Plus className="mr-2 h-4" />Créer un questionnaire</Link></div><input value={title} onChange={event => setTitle(event.target.value)} placeholder="Titre du questionnaire importé" className="admin-input mt-5" /><div className="mt-4 grid gap-3">{questions.map((question, index) => <div key={question.id} className="grid gap-3 rounded-md border p-4 md:grid-cols-[160px_1fr_1fr_auto]"><select value={question.type} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, type: event.target.value as SurveyQuestion['type'] } : item))} className="admin-input"><option value="text">Texte</option><option value="integer">Entier</option><option value="decimal">Décimal</option><option value="date">Date</option><option value="select_one">Choix unique</option><option value="select_multiple">Choix multiple</option><option value="note">Note</option></select><input value={question.name} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, name: event.target.value } : item))} className="admin-input" placeholder="nom_variable" /><input value={question.label} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, label: event.target.value } : item))} className="admin-input" placeholder={`Libelle question ${index + 1}`} /><button onClick={() => setQuestions(current => current.filter(item => item.id !== question.id))} className="text-red-700"><Trash2 className="h-4" /></button>{question.type.startsWith('select_') && <textarea className="admin-input md:col-span-3 md:col-start-2" placeholder="Options, une par ligne" value={(question.options || []).map(option => option.label).join('\n')} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, options: event.target.value.split('\n').filter(Boolean).map((label, optionIndex) => ({ value: `option_${optionIndex + 1}`, label })) } : item))} />}</div>)}</div>{questions.length > 0 && <button onClick={saveForm} className="btn-primary mt-4"><Save className="mr-2 h-4" />Enregistrer l import</button>}</Panel><Panel title="Etape 4: Workflow des formulaires">{forms.length ? <div className="grid gap-3">{forms.map(form => <article key={form.id} className="rounded-md border p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><b>{form.title}</b><p className="text-sm text-slate-500">{form.form_code} · version {form.version} · {form.status}</p></div><div className="flex flex-wrap gap-2"><Link href={`/surveys/${surveyId}/questionnaire?form=${form.id}`} className="btn-secondary">Modifier</Link><button onClick={() => exportQuestionnaireWorkbook(form.title, form.definition?.questions || [])} className="btn-secondary"><Download className="mr-2 h-4" />XLSForm</button>{form.status === 'draft' && <button onClick={() => status(form, 'pending_endorsement')} className="btn-primary"><Send className="mr-2 h-4" />Soumettre</button>}{form.status === 'pending_endorsement' && <button onClick={() => status(form, 'endorsed')} className="btn-primary">Valider</button>}<button onClick={() => mutate('forms', 'DELETE', undefined, form.id)} className="rounded-md bg-red-50 px-3 text-red-700"><Trash2 className="h-4" /></button></div></div></article>)}</div> : <Empty text="Aucun questionnaire." />}</Panel></div>;
+  return <div className="grid gap-6"><Panel title="Etape 3: Conception du questionnaire" text="Importez un XLSForm ou utilisez le constructeur complet avec propriétés avancées, langues, groupes et listes de choix."><div className="flex flex-wrap gap-3"><label className="btn-secondary cursor-pointer"><FileSpreadsheet className="mr-2 h-4" />Importer XLSForm<input type="file" accept=".xlsx,.xls" className="hidden" onChange={event => importFile(event.target.files?.[0])} /></label><Link href={`/surveys/${surveyId}/questionnaire`} className="btn-primary"><Plus className="mr-2 h-4" />Créer un questionnaire</Link></div><input value={title} onChange={event => setTitle(event.target.value)} placeholder="Titre du questionnaire importé" className="admin-input mt-5" /><div className="mt-4 grid gap-3">{questions.map((question, index) => <div key={question.id} className="grid gap-3 rounded-md border p-4 md:grid-cols-[160px_1fr_1fr_auto]"><select value={question.type} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, type: event.target.value as SurveyQuestion['type'] } : item))} className="admin-input"><option value="text">Texte</option><option value="integer">Entier</option><option value="decimal">Décimal</option><option value="date">Date</option><option value="select_one">Choix unique</option><option value="select_multiple">Choix multiple</option><option value="note">Note</option></select><input value={question.name} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, name: event.target.value } : item))} className="admin-input" placeholder="nom_variable" /><input value={question.label} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, label: event.target.value } : item))} className="admin-input" placeholder={`Libelle question ${index + 1}`} /><button onClick={() => setQuestions(current => current.filter(item => item.id !== question.id))} className="text-red-700"><Trash2 className="h-4" /></button>{question.type.startsWith('select_') && <textarea className="admin-input md:col-span-3 md:col-start-2" placeholder="Options, une par ligne" value={(question.options || []).map(option => option.label).join('\n')} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, options: event.target.value.split('\n').filter(Boolean).map((label, optionIndex) => ({ value: `option_${optionIndex + 1}`, label })) } : item))} />}</div>)}</div>{questions.length > 0 && <button onClick={saveForm} className="btn-primary mt-4"><Save className="mr-2 h-4" />Enregistrer l import</button>}</Panel><Panel title="Etape 4: Workflow des formulaires">{forms.length ? <div className="grid gap-3">{forms.map(form => <article key={form.id} className="rounded-md border p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><b>{form.title}</b><p className="text-sm text-slate-500">{form.form_code} · version {form.version} · {form.status}</p>{form.odk_status && form.odk_status !== 'not_configured' && <p className="mt-1 text-xs font-bold text-emerald-700">ODK : {form.odk_status}</p>}</div><div className="flex flex-wrap gap-2"><Link href={`/surveys/${surveyId}/questionnaire?form=${form.id}`} className="btn-secondary">Modifier</Link><button onClick={() => exportQuestionnaireWorkbook(form.title, form.definition?.questions || [])} className="btn-secondary"><Download className="mr-2 h-4" />XLSForm</button>{form.status === 'draft' && <button onClick={() => status(form, 'pending_endorsement')} className="btn-primary"><Send className="mr-2 h-4" />Soumettre</button>}{form.status === 'pending_endorsement' && <button onClick={() => status(form, 'endorsed')} className="btn-primary">Valider</button>}{form.status === 'endorsed' && <button onClick={() => setOdkForm(form)} className="btn-primary"><Database className="mr-2 h-4" />{form.odk_status === 'configured' ? 'Accès ODK' : 'Déployer sur ODK'}</button>}<button onClick={() => mutate('forms', 'DELETE', undefined, form.id)} className="rounded-md bg-red-50 px-3 text-red-700"><Trash2 className="h-4" /></button></div></div></article>)}</div> : <Empty text="Aucun questionnaire." />}</Panel>{odkForm && <OdkDeploymentDialog form={odkForm} mutate={mutate} onClose={() => setOdkForm(null)} setMessage={setMessage}/>}</div>;
 }
 
-function Collection({ forms, responses, mutate, setMessage }: { forms: Row[]; responses: Row[]; mutate: any; setMessage: (value: string) => void }) {
+async function odkSettingsPayload(configuration: Row, title: string) {
+  const central = configuration.mode === 'central';
+  const general: Row = {
+    protocol: 'odk_default',
+    server_url: central ? configuration.app_user_url : configuration.server_url,
+    form_update_mode: 'match_exactly',
+    autosend: 'wifi_and_cellular',
+  };
+  if (!central) {
+    general.username = configuration.username;
+    general.password = configuration.password;
+  }
+  const settings = {
+    general,
+    admin: { change_server: false },
+    project: { name: title, icon: title.slice(0, 1).toUpperCase(), color: '#123d32' },
+  };
+  const bytes = new TextEncoder().encode(JSON.stringify(settings));
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate'));
+  const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
+  let binary = '';
+  compressed.forEach(value => { binary += String.fromCharCode(value); });
+  return btoa(binary);
+}
+
+function OdkDeploymentDialog({ form, mutate, onClose, setMessage }: { form: Row; mutate: any; onClose: () => void; setMessage: (value: string) => void }) {
+  const existing = form.odk_configuration || {};
+  const [mode, setMode] = useState<'central' | 'generic'>(existing.mode || 'central');
+  const [configuration, setConfiguration] = useState<Row>(existing);
+  const [qrValue, setQrValue] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const next: Row = { ...configuration, ...values, mode };
+    if (mode === 'central' && !String(next.app_user_url || '').startsWith('https://')) return setMessage('L URL secrète de l App User ODK Central doit utiliser HTTPS.');
+    if (mode === 'generic' && (!String(next.server_url || '').startsWith('https://') || !next.username || !next.password)) return setMessage('URL HTTPS, nom d utilisateur et mot de passe sont requis.');
+    setBusy(true);
+    const qr = await odkSettingsPayload(next, form.title);
+    await mutate('forms', 'PATCH', {
+      id: form.id,
+      odk_status: 'configured',
+      odk_configuration: next,
+      odk_deployed_at: new Date().toISOString(),
+    });
+    setConfiguration(next);
+    setQrValue(qr);
+    setBusy(false);
+    setMessage('Accès ODK Collect configuré. Le QR contient un secret et doit rester confidentiel.');
+  }
+
+  async function revealQr() {
+    setQrValue(await odkSettingsPayload({ ...configuration, mode }, form.title));
+  }
+
+  return <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/60 p-4" onMouseDown={onClose}>
+    <section className="mx-auto my-8 max-w-3xl bg-white p-7 shadow-2xl" onMouseDown={event => event.stopPropagation()}>
+      <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase text-emerald-700">Déploiement ODK Collect</p><h2 className="mt-1 text-2xl font-black">{form.title}</h2><p className="mt-2 text-sm text-slate-600">Téléchargez d abord le XLSForm et publiez-le dans le projet ODK Central. Configurez ensuite l accès de collecte ci-dessous.</p></div><button onClick={onClose} className="text-2xl" aria-label="Fermer">×</button></div>
+      <div className="mt-6 inline-flex border bg-slate-50 p-1"><button onClick={() => setMode('central')} className={`px-4 py-2 text-sm font-bold ${mode === 'central' ? 'bg-forest text-white' : ''}`}>ODK Central recommandé</button><button onClick={() => setMode('generic')} className={`px-4 py-2 text-sm font-bold ${mode === 'generic' ? 'bg-forest text-white' : ''}`}>Serveur URL + identifiants</button></div>
+      <form onSubmit={save} className="mt-5 grid gap-4">
+        {mode === 'central' ? <>
+          <label className="grid gap-2 text-sm font-bold">Adresse secrète de l’App User<input name="app_user_url" type="url" required defaultValue={configuration.app_user_url || ''} className="admin-input" placeholder="https://central.exemple.org/v1/key/..." /></label>
+          <label className="grid gap-2 text-sm font-bold">Identifiant du projet Central<input name="project_id" defaultValue={configuration.project_id || ''} className="admin-input" placeholder="Ex. 12" /></label>
+          <p className="rounded-md bg-amber-50 p-4 text-sm text-amber-900">ODK Central n’utilise pas de nom d’utilisateur ni de mot de passe pour un App User. Son URL/QR secret remplit ce rôle.</p>
+        </> : <div className="grid gap-4 md:grid-cols-2">
+          <label className="grid gap-2 text-sm font-bold md:col-span-2">Adresse URL du serveur<input name="server_url" type="url" required defaultValue={configuration.server_url || ''} className="admin-input" placeholder="https://odk.exemple.org" /></label>
+          <label className="grid gap-2 text-sm font-bold">Nom d’utilisateur<input name="username" required defaultValue={configuration.username || ''} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Mot de passe / clé<input name="password" type="password" required defaultValue={configuration.password || ''} className="admin-input" /></label>
+        </div>}
+        <div className="flex flex-wrap gap-3"><button disabled={busy} className="btn-primary">{busy ? 'Configuration...' : 'Enregistrer et générer le QR'}</button><button type="button" onClick={() => exportQuestionnaireWorkbook(form.title, form.definition?.questions || [])} className="btn-secondary"><Download className="mr-2 h-4" />Télécharger le XLSForm</button>{existing.mode && !qrValue && <button type="button" onClick={revealQr} className="btn-secondary">Afficher le QR enregistré</button>}</div>
+      </form>
+      {qrValue && <div className="mt-7 grid gap-5 border-t pt-6 md:grid-cols-[220px_1fr]"><div className="bg-white p-3"><QRCode value={qrValue} size={196}/></div><div><h3 className="font-black">Configuration ODK Collect</h3><p className="mt-2 text-sm leading-6 text-slate-600">Dans ODK Collect, choisissez « Configurer avec un code QR » puis scannez ce code. Il contient les paramètres d’accès et doit être traité comme un mot de passe.</p><dl className="mt-4 grid gap-2 text-sm"><div><dt className="text-slate-500">URL</dt><dd className="break-all font-mono">{mode === 'central' ? configuration.app_user_url : configuration.server_url}</dd></div>{mode === 'generic' && <div><dt className="text-slate-500">Utilisateur</dt><dd className="font-mono">{configuration.username}</dd></div>}</dl></div></div>}
+    </section>
+  </div>;
+}
+
+function Collection({ forms, responses, clusters, team, mutate, setMessage }: { forms: Row[]; responses: Row[]; clusters: Row[]; team: Row[]; mutate: any; setMessage: (value: string) => void }) {
+  const endorsed = forms.filter(form => form.status === 'endorsed');
+  const [formId, setFormId] = useState('');
+  const [clusterId, setClusterId] = useState('');
+  const [villageCode, setVillageCode] = useState('');
+  const [enumeratorId, setEnumeratorId] = useState('');
+  const [importBusy, setImportBusy] = useState(false);
+  const selectedForm = endorsed.find(form => form.id === formId);
+  const selectedCluster = clusters.find(cluster => cluster.id === clusterId);
+  const selectedVillage = (selectedCluster?.villages || []).find((village: Row) => String(village.code) === villageCode);
+  const selectedEnumerator = team.find(member => member.id === enumeratorId);
+  const preview = clusterId && villageCode && enumeratorId
+    ? `G-${selectedCluster?.cluster_code || '?'}-V-${villageCode}-E-${selectedEnumerator?.member_code || String(enumeratorId).slice(0, 6)}-Q-####`
+    : 'Sélectionnez la grappe, le village/ZD et l’enquêteur.';
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedForm || !selectedCluster || !selectedVillage || !selectedEnumerator) {
+      setMessage('Questionnaire, grappe, village/ZD et enquêteur sont requis.');
+      return;
+    }
+    const answers = Object.fromEntries(new FormData(event.currentTarget));
+    delete answers.form_id;
+    delete answers.cluster_id;
+    delete answers.village_code;
+    delete answers.enumerator_id;
+    const item = await mutate('responses', 'POST', {
+      source_type: 'local',
+      form_id: selectedForm.id,
+      cluster_id: selectedCluster.id,
+      village_code: selectedVillage.code,
+      village_name: selectedVillage.name,
+      enumerator_id: selectedEnumerator.id,
+      answers,
+    });
+    event.currentTarget.reset();
+    setMessage(`Réponse enregistrée${item?.response_reference ? ` : ${item.response_reference}` : '.'}`);
+  }
+
+  async function importResponses(file?: File) {
+    if (!file || !selectedForm) {
+      setMessage('Choisissez d’abord un questionnaire validé puis un fichier.');
+      return;
+    }
+    setImportBusy(true);
+    const bytes = await file.arrayBuffer();
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    const batch = Array.from(new Uint8Array(digest)).slice(0, 6).map(value => value.toString(16).padStart(2, '0')).join('').toUpperCase();
+    let importedRows: Row[];
+    if (file.name.toLowerCase().endsWith('.csv')) {
+      importedRows = Papa.parse<Row>(new TextDecoder().decode(bytes), { header: true, skipEmptyLines: true, dynamicTyping: true }).data;
+    } else {
+      const workbook = XLSX.read(bytes, { type: 'array' });
+      importedRows = XLSX.utils.sheet_to_json<Row>(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
+    }
+    let imported = 0;
+    for (let index = 0; index < importedRows.length; index += 1) {
+      try {
+        await mutate('responses', 'POST', {
+          source_type: 'imported',
+          import_batch: batch,
+          source_row: index + 2,
+          form_id: selectedForm.id,
+          response_data: {
+            form_id: selectedForm.id,
+            form_code: selectedForm.form_code,
+            source_file: file.name,
+            answers: importedRows[index],
+          },
+        });
+        imported += 1;
+      } catch {
+        // Stable references intentionally reject duplicate rows from the same file.
+      }
+    }
+    setImportBusy(false);
+    setMessage(`${imported}/${importedRows.length} ligne(s) importée(s). Lot ${batch}.`);
+  }
+
+  return <div className="grid gap-6">
+    <Panel title="Collecte des données" text="Les références locales sont générées automatiquement et séquentiellement dans chaque village/ZD.">
+      <div className="grid gap-3 md:grid-cols-4">
+        <select value={formId} onChange={event => setFormId(event.target.value)} className="admin-input"><option value="">Questionnaire validé</option>{endorsed.map(form => <option key={form.id} value={form.id}>{form.title}</option>)}</select>
+        <select value={clusterId} onChange={event => { setClusterId(event.target.value); setVillageCode(''); }} className="admin-input"><option value="">Grappe</option>{clusters.map(cluster => <option key={cluster.id} value={cluster.id}>{cluster.cluster_code} - {cluster.cluster_name}</option>)}</select>
+        <select value={villageCode} onChange={event => setVillageCode(event.target.value)} className="admin-input"><option value="">Village / ZD</option>{(selectedCluster?.villages || []).map((village: Row) => <option key={village.code} value={village.code}>{village.code} - {village.name}</option>)}</select>
+        <select value={enumeratorId} onChange={event => setEnumeratorId(event.target.value)} className="admin-input"><option value="">Enquêteur</option>{team.filter(member => /enqu/i.test(member.role)).map(member => <option key={member.id} value={member.id}>{member.member_code || 'AUTO'} - {member.first_name} {member.last_name}</option>)}</select>
+      </div>
+      <p className="mt-3 rounded bg-emerald-50 p-3 font-mono text-sm font-bold text-emerald-900">{preview}</p>
+      {selectedForm && <form onSubmit={submit} className="mt-6 grid max-w-4xl gap-4">
+        {(selectedForm.definition?.questions || []).map((question: SurveyQuestion) => <QuestionField key={question.id} question={question} />)}
+        <button className="btn-primary"><Save className="mr-2 h-4" />Enregistrer la réponse</button>
+      </form>}
+      <div className="mt-6 border-t pt-5">
+        <h3 className="font-black">Importer des données externes</h3>
+        <p className="mt-1 text-sm text-slate-500">Référence stable : IMP-[empreinte du fichier]-[numéro de ligne source]. L’identifiant original reste conservé dans les réponses.</p>
+        <label className="btn-secondary mt-3 cursor-pointer"><FileSpreadsheet className="mr-2 h-4" />{importBusy ? 'Import en cours...' : 'Importer CSV / Excel'}<input type="file" accept=".csv,.xlsx,.xls" className="hidden" disabled={importBusy} onChange={event => importResponses(event.target.files?.[0])} /></label>
+      </div>
+    </Panel>
+    <Panel title={`${responses.length} réponse(s) collectée(s)`}>
+      {responses.length ? <div className="overflow-x-auto"><table className="min-w-full text-sm"><thead><tr className="text-left text-slate-500"><th className="p-3">Référence</th><th className="p-3">Source</th><th className="p-3">Village/ZD</th><th className="p-3">Formulaire</th><th className="p-3">Date</th></tr></thead><tbody>{responses.map(response => <tr key={response.id} className="border-t"><td className="p-3 font-mono font-bold">{response.response_reference || response.cluster_reference || '-'}</td><td className="p-3">{response.source_type || 'local'}</td><td className="p-3">{response.village_name || response.village_code || '-'}</td><td className="p-3">{response.response_data?.form_code || '-'}</td><td className="p-3">{new Date(response.submitted_at).toLocaleString('fr-FR')}</td></tr>)}</tbody></table></div> : <Empty text="Aucune donnée collectée." />}
+    </Panel>
+  </div>;
+}
+
+function CollectionLegacy({ forms, responses, mutate, setMessage }: { forms: Row[]; responses: Row[]; mutate: any; setMessage: (value: string) => void }) {
   const endorsed = forms.filter(form => form.status === 'endorsed');
   const [formId, setFormId] = useState('');
   const selected = endorsed.find(form => form.id === formId);
@@ -186,7 +370,11 @@ function QuestionField({ question }: { question: SurveyQuestion }) {
   return <label className="grid gap-2 text-sm font-bold">{question.label}<input name={question.name} type={question.type === 'integer' || question.type === 'decimal' ? 'number' : question.type === 'date' ? 'date' : question.type === 'time' ? 'time' : 'text'} step={question.type === 'decimal' ? 'any' : undefined} required={question.required} readOnly={question.readonly} placeholder={question.hints?.fr} className="admin-input" /></label>;
 }
 
-function Analysis({ survey, mutate, setMessage }: { survey: Row; mutate: any; setMessage: (value: string) => void }) {
+function Analysis({ survey, forms, responses, mutate, setMessage }: { survey: Row; forms: Row[]; responses: Row[]; mutate: any; setMessage: (value: string) => void }) {
+  return <SurveyAnalysisWorkspace survey={survey} forms={forms} responses={responses} mutate={mutate} setMessage={setMessage} />;
+}
+
+function AnalysisLegacy({ survey, mutate, setMessage }: { survey: Row; mutate: any; setMessage: (value: string) => void }) {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [fileName, setFileName] = useState('');
   const [first, setFirst] = useState('');

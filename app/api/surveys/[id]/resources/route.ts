@@ -38,10 +38,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ message: 'Authentification requise.' }, { status: 401 });
   const body = await request.json();
+  if (resource === 'responses' && body.source_type !== 'imported') {
+    const { data, error } = await supabase.rpc('register_local_survey_response', {
+      p_survey_id: id,
+      p_form_id: body.form_id,
+      p_cluster_id: body.cluster_id,
+      p_village_code: body.village_code,
+      p_village_name: body.village_name,
+      p_enumerator_id: body.enumerator_id,
+      p_answers: body.answers || {},
+    });
+    if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+    return NextResponse.json({ item: data });
+  }
   const payload = { ...body, survey_id: id };
   delete payload.id;
   if (resource === 'forms' && !payload.created_by) payload.created_by = user.id;
   if (resource === 'responses' && !payload.submitted_by) payload.submitted_by = user.id;
+  if (resource === 'responses' && payload.source_type === 'imported') {
+    const batch = String(payload.import_batch || 'IMPORT').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+    const row = Math.max(1, Number(payload.source_row) || 1);
+    payload.response_reference = `IMP-${batch || 'IMPORT'}-${String(row).padStart(6, '0')}`;
+    payload.cluster_reference = payload.cluster_reference || 'IMPORT';
+    payload.sequence_no = null;
+  }
   if (resource === 'reports' && !payload.created_by) payload.created_by = user.id;
   const { data, error } = await supabase.from(resources[resource].table).insert(payload).select('*').single();
   if (error) return NextResponse.json({ message: error.message }, { status: 400 });

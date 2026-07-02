@@ -65,7 +65,7 @@ export async function POST(request:Request){
   const path=`${user.id}/child-growth-reports/${reportId}.pdf`;
   try{
     const generatedAt=new Date().toISOString();
-    const bytes=await renderChildGrowthReport(child,rows,analysis,period,{reportId,generatedAt});
+    const bytes=await renderChildGrowthReport(child,rows,analysis,period,{reportId,generatedAt,feeding,vaccination});
     const upload=await admin.storage.from("document-vault").upload(path,bytes,{contentType:"application/pdf",upsert:false});
     if(upload.error)throw upload.error;
     const {data:report,error}=await admin.from("child_growth_reports").insert({

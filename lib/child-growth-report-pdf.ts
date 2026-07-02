@@ -1,7 +1,8 @@
 import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import type { ChildGrowthAnalysis, GrowthRow } from "@/lib/child-growth-analysis";
-import { createNutvitaDocumentBranding } from "@/lib/pdf-branding";
+import { createNutvitaDocumentBranding, createReportQrCode } from "@/lib/pdf-branding";
+import { customNumericSeries, drawCompactIndicatorChart, numericSeries } from "@/lib/pdf-indicator-charts";
 
 const wrap = (value: string, max = 92) => {
   const words = String(value || "").replace(/\s+/g, " ").trim().split(" "), lines: string[] = []; let line = "";
@@ -32,10 +33,14 @@ function chart(page: PDFPage, regular: PDFFont, bold: PDFFont, rows: GrowthRow[]
   return bottom - 30;
 }
 
-export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRow[], analysis: ChildGrowthAnalysis, period: { start: string; end: string }, metadata?: { reportId?: string; generatedAt?: string }) {
+export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRow[], analysis: ChildGrowthAnalysis, period: { start: string; end: string }, metadata?: { reportId?: string; generatedAt?: string; feeding?: Record<string, any> | null; vaccination?: Record<string, any> | null }) {
   const generatedAt = metadata?.generatedAt || new Date().toISOString(), rows = [...source].sort((a, b) => +new Date(a.measured_at) - +new Date(b.measured_at));
   const pdf = await PDFDocument.create(), regular = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold), brand = await createNutvitaDocumentBranding(pdf);
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+  const reportUrl = `${siteUrl}/espace-client/croissance-enfant?report=${encodeURIComponent(metadata?.reportId || "")}`;
+  const drawQr = await createReportQrCode(pdf, reportUrl);
   let page = pdf.addPage([595, 842]), y = 670; brand(page);
+  drawQr(page, "Scanner pour retrouver ce rapport");
   const addPage = () => { page = pdf.addPage([595, 842]); brand(page); y = 670; };
   const text = (value: string, size = 9, font = regular, color = rgb(.16, .23, .22)) => {
     for (const line of wrap(value, size >= 15 ? 60 : 92)) { if (y < 85) addPage(); page.drawText(line, { x: 50, y, size, font, color }); y -= size + 4; }
@@ -52,9 +57,36 @@ export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRo
   if (analysis.attentionPoints?.length) { text("Points de vigilance", 10, bold, rgb(.72, .25, .12)); bullets(analysis.attentionPoints, 4); }
   if (analysis.positives?.length) { text("Elements favorables", 10, bold, rgb(.12, .49, .33)); bullets(analysis.positives, 3); }
   y -= 8;
-  y = chart(page, regular, bold, rows, "weight_kg", y, "Trajectoire recente du poids");
-  if (y < 250) addPage();
-  y = chart(page, regular, bold, rows, "height_cm", y, "Trajectoire recente de la taille");
+  heading("Graphiques de tous les indicateurs renseignes");
+  const chartSeries = [
+    ...numericSeries(rows, [
+      { key: "weight_kg", label: "Poids", unit: "kg" },
+      { key: "height_cm", label: "Taille / longueur", unit: "cm" },
+      { key: "bmi", label: "IMC" },
+      { key: "head_circumference_cm", label: "Perimetre cranien", unit: "cm" },
+      { key: "muac_cm", label: "PB / MUAC", unit: "cm" },
+      { key: "weight_for_age_z", label: "Z-score poids-age" },
+      { key: "height_for_age_z", label: "Z-score taille-age" },
+      { key: "weight_for_height_z", label: "Z-score poids-taille" },
+      { key: "bmi_for_age_z", label: "Z-score IMC-age" },
+      { key: "head_circumference_for_age_z", label: "Z-score PC-age" },
+    ]),
+    ...customNumericSeries(rows),
+    ...numericSeries(metadata?.feeding ? [metadata.feeding] : [], [
+      { key: "diversity_score", label: "Diversite alimentaire", dateKey: "assessed_at" },
+      { key: "solid_meals", label: "Frequence des repas solides", dateKey: "assessed_at" },
+    ]),
+    ...numericSeries(metadata?.vaccination ? [metadata.vaccination] : [], [
+      { key: "received_count", label: "Vaccins recus", dateKey: "assessed_at" },
+      { key: "due_count", label: "Vaccins attendus", dateKey: "assessed_at" },
+    ]),
+  ];
+  for (let index = 0; index < chartSeries.length; index += 2) {
+    if (y < 175) addPage();
+    drawCompactIndicatorChart(page, regular, bold, chartSeries[index], 50, y);
+    if (chartSeries[index + 1]) drawCompactIndicatorChart(page, regular, bold, chartSeries[index + 1], 315, y);
+    y -= 112;
+  }
 
   heading("Indicateurs prioritaires");
   const prioritized = [...analysis.indicatorInsights].sort((a, b) => ({ urgent: 0, watch: 1, incomplete: 2, usual: 3 }[a.status] - ({ urgent: 0, watch: 1, incomplete: 2, usual: 3 }[b.status]))).slice(0, 10);

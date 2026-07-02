@@ -1,7 +1,8 @@
 import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import type { InsightResult, HealthRow } from "@/lib/health-analysis";
-import { createNutvitaDocumentBranding } from "@/lib/pdf-branding";
+import { createNutvitaDocumentBranding, createReportQrCode } from "@/lib/pdf-branding";
+import { customNumericSeries, drawCompactIndicatorChart, numericSeries } from "@/lib/pdf-indicator-charts";
 
 const wrap = (value: string, max = 92) => {
   const words = String(value || "").replace(/\s+/g, " ").trim().split(" "), lines: string[] = [];
@@ -44,14 +45,18 @@ export async function renderHealthReport(
   insight: InsightResult,
   period: { start: string; end: string },
   locale: "fr" | "en" = "fr",
-  metadata?: { reportId?: string; generatedAt?: string },
+  metadata?: { reportId?: string; generatedAt?: string; dietary?: Record<string, any> | null },
 ) {
   const fr = locale === "fr", generatedAt = metadata?.generatedAt || new Date().toISOString();
   const pdf = await PDFDocument.create(), regular = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const brand = await createNutvitaDocumentBranding(pdf);
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+  const reportUrl = `${siteUrl}/espace-client/analyse?report=${encodeURIComponent(metadata?.reportId || "")}`;
+  const drawQr = await createReportQrCode(pdf, reportUrl);
   let page = pdf.addPage([595, 842]), y = 670;
   const addPage = () => { page = pdf.addPage([595, 842]); brand(page); y = 670; };
   brand(page);
+  drawQr(page, fr ? "Scanner pour retrouver ce rapport" : "Scan to access this report");
   const text = (value: string, size = 9, font = regular, color = rgb(.16, .23, .22)) => {
     for (const line of wrap(value, size >= 15 ? 60 : 92)) {
       if (y < 85) addPage();
@@ -71,7 +76,55 @@ export async function renderHealthReport(
   if (insight.risks?.length) { text(fr ? "Points de vigilance" : "Points requiring attention", 10, bold, rgb(.72, .25, .12)); bullets(insight.risks, 4); }
   if (insight.improvements?.length) { text(fr ? "Evolutions favorables" : "Favorable changes", 10, bold, rgb(.12, .49, .33)); bullets(insight.improvements, 3); }
   y -= 8;
-  y = drawWeightChart(page, regular, bold, anthropometry, y, locale);
+  heading(fr ? "Graphiques de tous les indicateurs renseignes" : "Charts for all recorded indicators");
+  const chartSeries = [
+    ...numericSeries(anthropometry, [
+      { key: "weight_kg", label: fr ? "Poids" : "Weight", unit: "kg" },
+      { key: "height_cm", label: fr ? "Taille" : "Height", unit: "cm" },
+      { key: "bmi", label: "IMC / BMI" },
+      { key: "waist_cm", label: fr ? "Tour de taille" : "Waist circumference", unit: "cm" },
+      { key: "hip_cm", label: fr ? "Tour de hanche" : "Hip circumference", unit: "cm" },
+      { key: "muac_cm", label: "PB / MUAC", unit: "cm" },
+      { key: "body_fat_percent", label: fr ? "Masse grasse" : "Body fat", unit: "%" },
+      { key: "muscle_mass_kg", label: fr ? "Masse musculaire" : "Muscle mass", unit: "kg" },
+    ]),
+    ...customNumericSeries(anthropometry),
+    ...numericSeries(biology, [
+      { key: "glucose", label: fr ? "Glycemie" : "Glucose" },
+      { key: "hba1c", label: "HbA1c", unit: "%" },
+      { key: "total_cholesterol", label: fr ? "Cholesterol total" : "Total cholesterol" },
+      { key: "hdl", label: "HDL" }, { key: "ldl", label: "LDL" },
+      { key: "triglycerides", label: fr ? "Triglycerides" : "Triglycerides" },
+      { key: "hemoglobin", label: fr ? "Hemoglobine" : "Hemoglobin" },
+      { key: "ferritin", label: fr ? "Ferritine" : "Ferritin" },
+      { key: "albumin", label: fr ? "Albumine" : "Albumin" },
+      { key: "crp", label: "CRP" },
+      { key: "systolic_pressure", label: fr ? "Pression systolique" : "Systolic pressure", unit: "mmHg" },
+      { key: "diastolic_pressure", label: fr ? "Pression diastolique" : "Diastolic pressure", unit: "mmHg" },
+    ]),
+    ...customNumericSeries(biology),
+    ...numericSeries(lifestyle, [
+      { key: "activity_level", label: fr ? "Niveau d activite" : "Activity level", dateKey: "assessment_date" },
+      { key: "diet_level", label: fr ? "Niveau alimentaire" : "Diet level", dateKey: "assessment_date" },
+    ]),
+    ...numericSeries(food.map(row => ({
+      ...row,
+      calories: row.content?.calories,
+      protein_g: row.content?.protein_g,
+    })), [
+      { key: "calories", label: fr ? "Apport energetique estime" : "Estimated energy intake", unit: "kcal", dateKey: "entry_date" },
+      { key: "protein_g", label: fr ? "Proteines estimees" : "Estimated protein", unit: "g", dateKey: "entry_date" },
+    ]),
+    ...numericSeries(metadata?.dietary ? [metadata.dietary] : [], [
+      { key: "diversity_score", label: fr ? "Diversite alimentaire MDD-W" : "MDD-W dietary diversity", unit: "/10", dateKey: "assessed_at" },
+    ]),
+  ];
+  for (let index = 0; index < chartSeries.length; index += 2) {
+    if (y < 175) addPage();
+    drawCompactIndicatorChart(page, regular, bold, chartSeries[index], 50, y, locale);
+    if (chartSeries[index + 1]) drawCompactIndicatorChart(page, regular, bold, chartSeries[index + 1], 315, y, locale);
+    y -= 112;
+  }
 
   heading(fr ? "Indicateurs prioritaires" : "Priority indicators");
   text(fr ? "Indicateur | Valeur actuelle | Dernier changement | Interpretation" : "Indicator | Current value | Latest change | Interpretation", 8, bold);

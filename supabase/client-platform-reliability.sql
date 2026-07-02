@@ -7,6 +7,23 @@ alter table public.client_profiles drop constraint if exists client_profiles_acc
 alter table public.client_profiles add constraint client_profiles_account_type_check
   check(account_type='client');
 
+-- Older recruitment migrations created a candidate profile for every Auth user.
+-- Restrict that trigger to actual candidate accounts so client signup remains isolated.
+create or replace function public.handle_candidate_user()
+returns trigger
+language plpgsql
+security definer
+set search_path=public
+as $$
+begin
+  if coalesce(new.raw_user_meta_data->>'account_type','')='candidate' then
+    insert into public.candidate_profiles(id,email,full_name)
+    values(new.id,new.email,coalesce(new.raw_user_meta_data->>'full_name',''))
+    on conflict(id) do nothing;
+  end if;
+  return new;
+end $$;
+
 alter table public.children add column if not exists state_code text;
 alter table public.children add column if not exists country_code text;
 alter table public.children add column if not exists other_city text;

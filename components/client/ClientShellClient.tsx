@@ -37,6 +37,7 @@ export default function ClientShellClient({ children, email, access }: { childre
     ["/espace-client/analyse", "Analyse et rapports", SparklesIcon, access.health],
     ["/espace-client/abonnement", "Mes abonnements", CreditCardIcon, true],
     ["/espace-client/consultations", "Consultations", VideoCameraIcon, true],
+    ["/espace-client/ordonnances", "Ordonnances et resultats", DocumentCheckIcon, true],
     ["/espace-client/croissance-enfant", "Croissance enfant", UserGroupIcon, access.childGrowth],
     ["/espace-client/messages", "Messages", ChatBubbleLeftRightIcon, access.health || access.teleconsultation],
     ["/espace-client/appels", "Appels video", VideoCameraIcon, access.teleconsultation],

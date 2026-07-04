@@ -84,7 +84,24 @@ export async function getTestimonials() {
 }
 
 export async function getHomepage() {
-  if (!hasSupabaseConfig()) return null;
+  const locale = await getCurrentLocale();
+  const packServices = locale === "en" ? [
+    { title: "Weight Loss Pack", text: "3 months of professional support with Premium Autonomous Health Monitoring included." },
+    { title: "Diabetes Pack", text: "3 months of nutrition support with Premium Autonomous Health Monitoring included." },
+    { title: "Pregnancy Pack", text: "Premium Growth Monitoring included for 3 months, plus Premium Autonomous Health Monitoring for 4 months." },
+    { title: "Infant Nutrition Pack", text: "3 months of feeding guidance with Premium Child Growth Monitoring included." },
+  ] : [
+    { title: "Pack Perte de poids", text: "3 mois d'accompagnement professionnel avec le Suivi Sante Autonome Premium inclus." },
+    { title: "Pack Diabete", text: "3 mois de suivi nutritionnel avec le Suivi Sante Autonome Premium inclus." },
+    { title: "Pack Femme enceinte", text: "Suivi Croissance Premium inclus 3 mois, plus Suivi Sante Autonome Premium inclus 4 mois." },
+    { title: "Pack Nutrition infantile", text: "3 mois de conseils alimentaires avec le Suivi Croissance Enfant Premium inclus." },
+  ];
+  if (!hasSupabaseConfig()) return { services: [
+    { title: locale === "en" ? "Certified courses" : "Formations certifiantes", text: locale === "en" ? "Build practical skills through expert-designed learning paths." : "Developpez des competences concretes avec des parcours concus par des experts." },
+    { title: locale === "en" ? "Nutrition counselling" : "Teleconseils nutritionnels", text: locale === "en" ? "Talk remotely with a professional and receive tailored guidance." : "Echangez a distance avec un professionnel et obtenez des conseils adaptes." },
+    { title: locale === "en" ? "Personalized monitoring" : "Suivi personnalise", text: locale === "en" ? "Make lasting progress with support that fits your daily life." : "Avancez durablement grace a un accompagnement qui respecte votre quotidien." },
+    ...packServices,
+  ] };
   const { data } = await (await createClient()).from("homepage_settings").select("*").eq("id", 1).maybeSingle();
-  return data;
+  return data ? { ...data, services: [...(Array.isArray(data.services) ? data.services : []), ...packServices] } : { services: packServices };
 }

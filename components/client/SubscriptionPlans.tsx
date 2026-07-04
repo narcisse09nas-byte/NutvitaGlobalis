@@ -8,7 +8,7 @@ type Row = Record<string, any>;
 
 const periodLabel = (months: number) => months === 1 ? "Mensuel" : months === 3 ? "Trimestriel" : "Annuel";
 
-export default function SubscriptionPlans({ plans, subscriptions, children = [], invoices = [] }: { plans: Row[]; subscriptions: Row[]; children?: Row[]; taxRate: number; invoices?: Row[] }) {
+export default function SubscriptionPlans({ plans, subscriptions, packs = [], children = [], invoices = [] }: { plans: Row[]; subscriptions: Row[]; packs?: Row[]; children?: Row[]; taxRate: number; invoices?: Row[] }) {
   const [loading, setLoading] = useState("");
   const [message, setMessage] = useState("");
   const [selectedChild, setSelectedChild] = useState(children[0]?.id || "");
@@ -30,7 +30,12 @@ export default function SubscriptionPlans({ plans, subscriptions, children = [],
       <section className="grid gap-3">
         <h2 className="text-xl font-black">Services actifs et en attente</h2>
         {subscriptions.map(current => <article key={current.id} className="rounded-2xl bg-mint p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><b>{current.subscription_plans?.name || current.plan_id}</b><p className="mt-1 text-sm">{current.children?.full_name ? `Beneficiaire : ${current.children.full_name}` : "Beneficiaire : moi-meme"}</p></div><span className="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase text-forest">{current.status}</span></div><div className="mt-3 grid gap-1 text-sm sm:grid-cols-2"><span>Debut : {current.started_at ? new Date(current.started_at).toLocaleDateString("fr-FR") : "En attente"}</span><span>Expiration : {current.expires_at ? new Date(current.expires_at).toLocaleDateString("fr-FR") : "En attente"}</span></div></article>)}
-        {!subscriptions.length && <p className="rounded-2xl bg-white p-5 text-slate-500">Aucun abonnement actif.</p>}
+        {packs.map(pack => {
+          const expired = pack.access_expires_at && +new Date(pack.access_expires_at) <= Date.now();
+          const status = expired ? "expire" : pack.status === "pending" ? "en attente" : "actif";
+          return <article key={`pack-${pack.id}`} className="rounded-2xl bg-orange/10 p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><b>Pack {pack.teleconseils?.name || "teleconseil"}</b><p className="mt-1 text-sm">Beneficiaire : moi-meme</p></div><span className="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase text-forest">{status}</span></div><div className="mt-3 grid gap-1 text-sm sm:grid-cols-2"><span>Debut : {pack.access_starts_at ? new Date(pack.access_starts_at).toLocaleDateString("fr-FR") : "En attente"}</span><span>Expiration : {pack.access_expires_at ? new Date(pack.access_expires_at).toLocaleDateString("fr-FR") : "En attente"}</span></div></article>;
+        })}
+        {!subscriptions.length && !packs.length && <p className="rounded-2xl bg-white p-5 text-slate-500">Aucun abonnement ou pack actif.</p>}
       </section>
 
       <p className="rounded-2xl bg-mint p-4 text-sm font-bold text-forest">

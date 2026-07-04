@@ -12,6 +12,77 @@ function isMissingBookingEntitlementColumn(error: { code?: string; message?: str
     || (message.includes("schema cache") && /access_(starts|expires)_at|renewal_price_xof/.test(message));
 }
 
+function includedTrackingBenefits(productName: string) {
+  const normalized = productName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (normalized.includes("femme enceinte")) return [
+    { serviceType: "child_growth", extraMonths: 0 },
+    { serviceType: "health_tracking", extraMonths: 1 },
+  ];
+  if (normalized.includes("diabete") || normalized.includes("perte de poids")) return [{ serviceType: "health_tracking", extraMonths: 0 }];
+  if (normalized.includes("nutrition infantile")) return [{ serviceType: "child_growth", extraMonths: 0 }];
+  return [];
+}
+
+async function activateIncludedPremiumTracking(admin: SupabaseClient, payment: any, start: Date, accessEnd: Date) {
+  const benefits = includedTrackingBenefits(`${payment.product_name || ""} ${payment.product_id || ""}`);
+  for (const benefit of benefits) {
+  const serviceType = benefit.serviceType;
+  const benefitEnd = new Date(accessEnd);
+  benefitEnd.setUTCMonth(benefitEnd.getUTCMonth() + benefit.extraMonths);
+
+  const { data: plans, error: planError } = await admin
+    .from("subscription_plans")
+    .select("id,duration_months")
+    .eq("service_type", serviceType)
+    .eq("tier", "premium")
+    .eq("active", true);
+  failIfError("Recherche du suivi Premium inclus", planError);
+  const plan = (plans || []).sort((a: any, b: any) =>
+    Math.abs(Number(a.duration_months || 12) - 3) - Math.abs(Number(b.duration_months || 12) - 3)
+  )[0];
+  if (!plan) throw new Error(`Aucun plan Premium actif pour ${serviceType}`);
+
+  let childId: string | null = null;
+  if (serviceType === "child_growth") {
+    const { data: child, error } = await admin.from("children").select("id").eq("parent_id", payment.client_id).eq("active", true).order("created_at").limit(1).maybeSingle();
+    failIfError("Recherche de l enfant beneficiaire", error);
+    childId = child?.id || null;
+  }
+
+  const { data: existing, error: existingError } = await admin
+    .from("subscriptions")
+    .select("id,expires_at,child_id")
+    .eq("client_id", payment.client_id)
+    .eq("plan_id", plan.id)
+    .eq("purchase_action", "included_pack")
+    .in("status", ["active", "pending"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  failIfError("Lecture du suivi Premium inclus", existingError);
+
+  const previousEnd = existing?.expires_at ? new Date(existing.expires_at) : null;
+  const end = previousEnd && +previousEnd > +benefitEnd ? previousEnd : benefitEnd;
+  const payload = {
+    client_id: payment.client_id,
+    child_id: existing?.child_id || childId,
+    plan_id: plan.id,
+    provider: "manual",
+    status: "active",
+    started_at: start.toISOString(),
+    expires_at: end.toISOString(),
+    current_period_start: start.toISOString(),
+    current_period_end: end.toISOString(),
+    renewal_period_months: 3,
+    purchase_action: "included_pack",
+  };
+  const result = existing
+    ? await admin.from("subscriptions").update(payload).eq("id", existing.id)
+    : await admin.from("subscriptions").insert(payload);
+  failIfError("Activation du suivi Premium inclus", result.error);
+  }
+}
+
 export async function finalizePayment(admin: SupabaseClient, paymentId: string, providerPaymentId: string, rawEvent: unknown) {
   const { data: payment, error: paymentError } = await admin.from("payments").select("*, subscriptions(*, subscription_plans(*)), client_profiles(*)").eq("id", paymentId).single();
   failIfError("Lecture du paiement", paymentError);
@@ -68,6 +139,7 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
       if(isMissingBookingEntitlementColumn(result.error))result=await admin.from('consultation_bookings').insert(base).select().single();
       failIfError("Activation du pack",result.error);booking=result.data;
     }
+    await activateIncludedPremiumTracking(admin, payment, start, accessEnd);
     if(booking&&!existing){const {data:conversation}=await admin.from('collaboration_conversations').insert({title:`Suivi expert - ${payment.product_name}`,conversation_type:'consultation',consultation_id:booking.id,created_by:payment.client_id}).select().single();if(conversation)await admin.from('collaboration_members').insert({conversation_id:conversation.id,user_id:payment.client_id,member_role:'client'});await admin.from("consultation_waiting_room").insert({client_id:payment.client_id,teleconseil_id:payment.product_id,payment_id:payment.id,reason:payment.product_name,status:"waiting",country:client.country||null,city:client.city||null,ai_recommendation:{signals:["Nouveau paiement confirme","Client en attente d attribution"],score:50}})}
     await admin.from("client_notifications").insert({ client_id: payment.client_id, title: existing?"Pack téléconseil renouvelé":"Consultation à planifier", message: `Votre accès est actif jusqu’au ${accessEnd.toLocaleDateString('fr-FR')}. Chat et appels vidéo avec votre expert inclus.`, link_url: "/espace-client/messages" });
   }

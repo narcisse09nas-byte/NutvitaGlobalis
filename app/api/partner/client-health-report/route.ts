@@ -1,0 +1,19 @@
+import {NextResponse} from "next/server";
+import {analyzeHealthData} from "@/lib/health-analysis";
+import {applyNcieFramework} from "@/lib/ncie-health-analysis";
+import {enrichHealthNarrative} from "@/lib/ai-narrative";
+import {renderHealthReport} from "@/lib/health-report-pdf";
+import {createAdminClient} from "@/lib/supabase/admin";
+import {createClient} from "@/lib/supabase/server";
+
+export async function POST(request:Request){
+ const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();if(!user)return NextResponse.json({message:"Non authentifie."},{status:401});
+ const body=await request.json(),clientId=String(body.client_id||"");
+ const {data:partner}=await supabase.from("dietitian_profiles").select("id,full_name").eq("candidate_id",user.id).eq("status","active").maybeSingle();if(!partner)return NextResponse.json({message:"Nutritionniste non autorise."},{status:403});
+ const [{data:client},{data:consent}]=await Promise.all([supabase.from("client_profiles").select("*").eq("id",clientId).or(`created_by_partner_id.eq.${partner.id},assigned_partner_id.eq.${partner.id}`).maybeSingle(),supabase.from("professional_data_consents").select("id").eq("client_id",clientId).eq("partner_id",partner.id).eq("scope","premium_health_record").eq("granted",true).limit(1).maybeSingle()]);
+ if(!client||!consent)return NextResponse.json({message:"Consentement actif requis."},{status:403});
+ const [{data:anthropometry},{data:biology},{data:food},{data:lifestyle},{data:dietary}]=await Promise.all([supabase.from("anthropometric_measurements").select("*").eq("client_id",clientId).order("measured_at"),supabase.from("biological_measurements").select("*").eq("client_id",clientId).order("measured_at"),supabase.from("food_history").select("*").eq("client_id",clientId).order("entry_date"),supabase.from("health_lifestyle_assessments").select("*").eq("client_id",clientId).order("assessment_date"),supabase.from("health_dietary_diversity_assessments").select("*").eq("client_id",clientId).order("assessed_at",{ascending:false}).limit(1).maybeSingle()]);
+ const locale=client.preferred_language==="en"?"en":"fr",base=applyNcieFramework(analyzeHealthData(anthropometry||[],biology||[],food||[],lifestyle||[],locale),anthropometry||[],biology||[],food||[],lifestyle||[],locale),insight=await enrichHealthNarrative(base,locale);
+ const dates=[...(anthropometry||[]).map(row=>row.measured_at),...(biology||[]).map(row=>row.measured_at),...(lifestyle||[]).map(row=>row.assessment_date)].filter(Boolean).sort(),today=new Date().toISOString().slice(0,10),period={start:dates[0]?.slice(0,10)||today,end:dates.at(-1)?.slice(0,10)||today};
+ try{const admin=createAdminClient(),id=crypto.randomUUID(),generatedAt=new Date().toISOString(),bytes=await renderHealthReport(client,anthropometry||[],biology||[],food||[],lifestyle||[],insight,period,locale,{reportId:id,generatedAt,userEmail:client.email||"",dietary}),path=`${clientId}/health-reports/${id}.pdf`,upload=await admin.storage.from("document-vault").upload(path,bytes,{contentType:"application/pdf",upsert:false});if(upload.error)throw upload.error;const {data:report,error}=await admin.from("health_reports").insert({id,client_id:clientId,period_start:period.start,period_end:period.end,title:`Rapport de suivi genere par ${partner.full_name}`,file_path:path,generated_by:user.id,language:locale}).select().single();if(error)throw error;await admin.from("vault_documents").insert({owner_id:clientId,client_id:clientId,document_type:"health_report",title:report.title,file_path:path,mime_type:"application/pdf",confidential:true,created_by:user.id});await admin.from("health_audit_logs").insert({client_id:clientId,actor_id:user.id,action:"partner_report_generated",resource_type:"health_report",resource_id:id});return NextResponse.json(report)}catch(error){return NextResponse.json({message:error instanceof Error?error.message:"Rapport impossible."},{status:500})}
+}

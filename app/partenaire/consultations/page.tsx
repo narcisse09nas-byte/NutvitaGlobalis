@@ -7,7 +7,7 @@ export default async function Page() {
   const now = new Date().toISOString();
   const [{ data: consultations }, { data: clients }] = await Promise.all([
     supabase.from("partner_consultations").select("*, client_profiles(*)").eq("partner_id", profile.id).order("scheduled_at", { ascending: false }),
-    supabase.from("client_profiles").select("*").or(`created_by_partner_id.eq.${profile.id},assigned_partner_id.eq.${profile.id}`).gte("partner_access_expires_at", now).order("full_name"),
+    supabase.from("client_profiles").select("*, children(id,full_name,birth_date,sex)").or(`created_by_partner_id.eq.${profile.id},assigned_partner_id.eq.${profile.id}`).gte("partner_access_expires_at", now).order("full_name"),
   ]);
   return (
     <PartnerShell email={user.email || ""}>

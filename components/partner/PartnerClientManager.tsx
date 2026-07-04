@@ -117,6 +117,7 @@ export default function PartnerClientManager({ initial, partnerId }: { initial: 
                 <span className={`rounded-full px-3 py-1 text-xs font-black ${active ? "bg-mint text-leaf" : "bg-rose-50 text-rose-700"}`}>{active ? "Actif" : "Inactif"}</span>
               </div>
               <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold">
+                <Link href={`/partenaire/clients/${row.id}/suivi`} className="text-leaf">Dossier Premium</Link>
                 <Link href={`/partenaire/clients/${row.id}/carte?name=${encodeURIComponent(row.full_name)}&username=${encodeURIComponent(row.username || "client.demo")}&number=${encodeURIComponent(row.client_number || "NVG-C-0001")}`} className="text-leaf">Carte QR</Link>
                 <button onClick={() => setExtensionFor(row)} className="text-orange">Prolonger l'acces</button>
               </div>

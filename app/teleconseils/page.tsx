@@ -55,11 +55,20 @@ export default async function Teleconseils() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {packs.map((p: any) => {
             const checkoutId = p.id || p.slug || encodeURIComponent(String(p.name).toLowerCase().replace(/\s+/g, "-"));
+            const normalized=`${p.id||""} ${p.name||""}`.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+            const includesHealth=normalized.includes("diabete")||normalized.includes("perte de poids");
+            const includesGrowth=normalized.includes("femme enceinte")||normalized.includes("nutrition infantile");
+            const includedService=includesHealth
+              ? tx("Suivi Sante Autonome Premium inclus pendant les 3 mois du pack","Premium Autonomous Health Monitoring included for the pack's full 3 months")
+              : normalized.includes("femme enceinte")
+                ? tx("Suivi Croissance Premium inclus 3 mois + Suivi Sante Autonome Premium inclus 4 mois","Premium Growth Monitoring included for 3 months + Premium Autonomous Health Monitoring included for 4 months")
+                : includesGrowth ? tx("Suivi Croissance Enfant Premium inclus pendant les 3 mois du pack","Premium Child Growth Monitoring included for the pack's full 3 months") : null;
             return <article key={p.id || p.name} className="flex min-h-full flex-col rounded-2xl bg-forest p-7 text-white shadow-soft">
               <span className="mb-5 text-xs font-bold uppercase tracking-widest text-orange">{tx("Suivi de 3 mois","3-month follow-up")}</span>
               <h2 className="text-2xl font-black text-white">Pack {p.name}</h2>
               <p className="mt-4 flex-1 leading-7 text-white/70">{p.description}</p>
               <div className="my-6 grid gap-3 text-sm">
+                {includedService&&<span className="flex gap-2 rounded-xl bg-orange/15 p-3 font-bold text-orange"><CheckIcon className="h-5 shrink-0" />{includedService}</span>}
                 {localizedBenefits.map(item => <span key={item} className="flex gap-2"><CheckIcon className="h-5 shrink-0 text-orange" />{item}</span>)}
               </div>
               <p className="mb-5 rounded-2xl bg-white/10 p-4 text-sm font-bold text-white">{tx("Acces gratuit temporaire pendant la mise en stand-by des paiements.","Temporary free access while payments are paused.")}</p>

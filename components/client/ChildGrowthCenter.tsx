@@ -21,6 +21,7 @@ function formPayload(form: HTMLFormElement) {
 
 export default function ChildGrowthCenter({ parentId, initialChildren, initialMeasurements, subscriptions, plan, taxRate, initialAnalyses, initialAlerts, initialReports, initialFeeding, initialVaccinations, growthStandards, locale = "fr" }: { parentId: string; initialChildren: Row[]; initialMeasurements: Row[]; subscriptions: Row[]; plan: Row | null; taxRate: number; initialAnalyses:Row[]; initialAlerts:Row[]; initialReports:Row[]; initialFeeding:Row[]; initialVaccinations:Row[]; growthStandards:WhoGrowthReference[]; locale?: "fr" | "en" }) {
   const [children, setChildren] = useState(initialChildren);
+  const [activeSubscriptions,setActiveSubscriptions]=useState(subscriptions);
   const [measurements, setMeasurements] = useState(initialMeasurements);
   const [selected, setSelected] = useState(initialChildren[0]?.id || "");
   const [message, setMessage] = useState("");
@@ -32,8 +33,8 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
   const tx=(fr:string,en:string)=>locale==="en"?en:fr;
   const rows = useMemo(() => measurements.filter(item => item.child_id === selected).sort((a, b) => +new Date(a.measured_at) - +new Date(b.measured_at)), [measurements, selected]);
   const customTemplates = useMemo(() => customIndicatorTemplates(rows), [rows]);
-  const subscription = subscriptions.find(item => item.status === "active" && item.child_id === selected);
-  const childSubscriptionCount = subscriptions.filter(item => item.subscription_plans?.service_type === "child_growth" || String(item.plan_id).includes("child-growth")).length;
+  const subscription = activeSubscriptions.find(item => item.status === "active" && (item.child_id === selected || (!item.child_id && item.purchase_action === "included_pack")));
+  const childSubscriptionCount = activeSubscriptions.filter(item => item.subscription_plans?.service_type === "child_growth" || String(item.plan_id).includes("child-growth")).length;
 
   async function addChild(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,6 +71,11 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
     payload.weight_for_age_z = zScores.weightForAgeZ;
     payload.height_for_age_z = zScores.heightForAgeZ;
     payload.weight_for_height_z = zScores.weightForHeightZ;
+    if (subscription?.purchase_action === "included_pack" && !subscription.child_id) {
+      const { error: assignmentError } = await createClient().rpc("assign_included_growth_subscription",{p_subscription_id:subscription.id,p_child_id:selected});
+      if (assignmentError) { setMessage(assignmentError.message); return; }
+      setActiveSubscriptions(activeSubscriptions.map(item=>item.id===subscription.id?{...item,child_id:selected}:item));
+    }
     const { data, error } = await createClient().from("child_growth_measurements").insert({ ...payload, child_id: selected, recorded_by: parentId }).select().single();
     if (error) setMessage(error.message);
     else { setMeasurements([...measurements, data]); form.reset(); setMessage(tx("Mesure enregistree. Analyse en cours...","Measurement saved. Analysis in progress...")); await analyzeNow(); }

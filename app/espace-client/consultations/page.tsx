@@ -1,5 +1,6 @@
 import ClientShell from "@/components/client/ClientShell";
 import ConsultationRequestPanel from "@/components/client/ConsultationRequestPanel";
+import ClientConsultationRegistry from "@/components/client/ClientConsultationRegistry";
 import {requireClient} from "@/lib/client";
 
 export default async function ClientConsultationsPage(){
@@ -9,10 +10,11 @@ export default async function ClientConsultationsPage(){
   if(bookingResult.error?.code==="PGRST204"||bookingResult.error?.message?.includes("schema cache")){
     bookingResult=await supabase.from("consultation_bookings").select("*, teleconseils(name)").eq("client_id",user.id).not("status","eq","cancelled").order("created_at",{ascending:false});
   }
-  const [{data:subscriptions},{data:plans},{data:requests}]=await Promise.all([
+  const [{data:subscriptions},{data:plans},{data:requests},{data:consultations}]=await Promise.all([
     supabase.from("subscriptions").select("*").eq("client_id",user.id).eq("status","active").gt("expires_at",now),
     supabase.from("subscription_plans").select("id,tier,name,service_type").eq("tier","premium"),
     supabase.from("consultation_waiting_room").select("*").eq("client_id",user.id).order("created_at",{ascending:false}),
+    supabase.from("partner_consultations").select("*").eq("client_id",user.id).eq("status","completed").order("finalized_at",{ascending:false}),
   ]);
   const bookings=(bookingResult.data||[]).filter((item:any)=>{
     if(item.access_expires_at)return +new Date(item.access_expires_at)>Date.now();
@@ -28,5 +30,6 @@ export default async function ClientConsultationsPage(){
       <p className="mt-2 text-slate-500">Sollicitez un teleconseiller depuis votre espace client, sans quitter votre session.</p>
     </div>
     <ConsultationRequestPanel clientId={user.id} profile={profile} bookings={bookings||[]} premiumSubscriptions={premiumSubscriptions} requests={requests||[]}/>
+    <div className="mt-7"><ClientConsultationRegistry consultations={consultations||[]} userEmail={user.email||""}/></div>
   </ClientShell>;
 }

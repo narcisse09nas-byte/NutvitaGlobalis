@@ -61,6 +61,25 @@ alter table public.child_feeding_assessments enable row level security;
 alter table public.child_vaccination_assessments enable row level security;
 alter table public.health_dietary_diversity_assessments enable row level security;
 
+drop policy if exists "Partners read consented dietary diversity" on public.health_dietary_diversity_assessments;
+create policy "Partners read consented dietary diversity" on public.health_dietary_diversity_assessments
+for select to authenticated using(
+  public.is_admin() or exists(
+    select 1 from public.professional_data_consents consent
+    where consent.client_id=health_dietary_diversity_assessments.client_id
+      and consent.partner_id=public.current_partner_id()
+      and consent.scope='premium_health_record'
+      and consent.granted=true
+      and (consent.expires_at is null or consent.expires_at>now())
+  )
+  or exists(
+    select 1 from public.client_care_collaborators share
+    where share.client_id=health_dietary_diversity_assessments.client_id
+      and share.collaborator_id=(select auth.uid())
+      and share.active=true
+  )
+);
+
 do $$
 declare table_name text;
 begin

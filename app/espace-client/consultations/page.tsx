@@ -5,12 +5,20 @@ import {requireClient} from "@/lib/client";
 export default async function ClientConsultationsPage(){
   const {supabase,user,profile}=await requireClient();
   const now=new Date().toISOString();
-  const [{data:bookings},{data:subscriptions},{data:plans},{data:requests}]=await Promise.all([
-    supabase.from("consultation_bookings").select("*, teleconseils(name)").eq("client_id",user.id).gt("access_expires_at",now).not("status","in",'("cancelled","refunded")').order("created_at",{ascending:false}),
+  let bookingResult=await supabase.from("consultation_bookings").select("*, teleconseils(name)").eq("client_id",user.id).gt("access_expires_at",now).not("status","in",'("cancelled","refunded")').order("created_at",{ascending:false});
+  if(bookingResult.error?.code==="PGRST204"||bookingResult.error?.message?.includes("schema cache")){
+    bookingResult=await supabase.from("consultation_bookings").select("*, teleconseils(name)").eq("client_id",user.id).not("status","eq","cancelled").order("created_at",{ascending:false});
+  }
+  const [{data:subscriptions},{data:plans},{data:requests}]=await Promise.all([
     supabase.from("subscriptions").select("*").eq("client_id",user.id).eq("status","active").gt("expires_at",now),
     supabase.from("subscription_plans").select("id,tier,name,service_type").eq("tier","premium"),
     supabase.from("consultation_waiting_room").select("*").eq("client_id",user.id).order("created_at",{ascending:false}),
   ]);
+  const bookings=(bookingResult.data||[]).filter((item:any)=>{
+    if(item.access_expires_at)return +new Date(item.access_expires_at)>Date.now();
+    const legacyEnd=new Date(item.created_at);legacyEnd.setUTCMonth(legacyEnd.getUTCMonth()+3);
+    return +legacyEnd>Date.now();
+  });
   const premiumPlanIds=new Set((plans||[]).map((plan:any)=>plan.id));
   const premiumSubscriptions=(subscriptions||[]).filter((item:any)=>premiumPlanIds.has(item.plan_id));
 

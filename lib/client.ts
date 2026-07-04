@@ -33,7 +33,12 @@ export async function getClientEntitlements(supabase:any,userId:string):Promise<
   return{
     health:active.some((item:any)=>!item.child_id&&(planTypes.get(item.plan_id)==='health_tracking'||String(item.plan_id).includes('health'))),
     childGrowth:active.some((item:any)=>planTypes.get(item.plan_id)==='child_growth'||String(item.plan_id).includes('child-growth')),
-    teleconsultation:(bookings||[]).some((item:any)=>item.access_expires_at&&+new Date(item.access_expires_at)>now&&!['cancelled','refunded'].includes(item.status)),
+    teleconsultation:(bookings||[]).some((item:any)=>{
+      if(['cancelled','refunded'].includes(item.status))return false;
+      if(item.access_expires_at)return +new Date(item.access_expires_at)>now;
+      const legacyEnd=new Date(item.created_at);legacyEnd.setUTCMonth(legacyEnd.getUTCMonth()+3);
+      return Number.isFinite(+legacyEnd)&&+legacyEnd>now;
+    }),
   };
 }
 

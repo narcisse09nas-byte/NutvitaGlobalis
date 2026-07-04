@@ -56,6 +56,7 @@ import BankTransfersManagement from './specialized/BankTransfersManagement';
 import CashDepositsManagement from './specialized/CashDepositsManagement';
 import CommunicationCenter from '@/components/communications/CommunicationCenter';
 import MaximusUserManagement from './specialized/MaximusUserManagement';
+import MaximusMeetingCenter from './specialized/MaximusMeetingCenter';
 
 const FinancialDashboard = dynamic(() => import('./specialized/FinancialDashboard'), {
   loading: () => <div className="grid h-72 place-items-center text-sm text-slate-500">Loading financial dashboard...</div>,
@@ -126,6 +127,7 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
 function ModuleRenderer({ module }: { module: MaximusModule }) {
   if (module.slug === 'administration/users') return <MaximusUserManagement />;
   if (module.slug === 'communications/messages') return <CommunicationCenter scope="maximus" />;
+  if (module.slug === 'communications/meetings') return <MaximusMeetingCenter />;
   if (module.slug === 'hr/recruitment/proctoring') return <TestProctoringCockpit />;
   if (module.slug === 'hr/recruitment/interviews') return <RecruitmentLifecycle />;
   if (module.slug === 'partnerships/vendor-recruitment') return <VendorRecruitment />;

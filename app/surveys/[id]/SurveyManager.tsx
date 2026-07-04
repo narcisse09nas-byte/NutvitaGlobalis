@@ -245,7 +245,7 @@ function OdkDeploymentDialog({ form, mutate, onClose, setMessage }: { form: Row;
   </div>;
 }
 
-function Collection({ forms, responses, clusters, team, mutate, setMessage }: { forms: Row[]; responses: Row[]; clusters: Row[]; team: Row[]; mutate: any; setMessage: (value: string) => void }) {
+function Collection({ forms, responses: allResponses, clusters, team, mutate, setMessage }: { forms: Row[]; responses: Row[]; clusters: Row[]; team: Row[]; mutate: any; setMessage: (value: string) => void }) {
   const endorsed = forms.filter(form => form.status === 'endorsed');
   const [formId, setFormId] = useState('');
   const [clusterId, setClusterId] = useState('');
@@ -253,6 +253,14 @@ function Collection({ forms, responses, clusters, team, mutate, setMessage }: { 
   const [enumeratorId, setEnumeratorId] = useState('');
   const [importBusy, setImportBusy] = useState(false);
   const selectedForm = endorsed.find(form => form.id === formId);
+  const responses = useMemo(() => {
+    if (!selectedForm) return [];
+    return allResponses.filter(response =>
+      response.form_id === selectedForm.id
+      || response.response_data?.form_id === selectedForm.id
+      || response.response_data?.form_code === selectedForm.form_code
+    );
+  }, [allResponses, selectedForm]);
   const selectedCluster = clusters.find(cluster => cluster.id === clusterId);
   const selectedVillage = (selectedCluster?.villages || []).find((village: Row) => String(village.code) === villageCode);
   const selectedEnumerator = team.find(member => member.id === enumeratorId);

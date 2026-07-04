@@ -37,7 +37,19 @@ export async function requireMaximusAccess(module?: string) {
     Array.isArray(access!.module_access) ? access!.module_access : [],
   );
   if (module === "administration/users" && !isSuperAdmin) redirect("/maximus?acces=refuse");
-  if (module && !isSuperAdmin && !allowedModules?.includes(module)) redirect("/maximus?acces=refuse");
+  if (module && !isSuperAdmin && !allowedModules?.includes(module)) {
+    if (module === "communications/meetings") {
+      const { data: invitation } = await supabase.from("maximus_meeting_participants")
+        .select("id")
+        .eq("user_id", user.id)
+        .neq("invitation_status", "revoked")
+        .limit(1)
+        .maybeSingle();
+      if (!invitation) redirect("/maximus?acces=refuse");
+    } else {
+      redirect("/maximus?acces=refuse");
+    }
+  }
   const identity = isSuperAdmin ? admin : { id: user.id, email: access!.email, full_name: access!.full_name, role: access!.role, active: access!.active };
   return { supabase, user, admin: identity, access, isSuperAdmin, allowedModules };
 }

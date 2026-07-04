@@ -7,6 +7,14 @@ alter table public.client_profiles drop constraint if exists client_profiles_acc
 alter table public.client_profiles add constraint client_profiles_account_type_check
   check(account_type='client');
 
+-- Teleconsultation entitlement fields required by pack activation.
+alter table public.consultation_bookings add column if not exists access_starts_at timestamptz;
+alter table public.consultation_bookings add column if not exists access_expires_at timestamptz;
+alter table public.consultation_bookings add column if not exists assigned_dietitian_id uuid references public.dietitian_profiles(id) on delete set null;
+alter table public.consultation_bookings add column if not exists renewal_price_xof numeric not null default 10000;
+create index if not exists consultation_bookings_client_access
+  on public.consultation_bookings(client_id,access_expires_at desc);
+
 -- Older recruitment migrations created a candidate profile for every Auth user.
 -- Restrict that trigger to actual candidate accounts so client signup remains isolated.
 create or replace function public.handle_candidate_user()

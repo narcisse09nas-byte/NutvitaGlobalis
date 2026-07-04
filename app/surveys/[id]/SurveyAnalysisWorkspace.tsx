@@ -49,6 +49,7 @@ const moduleSchemas = {
       ['cluster', 'Grappe', false, ['cluster', 'grappe', 'cluster_id']],
       ['village', 'Village/ZD', false, ['village', 'zd', 'enumeration_area']],
       ['enumerator', 'Enquêteur/équipe', false, ['enumerator', 'enqueteur', 'team']],
+      ['order', 'Ordre de passage dans la grappe', false, ['order', 'ordre', 'sequence', 'visit_order']],
     ],
   },
   fcs: {
@@ -118,7 +119,7 @@ export default function SurveyAnalysisWorkspace({ survey, forms, responses, muta
   const [sourceMode, setSourceMode] = useState<'questionnaire' | 'file'>('questionnaire');
   const [selectedFormId, setSelectedFormId] = useState('');
   const [filters, setFilters] = useState<Record<string, string>>({});
-  const [mapping, setMapping] = useState<EnaSmartMapping>({ age: '', sex: '', weight: '', height: '', muac: '', cluster: '', id: '' });
+  const [mapping, setMapping] = useState<EnaSmartMapping>({ age: '', sex: '', weight: '', height: '', muac: '', cluster: '', order: '', id: '' });
   const [villageColumn, setVillageColumn] = useState('');
   const [enumeratorColumn, setEnumeratorColumn] = useState('');
   const [plausibility, setPlausibility] = useState<Row | null>(null);
@@ -271,6 +272,7 @@ export default function SurveyAnalysisWorkspace({ survey, forms, responses, muta
         height: selected.height || '',
         muac: selected.muac || '',
         cluster: selected.cluster || '',
+        order: selected.order || '',
       }));
       setVillageColumn(selected.village || '');
       setEnumeratorColumn(selected.enumerator || '');
@@ -419,6 +421,8 @@ export default function SurveyAnalysisWorkspace({ survey, forms, responses, muta
           ['weight', 'Poids'],
           ['height', 'Taille / longueur'],
           ['muac', 'PB / MUAC'],
+          ['cluster', 'Grappe'],
+          ['order', 'Ordre de passage'],
         ] as const).map(([key, label]) => <Field key={key} label={label}><select value={mapping[key] || ''} onChange={event => setMapping(current => ({ ...current, [key]: event.target.value }))} className="admin-input"><option value="">Non défini</option>{columns.map(column => <option key={column}>{column}</option>)}</select></Field>)}
       </div>
       <button onClick={runPlausibility} className="btn-primary mt-4">Calculer le contrôle SMART</button>

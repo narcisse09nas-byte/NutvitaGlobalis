@@ -45,20 +45,25 @@ export async function renderHealthReport(
   insight: InsightResult,
   period: { start: string; end: string },
   locale: "fr" | "en" = "fr",
-  metadata?: { reportId?: string; generatedAt?: string; dietary?: Record<string, any> | null },
+  metadata?: { reportId?: string; generatedAt?: string; userEmail?: string; dietary?: Record<string, any> | null },
 ) {
   const fr = locale === "fr", generatedAt = metadata?.generatedAt || new Date().toISOString();
   const pdf = await PDFDocument.create(), regular = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const brand = await createNutvitaDocumentBranding(pdf);
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
-  const reportUrl = `${siteUrl}/espace-client/analyse?report=${encodeURIComponent(metadata?.reportId || "")}`;
+  const sourcePath = `/espace-client/analyse?report=${encodeURIComponent(metadata?.reportId || "")}`;
+  const loginParameters = new URLSearchParams({ redirect: sourcePath });
+  if (metadata?.userEmail) loginParameters.set("identifiant", metadata.userEmail);
+  const reportUrl = `${siteUrl}/connexion?${loginParameters.toString()}`;
   const drawQr = await createReportQrCode(pdf, reportUrl);
   let page = pdf.addPage([595, 842]), y = 670;
+  const firstPage = page;
   const addPage = () => { page = pdf.addPage([595, 842]); brand(page); y = 670; };
   brand(page);
   drawQr(page, fr ? "Scanner pour retrouver ce rapport" : "Scan to access this report");
   const text = (value: string, size = 9, font = regular, color = rgb(.16, .23, .22)) => {
-    for (const line of wrap(value, size >= 15 ? 60 : 92)) {
+    const lineWidth = page === firstPage && y > 585 ? (size >= 15 ? 42 : 68) : (size >= 15 ? 60 : 92);
+    for (const line of wrap(value, lineWidth)) {
       if (y < 85) addPage();
       page.drawText(line, { x: 50, y, size, font, color }); y -= size + 4;
     }

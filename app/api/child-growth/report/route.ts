@@ -21,6 +21,7 @@ export async function POST(request:Request){
     supabase.from("child_vaccination_assessments").select("*").eq("child_id",String(child_id)).order("assessed_at",{ascending:false}).limit(1).maybeSingle(),
   ]);
   if(!child)return NextResponse.json({message:"Enfant introuvable."},{status:404});
+  const {data:growthStandards}=await supabase.from("who_growth_standards").select("indicator,sex,age_months,length_height_cm,measurement_method,l,m,s").eq("sex",child.sex).in("indicator",["weight_for_age","height_for_age","weight_for_height"]).order("age_months");
   const validSubscription=(subscriptions||[]).find((item:any)=>item.child_id===String(child_id)&&(item.subscription_plans?.service_type==="child_growth"||String(item.plan_id).includes("child-growth")));
   if(!validSubscription)return NextResponse.json({message:"Un abonnement actif est requis pour cet enfant."},{status:402});
   if(!rows?.length)return NextResponse.json({message:"Ajoutez au moins une mesure."},{status:400});
@@ -65,7 +66,7 @@ export async function POST(request:Request){
   const path=`${user.id}/child-growth-reports/${reportId}.pdf`;
   try{
     const generatedAt=new Date().toISOString();
-    const bytes=await renderChildGrowthReport(child,rows,analysis,period,{reportId,generatedAt,feeding,vaccination});
+    const bytes=await renderChildGrowthReport(child,rows,analysis,period,{reportId,generatedAt,userEmail:user.email||"",feeding,vaccination,growthStandards:growthStandards||[]});
     const upload=await admin.storage.from("document-vault").upload(path,bytes,{contentType:"application/pdf",upsert:false});
     if(upload.error)throw upload.error;
     const {data:report,error}=await admin.from("child_growth_reports").insert({

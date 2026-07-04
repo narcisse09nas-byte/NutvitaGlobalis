@@ -19,24 +19,28 @@ const copy = {
     date: "Date du rappel",
     breastfed: "L'enfant a-t-il recu du lait maternel hier, directement ou exprime ?",
     solidMeals: "Nombre de repas solides, semi-solides ou mous",
+    solidMealsExample: "Ex. : bouillie epaisse enrichie, puree, riz ou pate avec sauce, legumes ecrases.",
     formulaFeeds: "Nombre de prises de formule infantile",
+    formulaFeedsExample: "Ex. : biberon de lait infantile prepare selon les instructions.",
     animalMilkFeeds: "Nombre de prises de lait animal",
+    animalMilkFeedsExample: "Ex. : lait de vache, chevre ou autre lait animal, nature ou dans une preparation.",
     yogurtFeeds: "Nombre de prises de yaourt liquide",
+    yogurtFeedsExample: "Ex. : yaourt a boire ou lait fermente liquide donne comme boisson.",
     groupQuestion: "L'enfant a-t-il consomme hier un aliment de ce groupe ?",
     examples: "Exemples",
     yes: "Oui", no: "Non",
     notes: "Appetit, maladie recente, journee inhabituelle ou observations",
-    save: "Analyser et enregistrer l'alimentation",
-    vaccination: "Evaluation vaccinale selon l'age",
+    save: "Evaluer et enregistrer l'alimentation",
+    vaccination: "Evaluation du statut vaccinal selon l'age",
     vaccineIntro: "Vaccins ou interventions attendus jusqu'a cet age selon le calendrier configure. Verifiez de preference le carnet de vaccination.",
     sourceNotes: "Source utilisee, carnet vaccinal ou observations",
-    assessVaccine: "Enregistrer le statut vaccinal",
+    assessVaccine: "Evaluer le statut vaccinal",
     foodHistory: "Evaluations alimentaires",
     vaccineHistory: "Evaluations vaccinales",
     upToDate: "A jour", notUpToDate: "Non a jour",
     achieved: "atteint", notAchieved: "non atteint",
     foodSaved: "Evaluation alimentaire enregistree et analysee.",
-    vaccineSaved: "Statut vaccinal enregistre.",
+    vaccineSaved: "Statut vaccinal evalue et enregistre.",
   },
   en: {
     feeding: "Feeding assessment",
@@ -47,18 +51,22 @@ const copy = {
     date: "Recall date",
     breastfed: "Did the child receive breast milk yesterday, directly or expressed?",
     solidMeals: "Number of solid, semi-solid or soft meals",
+    solidMealsExample: "E.g. thick enriched porridge, puree, rice or paste with sauce, mashed vegetables.",
     formulaFeeds: "Number of infant formula feeds",
+    formulaFeedsExample: "E.g. a bottle of infant formula prepared according to instructions.",
     animalMilkFeeds: "Number of animal milk feeds",
+    animalMilkFeedsExample: "E.g. cow, goat or other animal milk, plain or used in a preparation.",
     yogurtFeeds: "Number of liquid yogurt feeds",
+    yogurtFeedsExample: "E.g. drinking yogurt or liquid fermented milk given as a drink.",
     groupQuestion: "Did the child consume any food from this group yesterday?",
     examples: "Examples",
     yes: "Yes", no: "No",
     notes: "Appetite, recent illness, unusual day or observations",
-    save: "Analyse and save feeding assessment",
+    save: "Assess and save feeding",
     vaccination: "Age-appropriate vaccination assessment",
     vaccineIntro: "Vaccines or interventions expected by this age according to the configured schedule. Preferably verify the vaccination card.",
     sourceNotes: "Source used, vaccination card or observations",
-    assessVaccine: "Save vaccination status",
+    assessVaccine: "Assess vaccination status",
     foodHistory: "Feeding assessments",
     vaccineHistory: "Vaccination assessments",
     upToDate: "Up to date", notUpToDate: "Not up to date",
@@ -72,6 +80,7 @@ export default function ChildNutritionVaccination({ child, userId, feeding: init
   const [feeding, setFeeding] = useState(initialFeeding);
   const [vaccinations, setVaccinations] = useState(initialVaccinations);
   const [message, setMessage] = useState("");
+  const [assessment, setAssessment] = useState<"feeding" | "vaccination">("feeding");
   const months = ageInMonths(child.birth_date);
   const t = copy[locale];
   const groups = months < 24 ? childFoodItems : mddwFoodItems;
@@ -108,14 +117,19 @@ export default function ChildNutritionVaccination({ child, userId, feeding: init
     else { setVaccinations([data, ...vaccinations]); form.reset(); setMessage(t.vaccineSaved); }
   }
 
-  return <section className={`grid gap-7 ${embedded ? "border-t pt-7" : "rounded-2xl border bg-white p-6"}`}>
-    <div><h2 className="text-xl font-black">{t.feeding}</h2><p className="mt-2 text-sm text-slate-600">{months < 6 ? t.notApplicable : months < 24 ? t.feeding623 : t.feeding24}</p></div>
+  return <section className={`grid gap-7 ${embedded ? "" : "rounded-2xl border bg-white p-6"}`}>
+    <div className="flex flex-wrap gap-2 border-b pb-5">
+      <button type="button" onClick={() => setAssessment("feeding")} className={assessment === "feeding" ? "btn-primary" : "btn-secondary"}>{t.feeding}</button>
+      <button type="button" onClick={() => setAssessment("vaccination")} className={assessment === "vaccination" ? "btn-primary" : "btn-secondary"}>{t.vaccination}</button>
+    </div>
+    {assessment === "feeding" && <div id="child-feeding-assessment" className="grid gap-5">
+      <div><h2 className="text-xl font-black">{t.feeding}</h2><p className="mt-2 text-sm text-slate-600">{months < 6 ? t.notApplicable : months < 24 ? t.feeding623 : t.feeding24}</p></div>
     {months >= 6 && <form onSubmit={saveFeeding} className="grid gap-5">
       <p className="rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">{t.intro}</p>
       <label className="grid max-w-xs gap-2 text-sm font-bold">{t.date}<input name="assessed_at" type="date" required defaultValue={new Date().toLocaleDateString("en-CA")} className="admin-input"/></label>
       {months < 24 && <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <label className="grid gap-2 text-sm font-bold">{t.breastfed}<select name="breastfed" className="admin-input"><option value="yes">{t.yes}</option><option value="no">{t.no}</option></select></label>
-        <NumberField name="solid_meals" label={t.solidMeals}/><NumberField name="formula_feeds" label={t.formulaFeeds}/><NumberField name="animal_milk_feeds" label={t.animalMilkFeeds}/><NumberField name="yogurt_drink_feeds" label={t.yogurtFeeds}/>
+        <NumberField name="solid_meals" label={t.solidMeals} example={t.solidMealsExample}/><NumberField name="formula_feeds" label={t.formulaFeeds} example={t.formulaFeedsExample}/><NumberField name="animal_milk_feeds" label={t.animalMilkFeeds} example={t.animalMilkFeedsExample}/><NumberField name="yogurt_drink_feeds" label={t.yogurtFeeds} example={t.yogurtFeedsExample}/>
       </div>}
       <div className="grid gap-3">{groups.map(group => <fieldset key={group.key} className="grid gap-3 rounded-xl border bg-slate-50 p-4 md:grid-cols-[1fr_auto] md:items-center">
         <div><legend className="font-black">{locale === "en" ? group.labelEn : group.labelFr}</legend><p className="mt-1 text-sm text-slate-600"><b>{t.examples}:</b> {locale === "en" ? group.examplesEn : group.examplesFr}</p></div>
@@ -124,7 +138,8 @@ export default function ChildNutritionVaccination({ child, userId, feeding: init
       <textarea name="notes" className="admin-input min-h-24" placeholder={t.notes}/>
       <button className="btn-primary justify-self-start">{t.save}</button>
     </form>}
-    <VaccinationForm due={dueVaccines} submit={saveVaccination} locale={locale}/>
+    </div>}
+    {assessment === "vaccination" && <div id="child-vaccination-assessment"><VaccinationForm due={dueVaccines} submit={saveVaccination} locale={locale}/></div>}
     <History feeding={feeding} vaccinations={vaccinations} locale={locale}/>
     {message && <p className="rounded-xl bg-mint p-4 font-bold text-forest">{message}</p>}
   </section>;
@@ -141,6 +156,6 @@ function History({ feeding, vaccinations, locale }: { feeding: Row[]; vaccinatio
   return <div className="grid gap-5 border-t pt-5 md:grid-cols-2"><div><h3 className="font-black">{t.foodHistory}</h3>{feeding.slice(0, 4).map(row => <p key={row.id} className="mt-2 rounded-xl bg-slate-50 p-3 text-sm">{new Date(`${row.assessed_at}T12:00:00`).toLocaleDateString(locale === "en" ? "en-GB" : "fr-FR")} - {row.diversity_score ?? "N/A"} - {row.module === "iycf_6_23" ? `MDD ${yes(row.mdd_met)}, MMF ${yes(row.mmf_met)}, MAD ${yes(row.mad_met)}` : `MDD-W ${yes(row.mdd_met)}`}</p>)}</div><div><h3 className="font-black">{t.vaccineHistory}</h3>{vaccinations.slice(0, 4).map(row => <p key={row.id} className="mt-2 rounded-xl bg-slate-50 p-3 text-sm">{new Date(`${row.assessed_at}T12:00:00`).toLocaleDateString(locale === "en" ? "en-GB" : "fr-FR")} - {row.received_count}/{row.due_count} - <b>{row.up_to_date ? t.upToDate : t.notUpToDate}</b></p>)}</div></div>;
 }
 
-function NumberField({ name, label }: { name: string; label: string }) {
-  return <label className="grid gap-2 text-sm font-bold">{label}<input name={name} type="number" min="0" max="20" defaultValue="0" className="admin-input"/></label>;
+function NumberField({ name, label, example }: { name: string; label: string; example: string }) {
+  return <label className="grid content-start gap-2 text-sm font-bold">{label}<input name={name} type="number" min="0" max="20" defaultValue="0" className="admin-input"/><small className="font-normal leading-5 text-slate-500">{example}</small></label>;
 }

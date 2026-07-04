@@ -51,7 +51,7 @@ export async function POST() {
   try {
     const admin = createAdminClient(), reportId = crypto.randomUUID();
     const generatedAt = new Date().toISOString();
-    const bytes = await renderHealthReport(profile, anthropometry || [], biology || [], food || [], lifestyle || [], insight, period, locale, { reportId, generatedAt, dietary });
+    const bytes = await renderHealthReport(profile, anthropometry || [], biology || [], food || [], lifestyle || [], insight, period, locale, { reportId, generatedAt, userEmail:user.email||profile.email||"", dietary });
     const path = `${user.id}/health-reports/${reportId}.pdf`;
     const uploaded = await admin.storage.from("document-vault").upload(path, bytes, { contentType: "application/pdf", upsert: false });
     if (uploaded.error) throw uploaded.error;

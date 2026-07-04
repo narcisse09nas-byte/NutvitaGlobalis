@@ -48,8 +48,9 @@ export function drawCompactIndicatorChart(
   const width = 225, height = 72, left = x + 13, bottom = y - height;
   const values = series.points.map(point => point.value);
   const min = Math.min(...values), max = Math.max(...values), span = max - min || Math.max(Math.abs(max) * .1, 1);
-  page.drawText(series.label.slice(0, 38), { x, y: y + 13, size: 8.5, font: bold, color: rgb(.07, .24, .19) });
-  page.drawText(`${values.at(-1)?.toFixed(2)}${series.unit ? ` ${series.unit}` : ""}`, { x: x + 155, y: y + 13, size: 7, font: bold, color: rgb(.94, .42, .14) });
+  page.drawText(series.label.slice(0, 25), { x, y: y + 13, size: 8.5, font: bold, color: rgb(.07, .24, .19) });
+  const latestLabel = `${values.at(-1)?.toFixed(2)}${series.unit ? ` ${series.unit}` : ""}`;
+  page.drawText(latestLabel, { x: x + width - 10 - bold.widthOfTextAtSize(latestLabel, 7), y: y + 13, size: 7, font: bold, color: rgb(.94, .42, .14) });
   page.drawRectangle({ x, y: bottom - 15, width, height: height + 18, borderWidth: .6, borderColor: rgb(.82, .86, .85) });
   page.drawLine({ start: { x: left, y: bottom }, end: { x: x + width - 10, y: bottom }, thickness: .5, color: rgb(.7, .75, .73) });
   const pointX = (index: number) => series.points.length === 1 ? x + width / 2 : left + index * (width - 28) / (series.points.length - 1);

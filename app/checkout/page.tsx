@@ -5,11 +5,13 @@ import TeleconsultationConsent from "@/components/client/TeleconsultationConsent
 import { formatUsd } from "@/lib/currency";
 import { createClient } from "@/lib/supabase/server";
 import { priceBreakdown } from "@/lib/taxes";
+import {getCurrentLocale} from "@/lib/i18n-server";
 
 export const metadata = { title: "Paiement securise" };
 
 export default async function CheckoutPage({ searchParams }: { searchParams: Promise<{ type?: string; id?: string; child_id?: string; paiement?: string }> }) {
   const params = await searchParams;
+  const locale=await getCurrentLocale(),en=locale==="en",tx=(fr:string,english:string)=>en?english:fr;
   const type = params.type;
   const id = params.id;
   const childId = params.child_id;
@@ -43,7 +45,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
       supabase.from("user_consents").select("accepted").eq("user_id", user.id).eq("consent_type", "teleconsultation").eq("accepted", true).maybeSingle(),
     ]);
     teleconsultationConsent = Boolean(consent?.accepted);
-    if (data) product = { name: `${previous ? "Renouvellement " : ""}Pack ${data.name} - 1 an`, priceXof: Number(data.price || 15000) };
+    if (data) product = { name: `${previous ? tx("Renouvellement ","Renewal ") : ""}Pack ${data.name} - ${tx("1 an","1 year")}`, priceXof: Number(data.price || 15000) };
   }
 
   if (!product) notFound();
@@ -52,29 +54,29 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
 
   return <main className="min-h-screen bg-slate-100 py-12">
     <div className="container-site max-w-4xl">
-      <Link href="/" className="font-bold text-leaf">Retour au site</Link>
+      <Link href="/" className="font-bold text-leaf">{tx("Retour au site","Back to website")}</Link>
       <div className="mt-7 grid gap-6 lg:grid-cols-[1fr_360px]">
         <section className="rounded-3xl bg-white p-7">
-          <p className="text-xs font-bold uppercase tracking-widest text-leaf">Commande</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-leaf">{tx("Commande","Order")}</p>
           <h1 className="mt-3 text-3xl font-black">{product.name}</h1>
           <div className="mt-7 grid gap-3 border-y py-6">
-            <Line label="Prix temporaire" value="Gratuit" />
-            <Line label="Taxe" value={formatUsd(totals.taxAmount)} />
-            <Line label="Total actuel" value={formatUsd(totals.totalIncludingTax)} strong />
+            <Line label={tx("Prix temporaire","Temporary price")} value={tx("Gratuit","Free")} />
+            <Line label={tx("Taxe","Tax")} value={formatUsd(totals.taxAmount)} />
+            <Line label={tx("Total actuel","Current total")} value={formatUsd(totals.totalIncludingTax)} strong />
           </div>
           {type === "consultation" && <>
-            <p className="mt-5 rounded-xl bg-mint p-4 text-sm text-forest"><b>Validite : 1 an renouvelable.</b> Chat securise, suivi personnalise et teleconsultations video avec un expert inclus selon le pack choisi.</p>
-            <TeleconsultationConsent userId={user.id} accepted={teleconsultationConsent} />
+            <p className="mt-5 rounded-xl bg-mint p-4 text-sm text-forest"><b>{tx("Validite : 1 an renouvelable.","Validity: renewable for 1 year.")}</b> {tx("Chat securise, suivi personnalise et teleconsultations video avec un expert inclus selon le pack choisi.","Secure chat, personalized follow-up and expert video consultations are included according to the selected pack.")}</p>
+            <TeleconsultationConsent userId={user.id} accepted={teleconsultationConsent} locale={locale}/>
           </>}
           <div className="mt-6">
-            <h2 className="font-black">Informations client</h2>
+            <h2 className="font-black">{tx("Informations client","Client information")}</h2>
             <p className="mt-2 text-sm text-slate-600">{profile.full_name}<br />{user.email}<br />{profile.whatsapp_phone || profile.phone}<br />{[profile.city, profile.country].filter(Boolean).join(", ")}</p>
           </div>
-          {params.paiement === "annule" && <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Le paiement a ete annule.</p>}
+          {params.paiement === "annule" && <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{tx("Le paiement a ete annule.","Payment was cancelled.")}</p>}
         </section>
         <aside className="h-fit rounded-3xl bg-white p-7">
-          <CheckoutForm type={type as any} id={id} childId={childId} disabled={type === "consultation" && !teleconsultationConsent} />
-           <p className="mt-5 text-xs leading-5 text-slate-400">Activation gratuite temporaire pendant la mise en place des documents juridiques et des services de paiement. Les conditions commerciales definitives seront publiees avant toute facturation.</p>
+          <CheckoutForm type={type as any} id={id} childId={childId} disabled={type === "consultation" && !teleconsultationConsent} locale={locale}/>
+           <p className="mt-5 text-xs leading-5 text-slate-400">{tx("Activation gratuite temporaire pendant la mise en place des documents juridiques et des services de paiement. Les conditions commerciales definitives seront publiees avant toute facturation.","Temporary free activation while legal documents and payment services are being set up. Final commercial terms will be published before any billing.")}</p>
         </aside>
       </div>
     </div>

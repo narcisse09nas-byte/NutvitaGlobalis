@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from 'pdf-lib';
 import { createClient } from '@/lib/supabase/server';
+import { createReportQrCode } from '@/lib/pdf-branding';
 
 type Row = Record<string, any>;
 
@@ -229,6 +230,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   text('Actions requises avant analyse finale: vérifier chaque ligne signalée dans les fiches sources, documenter les corrections, revoir les équipes ou grappes atypiques, confirmer les règles d’exclusion et régénérer ce rapport sur la base nettoyée. Une observation signalée n’est jamais supprimée automatiquement.');
   text('Limite méthodologique: ce rapport reproduit les principaux contrôles SMART disponibles à partir des variables associées. Les éléments absents sont affichés comme non évaluables; ils ne sont ni estimés ni inventés.');
 
+  const loginUrl = `${new URL(request.url).origin}/connexion?identifiant=${encodeURIComponent(user.email || '')}&redirect=${encodeURIComponent(`/surveys/${id}`)}`;
+  const drawQr = await createReportQrCode(pdf, loginUrl);
+  if (y < 155) addPage();
+  drawQr(page, 'Accès sécurisé à l’enquête source', { x: 493, y: y - 62, labelX: 442, labelY: y - 70 });
+  y -= 82;
   pdf.getPages().forEach((current: PDFPage, index) => {
     current.drawText(`NutVitaGlobalis | Plausibilité SMART | page ${index + 1}/${pdf.getPageCount()}`, { x: 45, y: 35, size: 7, font: regular, color: rgb(.45, .48, .5) });
   });

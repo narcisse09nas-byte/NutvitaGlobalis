@@ -253,6 +253,15 @@ drop policy if exists "Authenticated users submit survey responses" on public.su
 create policy "Authenticated users submit survey responses" on public.survey_responses for insert to authenticated
 with check(submitted_by=(select auth.uid()));
 
+drop policy if exists "Survey owners update responses" on public.survey_responses;
+create policy "Survey owners update responses" on public.survey_responses for update to authenticated
+using(public.can_manage_survey(survey_id))
+with check(public.can_manage_survey(survey_id));
+
+drop policy if exists "Survey owners delete responses" on public.survey_responses;
+create policy "Survey owners delete responses" on public.survey_responses for delete to authenticated
+using(public.can_manage_survey(survey_id));
+
 drop policy if exists "Survey team managed by owner" on public.survey_team_members;
 create policy "Survey team managed by owner" on public.survey_team_members for all to authenticated
 using(public.can_manage_survey(survey_id)) with check(public.can_manage_survey(survey_id));

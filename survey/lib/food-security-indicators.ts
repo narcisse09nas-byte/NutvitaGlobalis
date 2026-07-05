@@ -38,6 +38,42 @@ export function calculateLcs(data:Answers){
   const emergency=used(["LcsEN_em_ResAsset","LcsEN_em_Begged","LcsEN_em_IllegalAct"]);
   return {stress,crisis,emergency,maximum:emergency?4:crisis?3:stress?2:1};
 }
+export function calculateIycfMad(data:Answers){
+  const age=n(data,"PCMADChildAge_months"),breastfed=n(data,"PCMADBreastfeed")===1;
+  const yes=(...keys:string[])=>keys.some(key=>n(data,key)===1);
+  const groups=[
+    breastfed,
+    yes("PCMADStapCer","PCMADStapRoo"),
+    yes("PCMADPulse"),
+    yes("PCMADDairy"),
+    yes("PCMADPrMeatF","PCMADPrFish"),
+    yes("PCMADPrEgg"),
+    yes("PCMADVegOrg","PCMADVegGre","PCMADFruitOrg"),
+    yes("PCMADVegOth","PCMADFruitOth"),
+  ];
+  const diversityScore=groups.filter(Boolean).length,mdd=diversityScore>=5,meals=n(data,"PCMADMeals");
+  const milkFeeds=n(data,"PCMADInfFormulaNum")+n(data,"PCMADMilkNum")+n(data,"PCMADYogurtDrinkNum");
+  const mmf=breastfed?(age<=8?meals>=2:meals>=3):(meals>=1&&meals+milkFeeds>=4);
+  const mmff=breastfed||milkFeeds>=2;
+  return {eligible:age>=6&&age<=23,ageMonths:age,breastfed,diversityScore,mdd,meals,milkFeeds,mmf,mmff,mad:mdd&&mmf&&mmff};
+}
+export function calculateMddw(data:Answers){
+  const yes=(...keys:string[])=>keys.some(key=>n(data,key)===1);
+  const groups=[
+    yes("PWMDDWStapCer","PWMDDWStapRoo"),
+    yes("PWMDDWPulse"),
+    yes("PWMDDWNuts"),
+    yes("PWMDDWMilk","PWMDDWDairy"),
+    yes("PWMDDWPrMeatO","PWMDDWPrMeatF","PWMDDWPrMeatWhite","PWMDDWPrFish"),
+    yes("PWMDDWPrEgg"),
+    yes("PWMDDWVegGre"),
+    yes("PWMDDWVegOrg","PWMDDWFruitOrg"),
+    yes("PWMDDWVegOth"),
+    yes("PWMDDWFruitOth"),
+  ];
+  const score=groups.filter(Boolean).length;
+  return {score,minimumDietaryDiversity:score>=5,groups};
+}
 export function calculateSurveyIndicators(data:Answers){
-  return {fcs:calculateFcs(data),fcsHigh:calculateFcs(data,"high"),fcsN:calculateFcsN(data),hdds:calculateHdds(data),hhs:calculateHhs(data),rCSI:calculateRcsi(data),fes:calculateFes(data),lcs:calculateLcs(data)};
+  return {fcs:calculateFcs(data),fcsHigh:calculateFcs(data,"high"),fcsN:calculateFcsN(data),hdds:calculateHdds(data),hhs:calculateHhs(data),rCSI:calculateRcsi(data),fes:calculateFes(data),lcs:calculateLcs(data),iycf:calculateIycfMad(data),mddw:calculateMddw(data)};
 }

@@ -23,6 +23,8 @@ export default function Header() {
   const links = [
     ["/", t.home],
     ["/services", locale === "en" ? "Our services" : "Nos services"],
+    ["/teleconseils", locale === "en" ? "Teleconsultations" : "Téléconseils"],
+    ["/teleconseils#packs", locale === "en" ? "Packages" : "Packs"],
     ["/ressources", t.resources],
     ["/a-propos", t.about],
     ["/contact", t.contact],
@@ -99,12 +101,12 @@ export default function Header() {
         <Image src="/brand/nutvita-logo-round.png" alt="NutVita Globalis" width={44} height={44} className="h-11 w-11 shrink-0 rounded-full object-cover" priority />
         <span className="whitespace-nowrap text-base font-black text-forest xl:text-lg">NutVita<span className="text-orange">Globalis</span></span>
       </Link>
-      <nav className="hidden items-center gap-4 lg:flex">{links.slice(0,3).map(([href, label]) => <Link key={href} href={localizedPath(locale, href)} className={`whitespace-nowrap text-sm font-semibold transition hover:text-leaf ${canonical === href ? "text-leaf" : "text-slate-600"}`}>{label}</Link>)}
+      <nav className="hidden items-center gap-3 lg:flex">{links.slice(0,5).map(([href, label]) => <Link key={href} href={localizedPath(locale, href)} className={`whitespace-nowrap text-sm font-semibold transition hover:text-leaf ${canonical === href.split("#")[0] ? "text-leaf" : "text-slate-600"}`}>{label}</Link>)}
         <div ref={opportunitiesRef} className="relative">
           <button type="button" aria-expanded={opportunitiesOpen} onClick={() => setOpportunitiesOpen(value => !value)} className={`inline-flex items-center gap-1 whitespace-nowrap text-sm font-semibold transition hover:text-leaf ${opportunityActive ? "text-leaf" : "text-slate-600"}`}>{locale === "en" ? "Opportunities" : "Opportunites"}<ChevronDownIcon className={`h-4 transition ${opportunitiesOpen ? "rotate-180" : ""}`}/></button>
           {opportunitiesOpen && <div className="absolute left-1/2 top-10 w-80 -translate-x-1/2 rounded-lg border bg-white p-2 shadow-xl">{opportunities.map(([href,label,description,Icon])=><Link onClick={()=>setOpportunitiesOpen(false)} key={href} href={localizedPath(locale,href)} className="flex gap-3 rounded-md p-3 hover:bg-mint"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-forest text-white"><Icon className="h-5"/></span><span><b className="block text-sm text-forest">{label}</b><small className="mt-1 block leading-5 text-slate-500">{description}</small></span></Link>)}</div>}
         </div>
-        {links.slice(3).map(([href, label]) => <Link key={href} href={localizedPath(locale, href)} className={`whitespace-nowrap text-sm font-semibold transition hover:text-leaf ${canonical === href ? "text-leaf" : "text-slate-600"}`}>{label}</Link>)}
+        {links.slice(5).map(([href, label]) => <Link key={href} href={localizedPath(locale, href)} className={`whitespace-nowrap text-sm font-semibold transition hover:text-leaf ${canonical === href ? "text-leaf" : "text-slate-600"}`}>{label}</Link>)}
       </nav>
       <div className="hidden shrink-0 items-center gap-3 lg:flex">
         <LanguageSwitcher compact />
@@ -113,10 +115,10 @@ export default function Header() {
       <button type="button" aria-label={open ? "Fermer le menu" : "Ouvrir le menu"} aria-expanded={open} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-forest/15 bg-white text-forest shadow-sm lg:hidden" onClick={() => setOpen(!open)}>{open ? <XMarkIcon className="h-6" /> : <Bars3Icon className="h-6" />}</button>
     </div>
     {open && <nav className="container-site grid gap-1 border-t py-4 lg:hidden">
-      {links.slice(0,3).map(([href, label]) => <Link onClick={() => setOpen(false)} key={href} href={localizedPath(locale, href)} className={`rounded-xl px-4 py-3 font-semibold ${canonical === href ? "bg-mint text-leaf" : "hover:bg-mint"}`}>{label}</Link>)}
+      {links.slice(0,5).map(([href, label]) => <Link onClick={() => setOpen(false)} key={href} href={localizedPath(locale, href)} className={`rounded-xl px-4 py-3 font-semibold ${canonical === href.split("#")[0] ? "bg-mint text-leaf" : "hover:bg-mint"}`}>{label}</Link>)}
       <p className="px-4 pb-1 pt-3 text-xs font-black uppercase text-slate-400">{locale === "en" ? "Opportunities" : "Opportunites"}</p>
       {opportunities.map(([href,label,,Icon])=><Link onClick={()=>setOpen(false)} key={href} href={localizedPath(locale,href)} className={`flex items-center gap-3 rounded-xl px-4 py-3 font-semibold ${canonical===href?"bg-mint text-leaf":"hover:bg-mint"}`}><Icon className="h-5"/>{label}</Link>)}
-      {links.slice(3).map(([href, label]) => <Link onClick={() => setOpen(false)} key={href} href={localizedPath(locale, href)} className={`rounded-xl px-4 py-3 font-semibold ${canonical === href ? "bg-mint text-leaf" : "hover:bg-mint"}`}>{label}</Link>)}
+      {links.slice(5).map(([href, label]) => <Link onClick={() => setOpen(false)} key={href} href={localizedPath(locale, href)} className={`rounded-xl px-4 py-3 font-semibold ${canonical === href ? "bg-mint text-leaf" : "hover:bg-mint"}`}>{label}</Link>)}
       <div className="px-4 py-2"><LanguageSwitcher compact /></div>
       {user ? (
         <>

@@ -10,6 +10,7 @@ export type EnaSmartMapping = {
   weight: string;
   height: string;
   muac?: string;
+  oedema?: string;
   cluster?: string;
   village?: string;
   enumerator?: string;
@@ -149,12 +150,20 @@ function normalizedSex(value: unknown) {
   return null;
 }
 
+function normalizedOedema(value: unknown) {
+  const oedema = String(value ?? '').trim().toLowerCase();
+  if (['1', 'yes', 'oui', 'true', 'present', 'présent', '++', '+++'].includes(oedema)) return true;
+  if (['0', 'no', 'non', 'false', 'absent', '-', ''].includes(oedema)) return false;
+  return null;
+}
+
 export function analyzeEnaSmartPlausibility(rows: Record<string, unknown>[], mapping: EnaSmartMapping) {
   const observations = rows.map((row, index) => {
     const age = numeric(row[mapping.age]);
     const weight = numeric(row[mapping.weight]);
     const height = numeric(row[mapping.height]);
     const muac = mapping.muac ? numeric(row[mapping.muac]) : null;
+    const oedema = mapping.oedema ? normalizedOedema(row[mapping.oedema]) : false;
     const sex = normalizedSex(row[mapping.sex]);
     const whz = sex && weight !== null && height !== null ? calculateWFLzScore(height, weight, sex) : null;
     const haz = sex && age !== null && height !== null ? calculateLFAzScore(age, height, sex) : null;
@@ -167,6 +176,7 @@ export function analyzeEnaSmartPlausibility(rows: Record<string, unknown>[], map
       weight === null || weight <= 0 ? 'POIDS_MANQUANT' : null,
       height === null || height <= 0 ? 'TAILLE_MANQUANTE' : null,
       !sex ? 'SEXE_INVALIDE' : null,
+      mapping.oedema && oedema === null ? 'OEDEME_INVALIDE' : null,
     ].filter((flag): flag is string => Boolean(flag));
     return {
       row: index + 1,
@@ -180,6 +190,7 @@ export function analyzeEnaSmartPlausibility(rows: Record<string, unknown>[], map
       weight,
       height,
       muac,
+      oedema,
       whz,
       haz,
       waz,

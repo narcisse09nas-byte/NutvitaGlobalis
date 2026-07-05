@@ -44,7 +44,7 @@ export default async function Teleconseils() {
   return <>
     {page && <ManagedPageHero initial={page} />}
     <MedicalDisclaimer />
-    <section className="section">
+    <section id="packs" className="section scroll-mt-24">
       <div className="container-site">
         <div className="mb-8 rounded-3xl bg-mint p-7">
           <p className="text-xs font-bold uppercase tracking-widest text-leaf">{tx("Ce qui differencie NutVitaGlobalis","What makes NutVitaGlobalis different")}</p>

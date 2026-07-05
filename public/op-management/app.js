@@ -1114,6 +1114,7 @@
       '<button type="button" class="secondary-action full-width-action" id="open-register-button">Créer un compte</button>' +
       '<button type="button" class="link-action" id="forgot-password-button">Mot de passe oublié ?</button>' +
       '<small>Les nouveaux comptes sont créés avec le niveau Visiteur. Un administrateur attribue ensuite les accès.</small>' +
+      '<div class="service-access-help"><strong>Votre compte n&rsquo;est pas rattach&eacute; &agrave; OP Management ?</strong><span>Consultez les autres espaces NutVitaGlobalis auxquels vous avez acc&egrave;s.</span><div><a href="/services" target="_top">Tous les services</a><a href="/connexion" target="_top">Espace client</a><a href="/partenaire/connexion" target="_top">Espace nutritionniste</a><a href="/maximus/login" target="_top">Maximus</a></div></div>' +
       '</div>';
     elements.tableHead.innerHTML = "";
     elements.tableBody.innerHTML = '<tr><td><section class="landing-hero">' +
@@ -1346,8 +1347,16 @@
     var email = normalizeEmail(formValue("loginEmail"));
     var password = formValue("loginPassword");
     var user = findUserByEmail(email);
-    if (!user || user.password !== password || user.status === "Inactive") {
-      window.alert("Email ou mot de passe incorrect, ou compte inactif.");
+    if (!user) {
+      window.alert("Ce compte ne dispose pas d'un acces a OP Management. Verifiez l'adresse utilisee pour ce service ou consultez les autres services NutVitaGlobalis proposes sous le formulaire.");
+      return;
+    }
+    if (user.status === "Inactive") {
+      window.alert("Votre acces a OP Management est inactif. Contactez l'administrateur du service.");
+      return;
+    }
+    if (user.password !== password) {
+      window.alert("Mot de passe OP Management incorrect.");
       return;
     }
     saveCurrentUser(user.email);

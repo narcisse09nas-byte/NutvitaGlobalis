@@ -1,13 +1,8 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 
 export const metadata = { title: 'OP Management | NutVitaGlobalis' };
 
 export default async function OperationsManagementPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/connexion?retour=/op-management');
   return (
     <main className="flex min-h-screen flex-col bg-slate-950">
       <header className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-3 text-white">

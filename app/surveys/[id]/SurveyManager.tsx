@@ -14,7 +14,6 @@ import { analyzeEnaSmartPlausibility } from '@/survey/lib/ena-smart-plausibility
 import { calculateSurveyIndicators } from '@/survey/lib/food-security-indicators';
 import { exportQuestionnaireWorkbook, parseXlsForm, type SurveyQuestion } from '@/survey/lib/xlsform';
 import { calculateLFAzScore, calculateWFAzScore, calculateWFLzScore, classifyLFAzScore, classifyWFLzScore } from '@/survey/lib/who-growth-standards';
-import SurveyAnalysisWorkspace from './SurveyAnalysisWorkspace';
 
 type Row = Record<string, any>;
 type Resource = 'team' | 'clusters' | 'samples' | 'forms' | 'responses' | 'reports';
@@ -379,7 +378,50 @@ function QuestionField({ question }: { question: SurveyQuestion }) {
 }
 
 function Analysis({ survey, forms, responses, mutate, setMessage }: { survey: Row; forms: Row[]; responses: Row[]; mutate: any; setMessage: (value: string) => void }) {
-  return <SurveyAnalysisWorkspace survey={survey} forms={forms} responses={responses} mutate={mutate} setMessage={setMessage} />;
+  const variables = new Set<string>();
+  responses.forEach(response => Object.keys(response.response_data?.answers || {}).forEach(key => variables.add(key)));
+  const references = responses.map(response => response.response_reference || response.cluster_reference || response.id);
+  const duplicateCount = references.length - new Set(references).size;
+  const paths = [
+    {
+      href: `/surveys/${survey.id}/analysis/anthropometrie`,
+      title: 'Analyse des données anthropométriques nutritionnelles',
+      text: 'Correspondance des variables, z-scores OMS, vue ENA, contrôle global et rapports filtrés.',
+      icon: Activity,
+    },
+    {
+      href: `/surveys/${survey.id}/analysis/modules-avances`,
+      title: 'Analyse des modules avancés',
+      text: 'FCS/FCS-N, HDDS, HHS, rCSI et autres modules avec création de variables calculées.',
+      icon: FlaskConical,
+    },
+    {
+      href: `/surveys/${survey.id}/analysis/autres-analyses`,
+      title: 'Autres analyses',
+      text: 'Recodage, qualité, nettoyage, distributions, tests statistiques, modèles et graphiques.',
+      icon: BarChart3,
+    },
+  ];
+  return <div className="grid gap-6">
+    <Panel title="Données disponibles pour l’analyse" text="Les pages d’analyse permettront de choisir précisément un questionnaire de l’enquête ou un fichier externe.">
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Metric label="Observations" value={responses.length} />
+        <Metric label="Variables repérées" value={variables.size} />
+        <Metric label="Questionnaires" value={forms.length} />
+        <Metric label="Références en doublon" value={duplicateCount} />
+      </div>
+    </Panel>
+    <Panel title="Moteur d’analyse des données" text="Choisissez un parcours. Chaque espace utilise uniquement la base active de l’enquête ou le fichier que vous importez.">
+      <div className="grid gap-4 xl:grid-cols-3">
+        {paths.map(({ href, title, text, icon: Icon }) => <Link key={href} href={href} className="group border bg-white p-6 transition hover:border-emerald-600 hover:shadow-md">
+          <Icon className="h-8 w-8 text-emerald-700" />
+          <h3 className="mt-5 text-lg font-black text-forest">{title}</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{text}</p>
+          <span className="mt-5 inline-flex text-sm font-black text-emerald-700">Ouvrir l’analyse</span>
+        </Link>)}
+      </div>
+    </Panel>
+  </div>;
 }
 
 function AnalysisLegacy({ survey, mutate, setMessage }: { survey: Row; mutate: any; setMessage: (value: string) => void }) {

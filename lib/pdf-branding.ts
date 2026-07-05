@@ -50,8 +50,10 @@ export async function createReportQrCode(pdf: PDFDocument, url: string) {
     color: { dark: "#123d32", light: "#ffffff" },
   });
   const image = await pdf.embedPng(Buffer.from(dataUrl.split(",")[1], "base64"));
-  return (page: PDFPage, label: string) => {
-    page.drawImage(image, { x: 493, y: 615, width: 54, height: 54 });
-    page.drawText(label, { x: 470, y: 604, size: 6, color: rgb(.35, .4, .39) });
+  return (page: PDFPage, label: string, position: { x?: number; y?: number; labelX?: number; labelY?: number } = {}) => {
+    const x = position.x ?? 493;
+    const y = position.y ?? 615;
+    page.drawImage(image, { x, y, width: 54, height: 54 });
+    page.drawText(label, { x: position.labelX ?? x - 23, y: position.labelY ?? y - 11, size: 6, color: rgb(.35, .4, .39) });
   };
 }

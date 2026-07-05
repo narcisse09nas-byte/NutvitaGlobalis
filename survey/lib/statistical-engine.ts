@@ -224,6 +224,9 @@ function fitBinaryLogistic(rows: Record<string, unknown>[], request: Statistical
   }).filter((item): item is { outcome: number; x: number[] } => item !== null);
   if (complete.length <= predictors.length + 1) throw new Error('Nombre d’observations complètes insuffisant pour ce modèle.');
   if (!complete.some(item => item.outcome === 0) || !complete.some(item => item.outcome === 1)) throw new Error('La variable dépendante doit contenir les deux modalités binaires.');
+  predictors.forEach((predictor, index) => {
+    if (new Set(complete.map(item => item.x[index + 1])).size < 2) throw new Error(`Le prédicteur « ${predictor} » est constant ou ne contient pas assez de valeurs numériques distinctes.`);
+  });
   let coefficients = Array(predictors.length + 1).fill(0);
   let converged = false;
   let covariance: number[][] = [];
@@ -296,6 +299,8 @@ function kaplanMeier(rows: Record<string, unknown>[], request: StatisticalAnalys
     const group = request.strata ? String(row[request.strata] ?? 'Manquant') : 'Ensemble';
     groups.set(group, [...(groups.get(group) || []), { time, event }]);
   });
+  if (![...groups.values()].flat().length) throw new Error('Aucune observation complète avec une durée positive et un statut d’événement valide.');
+  if (![...groups.values()].flat().some(item => item.event === 1)) throw new Error('Aucun événement observé : Kaplan-Meier ne peut pas estimer la fonction de survie.');
   const curves = [...groups.entries()].map(([group, observations]) => {
     const eventTimes = [...new Set(observations.filter(item => item.event === 1).map(item => item.time))].sort((a, b) => a - b);
     let survival = 1;
@@ -331,6 +336,9 @@ function fitCox(rows: Record<string, unknown>[], request: StatisticalAnalysisReq
     return time === null || time < 0 || event === null || values.some(value => value === null) ? null : { time, event, x: values as number[] };
   }).filter((item): item is { time: number; event: number; x: number[] } => item !== null);
   if (complete.filter(item => item.event === 1).length <= predictors.length) throw new Error('Nombre d’événements insuffisant pour le nombre de prédicteurs.');
+  predictors.forEach((predictor, index) => {
+    if (new Set(complete.map(item => item.x[index])).size < 2) throw new Error(`Le prédicteur « ${predictor} » est constant ou non exploitable.`);
+  });
   let coefficients = Array(predictors.length).fill(0);
   let hessian = Array.from({ length: predictors.length }, () => Array(predictors.length).fill(0));
   let converged = false;
@@ -393,6 +401,7 @@ export function runStatisticalAnalysis(rows: Record<string, unknown>[], request:
   if (request.type === 'cox_regression') return { ...fitCox(rows, request), confidenceLevel };
   if (request.type === 'frequencies') {
     const variables = request.variables || [];
+    if (!variables.length) throw new Error('Sélectionnez au moins une variable pour calculer les fréquences.');
     return {
       type: request.type,
       confidenceLevel,
@@ -411,6 +420,7 @@ export function runStatisticalAnalysis(rows: Record<string, unknown>[], request:
     };
   }
   if (request.type === 'descriptives') {
+    if (!(request.variables || []).length) throw new Error('Sélectionnez au moins une variable quantitative.');
     return {
       type: request.type,
       confidenceLevel,
@@ -434,6 +444,7 @@ export function runStatisticalAnalysis(rows: Record<string, unknown>[], request:
     if (!request.outcome || !request.group) throw new Error('Deux variables catégorielles sont requises.');
     const rowLevels = [...new Set(rows.map(row => String(row[request.outcome!] ?? 'Manquant')))];
     const columnLevels = [...new Set(rows.map(row => String(row[request.group!] ?? 'Manquant')))];
+    if (rowLevels.length < 2 || columnLevels.length < 2) throw new Error('Chaque variable du tableau croisé doit contenir au moins deux modalités.');
     const observed = rowLevels.map(rowLevel => columnLevels.map(columnLevel => rows.filter(row => String(row[request.outcome!] ?? 'Manquant') === rowLevel && String(row[request.group!] ?? 'Manquant') === columnLevel).length));
     const rowTotals = observed.map(row => row.reduce((sum, value) => sum + value, 0));
     const columnTotals = columnLevels.map((_, column) => observed.reduce((sum, row) => sum + row[column], 0));
@@ -465,7 +476,9 @@ export function runStatisticalAnalysis(rows: Record<string, unknown>[], request:
   }
   if (request.type === 'correlation') {
     const variables = request.variables || [];
+    if (variables.length < 2) throw new Error('Sélectionnez au moins deux variables pour calculer une corrélation.');
     const complete = rows.map(row => variables.map(variable => numberValue(row[variable]))).filter(values => values.every(value => value !== null)) as number[][];
+    if (complete.length < 3) throw new Error('Au moins trois observations complètes sont requises pour calculer les corrélations.');
     const columns = variables.map((_, index) => complete.map(row => row[index]));
     return {
       type: request.type,
@@ -486,6 +499,8 @@ export function runStatisticalAnalysis(rows: Record<string, unknown>[], request:
       grouped.set(group, [...(grouped.get(group) || []), value]);
     });
     const groups = [...grouped.entries()].map(([name, values]) => ({ name, values, n: values.length, mean: mean(values), standardDeviation: Math.sqrt(variance(values)) }));
+    if (groups.length < 2) throw new Error('Au moins deux groupes contenant des valeurs numériques sont requis.');
+    if (groups.some(group => group.n < 2)) throw new Error('Chaque groupe doit contenir au moins deux observations numériques.');
     if (request.type === 'independent_t') {
       if (groups.length !== 2) throw new Error('Le test t indépendant exige exactement deux groupes.');
       const standardError = Math.sqrt(variance(groups[0].values) / groups[0].n + variance(groups[1].values) / groups[1].n);
@@ -534,6 +549,10 @@ export function runStatisticalAnalysis(rows: Record<string, unknown>[], request:
     if (!request.outcome || !(request.predictors || []).length) throw new Error('Une variable dépendante et au moins un prédicteur sont requis.');
     const variables = [request.outcome, ...(request.predictors || [])];
     const complete = rows.map(row => variables.map(variable => numberValue(row[variable]))).filter(values => values.every(value => value !== null)) as number[][];
+    if (complete.length <= variables.length) throw new Error(`Nombre de cas complets insuffisant : ${complete.length} disponible(s), plus de ${variables.length} requis.`);
+    (request.predictors || []).forEach((predictor, index) => {
+      if (new Set(complete.map(row => row[index + 1])).size < 2) throw new Error(`Le prédicteur « ${predictor} » est constant.`);
+    });
     const x = complete.map(row => [1, ...row.slice(1)]);
     const y = complete.map(row => [row[0]]);
     const transpose = x[0].map((_, column) => x.map(row => row[column]));

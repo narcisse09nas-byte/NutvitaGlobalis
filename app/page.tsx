@@ -1,4 +1,96 @@
-import Image from "next/image";import Link from "next/link";import {AcademicCapIcon,ChatBubbleLeftRightIcon,HeartIcon,LockClosedIcon,CheckBadgeIcon,ClockIcon} from "@heroicons/react/24/outline";import ArticleCard from "@/components/ArticleCard";import Newsletter from "@/components/Newsletter";import {getArticles,getFormations,getHomepage,getTestimonials} from "@/lib/public-content";
-const defaultServices=[{title:"Formations certifiantes",text:"Développez des compétences concrètes avec des parcours conçus par des experts."},{title:"Téléconseils nutritionnels",text:"Échangez à distance avec un professionnel et obtenez des conseils adaptés."},{title:"Suivi personnalisé",text:"Avancez durablement grâce à un accompagnement qui respecte votre quotidien."}];const icons=[AcademicCapIcon,ChatBubbleLeftRightIcon,HeartIcon];
-export const revalidate=60;
-export default async function Home(){const [settings,articles,formations,testimonials]=await Promise.all([getHomepage(),getArticles(true),getFormations(true),getTestimonials()]);const services=Array.isArray(settings?.services)&&settings.services.length?settings.services:defaultServices;return <><section className="relative min-h-[680px] overflow-hidden bg-forest"><Image src={settings?.hero_image_url||"/images/hero-nutvita.png"} alt="Consultation nutritionnelle" fill priority className="object-cover object-center opacity-70"/><div className="absolute inset-0 bg-gradient-to-r from-forest via-forest/90 to-forest/10"/><div className="container-site relative flex min-h-[680px] items-center py-20"><div className="max-w-2xl text-white"><span className="mb-5 inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[.18em]">{settings?.slogan||"La santé commence dans l’assiette"}</span><h1 className="text-5xl font-black leading-[1.05] text-white md:text-7xl">{settings?.hero_title||"Nutrition, santé et bien-être pour tous"}</h1><p className="mt-6 max-w-xl text-lg leading-8 text-white/75">{settings?.presentation||"Des formations de qualité, des conseils d’experts et des ressources fiables pour prendre soin de vous et de vos proches."}</p><div className="mt-9 flex flex-col gap-3 sm:flex-row"><Link className="btn-primary" href={settings?.primary_button_url||"/formations"}>{settings?.primary_button_label||"Découvrir nos formations"}</Link><Link className="btn-secondary border-white/30 bg-white/10 text-white" href={settings?.secondary_button_url||"/teleconseils"}>{settings?.secondary_button_label||"Réserver un téléconseil"}</Link></div></div></div></section><section className="section bg-mint/45"><div className="container-site"><span className="eyebrow bg-white">Nos services</span><h2 className="mb-10 text-4xl font-black">Un accompagnement à chaque étape</h2><div className="grid gap-6 md:grid-cols-3">{services.map((service:Record<string,unknown>,i:number)=>{const Icon=icons[i%icons.length];return <div className="card p-8" key={String(service.title)}><span className="mb-8 grid h-14 w-14 place-items-center rounded-2xl bg-mint text-leaf"><Icon className="h-7"/></span><h3 className="mb-3 text-2xl font-bold">{String(service.title)}</h3><p className="leading-7 text-slate-500">{String(service.text||'')}</p></div>})}</div></div></section><section className="section"><div className="container-site"><span className="eyebrow">À lire</span><h2 className="mb-10 text-4xl font-black">Articles mis en avant</h2><div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{articles.map(a=><ArticleCard key={a.slug} article={a}/>)}</div></div></section>{formations.length>0&&<section className="section bg-[#f3eee5]"><div className="container-site"><span className="eyebrow bg-white">Se former</span><h2 className="mb-10 text-4xl font-black">Formations mises en avant</h2><div className="grid gap-6 md:grid-cols-2">{formations.slice(0,4).map(f=><div className="card flex flex-col gap-5 p-7 sm:flex-row" key={f.title}><div className="relative h-40 w-full shrink-0 overflow-hidden rounded-2xl sm:w-48"><Image src={f.image} alt={f.title} fill className="object-cover"/></div><div><h3 className="text-2xl font-black">{f.title}</h3><p className="mt-3 flex items-center gap-2 text-sm text-slate-500"><ClockIcon className="h-5 text-orange"/>{f.duration} · {f.level}</p><Link href="/formations" className="mt-5 inline-block font-bold text-leaf">Découvrir →</Link></div></div>)}</div></div></section>}<section className="section"><div className="container-site grid items-center gap-10 rounded-[2rem] bg-white p-8 shadow-soft lg:grid-cols-2 lg:p-14"><div><span className="eyebrow"><LockClosedIcon className="mr-2 h-4"/>Ressources premium</span><h2 className="text-4xl font-black">Allez plus loin dans votre pratique.</h2><Link className="btn-primary mt-7" href="/ressources">Explorer les ressources</Link></div><div className="grid gap-3">{["Guides fondés sur les données scientifiques","Outils immédiatement applicables","Mises à jour régulières"].map(x=><div key={x} className="flex items-center gap-3 rounded-2xl bg-mint p-5 font-bold text-forest"><CheckBadgeIcon className="h-6 text-leaf"/>{x}</div>)}</div></div></section><section className="section"><div className="container-site text-center"><span className="eyebrow">Témoignages</span><h2 className="text-4xl font-black">Ils nous font confiance</h2><div className="mt-10 grid gap-6 md:grid-cols-3">{(testimonials?.length?testimonials:[{name:"Aïcha M.",testimony:"Grâce au suivi, j’ai retrouvé une alimentation sereine et adaptée à mon diabète.",rating:5},{name:"Dr Koffi A.",testimony:"Une formation claire, pratique et directement utile sur le terrain.",rating:5},{name:"Mariam D.",testimony:"J’ai enfin compris comment diversifier les repas de mon bébé sans stress.",rating:5}]).slice(0,3).map(t=><blockquote key={t.name} className="card p-8 text-left"><div className="mb-4 text-orange">{'★'.repeat(t.rating||5)}</div><p className="text-lg leading-8">“{t.testimony}”</p><footer className="mt-6 font-bold text-forest">{t.name}</footer></blockquote>)}</div></div></section><Newsletter/></>}
+import Image from "next/image";
+import Link from "next/link";
+import { CheckBadgeIcon, ClockIcon, LockClosedIcon } from "@heroicons/react/24/outline";
+import ArticleCard from "@/components/ArticleCard";
+import HomeCommunitySections from "@/components/HomeCommunitySections";
+import Newsletter from "@/components/Newsletter";
+import { getArticles, getFormations, getHomepage, getHomepageCommunity, getTestimonials } from "@/lib/public-content";
+
+const welcome = {
+  fr: `Nous croyons qu’une alimentation de qualité peut transformer des vies, renforcer les communautés et bâtir un futur plus sain pour tous.
+
+Chaque jour, nous accompagnons les formations sanitaires, les entreprises, le grand public, les familles, les individus, les institutions, les professionnels, les étudiants et les communautés grâce à des solutions nutritionnelles, des outils numériques, des formations certifiantes et un appui technique adapté.
+
+Chez NutVitaGlobalis, nous ne servons pas seulement des repas : nous créons des solutions nutritionnelles qui soignent, protègent, éduquent et transforment.
+
+Nourish Life. Build the Future.
+Ensemble, construisons un avenir où chacun a accès à une alimentation saine, durable et porteuse d’espoir.`,
+  en: `We believe that quality nutrition can transform lives, strengthen communities and build a healthier future for all.
+
+Every day, we support health facilities, businesses, the general public, families, individuals, institutions, professionals, students and communities through nutritional solutions, digital tools, certified training and tailored technical assistance.
+
+At NutVitaGlobalis, we do more than serve meals: we create nutritional solutions that heal, protect, educate and transform.
+
+Nourish Life. Build the Future.
+Together, let us build a future where everyone has access to healthy, sustainable and hopeful nutrition.`,
+};
+
+export const revalidate = 60;
+
+export default async function Home() {
+  const [settings, articles, formations, testimonials, community] = await Promise.all([
+    getHomepage(), getArticles(true), getFormations(true), getTestimonials(), getHomepageCommunity(),
+  ]);
+  const english = community.locale === "en";
+  const welcomeMessage = english ? settings?.welcome_message_en || welcome.en : settings?.welcome_message_fr || welcome.fr;
+
+  return <>
+    <section className="relative min-h-[680px] overflow-hidden bg-forest">
+      <Image src={settings?.hero_image_url || "/images/hero-nutvita.png"} alt={english ? "Nutrition consultation" : "Consultation nutritionnelle"} fill priority className="object-cover object-center opacity-70" />
+      <div className="absolute inset-0 bg-gradient-to-r from-forest via-forest/90 to-forest/10" />
+      <div className="container-site relative flex min-h-[680px] items-center py-20">
+        <div className="max-w-2xl text-white">
+          <span className="mb-5 inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[.18em]">{settings?.slogan || (english ? "Health begins on the plate" : "La santé commence dans l’assiette")}</span>
+          <h1 className="text-5xl font-black leading-[1.05] text-white md:text-7xl">{settings?.hero_title || (english ? "Nutrition, health and well-being for all" : "Nutrition, santé et bien-être pour tous")}</h1>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-white/75">{settings?.presentation || (english ? "Reliable expertise and practical solutions for families, professionals and communities." : "Une expertise fiable et des solutions concrètes pour les familles, les professionnels et les communautés.")}</p>
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <Link className="btn-primary" href={settings?.primary_button_url || "/formations"}>{settings?.primary_button_label || (english ? "Explore our courses" : "Découvrir nos formations")}</Link>
+            <Link className="btn-secondary border-white/30 bg-white/10 text-white" href={settings?.secondary_button_url || "/teleconseils"}>{settings?.secondary_button_label || (english ? "Book a consultation" : "Réserver un téléconseil")}</Link>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section className="border-b bg-[#f7faf8] py-12 md:py-16">
+      <div className="container-site">
+        <div className="mx-auto max-w-5xl border-l-4 border-leaf bg-white px-6 py-8 shadow-sm md:px-10">
+          <p className="whitespace-pre-line text-base leading-8 text-slate-700">{welcomeMessage}</p>
+        </div>
+      </div>
+    </section>
+
+    <section className="section">
+      <div className="container-site">
+        <span className="eyebrow">{english ? "Insights" : "À lire"}</span>
+        <h2 className="mb-10 text-4xl font-black">{english ? "Featured Articles" : "Articles mis en avant"}</h2>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{articles.map((article) => <ArticleCard key={article.slug} article={article} />)}</div>
+      </div>
+    </section>
+
+    {formations.length > 0 && <section className="section bg-[#f3eee5]">
+      <div className="container-site">
+        <span className="eyebrow bg-white">{english ? "Learn" : "Se former"}</span>
+        <h2 className="mb-10 text-4xl font-black">{english ? "Featured Courses" : "Formations mises en avant"}</h2>
+        <div className="grid gap-6 md:grid-cols-2">{formations.slice(0, 4).map((course) => <div className="card flex flex-col gap-5 p-7 sm:flex-row" key={course.title}><div className="relative h-40 w-full shrink-0 overflow-hidden sm:w-48"><Image src={course.image} alt={course.title} fill className="object-cover" /></div><div><h3 className="text-2xl font-black">{course.title}</h3><p className="mt-3 flex items-center gap-2 text-sm text-slate-500"><ClockIcon className="h-5 text-orange" />{course.duration} · {course.level}</p><Link href="/formations" className="mt-5 inline-block font-bold text-leaf">{english ? "Discover" : "Découvrir"} →</Link></div></div>)}</div>
+      </div>
+    </section>}
+
+    <section className="section">
+      <div className="container-site grid items-center gap-10 bg-white px-6 py-10 shadow-soft lg:grid-cols-2 lg:px-14">
+        <div><span className="eyebrow"><LockClosedIcon className="mr-2 h-4" />{english ? "Premium resources" : "Ressources premium"}</span><h2 className="text-4xl font-black">{english ? "Go further in your practice." : "Allez plus loin dans votre pratique."}</h2><Link className="btn-primary mt-7" href="/ressources">{english ? "Explore resources" : "Explorer les ressources"}</Link></div>
+        <div className="grid gap-3">{(english ? ["Evidence-based guides","Immediately applicable tools","Regular updates"] : ["Guides fondés sur les données scientifiques","Outils immédiatement applicables","Mises à jour régulières"]).map((text) => <div key={text} className="flex items-center gap-3 bg-mint p-5 font-bold text-forest"><CheckBadgeIcon className="h-6 text-leaf" />{text}</div>)}</div>
+      </div>
+    </section>
+
+    <HomeCommunitySections locale={community.locale} announcements={community.announcements} gallery={community.gallery} topics={community.topics} messages={community.messages} />
+
+    <section className="section">
+      <div className="container-site text-center">
+        <span className="eyebrow">{english ? "Testimonials" : "Témoignages"}</span>
+        <h2 className="text-4xl font-black">{english ? "They trust us" : "Ils nous font confiance"}</h2>
+        <div className="mt-10 grid gap-6 md:grid-cols-3">{(testimonials?.length ? testimonials : []).slice(0, 3).map((item) => <blockquote key={item.name} className="card p-8 text-left"><div className="mb-4 text-orange">{"★".repeat(item.rating || 5)}</div><p className="text-lg leading-8">“{item.testimony}”</p><footer className="mt-6 font-bold text-forest">{item.name}</footer></blockquote>)}</div>
+      </div>
+    </section>
+    <Newsletter />
+  </>;
+}

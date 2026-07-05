@@ -105,3 +105,16 @@ export async function getHomepage() {
   const { data } = await (await createClient()).from("homepage_settings").select("*").eq("id", 1).maybeSingle();
   return data ? { ...data, services: [...(Array.isArray(data.services) ? data.services : []), ...packServices] } : { services: packServices };
 }
+
+export async function getHomepageCommunity() {
+  const locale = await getCurrentLocale();
+  if (!hasSupabaseConfig()) return { locale, announcements: [], gallery: [], topics: [], messages: [] };
+  const supabase = await createClient();
+  const [{ data: announcements }, { data: gallery }, { data: topics }, { data: messages }] = await Promise.all([
+    supabase.from("homepage_announcements").select("*").eq("status", "published").order("published_at", { ascending: false }).limit(8),
+    supabase.from("homepage_gallery_items").select("*").eq("status", "published").order("sort_order").order("created_at", { ascending: false }).limit(12),
+    supabase.from("homepage_discussion_topics").select("*").in("status", ["open", "closed"]).order("created_at", { ascending: false }),
+    supabase.from("homepage_discussion_messages").select("id,topic_id,author_name,message,created_at").eq("status", "approved").order("created_at", { ascending: false }).limit(30),
+  ]);
+  return { locale, announcements: announcements || [], gallery: gallery || [], topics: topics || [], messages: messages || [] };
+}

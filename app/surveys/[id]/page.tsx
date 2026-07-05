@@ -1,4 +1,4 @@
-import { notFound, redirect } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import SurveyManager from './SurveyManager';
@@ -7,9 +7,9 @@ export default async function SurveyProjectPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect(`/connexion?retour=/surveys/${id}`);
+  if (!user) redirect(`/connexion?redirect=${encodeURIComponent(`/surveys/${id}`)}`);
   const { data: survey } = await supabase.from('survey_projects').select('*').eq('id', id).maybeSingle();
-  if (!survey) notFound();
+  if (!survey) redirect('/surveys?access=denied');
   return (
     <main className="min-h-screen bg-slate-100">
       <header className="border-b bg-white px-5 py-5">

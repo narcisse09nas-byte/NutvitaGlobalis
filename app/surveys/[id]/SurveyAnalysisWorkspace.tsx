@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import {
-  Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer,
+  Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, LineChart, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { Database, Download, FileSpreadsheet, Filter, Plus, Save, X } from 'lucide-react';
@@ -42,7 +42,9 @@ const moduleSchemas = {
     label: 'Anthropométrie OMS/SMART',
     fields: [
       ['id', 'Identifiant', false, ['id', 'identifiant', 'child_id']],
-      ['age', 'Âge en mois', true, ['age', 'age_months', 'agemonths']],
+      ['age', 'Âge estimé/révolu en mois', false, ['age', 'age_months', 'agemonths', 'anthro_age_months']],
+      ['birthDate', 'Date de naissance', false, ['birth_date', 'birthdate', 'date_naissance', 'dob']],
+      ['surveyDate', 'Date de l’enquête/mesure', false, ['survey_date', 'surveydate', 'date_enquete', 'measurement_date', 'submitted_at']],
       ['sex', 'Sexe', true, ['sex', 'sexe', 'gender']],
       ['weight', 'Poids en kg', true, ['weight', 'poids', 'weight_kg']],
       ['height', 'Taille/longueur en cm', true, ['height', 'taille', 'length', 'height_cm']],
@@ -167,6 +169,114 @@ function MultiVariables({ columns, values, onChange }: { columns: string[]; valu
   </div>;
 }
 
+type RecodeVariableKind = 'qualitative' | 'quantitative';
+type RecodeMode = 'modalities' | 'ranges' | 'quantiles' | 'equal_width';
+type RecodeBin = { lower: number; upper: number; label: string; count: number };
+
+function numericValue(value: unknown) {
+  const number = Number(String(value ?? '').trim().replace(',', '.'));
+  return Number.isFinite(number) ? number : null;
+}
+
+function detectRecodeType(rows: Row[], variable: string) {
+  const values = rows.map(row => row[variable]).filter(value => String(value ?? '').trim() !== '');
+  if (!values.length) return { kind: 'qualitative' as RecodeVariableKind, detail: 'Variable vide ou entièrement manquante.', numeric: false, unique: 0, valid: 0, missing: rows.length };
+  const numeric = values.map(numericValue).filter((value): value is number => value !== null);
+  const unique = new Set(values.map(value => String(value).trim())).size;
+  const numericRatio = numeric.length / values.length;
+  const lowCardinality = unique <= 12 && unique / values.length <= .2;
+  if (numericRatio >= .95 && !lowCardinality) {
+    const discrete = numeric.every(Number.isInteger);
+    return {
+      kind: 'quantitative' as RecodeVariableKind,
+      detail: discrete ? 'Quantitative discrète détectée : valeurs numériques entières et cardinalité suffisante.' : 'Quantitative continue détectée : valeurs numériques comportant des décimales.',
+      numeric: true, unique, valid: values.length, missing: rows.length - values.length,
+    };
+  }
+  return {
+    kind: 'qualitative' as RecodeVariableKind,
+    detail: numericRatio >= .95
+      ? 'Qualitative codée numériquement détectée : peu de modalités distinctes.'
+      : 'Qualitative détectée : modalités textuelles ou mélange non numérique.',
+    numeric: false, unique, valid: values.length, missing: rows.length - values.length,
+  };
+}
+
+function quantile(sorted: number[], probability: number) {
+  if (!sorted.length) return null;
+  const position = (sorted.length - 1) * probability;
+  const lower = Math.floor(position);
+  const fraction = position - lower;
+  return sorted[lower] + (sorted[Math.min(lower + 1, sorted.length - 1)] - sorted[lower]) * fraction;
+}
+
+function buildRecodeBins(rows: Row[], variable: string, mode: 'quantiles' | 'equal_width', requestedBins: number): RecodeBin[] {
+  const values = rows.map(row => numericValue(row[variable])).filter((value): value is number => value !== null).sort((a, b) => a - b);
+  if (!values.length || requestedBins < 2) return [];
+  const minimum = values[0];
+  const maximum = values[values.length - 1];
+  const cutpoints = mode === 'quantiles'
+    ? Array.from({ length: requestedBins - 1 }, (_, index) => quantile(values, (index + 1) / requestedBins)!)
+    : Array.from({ length: requestedBins - 1 }, (_, index) => minimum + (maximum - minimum) * (index + 1) / requestedBins);
+  const uniqueCutpoints = [...new Set(cutpoints.filter(value => Number.isFinite(value) && value > minimum && value < maximum))];
+  const bounds = [minimum, ...uniqueCutpoints, maximum];
+  return bounds.slice(0, -1).map((lower, index) => {
+    const upper = bounds[index + 1];
+    const count = values.filter(value => value >= lower && (index === bounds.length - 2 ? value <= upper : value < upper)).length;
+    return { lower, upper, count, label: `${lower.toFixed(2)} à ${upper.toFixed(2)}` };
+  });
+}
+
+function variableLabel(name: string) {
+  return name
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function analyticVariableProfile(rows: Row[], name: string) {
+  const rawValues = rows.map(row => row[name]);
+  const completeValues = rawValues.filter(value => String(value ?? '').trim() !== '');
+  const numericValues = completeValues.map(numericValue).filter((value): value is number => value !== null);
+  const numericRatio = completeValues.length ? numericValues.length / completeValues.length : 0;
+  const uniqueValues = new Set(completeValues.map(value => String(value).trim()));
+  const numeric = completeValues.length > 0 && numericRatio >= .8;
+  const integerNumeric = numeric && numericValues.every(Number.isInteger);
+  const lowCardinality = uniqueValues.size <= Math.max(2, Math.min(20, Math.ceil(completeValues.length * .2)));
+  const dateLike = completeValues.length > 0 && completeValues.filter(value => !Number.isNaN(Date.parse(String(value)))).length / completeValues.length >= .8 && !numeric;
+  const measure = numeric && !lowCardinality ? 'Scale' : integerNumeric && lowCardinality ? 'Ordinal/Nominal' : dateLike ? 'Date/Time' : 'Nominal';
+  const type = numeric ? (integerNumeric ? 'Numeric integer' : 'Numeric decimal') : dateLike ? 'Date' : 'String';
+  const valueCounts = new Map<string, number>();
+  completeValues.forEach(value => {
+    const key = String(value).trim();
+    valueCounts.set(key, (valueCounts.get(key) || 0) + 1);
+  });
+  return {
+    name,
+    label: variableLabel(name),
+    type,
+    measure,
+    role: /id|uuid|code|reference/i.test(name) ? 'Record ID' : 'Input',
+    width: Math.max(8, Math.min(40, String(name).length + 2)),
+    decimals: numeric && !integerNumeric ? 2 : 0,
+    missing: rawValues.length - completeValues.length,
+    valid: completeValues.length,
+    unique: uniqueValues.size,
+    valueLabels: [...valueCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([value, count]) => ({ value, label: value, count })),
+  };
+}
+
+function cumulativePareto(items: Array<{ label: string; count: number }>) {
+  const total = items.reduce((sum, item) => sum + item.count, 0) || 1;
+  let cumulative = 0;
+  return items.map(item => {
+    cumulative += item.count;
+    return { ...item, cumulativePercentage: Number((cumulative * 100 / total).toFixed(2)) };
+  });
+}
+
 export default function SurveyAnalysisWorkspace({
   survey,
   forms,
@@ -202,7 +312,7 @@ export default function SurveyAnalysisWorkspace({
   const [sourceMode, setSourceMode] = useState<'questionnaire' | 'file'>('questionnaire');
   const [selectedFormId, setSelectedFormId] = useState('');
   const [filters, setFilters] = useState<Record<string, string>>({});
-  const [mapping, setMapping] = useState<EnaSmartMapping>({ age: '', sex: '', weight: '', height: '', muac: '', oedema: '', cluster: '', order: '', id: '' });
+  const [mapping, setMapping] = useState<EnaSmartMapping>({ age: '', birthDate: '', surveyDate: '', sex: '', weight: '', height: '', muac: '', oedema: '', cluster: '', order: '', id: '' });
   const [villageColumn, setVillageColumn] = useState('');
   const [enumeratorColumn, setEnumeratorColumn] = useState('');
   const [plausibility, setPlausibility] = useState<Row | null>(null);
@@ -222,11 +332,50 @@ export default function SurveyAnalysisWorkspace({
   const [recodeVariable, setRecodeVariable] = useState('');
   const [recodeName, setRecodeName] = useState('');
   const [recodeRules, setRecodeRules] = useState('');
+  const [recodeKind, setRecodeKind] = useState<RecodeVariableKind>('qualitative');
+  const [recodeMode, setRecodeMode] = useState<RecodeMode>('modalities');
+  const [recodeBinCount, setRecodeBinCount] = useState(4);
+  const [recodeBinLabels, setRecodeBinLabels] = useState<string[]>([]);
+  const [recodeUnmatched, setRecodeUnmatched] = useState<'copy' | 'missing'>('copy');
   const [qualityVariable, setQualityVariable] = useState('');
   const [analysisFailure, setAnalysisFailure] = useState('');
   const [reportFilterOpen, setReportFilterOpen] = useState(false);
   const [reportKind, setReportKind] = useState<'plausibility' | 'final'>('plausibility');
   const columns = Object.keys(rows[0] || {});
+  const recodeDetection = useMemo(() => detectRecodeType(rows, recodeVariable), [rows, recodeVariable]);
+  const recodeModalities = useMemo(() => {
+    if (!recodeVariable) return [];
+    const counts = new Map<string, number>();
+    rows.forEach(row => {
+      const value = String(row[recodeVariable] ?? '').trim();
+      if (value) counts.set(value, (counts.get(value) || 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }, [rows, recodeVariable]);
+  const generatedRecodeBins = useMemo(
+    () => recodeVariable && (recodeMode === 'quantiles' || recodeMode === 'equal_width')
+      ? buildRecodeBins(rows, recodeVariable, recodeMode, recodeBinCount)
+      : [],
+    [rows, recodeVariable, recodeMode, recodeBinCount],
+  );
+  const recodeBins = generatedRecodeBins.map((bin, index) => ({ ...bin, label: recodeBinLabels[index] || bin.label }));
+  const recodeNumericSummary = useMemo(() => {
+    if (!recodeVariable) return null;
+    const values = rows.map(row => numericValue(row[recodeVariable])).filter((value): value is number => value !== null).sort((a, b) => a - b);
+    if (!values.length) return null;
+    const q1 = quantile(values, .25)!;
+    const median = quantile(values, .5)!;
+    const q3 = quantile(values, .75)!;
+    return { minimum: values[0], q1, median, q3, maximum: values[values.length - 1], iqr: q3 - q1 };
+  }, [rows, recodeVariable]);
+  const recodeRuleMap = useMemo(() => new Map<string, string>(
+    recodeRules.split('\n').map(line => line.trim()).filter(Boolean).map(line => {
+      const separator = line.indexOf('=');
+      return separator > 0
+        ? [line.slice(0, separator).trim(), line.slice(separator + 1).trim()] as [string, string]
+        : ['', ''] as [string, string];
+    }).filter(([source]) => Boolean(source)),
+  ), [recodeRules]);
 
   const filterColumns = useMemo(
     () => [...new Set([mapping.cluster, villageColumn, enumeratorColumn].filter((value): value is string => Boolean(value)))],
@@ -271,15 +420,39 @@ export default function SurveyAnalysisWorkspace({
   const analysisColumns = Object.keys(analysisRows[0] || {});
   const finalReportUrl = `/api/surveys/${survey.id}/report?${new URLSearchParams(Object.entries(filters).filter(([, value]) => Boolean(value))).toString()}`;
   const quality = useMemo(() => filteredRows.length ? analyzeDataset(filteredRows) : null, [filteredRows]);
+  const variableDictionary = useMemo(
+    () => columns.map(column => analyticVariableProfile(filteredRows.length ? filteredRows : rows, column)),
+    [columns, filteredRows, rows],
+  );
+  const globalQualityPareto = useMemo(() => {
+    const activeRows = filteredRows.length ? filteredRows : rows;
+    if (!activeRows.length) return [];
+    const items = columns.map(column => {
+      const profile = analyticVariableProfile(activeRows, column);
+      const values = activeRows.map(row => numericValue(row[column])).filter((value): value is number => value !== null).sort((a, b) => a - b);
+      let outliers = 0;
+      if (values.length >= 4) {
+        const q1 = quantile(values, .25)!;
+        const q3 = quantile(values, .75)!;
+        const iqr = q3 - q1;
+        const lower = q1 - 1.5 * iqr;
+        const upper = q3 + 1.5 * iqr;
+        outliers = values.filter(value => value < lower || value > upper).length;
+      }
+      const score = profile.missing + outliers;
+      return { label: column, count: score, missing: profile.missing, outliers };
+    }).filter(item => item.count > 0).sort((a, b) => b.count - a.count).slice(0, 12);
+    return cumulativePareto(items);
+  }, [columns, filteredRows, rows]);
   const ageDistribution = useMemo(() => {
-    if (!mapping.age) return [];
+    if (!plausibility) return [];
     const counts = new Map<number, number>();
-    filteredRows.forEach(row => {
-      const age = Number(row[mapping.age]);
+    (plausibility.observations || []).forEach((row: Row) => {
+      const age = Number(row.age);
       if (Number.isFinite(age)) counts.set(Math.round(age), (counts.get(Math.round(age)) || 0) + 1);
     });
     return [...counts.entries()].sort((a, b) => a[0] - b[0]).map(([age, count]) => ({ age, count }));
-  }, [filteredRows, mapping.age]);
+  }, [plausibility]);
   const zDistribution = useMemo(() => {
     const observations = plausibility?.observations || [];
     const bins = Array.from({ length: 17 }, (_, index) => -4 + index * 0.5);
@@ -292,15 +465,28 @@ export default function SurveyAnalysisWorkspace({
   }, [plausibility]);
   const qualityDiagnostic = useMemo(() => {
     if (!qualityVariable) return null;
-    const values = rows
+    const activeRows = filteredRows.length ? filteredRows : rows;
+    const profile = analyticVariableProfile(activeRows, qualityVariable);
+    const categoryCounts = new Map<string, number>();
+    activeRows.forEach(row => {
+      const value = String(row[qualityVariable] ?? '').trim() || 'Manquant';
+      categoryCounts.set(value, (categoryCounts.get(value) || 0) + 1);
+    });
+    const categoryPareto = cumulativePareto([...categoryCounts.entries()]
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 20));
+    const values = activeRows
       .map(row => Number(String(row[qualityVariable] ?? '').replace(',', '.')))
       .filter(Number.isFinite)
       .sort((a, b) => a - b);
     if (!values.length) return {
       variable: qualityVariable,
       numeric: false as const,
-      count: rows.filter(row => String(row[qualityVariable] ?? '').trim()).length,
-      missing: rows.filter(row => !String(row[qualityVariable] ?? '').trim()).length,
+      profile,
+      count: activeRows.filter(row => String(row[qualityVariable] ?? '').trim()).length,
+      missing: activeRows.filter(row => !String(row[qualityVariable] ?? '').trim()).length,
+      categoryPareto,
     };
     const count = values.length;
     const mean = values.reduce((sum, value) => sum + value, 0) / count;
@@ -334,8 +520,29 @@ export default function SurveyAnalysisWorkspace({
     const uniqueValues = new Set(values);
     const lowerFence = q1 - 1.5 * iqr;
     const upperFence = q3 + 1.5 * iqr;
-    const outliers = rows.map((row, index) => ({ row: index + 1, value: Number(String(row[qualityVariable] ?? '').replace(',', '.')) }))
+    const lcl = mean - 3 * standardDeviation;
+    const ucl = mean + 3 * standardDeviation;
+    const outliers = activeRows.map((row, index) => ({ row: index + 1, value: Number(String(row[qualityVariable] ?? '').replace(',', '.')) }))
       .filter(item => Number.isFinite(item.value) && (item.value < lowerFence || item.value > upperFence));
+    const controlChart = activeRows.map((row, index) => {
+      const value = Number(String(row[qualityVariable] ?? '').replace(',', '.'));
+      return {
+        row: index + 1,
+        value: Number.isFinite(value) ? value : null,
+        mean,
+        ucl,
+        lcl,
+        outOfControl: Number.isFinite(value) && (value > ucl || value < lcl),
+      };
+    }).filter(item => item.value !== null);
+    const controlAlerts = controlChart.filter(item => item.outOfControl);
+    const nonNumericCount = Math.max(0, activeRows.length - profile.missing - count);
+    const problemPareto = cumulativePareto([
+      { label: 'Valeurs manquantes', count: profile.missing },
+      { label: 'Valeurs IQR aberrantes', count: outliers.length },
+      { label: 'Hors limites de controle', count: controlAlerts.length },
+      { label: 'Valeurs non numeriques', count: nonNumericCount },
+    ].map(item => ({ ...item, count: Math.max(0, item.count) })).filter(item => item.count > 0).sort((a, b) => b.count - a.count));
     const binCount = Math.max(5, Math.min(15, Math.ceil(Math.sqrt(count))));
     const minimum = values[0];
     const maximum = values.at(-1)!;
@@ -351,8 +558,9 @@ export default function SurveyAnalysisWorkspace({
     return {
       variable: qualityVariable,
       numeric: true as const,
+      profile,
       count,
-      missing: rows.length - count,
+      missing: activeRows.length - count,
       mean,
       standardDeviation,
       minimum,
@@ -376,8 +584,14 @@ export default function SurveyAnalysisWorkspace({
       upperFence,
       outliers,
       histogram,
+      categoryPareto,
+      controlChart,
+      controlAlerts,
+      lcl,
+      ucl,
+      problemPareto,
     };
-  }, [qualityVariable, rows]);
+  }, [qualityVariable, filteredRows, rows]);
   const statisticalChart = useMemo(() => {
     if (!result) return [] as Array<{ label: string; value: number }>;
     if (result.type === 'frequencies') return (result.tables?.[0]?.categories || []).slice(0, 20).map((item: Row) => ({ label: String(item.value), value: Number(item.count) }));
@@ -460,6 +674,14 @@ export default function SurveyAnalysisWorkspace({
 
   function applyModuleMapping() {
     const selected = moduleMappings[mappingModule] || {};
+    if (mappingModule === 'anthropometry' && !selected.age && !selected.birthDate) {
+      setMessage('Associez soit “Âge estimé/révolu en mois”, soit “Date de naissance”.');
+      return;
+    }
+    if (mappingModule === 'anthropometry' && selected.birthDate && !selected.age && !selected.surveyDate && !rows.some(row => row.submitted_at)) {
+      setMessage('Pour calculer l’âge depuis la date de naissance, associez aussi la date de l’enquête/mesure.');
+      return;
+    }
     const missing = moduleSchemas[mappingModule].fields.filter(([target, , required]) => required && !selected[target]);
     if (missing.length) {
       setMessage(`Correspondance incomplète : ${missing.map(([, label]) => label).join(', ')}.`);
@@ -470,6 +692,8 @@ export default function SurveyAnalysisWorkspace({
         ...current,
         id: selected.id || '',
         age: selected.age || '',
+        birthDate: selected.birthDate || '',
+        surveyDate: selected.surveyDate || '',
         sex: selected.sex || '',
         weight: selected.weight || '',
         height: selected.height || '',
@@ -486,8 +710,8 @@ export default function SurveyAnalysisWorkspace({
   }
 
   function runPlausibility() {
-    if (!mapping.age || !mapping.sex || !mapping.weight || !mapping.height) {
-      setMessage('Associez au minimum les colonnes âge, sexe, poids et taille.');
+    if ((!mapping.age && !mapping.birthDate) || !mapping.sex || !mapping.weight || !mapping.height) {
+      setMessage('Associez l’âge en mois ou la date de naissance, puis le sexe, le poids et la taille.');
       return;
     }
     const report = analyzeEnaSmartPlausibility(filteredRows, {
@@ -537,6 +761,29 @@ export default function SurveyAnalysisWorkspace({
     setMessage(`${moduleSchemas[mappingModule].label} calculé sur ${analysisRows.length} observation(s). Les nouvelles variables sont prêtes à être enregistrées.`);
   }
 
+  function selectRecodeVariable(variable: string) {
+    setRecodeVariable(variable);
+    setRecodeName(variable ? `${variable}_rec` : '');
+    setRecodeBinLabels([]);
+    if (!variable) {
+      setRecodeRules('');
+      return;
+    }
+    const detection = detectRecodeType(rows, variable);
+    setRecodeKind(detection.kind);
+    setRecodeMode(detection.kind === 'quantitative' ? 'ranges' : 'modalities');
+    if (detection.kind === 'qualitative') {
+      const values = [...new Set(rows.map(row => String(row[variable] ?? '').trim()).filter(Boolean))];
+      setRecodeRules(values.map(value => `${value}=${value}`).join('\n'));
+    } else setRecodeRules('');
+  }
+
+  function updateQualitativeTarget(source: string, target: string) {
+    const next = new Map(recodeRuleMap);
+    next.set(source, target);
+    setRecodeRules([...next.entries()].map(([oldValue, newValue]) => `${oldValue}=${newValue}`).join('\n'));
+  }
+
   function applyRecode() {
     if (!recodeVariable || !recodeName.trim()) {
       setMessage('Sélectionnez une variable source et donnez un nom à la nouvelle variable.');
@@ -547,20 +794,55 @@ export default function SurveyAnalysisWorkspace({
       if (separator < 1) return null;
       return { source: line.slice(0, separator).trim(), target: line.slice(separator + 1).trim() };
     }).filter((rule): rule is { source: string; target: string } => Boolean(rule));
-    if (!rules.length) {
-      setMessage('Ajoutez au moins une règle, par exemple 1=Oui ou 0..17=Moins de 18 ans.');
+    const usesGeneratedBins = recodeKind === 'quantitative' && (recodeMode === 'quantiles' || recodeMode === 'equal_width');
+    if (!usesGeneratedBins && !rules.length) {
+      setMessage(recodeKind === 'qualitative' ? 'Ajoutez au moins une correspondance de modalité.' : 'Ajoutez au moins une plage quantitative.');
+      return;
+    }
+    if (recodeKind === 'quantitative' && recodeMode === 'ranges') {
+      const ranges = rules.map(rule => {
+        const match = rule.source.match(/^(-?\d+(?:[.,]\d+)?)\s*\.\.\s*(-?\d+(?:[.,]\d+)?)$/);
+        return match ? { lower: Number(match[1].replace(',', '.')), upper: Number(match[2].replace(',', '.')), label: rule.target } : null;
+      });
+      if (ranges.some(range => !range)) {
+        setMessage('Chaque règle quantitative doit utiliser la syntaxe min..max=libellé.');
+        return;
+      }
+      const sortedRanges = (ranges as Array<{ lower: number; upper: number; label: string }>).sort((a, b) => a.lower - b.lower);
+      if (sortedRanges.some(range => range.lower > range.upper)) {
+        setMessage('Une borne inférieure est supérieure à sa borne maximale.');
+        return;
+      }
+      if (sortedRanges.some((range, index) => index > 0 && range.lower <= sortedRanges[index - 1].upper)) {
+        setMessage('Des intervalles se chevauchent. Ajustez les bornes afin que chaque observation appartienne à une seule classe.');
+        return;
+      }
+    }
+    if (usesGeneratedBins && recodeBins.length < 2) {
+      setMessage('Impossible de produire au moins deux classes distinctes. Vérifiez la dispersion de la variable ou réduisez le nombre de classes.');
       return;
     }
     const nextName = recodeName.trim().replace(/\s+/g, '_');
+    if (columns.includes(nextName)) {
+      setMessage(`La variable « ${nextName} » existe déjà. Choisissez un nouveau nom afin de préserver les données d’origine.`);
+      return;
+    }
+    if (usesGeneratedBins && recodeBins.some(bin => !bin.label.trim())) {
+      setMessage('Chaque intervalle doit avoir un libellé non vide.');
+      return;
+    }
     setRows(current => current.map(row => {
       const raw = row[recodeVariable];
       const numeric = Number(String(raw ?? '').replace(',', '.'));
+      const generatedBin = usesGeneratedBins && Number.isFinite(numeric)
+        ? recodeBins.find((bin, index) => numeric >= bin.lower && (index === recodeBins.length - 1 ? numeric <= bin.upper : numeric < bin.upper))
+        : null;
       const matched = rules.find(rule => {
         const range = rule.source.match(/^(-?\d+(?:[.,]\d+)?)\s*\.\.\s*(-?\d+(?:[.,]\d+)?)$/);
         if (range && Number.isFinite(numeric)) return numeric >= Number(range[1].replace(',', '.')) && numeric <= Number(range[2].replace(',', '.'));
         return String(raw ?? '').trim() === rule.source;
       });
-      return { ...row, [nextName]: matched ? matched.target : raw };
+      return { ...row, [nextName]: generatedBin?.label ?? matched?.target ?? (recodeUnmatched === 'copy' ? raw : null) };
     }));
     setDataDirty(true);
     setRecodeOpen(false);
@@ -697,8 +979,8 @@ export default function SurveyAnalysisWorkspace({
   }
 
   async function downloadPlausibility() {
-    if (!mapping.age || !mapping.sex || !mapping.weight || !mapping.height) {
-      setMessage('Validez les variables âge, sexe, poids et taille avant de générer le rapport.');
+    if ((!mapping.age && !mapping.birthDate) || !mapping.sex || !mapping.weight || !mapping.height) {
+      setMessage('Validez l’âge en mois ou la date de naissance, ainsi que le sexe, le poids et la taille avant de générer le rapport.');
       return;
     }
     const currentPlausibility = analyzeEnaSmartPlausibility(filteredRows, {
@@ -727,7 +1009,7 @@ export default function SurveyAnalysisWorkspace({
   }
 
   async function downloadFinalReport() {
-    if (!quality || !mapping.age || !mapping.sex || !mapping.weight || !mapping.height) {
+    if (!quality || (!mapping.age && !mapping.birthDate) || !mapping.sex || !mapping.weight || !mapping.height) {
       setMessage('Calculez et validez d’abord l’analyse anthropométrique.');
       return;
     }
@@ -787,11 +1069,7 @@ export default function SurveyAnalysisWorkspace({
 
     {rows.length > 0 && <Card title={mode === 'anthropometry' ? 'Étape 1 : correspondance et filtres' : 'Filtres analytiques'} text="Grappe, village/ZD, enquêteur et toute autre segmentation conservée dans le fichier peuvent être combinés.">
       {mode === 'anthropometry' && <button onClick={() => { setMappingModule('anthropometry'); suggestMapping('anthropometry'); setMappingOpen(true); }} className="btn-primary mb-4">Associer et valider les variables anthropométriques</button>}
-      <div className="grid gap-3 md:grid-cols-3">
-        <Field label="Colonne grappe"><select value={mapping.cluster} onChange={event => setMapping(current => ({ ...current, cluster: event.target.value }))} className="admin-input"><option value="">Non définie</option>{columns.map(column => <option key={column}>{column}</option>)}</select></Field>
-        <Field label="Colonne village / ZD"><select value={villageColumn} onChange={event => setVillageColumn(event.target.value)} className="admin-input"><option value="">Non définie</option>{columns.map(column => <option key={column}>{column}</option>)}</select></Field>
-        <Field label="Colonne enquêteur"><select value={enumeratorColumn} onChange={event => setEnumeratorColumn(event.target.value)} className="admin-input"><option value="">Non définie</option>{columns.map(column => <option key={column}>{column}</option>)}</select></Field>
-      </div>
+      {mode === 'anthropometry' && <p className="border-l-4 border-emerald-600 bg-emerald-50 p-3 text-sm text-emerald-950">La grappe, le village/ZD et l’enquêteur se définissent une seule fois dans la fenêtre d’association. Les filtres correspondants apparaissent ensuite ci-dessous.</p>}
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         {filterColumns.map(column => <Field key={column} label={`Filtrer : ${column}`}><select value={filters[column] || ''} onChange={event => setFilters(current => ({ ...current, [column]: event.target.value }))} className="admin-input"><option value="">Toutes les valeurs</option>{[...new Set(rows.map(row => String(row[column] ?? '')).filter(Boolean))].sort().map(value => <option key={value}>{value}</option>)}</select></Field>)}
       </div>
@@ -802,13 +1080,14 @@ export default function SurveyAnalysisWorkspace({
       <div className="grid gap-3 md:grid-cols-4">
         {([
           ['id', 'Identifiant'],
-          ['age', 'Âge en mois'],
+          ['age', 'Âge estimé/révolu en mois'],
+          ['birthDate', 'Date de naissance'],
+          ['surveyDate', 'Date de l’enquête/mesure'],
           ['sex', 'Sexe'],
           ['weight', 'Poids'],
           ['height', 'Taille / longueur'],
           ['muac', 'PB / MUAC'],
           ['oedema', 'Œdèmes bilatéraux'],
-          ['cluster', 'Grappe'],
           ['order', 'Ordre de passage'],
         ] as const).map(([key, label]) => <Field key={key} label={label}><select value={mapping[key] || ''} onChange={event => setMapping(current => ({ ...current, [key]: event.target.value }))} className="admin-input"><option value="">Non défini</option>{columns.map(column => <option key={column}>{column}</option>)}</select></Field>)}
       </div>
@@ -819,10 +1098,10 @@ export default function SurveyAnalysisWorkspace({
       {plausibility && <div className="mt-6 grid gap-6">
         {showAnthropometryData && <div className="overflow-x-auto border">
           <table className="min-w-[1100px] text-sm">
-            <thead className="bg-slate-100 text-left"><tr>{['Ligne', 'ID', 'Grappe', 'Sexe', 'Âge', 'Poids', 'Taille', 'Œdème', 'MUAC', 'P/A Z', 'T/A Z', 'P/T Z', 'Signalements'].map(label => <th key={label} className="p-3">{label}</th>)}</tr></thead>
+            <thead className="bg-slate-100 text-left"><tr>{['Ligne', 'ID', 'Grappe', 'Sexe', 'Âge', 'Source âge', 'Poids', 'Taille', 'Œdème', 'MUAC', 'P/A Z', 'T/A Z', 'P/T Z', 'Signalements'].map(label => <th key={label} className="p-3">{label}</th>)}</tr></thead>
             <tbody>{(plausibility.observations || []).map((item: Row) => <tr key={item.row} className="border-t">
               <td className="p-3">{item.row}</td><td className="p-3">{item.id ?? '-'}</td><td className="p-3">{item.cluster ?? '-'}</td><td className="p-3">{item.sex ?? '-'}</td>
-              <td className="p-3">{item.age ?? '-'}</td><td className="p-3">{item.weight ?? '-'}</td><td className="p-3">{item.height ?? '-'}</td><td className="p-3">{item.oedema ?? '-'}</td><td className="p-3">{item.muac ?? '-'}</td>
+              <td className="p-3">{item.age ?? '-'}</td><td className="p-3 text-xs">{item.ageSource === 'reported_months' ? 'Âge en mois' : item.ageSource === 'birth_date' ? 'Date de naissance' : '-'}</td><td className="p-3">{item.weight ?? '-'}</td><td className="p-3">{item.height ?? '-'}</td><td className="p-3">{item.oedema ?? '-'}</td><td className="p-3">{item.muac ?? '-'}</td>
               <td className="p-3 font-mono">{item.waz?.toFixed?.(2) ?? '-'}</td><td className="p-3 font-mono">{item.haz?.toFixed?.(2) ?? '-'}</td><td className="p-3 font-mono">{item.whz?.toFixed?.(2) ?? '-'}</td>
               <td className={`p-3 text-xs font-bold ${item.flags?.length ? 'text-red-700' : 'text-emerald-700'}`}>{item.flags?.join(', ') || 'Valide'}</td>
             </tr>)}</tbody>
@@ -863,20 +1142,52 @@ export default function SurveyAnalysisWorkspace({
 
     {mode === 'other' && rows.length > 0 && <Card title="Recodage, contrôle qualité et nettoyage" text="Créez de nouvelles variables sans écraser les variables sources, puis examinez les valeurs manquantes, distributions et observations aberrantes.">
       <div className="flex flex-wrap gap-3"><button onClick={() => setRecodeOpen(true)} className="btn-primary">Recoder ou regrouper une variable</button><button onClick={saveWorkingDataset} disabled={!dataDirty} className="btn-secondary disabled:opacity-40"><Save className="mr-2 h-4" />Enregistrer la base modifiée</button></div>
+      <div className="mt-6 grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
+        <div className="overflow-x-auto border">
+          <table className="min-w-full text-xs">
+            <thead className="bg-slate-100 text-left"><tr>{['Variable', 'Label', 'Type', 'Measure', 'Role', 'Width', 'Decimals', 'Missing', 'Values'].map(label => <th key={label} className="p-3">{label}</th>)}</tr></thead>
+            <tbody>{variableDictionary.map(variable => <tr key={variable.name} className="border-t">
+              <td className="p-3 font-mono font-bold">{variable.name}</td>
+              <td className="p-3">{variable.label}</td>
+              <td className="p-3">{variable.type}</td>
+              <td className="p-3">{variable.measure}</td>
+              <td className="p-3">{variable.role}</td>
+              <td className="p-3">{variable.width}</td>
+              <td className="p-3">{variable.decimals}</td>
+              <td className="p-3">{variable.missing}</td>
+              <td className="p-3">{variable.valueLabels.slice(0, 3).map(item => `${item.value}=${item.label}`).join('; ') || '-'}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        <div className="h-80 border p-3">
+          <h4 className="font-black">Pareto global des problèmes qualité</h4>
+          <p className="mt-1 text-xs text-slate-500">Manquants + valeurs IQR aberrantes par variable.</p>
+          {globalQualityPareto.length ? <ResponsiveContainer width="100%" height="85%"><ComposedChart data={globalQualityPareto}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" interval={0} angle={-35} textAnchor="end" height={90} /><YAxis yAxisId="left" /><YAxis yAxisId="right" orientation="right" domain={[0, 100]} /><Tooltip /><Bar yAxisId="left" dataKey="count" fill="#0f766e" /><Line yAxisId="right" type="monotone" dataKey="cumulativePercentage" stroke="#ea580c" strokeWidth={2} /></ComposedChart></ResponsiveContainer> : <p className="mt-8 text-sm text-slate-500">Aucun problème majeur détecté sur le sous-ensemble actif.</p>}
+        </div>
+      </div>
       <div className="mt-5 max-w-xl"><Field label="Variable à contrôler"><select value={qualityVariable} onChange={event => setQualityVariable(event.target.value)} className="admin-input"><option value="">Sélectionner</option>{columns.map(column => <option key={column}>{column}</option>)}</select></Field></div>
       {qualityDiagnostic && <div className="mt-6 grid gap-5">
         <div className="grid gap-3 sm:grid-cols-4">
           {[['Valides', qualityDiagnostic.count], ['Manquants', qualityDiagnostic.missing], ['Moyenne', qualityDiagnostic.numeric && 'mean' in qualityDiagnostic ? qualityDiagnostic.mean.toFixed(2) : 'Qualitative'], ['Valeurs aberrantes', qualityDiagnostic.numeric && 'outliers' in qualityDiagnostic ? qualityDiagnostic.outliers.length : 'N/A']].map(([label, value]) => <div key={String(label)} className="border p-4"><p className="text-xs font-bold uppercase text-slate-500">{label}</p><p className="mt-2 text-xl font-black">{value}</p></div>)}
         </div>
+        <div className="grid gap-4 md:grid-cols-4">
+          {[['Type détecté', qualityDiagnostic.profile.type], ['Mesure', qualityDiagnostic.profile.measure], ['Rôle', qualityDiagnostic.profile.role], ['Modalités distinctes', qualityDiagnostic.profile.unique]].map(([label, value]) => <div key={String(label)} className="border bg-slate-50 p-4"><p className="text-xs font-bold uppercase text-slate-500">{label}</p><p className="mt-2 font-black">{value}</p></div>)}
+        </div>
         {qualityDiagnostic.numeric && 'normalityPValue' in qualityDiagnostic && <>
           <div className="border-l-4 border-amber-500 bg-amber-50 p-4 text-sm"><b>Normalité, asymétrie et aplatissement</b><p className="mt-2">{qualityDiagnostic.normalityConclusion}</p><p className="mt-1">Jarque-Bera p={qualityDiagnostic.normalityPValue.toFixed(4)} · asymétrie={qualityDiagnostic.skewness.toFixed(3)} · aplatissement={qualityDiagnostic.kurtosis.toFixed(3)} · bornes IQR [{qualityDiagnostic.lowerFence.toFixed(2)} ; {qualityDiagnostic.upperFence.toFixed(2)}]</p></div>
           <div className="overflow-x-auto border"><table className="min-w-full text-sm"><thead className="bg-slate-100"><tr><th className="p-3 text-left">Famille examinée</th><th className="p-3 text-left">Compatibilité exploratoire</th><th className="p-3 text-left">Diagnostic</th></tr></thead><tbody>{qualityDiagnostic.distributionCandidates.map(candidate => <tr key={candidate.name} className="border-t"><td className="p-3 font-bold">{candidate.name}</td><td className={`p-3 font-bold ${candidate.compatible ? 'text-emerald-700' : 'text-slate-500'}`}>{candidate.compatible ? 'Possible' : 'Non étayée'}</td><td className="p-3">{candidate.detail}</td></tr>)}</tbody></table></div>
-          <div className="h-72 border p-3"><h4 className="font-black">Histogramme de {qualityDiagnostic.variable}</h4><ResponsiveContainer width="100%" height="90%"><BarChart data={qualityDiagnostic.histogram}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="interval" /><YAxis /><Tooltip /><Bar dataKey="count" fill="#0f766e" /></BarChart></ResponsiveContainer></div>
+          <div className="grid gap-5 xl:grid-cols-2">
+            <div className="h-72 border p-3"><h4 className="font-black">Histogramme de {qualityDiagnostic.variable}</h4><ResponsiveContainer width="100%" height="90%"><BarChart data={qualityDiagnostic.histogram}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="interval" /><YAxis /><Tooltip /><Bar dataKey="count" fill="#0f766e" /></BarChart></ResponsiveContainer></div>
+            <div className="h-72 border p-3"><h4 className="font-black">Carte de contrôle Shewhart</h4><ResponsiveContainer width="100%" height="90%"><LineChart data={qualityDiagnostic.controlChart}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="row" /><YAxis /><Tooltip /><Legend /><Line dataKey="value" stroke="#0f766e" dot={false} /><Line dataKey="mean" stroke="#2563eb" dot={false} /><Line dataKey="ucl" stroke="#dc2626" dot={false} /><Line dataKey="lcl" stroke="#dc2626" dot={false} /></LineChart></ResponsiveContainer></div>
+            <div className="h-72 border p-3 xl:col-span-2"><h4 className="font-black">Pareto des problèmes sur la variable</h4>{qualityDiagnostic.problemPareto.length ? <ResponsiveContainer width="100%" height="90%"><ComposedChart data={qualityDiagnostic.problemPareto}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis yAxisId="left" /><YAxis yAxisId="right" orientation="right" domain={[0, 100]} /><Tooltip /><Bar yAxisId="left" dataKey="count" fill="#0f766e" /><Line yAxisId="right" type="monotone" dataKey="cumulativePercentage" stroke="#ea580c" strokeWidth={2} /></ComposedChart></ResponsiveContainer> : <p className="mt-8 text-sm text-slate-500">Aucun manquant, outlier IQR ou point hors limite ±3σ.</p>}</div>
+          </div>
+          {qualityDiagnostic.controlAlerts.length > 0 && <div className="border-l-4 border-red-600 bg-red-50 p-4 text-sm text-red-800"><b>Points hors contrôle</b><p className="mt-1">{qualityDiagnostic.controlAlerts.length} observation(s) dépassent les limites moyenne ± 3 écarts-types. Vérifiez saisie, unité, protocole de mesure et valeurs extrêmes.</p></div>}
         </>}
+        {!qualityDiagnostic.numeric && <div className="h-72 border p-3"><h4 className="font-black">Pareto des modalités</h4><ResponsiveContainer width="100%" height="90%"><ComposedChart data={qualityDiagnostic.categoryPareto}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" interval={0} angle={-25} textAnchor="end" height={80} /><YAxis yAxisId="left" /><YAxis yAxisId="right" orientation="right" domain={[0, 100]} /><Tooltip /><Bar yAxisId="left" dataKey="count" fill="#0f766e" /><Line yAxisId="right" type="monotone" dataKey="cumulativePercentage" stroke="#ea580c" strokeWidth={2} /></ComposedChart></ResponsiveContainer></div>}
       </div>}
     </Card>}
 
-    {mode === 'other' && rows.length > 0 && <Card title="Laboratoire statistique" text="Configurez une analyse comme dans une boîte de dialogue SPSS. Toute impossibilité d’estimation affiche maintenant sa cause au lieu d’échouer silencieusement.">
+    {mode === 'other' && rows.length > 0 && <Card title="Laboratoire statistique" text="Configurez une analyse guidée avec contrôles d’hypothèses, sorties graphiques et messages d’erreur explicites. Toute impossibilité d’estimation affiche maintenant sa cause au lieu d’échouer silencieusement.">
       <button onClick={() => setDialogOpen(true)} className="btn-primary"><Plus className="mr-2 h-4" />Nouvelle analyse</button>
       {analysisFailure && <div className="mt-4 border-l-4 border-red-600 bg-red-50 p-4 text-sm text-red-800"><b>Analyse non estimable</b><p className="mt-1">{analysisFailure}</p></div>}
       {result && <div className="mt-5 grid gap-4">
@@ -933,11 +1244,38 @@ export default function SurveyAnalysisWorkspace({
     {recodeOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-black/55 p-4">
       <div className="w-full max-w-2xl bg-white p-6 shadow-2xl">
         <div className="flex items-start justify-between"><div><h3 className="text-xl font-black">Recoder une variable</h3><p className="mt-1 text-sm text-slate-500">La variable d’origine est conservée. Une nouvelle colonne sera ajoutée à la base de travail.</p></div><button onClick={() => setRecodeOpen(false)} aria-label="Fermer"><X /></button></div>
-        <div className="mt-5 grid gap-4">
-          <Field label="Variable source"><select value={recodeVariable} onChange={event => setRecodeVariable(event.target.value)} className="admin-input"><option value="">Sélectionner</option>{columns.map(column => <option key={column}>{column}</option>)}</select></Field>
+        <div className="mt-5 grid gap-5">
+          <Field label="Variable source"><select value={recodeVariable} onChange={event => selectRecodeVariable(event.target.value)} className="admin-input"><option value="">Sélectionner</option>{columns.map(column => <option key={column}>{column}</option>)}</select></Field>
+          {recodeVariable && <div className="border-l-4 border-emerald-600 bg-emerald-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-emerald-700">Type détecté automatiquement</p><p className="mt-1 font-black text-emerald-950">{recodeDetection.kind === 'quantitative' ? 'Variable quantitative' : 'Variable qualitative'}</p></div><div className="flex gap-4 text-xs font-bold text-slate-600"><span>{recodeDetection.valid} valides</span><span>{recodeDetection.missing} manquants</span><span>{recodeDetection.unique} distinctes</span></div></div>
+            <p className="mt-2 text-sm text-slate-700">{recodeDetection.detail}</p>
+          </div>}
+          {recodeVariable && <Field label="Corriger le type si nécessaire"><select value={recodeKind} onChange={event => { const kind = event.target.value as RecodeVariableKind; setRecodeKind(kind); setRecodeMode(kind === 'quantitative' ? 'ranges' : 'modalities'); setRecodeBinLabels([]); }} className="admin-input"><option value="qualitative">Qualitative : modalités/catégories</option><option value="quantitative">Quantitative : valeurs ordonnées et intervalles</option></select></Field>}
           <Field label="Nom de la nouvelle variable"><input value={recodeName} onChange={event => setRecodeName(event.target.value)} className="admin-input" placeholder="Ex. classe_age" /></Field>
-          <Field label="Règles, une par ligne"><textarea value={recodeRules} onChange={event => setRecodeRules(event.target.value)} rows={8} className="admin-input font-mono" placeholder={'1=Oui\n0=Non\n0..17=Moins de 18 ans\n18..64=18 à 64 ans\n65..120=65 ans et plus'} /></Field>
-          <p className="text-xs leading-5 text-slate-500">Les règles exactes renomment les modalités. La syntaxe min..max regroupe une variable quantitative. Les valeurs non couvertes sont conservées.</p>
+
+          {recodeVariable && recodeKind === 'qualitative' && <>
+            <div><h4 className="font-black">Regroupement des modalités</h4><p className="mt-1 text-sm text-slate-500">Saisissez le même nouveau libellé pour fusionner plusieurs modalités. Les codes numériques à faible cardinalité sont traités ici comme des catégories.</p></div>
+            <div className="max-h-80 overflow-auto border"><table className="min-w-full text-sm"><thead className="sticky top-0 bg-slate-100"><tr><th className="p-3 text-left">Modalité d’origine</th><th className="p-3 text-left">Effectif</th><th className="p-3 text-left">Nouvelle modalité</th></tr></thead><tbody>{recodeModalities.map(([value, count]) => <tr key={value} className="border-t"><td className="p-3 font-mono">{value}</td><td className="p-3">{count}</td><td className="p-3"><input value={recodeRuleMap.get(value) ?? value} onChange={event => updateQualitativeTarget(value, event.target.value)} className="admin-input" /></td></tr>)}</tbody></table></div>
+          </>}
+
+          {recodeVariable && recodeKind === 'quantitative' && <>
+            {recodeNumericSummary && <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">{[
+              ['Minimum', recodeNumericSummary.minimum],
+              ['Q1', recodeNumericSummary.q1],
+              ['Médiane', recodeNumericSummary.median],
+              ['Q3', recodeNumericSummary.q3],
+              ['Maximum', recodeNumericSummary.maximum],
+              ['IQR', recodeNumericSummary.iqr],
+            ].map(([label, value]) => <div key={String(label)} className="border bg-slate-50 p-3"><p className="text-xs font-bold uppercase text-slate-500">{label}</p><p className="mt-1 font-mono font-black">{Number(value).toFixed(3)}</p></div>)}</div>}
+            <Field label="Méthode de regroupement"><select value={recodeMode} onChange={event => { setRecodeMode(event.target.value as RecodeMode); setRecodeBinLabels([]); }} className="admin-input"><option value="ranges">Intervalles définis manuellement</option><option value="quantiles">Intervalles par quantiles (effectifs comparables)</option><option value="equal_width">Intervalles de même largeur</option></select></Field>
+            {recodeMode === 'ranges' && <><Field label="Intervalles, un par ligne"><textarea value={recodeRules} onChange={event => setRecodeRules(event.target.value)} rows={7} className="admin-input font-mono" placeholder={'0..17=Moins de 18 ans\n18..64=18 à 64 ans\n65..120=65 ans et plus'} /></Field><p className="text-xs leading-5 text-slate-500">Les bornes min..max sont inclusives. Les règles sont évaluées dans l’ordre affiché.</p></>}
+            {(recodeMode === 'quantiles' || recodeMode === 'equal_width') && <>
+              <Field label={recodeMode === 'quantiles' ? 'Découpage quantile souhaité' : 'Nombre d’intervalles'}><select value={recodeBinCount} onChange={event => { setRecodeBinCount(Number(event.target.value)); setRecodeBinLabels([]); }} className="admin-input"><option value="3">3 classes — tertiles</option><option value="4">4 classes — quartiles</option><option value="5">5 classes — quintiles</option><option value="10">10 classes — déciles</option></select></Field>
+              {recodeMode === 'quantiles' && <p className="border-l-4 border-amber-500 bg-amber-50 p-3 text-sm text-amber-950">Les quantiles visent des effectifs comparables. Lorsque de nombreuses observations ont la même valeur, certains seuils peuvent fusionner et produire moins de classes que demandé.</p>}
+              <div className="overflow-x-auto border"><table className="min-w-full text-sm"><thead className="bg-slate-100"><tr><th className="p-3 text-left">Classe</th><th className="p-3 text-left">Borne inférieure</th><th className="p-3 text-left">Borne supérieure</th><th className="p-3 text-left">Effectif</th><th className="p-3 text-left">Libellé modifiable</th></tr></thead><tbody>{recodeBins.map((bin, index) => <tr key={`${bin.lower}-${bin.upper}`} className="border-t"><td className="p-3 font-black">{index + 1}</td><td className="p-3 font-mono">{bin.lower.toFixed(3)}</td><td className="p-3 font-mono">{bin.upper.toFixed(3)}</td><td className="p-3">{bin.count}</td><td className="p-3"><input value={bin.label} onChange={event => setRecodeBinLabels(current => { const next = [...current]; next[index] = event.target.value; return next; })} className="admin-input min-w-48" /></td></tr>)}</tbody></table></div>
+            </>}
+          </>}
+          <Field label="Valeurs non couvertes par une règle"><select value={recodeUnmatched} onChange={event => setRecodeUnmatched(event.target.value as 'copy' | 'missing')} className="admin-input"><option value="copy">Conserver la valeur d’origine</option><option value="missing">Définir comme manquante</option></select></Field>
           <div className="flex justify-end gap-3"><button onClick={() => setRecodeOpen(false)} className="btn-secondary">Annuler</button><button onClick={applyRecode} className="btn-primary">Créer la variable</button></div>
         </div>
       </div>

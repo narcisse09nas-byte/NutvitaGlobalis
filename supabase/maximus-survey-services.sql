@@ -37,7 +37,7 @@ alter table public.survey_responses add column if not exists import_batch text;
 alter table public.survey_responses add column if not exists source_row integer;
 alter table public.survey_responses drop constraint if exists survey_responses_source_type_check;
 alter table public.survey_responses add constraint survey_responses_source_type_check
-  check(source_type in ('local','imported','api'));
+  check(source_type in ('local','imported','api','odk'));
 create unique index if not exists survey_response_reference
 on public.survey_responses(survey_id,response_reference)
 where response_reference is not null;
@@ -125,6 +125,7 @@ create table if not exists public.survey_forms (
 alter table public.survey_forms add column if not exists odk_status text not null default 'not_configured';
 alter table public.survey_forms add column if not exists odk_configuration jsonb not null default '{}'::jsonb;
 alter table public.survey_forms add column if not exists odk_deployed_at timestamptz;
+alter table public.survey_forms add column if not exists xform_xml text;
 alter table public.survey_forms drop constraint if exists survey_forms_odk_status_check;
 alter table public.survey_forms add constraint survey_forms_odk_status_check
   check(odk_status in ('not_configured','configured','deployed','revoked','error'));

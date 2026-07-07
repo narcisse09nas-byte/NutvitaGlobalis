@@ -6,6 +6,8 @@ import {
 
 export type EnaSmartMapping = {
   age: string;
+  birthDate?: string;
+  surveyDate?: string;
   sex: string;
   weight: string;
   height: string;
@@ -30,6 +32,31 @@ type NumericSummary = {
 function numeric(value: unknown) {
   const result = Number(String(value ?? '').replace(',', '.'));
   return Number.isFinite(result) ? result : null;
+}
+
+function parsedDate(value: unknown) {
+  if (value instanceof Date && Number.isFinite(value.getTime())) return value;
+  if (typeof value === 'number' && value > 1 && value < 100000) {
+    const date = new Date(Date.UTC(1899, 11, 30) + Math.round(value * 86400000));
+    return Number.isFinite(date.getTime()) ? date : null;
+  }
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  const french = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  const date = french
+    ? new Date(Date.UTC(Number(french[3]), Number(french[2]) - 1, Number(french[1])))
+    : new Date(text);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function completedMonths(birthValue: unknown, surveyValue: unknown) {
+  const birthDate = parsedDate(birthValue);
+  const surveyDate = parsedDate(surveyValue);
+  if (!birthDate || !surveyDate || surveyDate < birthDate) return null;
+  let months = (surveyDate.getUTCFullYear() - birthDate.getUTCFullYear()) * 12
+    + surveyDate.getUTCMonth() - birthDate.getUTCMonth();
+  if (surveyDate.getUTCDate() < birthDate.getUTCDate()) months -= 1;
+  return months >= 0 ? months : null;
 }
 
 function mean(values: number[]) {
@@ -159,7 +186,12 @@ function normalizedOedema(value: unknown) {
 
 export function analyzeEnaSmartPlausibility(rows: Record<string, unknown>[], mapping: EnaSmartMapping) {
   const observations = rows.map((row, index) => {
-    const age = numeric(row[mapping.age]);
+    const reportedAge = mapping.age ? numeric(row[mapping.age]) : null;
+    const calculatedAge = mapping.birthDate
+      ? completedMonths(row[mapping.birthDate], mapping.surveyDate ? row[mapping.surveyDate] : row.submitted_at)
+      : null;
+    const age = reportedAge ?? calculatedAge;
+    const ageSource = reportedAge !== null ? 'reported_months' : calculatedAge !== null ? 'birth_date' : null;
     const weight = numeric(row[mapping.weight]);
     const height = numeric(row[mapping.height]);
     const muac = mapping.muac ? numeric(row[mapping.muac]) : null;
@@ -186,6 +218,7 @@ export function analyzeEnaSmartPlausibility(rows: Record<string, unknown>[], map
       enumerator: mapping.enumerator ? row[mapping.enumerator] : null,
       order: mapping.order ? numeric(row[mapping.order]) : null,
       age,
+      ageSource,
       sex,
       weight,
       height,

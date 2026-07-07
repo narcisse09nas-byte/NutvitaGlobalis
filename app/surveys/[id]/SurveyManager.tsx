@@ -6,13 +6,15 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import QRCode from 'react-qr-code';
 import {
-  Activity, BarChart3, ClipboardList, Database, Download, FileSpreadsheet,
-  FlaskConical, MapPinned, Plus, Save, Send, Settings2, Trash2, Users,
+  Activity, BarChart3, ClipboardList, Copy, Database, Download, FileSpreadsheet,
+  FlaskConical, KeyRound, MapPinned, Plus, Save, Send, Settings2, ShieldCheck,
+  Trash2, Users,
 } from 'lucide-react';
 import { analyzeDataset, crossTab } from '@/survey/lib/analysis';
 import { analyzeEnaSmartPlausibility } from '@/survey/lib/ena-smart-plausibility';
 import { calculateSurveyIndicators } from '@/survey/lib/food-security-indicators';
 import { exportQuestionnaireWorkbook, parseXlsForm, type SurveyQuestion } from '@/survey/lib/xlsform';
+import type { OdkValidationIssue } from '@/survey/lib/odk-deployment';
 import { calculateLFAzScore, calculateWFAzScore, calculateWFLzScore, classifyLFAzScore, classifyWFLzScore } from '@/survey/lib/who-growth-standards';
 
 type Row = Record<string, any>;
@@ -164,7 +166,33 @@ function Questionnaires({ surveyId, forms, mutate, setMessage }: { surveyId: str
   async function status(form: Row, next: string) {
     await mutate('forms', 'PATCH', { id: form.id, status: next, status_history: [...(form.status_history || []), { status: next, at: new Date().toISOString() }] }); setMessage(`Statut du formulaire: ${next}.`);
   }
-  return <div className="grid gap-6"><Panel title="Etape 3: Conception du questionnaire" text="Importez un XLSForm ou utilisez le constructeur complet avec propriétés avancées, langues, groupes et listes de choix."><div className="flex flex-wrap gap-3"><label className="btn-secondary cursor-pointer"><FileSpreadsheet className="mr-2 h-4" />Importer XLSForm<input type="file" accept=".xlsx,.xls" className="hidden" onChange={event => importFile(event.target.files?.[0])} /></label><Link href={`/surveys/${surveyId}/questionnaire`} className="btn-primary"><Plus className="mr-2 h-4" />Créer un questionnaire</Link></div><input value={title} onChange={event => setTitle(event.target.value)} placeholder="Titre du questionnaire importé" className="admin-input mt-5" /><div className="mt-4 grid gap-3">{questions.map((question, index) => <div key={question.id} className="grid gap-3 rounded-md border p-4 md:grid-cols-[160px_1fr_1fr_auto]"><select value={question.type} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, type: event.target.value as SurveyQuestion['type'] } : item))} className="admin-input"><option value="text">Texte</option><option value="integer">Entier</option><option value="decimal">Décimal</option><option value="date">Date</option><option value="select_one">Choix unique</option><option value="select_multiple">Choix multiple</option><option value="note">Note</option></select><input value={question.name} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, name: event.target.value } : item))} className="admin-input" placeholder="nom_variable" /><input value={question.label} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, label: event.target.value } : item))} className="admin-input" placeholder={`Libelle question ${index + 1}`} /><button onClick={() => setQuestions(current => current.filter(item => item.id !== question.id))} className="text-red-700"><Trash2 className="h-4" /></button>{question.type.startsWith('select_') && <textarea className="admin-input md:col-span-3 md:col-start-2" placeholder="Options, une par ligne" value={(question.options || []).map(option => option.label).join('\n')} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, options: event.target.value.split('\n').filter(Boolean).map((label, optionIndex) => ({ value: `option_${optionIndex + 1}`, label })) } : item))} />}</div>)}</div>{questions.length > 0 && <button onClick={saveForm} className="btn-primary mt-4"><Save className="mr-2 h-4" />Enregistrer l import</button>}</Panel><Panel title="Etape 4: Workflow des formulaires">{forms.length ? <div className="grid gap-3">{forms.map(form => <article key={form.id} className="rounded-md border p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><b>{form.title}</b><p className="text-sm text-slate-500">{form.form_code} · version {form.version} · {form.status}</p>{form.odk_status && form.odk_status !== 'not_configured' && <p className="mt-1 text-xs font-bold text-emerald-700">ODK : {form.odk_status}</p>}</div><div className="flex flex-wrap gap-2"><Link href={`/surveys/${surveyId}/questionnaire?form=${form.id}`} className="btn-secondary">Modifier</Link><button onClick={() => exportQuestionnaireWorkbook(form.title, form.definition?.questions || [])} className="btn-secondary"><Download className="mr-2 h-4" />XLSForm</button>{form.status === 'draft' && <button onClick={() => status(form, 'pending_endorsement')} className="btn-primary"><Send className="mr-2 h-4" />Soumettre</button>}{form.status === 'pending_endorsement' && <button onClick={() => status(form, 'endorsed')} className="btn-primary">Valider</button>}{form.status === 'endorsed' && <button onClick={() => setOdkForm(form)} className="btn-primary"><Database className="mr-2 h-4" />{form.odk_status === 'configured' ? 'Accès ODK' : 'Déployer sur ODK'}</button>}<button onClick={() => mutate('forms', 'DELETE', undefined, form.id)} className="rounded-md bg-red-50 px-3 text-red-700"><Trash2 className="h-4" /></button></div></div></article>)}</div> : <Empty text="Aucun questionnaire." />}</Panel>{odkForm && <OdkDeploymentDialog form={odkForm} mutate={mutate} onClose={() => setOdkForm(null)} setMessage={setMessage}/>}</div>;
+  return <div className="grid gap-6">
+    <Panel title="Etape 3: Conception du questionnaire" text="Importez un XLSForm ou utilisez le constructeur complet avec proprietes avancees, langues, groupes et listes de choix.">
+      <div className="flex flex-wrap gap-3">
+        <label className="btn-secondary cursor-pointer"><FileSpreadsheet className="mr-2 h-4" />Importer XLSForm<input type="file" accept=".xlsx,.xls" className="hidden" onChange={event => importFile(event.target.files?.[0])} /></label>
+        <Link href={`/surveys/${surveyId}/questionnaire`} className="btn-primary"><Plus className="mr-2 h-4" />Creer un questionnaire</Link>
+      </div>
+      <input value={title} onChange={event => setTitle(event.target.value)} placeholder="Titre du questionnaire importe" className="admin-input mt-5" />
+      <div className="mt-4 grid gap-3">{questions.map((question, index) => <div key={question.id} className="grid gap-3 rounded-md border p-4 md:grid-cols-[160px_1fr_1fr_auto]"><select value={question.type} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, type: event.target.value as SurveyQuestion['type'] } : item))} className="admin-input"><option value="text">Texte</option><option value="integer">Entier</option><option value="decimal">Decimal</option><option value="date">Date</option><option value="select_one">Choix unique</option><option value="select_multiple">Choix multiple</option><option value="note">Note</option></select><input value={question.name} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, name: event.target.value } : item))} className="admin-input" placeholder="nom_variable" /><input value={question.label} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, label: event.target.value } : item))} className="admin-input" placeholder={`Libelle question ${index + 1}`} /><button onClick={() => setQuestions(current => current.filter(item => item.id !== question.id))} className="text-red-700"><Trash2 className="h-4" /></button>{question.type.startsWith('select_') && <textarea className="admin-input md:col-span-3 md:col-start-2" placeholder="Options, une par ligne" value={(question.options || []).map(option => option.label).join('\n')} onChange={event => setQuestions(current => current.map(item => item.id === question.id ? { ...item, options: event.target.value.split('\n').filter(Boolean).map((label, optionIndex) => ({ value: `option_${optionIndex + 1}`, label })) } : item))} />}</div>)}</div>
+      {questions.length > 0 && <button onClick={saveForm} className="btn-primary mt-4"><Save className="mr-2 h-4" />Enregistrer l import</button>}
+    </Panel>
+    <Panel title="Etape 4: Workflow des formulaires">
+      {forms.length ? <div className="grid gap-3">{forms.map(form => <article key={form.id} className="rounded-md border p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><b>{form.title}</b><p className="text-sm text-slate-500">{form.form_code} · version {form.version} · {form.status}</p>{form.odk_status && form.odk_status !== 'not_configured' && <p className={`mt-1 text-xs font-bold ${form.odk_status === 'error' ? 'text-red-700' : 'text-emerald-700'}`}>ODK : {form.odk_status}</p>}</div>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/surveys/${surveyId}/questionnaire?form=${form.id}`} className="btn-secondary">Modifier</Link>
+            <button onClick={() => exportQuestionnaireWorkbook(form.title, form.definition?.questions || [])} className="btn-secondary"><Download className="mr-2 h-4" />XLSForm</button>
+            {form.status === 'draft' && <button onClick={() => status(form, 'pending_endorsement')} className="btn-primary"><Send className="mr-2 h-4" />Soumettre</button>}
+            {form.status === 'pending_endorsement' && <button onClick={() => status(form, 'endorsed')} className="btn-primary">Valider</button>}
+            <button onClick={() => setOdkForm(form)} className={form.odk_status === 'deployed' ? 'btn-secondary' : 'btn-primary'}><Database className="mr-2 h-4" />{form.odk_status === 'deployed' ? 'Acces ODK' : form.odk_status === 'error' ? 'Corriger ODK' : 'Valider / deployer ODK'}</button>
+            <button onClick={() => mutate('forms', 'DELETE', undefined, form.id)} className="rounded-md bg-red-50 px-3 text-red-700"><Trash2 className="h-4" /></button>
+          </div>
+        </div>
+      </article>)}</div> : <Empty text="Aucun questionnaire." />}
+    </Panel>
+    {odkForm && <OdkDeploymentDialog surveyId={surveyId} form={odkForm} onClose={() => setOdkForm(null)} setMessage={setMessage} />}
+  </div>;
 }
 
 async function odkSettingsPayload(configuration: Row, title: string) {
@@ -192,54 +220,51 @@ async function odkSettingsPayload(configuration: Row, title: string) {
   return btoa(binary);
 }
 
-function OdkDeploymentDialog({ form, mutate, onClose, setMessage }: { form: Row; mutate: any; onClose: () => void; setMessage: (value: string) => void }) {
+function OdkDeploymentDialog({ surveyId, form, onClose, setMessage }: { surveyId: string; form: Row; onClose: () => void; setMessage: (value: string) => void }) {
   const existing = form.odk_configuration || {};
-  const [mode, setMode] = useState<'central' | 'generic'>(existing.mode || 'central');
   const [configuration, setConfiguration] = useState<Row>(existing);
+  const [credentials, setCredentials] = useState<Row | null>(null);
+  const [issues, setIssues] = useState<OdkValidationIssue[]>(existing.validation_issues || []);
   const [qrValue, setQrValue] = useState('');
   const [busy, setBusy] = useState(false);
 
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const values = Object.fromEntries(new FormData(event.currentTarget));
-    const next: Row = { ...configuration, ...values, mode };
-    if (mode === 'central' && !String(next.app_user_url || '').startsWith('https://')) return setMessage('L URL secrète de l App User ODK Central doit utiliser HTTPS.');
-    if (mode === 'generic' && (!String(next.server_url || '').startsWith('https://') || !next.username || !next.password)) return setMessage('URL HTTPS, nom d utilisateur et mot de passe sont requis.');
+  async function deploy() {
     setBusy(true);
-    const qr = await odkSettingsPayload(next, form.title);
-    await mutate('forms', 'PATCH', {
-      id: form.id,
-      odk_status: 'configured',
-      odk_configuration: next,
-      odk_deployed_at: new Date().toISOString(),
-    });
-    setConfiguration(next);
-    setQrValue(qr);
+    const response = await fetch(`/api/surveys/${surveyId}/forms/${form.id}/deploy`, { method: 'POST' });
+    const result = await response.json();
     setBusy(false);
-    setMessage('Accès ODK Collect configuré. Le QR contient un secret et doit rester confidentiel.');
+    setIssues(result.issues || []);
+    if (!response.ok) {
+      setMessage(result.message || 'Deploiement ODK impossible.');
+      return;
+    }
+    setConfiguration(result.item?.odk_configuration || {});
+    setCredentials(result.credentials);
+    setQrValue(await odkSettingsPayload({ ...result.credentials, mode: 'generic' }, form.title));
+    setMessage('Questionnaire valide, deploye et pret pour ODK Collect. Conservez la cle generee.');
   }
 
   async function revealQr() {
-    setQrValue(await odkSettingsPayload({ ...configuration, mode }, form.title));
+    if (!configuration.server_url || !configuration.username) return;
+    setQrValue(await odkSettingsPayload({ server_url: configuration.server_url, username: configuration.username, password: '', mode: 'generic' }, form.title));
+  }
+
+  async function copy(value: string) {
+    await navigator.clipboard.writeText(value);
+    setMessage('Copie dans le presse-papiers.');
   }
 
   return <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/60 p-4" onMouseDown={onClose}>
     <section className="mx-auto my-8 max-w-3xl bg-white p-7 shadow-2xl" onMouseDown={event => event.stopPropagation()}>
-      <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase text-emerald-700">Déploiement ODK Collect</p><h2 className="mt-1 text-2xl font-black">{form.title}</h2><p className="mt-2 text-sm text-slate-600">Téléchargez d abord le XLSForm et publiez-le dans le projet ODK Central. Configurez ensuite l accès de collecte ci-dessous.</p></div><button onClick={onClose} className="text-2xl" aria-label="Fermer">×</button></div>
-      <div className="mt-6 inline-flex border bg-slate-50 p-1"><button onClick={() => setMode('central')} className={`px-4 py-2 text-sm font-bold ${mode === 'central' ? 'bg-forest text-white' : ''}`}>ODK Central recommandé</button><button onClick={() => setMode('generic')} className={`px-4 py-2 text-sm font-bold ${mode === 'generic' ? 'bg-forest text-white' : ''}`}>Serveur URL + identifiants</button></div>
-      <form onSubmit={save} className="mt-5 grid gap-4">
-        {mode === 'central' ? <>
-          <label className="grid gap-2 text-sm font-bold">Adresse secrète de l’App User<input name="app_user_url" type="url" required defaultValue={configuration.app_user_url || ''} className="admin-input" placeholder="https://central.exemple.org/v1/key/..." /></label>
-          <label className="grid gap-2 text-sm font-bold">Identifiant du projet Central<input name="project_id" defaultValue={configuration.project_id || ''} className="admin-input" placeholder="Ex. 12" /></label>
-          <p className="rounded-md bg-amber-50 p-4 text-sm text-amber-900">ODK Central n’utilise pas de nom d’utilisateur ni de mot de passe pour un App User. Son URL/QR secret remplit ce rôle.</p>
-        </> : <div className="grid gap-4 md:grid-cols-2">
-          <label className="grid gap-2 text-sm font-bold md:col-span-2">Adresse URL du serveur<input name="server_url" type="url" required defaultValue={configuration.server_url || ''} className="admin-input" placeholder="https://odk.exemple.org" /></label>
-          <label className="grid gap-2 text-sm font-bold">Nom d’utilisateur<input name="username" required defaultValue={configuration.username || ''} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Mot de passe / clé<input name="password" type="password" required defaultValue={configuration.password || ''} className="admin-input" /></label>
-        </div>}
-        <div className="flex flex-wrap gap-3"><button disabled={busy} className="btn-primary">{busy ? 'Configuration...' : 'Enregistrer et générer le QR'}</button><button type="button" onClick={() => exportQuestionnaireWorkbook(form.title, form.definition?.questions || [])} className="btn-secondary"><Download className="mr-2 h-4" />Télécharger le XLSForm</button>{existing.mode && !qrValue && <button type="button" onClick={revealQr} className="btn-secondary">Afficher le QR enregistré</button>}</div>
-      </form>
-      {qrValue && <div className="mt-7 grid gap-5 border-t pt-6 md:grid-cols-[220px_1fr]"><div className="bg-white p-3"><QRCode value={qrValue} size={196}/></div><div><h3 className="font-black">Configuration ODK Collect</h3><p className="mt-2 text-sm leading-6 text-slate-600">Dans ODK Collect, choisissez « Configurer avec un code QR » puis scannez ce code. Il contient les paramètres d’accès et doit être traité comme un mot de passe.</p><dl className="mt-4 grid gap-2 text-sm"><div><dt className="text-slate-500">URL</dt><dd className="break-all font-mono">{mode === 'central' ? configuration.app_user_url : configuration.server_url}</dd></div>{mode === 'generic' && <div><dt className="text-slate-500">Utilisateur</dt><dd className="font-mono">{configuration.username}</dd></div>}</dl></div></div>}
+      <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase text-emerald-700">Mini moteur ODK Collect</p><h2 className="mt-1 text-2xl font-black">{form.title}</h2><p className="mt-2 text-sm leading-6 text-slate-600">La plateforme valide les regles ODK/XLSForm, publie le XForm, genere les acces et recoit les soumissions dans l onglet Collecte.</p></div><button onClick={onClose} className="text-2xl" aria-label="Fermer">x</button></div>
+      <div className="mt-6 grid gap-3 md:grid-cols-3">
+        <div className="rounded-md bg-emerald-50 p-4"><ShieldCheck className="h-6 text-emerald-700"/><b className="mt-3 block">Validation ODK</b><p className="mt-1 text-sm text-slate-600">Noms, types, choix, groupes, expressions.</p></div>
+        <div className="rounded-md bg-emerald-50 p-4"><KeyRound className="h-6 text-emerald-700"/><b className="mt-3 block">Acces generes</b><p className="mt-1 text-sm text-slate-600">URL, utilisateur, cle, QR ODK Collect.</p></div>
+        <div className="rounded-md bg-emerald-50 p-4"><Database className="h-6 text-emerald-700"/><b className="mt-3 block">Collecte integree</b><p className="mt-1 text-sm text-slate-600">Soumissions classees source ODK.</p></div>
+      </div>
+      {issues.length > 0 && <div className="mt-6 rounded-md border p-4"><h3 className="font-black">Controle de compatibilite</h3><ul className="mt-3 grid gap-2 text-sm">{issues.map((issue, index) => <li key={`${issue.field}-${index}`} className={issue.level === 'error' ? 'text-red-700' : 'text-amber-700'}><b>{issue.level === 'error' ? 'Erreur' : 'Alerte'}.</b> {issue.message}</li>)}</ul></div>}
+      <div className="mt-6 flex flex-wrap gap-3"><button onClick={deploy} disabled={busy} className="btn-primary"><Database className="mr-2 h-4" />{busy ? 'Validation...' : form.odk_status === 'deployed' ? 'Regenerer la cle ODK' : 'Valider et deployer'}</button><button type="button" onClick={() => exportQuestionnaireWorkbook(form.title, form.definition?.questions || [])} className="btn-secondary"><Download className="mr-2 h-4" />Telecharger le XLSForm</button>{configuration.server_url && !qrValue && <button type="button" onClick={revealQr} className="btn-secondary">Afficher le QR sans cle</button>}</div>
+      {(credentials || configuration.server_url) && <div className="mt-7 grid gap-5 border-t pt-6 md:grid-cols-[220px_1fr]"><div className="bg-white p-3">{qrValue ? <QRCode value={qrValue} size={196}/> : <div className="grid h-[196px] place-items-center rounded-md bg-slate-50 text-center text-sm text-slate-500">QR disponible au deploiement ou apres regeneration de cle.</div>}</div><div><h3 className="font-black">Parametres ODK Collect</h3><p className="mt-2 text-sm leading-6 text-slate-600">Dans ODK Collect, utilisez l URL serveur et les identifiants ci-dessous. La cle n est affichee en clair qu au moment du deploiement.</p><dl className="mt-4 grid gap-3 text-sm">{[['URL', credentials?.server_url || configuration.server_url], ['Utilisateur', credentials?.username || configuration.username], ['Mot de passe / cle', credentials?.password || 'Non affiche. Regenerez la cle si elle est perdue.'], ['Soumission', credentials?.submission_url || configuration.submission_url]].map(([fieldLabel, value]) => <div key={fieldLabel} className="rounded bg-slate-50 p-3"><dt className="text-slate-500">{fieldLabel}</dt><dd className="mt-1 flex items-center justify-between gap-3 break-all font-mono"><span>{String(value || '-')}</span>{value && !String(value).startsWith('Non affiche') && <button onClick={() => copy(String(value))} className="rounded border bg-white p-2" title="Copier"><Copy className="h-4"/></button>}</dd></div>)}</dl></div></div>}
     </section>
   </div>;
 }

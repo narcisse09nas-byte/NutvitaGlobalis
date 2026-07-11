@@ -105,6 +105,7 @@
   var countryListCache = null;
 
   var store = {
+    workspaceProfiles: [{ id: "ORG/CMR/2026", organizationName: "NutVitaGlobalis Programme Office", organizationType: "Organisation nutritionnelle", country: "Cameroon", headquartersLocation: "Douala", mandate: "Coordonner des projets de nutrition, securite alimentaire et renforcement des systemes.", governanceModel: "Comite de pilotage mensuel avec validation technique et financiere", focalPointName: "Paul Zebaze", focalPointFunction: "Portfolio Lead", phone: "+237 000 000 000", email: "contact@nutvitaglobalis.com", status: "Validated" }],
     fieldOffices: [{ id: "001/CMR/2026", country: "Cameroon", officeType: "Bureau Terrain", name: "Buea Office", location: "Buea", staffTotal: 24, male: 14, female: 10, activeVehicles: 5, assetCount: 12, focalPointName: "Nora Atem", focalPointFunction: "Head of Office", phone: "+237 000 000 001", email: "buea.office@example.org", status: "Approved" }],
     sites: [{ id: "001/CMR/SW/2026", country: "Cameroon", region: "South-West", department: "Fako", arrondissement: "Buea", accessLevel: "Medium", securityPhase: "Watch", status: "Approved" }],
     fdps: [{ id: "001/Buea", name: "Buea Community FDP", fdpType: "Communautaire", otherType: "", arrondissement: "Buea", siteFocalPointName: "Nora Atem", siteFocalPointSex: "Female", phone: "+237 600 000 020", email: "fdp.buea@example.org", status: "Validated" }],
@@ -114,8 +115,16 @@
     grants: [{ code: "CMR-CERF-2026-001", donor: "CERF", grantModality: "Cash", valueUsd: 1200000, tdd: "2026-12-31", grantStatus: "Actif", foodItems: [], comment: "Emergency response window", status: "Validated" }],
     staffs: [{ id: "STF001", lastName: "Atem", firstName: "Nora", sex: "Female", functionName: "Programme Associate", fieldOfficeId: "001/CMR/2026", contractType: "SC", otherContract: "", email: "nora.atem@example.org", phone: "+237 600 000 010", startDate: "2026-01-01", endDate: "2026-12-31", staffStatus: "Actif", reportsTo: "" }],
     partnerStaffs: [],
-    projects: [{ id: "P001A", title: "Buea emergency food assistance", flaNumber: "AGR/CMR/2026/001", soaNumber: "SOA/CMR/2026/001", poNumber: "4500012345", strategicDocumentId: "DOC001/05/2026", startDate: "2026-05-01", endDate: "2026-12-31", currency: "XAF", budgetXaf: 275000000, partnerVendor: "10004567", grantCodes: ["CMR-CERF-2026-001"], fdpIds: ["001/Buea"], projectFdps: [{ fdpId: "001/Buea", fdpType: "Communautaire", beneficiaries: 12000 }], soIds: ["SO1"], cspActivityIds: ["A1", "A2"] }],
+    portfolios: [{ id: "PORT-NUT-2026", title: "Nutrition and food security portfolio", strategicDocumentId: "DOC001/05/2026", ownerId: "STF001", priority: "High", valueStatement: "Contribuer a la securite alimentaire, a la prevention de la malnutrition et a la resilience communautaire.", governanceCadence: "Monthly portfolio review", status: "Validated" }],
+    programmes: [{ id: "PRG-NUT-2026", portfolioId: "PORT-NUT-2026", title: "Community nutrition and food assistance programme", strategicDocumentId: "DOC001/05/2026", managerId: "STF001", startDate: "2026-05-01", endDate: "2026-12-31", expectedBenefits: "Amelioration de l'acces alimentaire et du suivi nutritionnel dans les zones ciblees.", status: "Validated" }],
+    projects: [{ id: "P001A", title: "Buea emergency food assistance", portfolioId: "PORT-NUT-2026", programmeId: "PRG-NUT-2026", flaNumber: "AGR/CMR/2026/001", soaNumber: "SOA/CMR/2026/001", poNumber: "4500012345", strategicDocumentId: "DOC001/05/2026", startDate: "2026-05-01", endDate: "2026-12-31", currency: "XAF", budgetXaf: 275000000, partnerVendor: "10004567", grantCodes: ["CMR-CERF-2026-001"], fdpIds: ["001/Buea"], projectFdps: [{ fdpId: "001/Buea", fdpType: "Communautaire", beneficiaries: 12000 }], soIds: ["SO1"], cspActivityIds: ["A1", "A2"] }],
     stakeholders: [],
+    implementationPlans: [{ id: "IMP/P001A/2026", projectId: "P001A", planType: "Integrated implementation plan", workstream: "Coordination generale", ownerId: "STF001", startDate: "2026-05-01", endDate: "2026-12-31", milestone: "Distribution mensuelle et rapport de performance valides", deliverable: "Plan integre consolide avec budget, calendrier, M&E et preuves", dependencies: "Grant actif, partenaire valide, sites accessibles", acceptanceCriteria: "Livrables valides, ecarts documentes et actions correctives suivies", status: "Validated" }],
+    communicationPlans: [],
+    procurementPlans: [],
+    riskRegisters: [{ id: "RISK/P001A/001", projectId: "P001A", riskCategory: "Access", riskStatement: "Restriction d'acces aux sites de distribution", probability: "Medium", impact: "High", responseStrategy: "Mitigate", ownerId: "STF001", mitigationAction: "Adapter le calendrier et confirmer les sites de repli avec les autorites locales", reviewDate: "2026-06-30", riskStatus: "Open", status: "Validated" }],
+    qualityPlans: [],
+    resourcePlans: [],
     projectActivities: [{ id: "Act001/P001A", projectId: "P001A", modality: "Cash", grantCodes: ["CMR-CERF-2026-001"], label: "Monthly food assistance distribution in Buea", cspActivityIds: ["A1"], startDate: "2026-05-01", endDate: "2026-05-31", partnerFocalPoint: "Grace M.", phone: "+237 600 000 000", email: "contact@lri.org" }],
     projectSubActivities: [{ id: "SAct001/Act001/P001A", projectId: "P001A", activityId: "Act001/P001A", label: "Community mobilization before distribution", kpiIds: ["Ind001/Act001/P001A/P001A"], status: "Draft" }],
     kpis: [{ id: "Ind001/Act001/P001A/P001A", activityId: "Act001/P001A", label: "Number of beneficiaries assisted", verificationSource: "Partner report", frequency: "Mensuelle", otherFrequency: "", pamOwner: "STF001", target: "12000", comment: "Monthly distribution target" }],
@@ -160,7 +169,8 @@
 
   var pages = [
     ["home", "Accueil", "A"],
-    ["operationsDashboard", "Dashboard operations", "O"],
+    ["operationsDashboard", "Dashboard portefeuille", "O"],
+    ["workspaceProfiles", "Organisation / structure", "W"],
     ["fieldOffices", "Office in charge", "O"],
     ["fdps", "Final Distribution Point", "D"],
     ["sites", "Sites administratifs", "S"],
@@ -169,9 +179,17 @@
     ["strategicDocuments", "Documents strategiques", "G"],
     ["grants", "Grants", "$"],
     ["staffs", "Staffs", "H"],
+    ["portfolios", "Portefeuilles", "F"],
+    ["programmes", "Programmes", "M"],
     ["projects", "Projets", "J"],
     ["projectPlan", "Plan du projet", "P"],
     ["stakeholders", "Parties prenantes", "E"],
+    ["implementationPlans", "Plans integres", "I"],
+    ["communicationPlans", "Plan communication", "C"],
+    ["procurementPlans", "Plan procurement", "P"],
+    ["riskRegisters", "Registre risques", "R"],
+    ["qualityPlans", "Plan qualite", "Q"],
+    ["resourcePlans", "Plan ressources", "H"],
     ["projectActivities", "Activites projet", "A"],
     ["monthlyPlans", "Plan mensuel", "M"],
     ["monthlyReports", "Reporting Quantitatif Mensuel", "R"],
@@ -216,9 +234,9 @@
 
   var navGroups = [
     { title: "Accueil", className: "group-home", pages: ["operationsDashboard"] },
-    { title: "Parametrage", className: "group-setup", pages: ["fieldOffices", "fdps", "sites", "partners", "cooperativePartners", "strategicDocuments", "grants", "staffs"] },
-    { title: "Cadre projet", className: "group-framework", pages: ["projects", "projectPlan"] },
-    { title: "Planification mensuelle", className: "group-planning", pages: ["monthlyPlanning"] },
+    { title: "Espace de travail", className: "group-setup", pages: ["workspaceProfiles", "fieldOffices", "fdps", "sites", "partners", "cooperativePartners", "strategicDocuments", "grants", "staffs"] },
+    { title: "Gouvernance", className: "group-framework", pages: ["portfolios", "programmes", "projects", "projectPlan"] },
+    { title: "Plans integres", className: "group-planning", pages: ["implementationPlans", "budgets", "monthlyPlanning", "processIndicators", "communicationPlans", "procurementPlans", "riskRegisters", "qualityPlans", "resourcePlans"] },
     { title: "Execution", className: "group-execution", pages: ["executionWorkspace"] },
     { title: "Reporting", className: "group-reporting", pages: ["reportingWorkspace"] },
     { title: "Facturation partenaires", className: "group-reporting", pages: ["invoiceWorkspace"] },
@@ -352,6 +370,40 @@
       select("status", "Statut du compte", true, ["Active", "Inactive"]),
       textarea("accessComment", "Commentaire / justification des acces")
     ]);
+    configs.workspaceProfiles = cfg("Registre organisation / structure", "Configuration de l'espace de travail", "Enregistrer l'organisation", ["id", "organizationName", "organizationType", "country", "headquartersLocation", "focalPointName", "governanceModel", "status"], [
+      input("id", "ID organisation", "text", false, "Auto: ORG/CMR/2026"),
+      input("organizationName", "Nom officiel de l'organisation / structure", "text", true),
+      select("organizationType", "Type de structure", true, ["ONG", "Entreprise", "Institution publique", "Programme pays", "Cabinet / bureau projet", "Association", "Fondation", "Autre"]),
+      country("country", "Pays principal", true),
+      input("headquartersLocation", "Siege / localisation principale", "text", true),
+      textarea("mandate", "Mandat et champ d'intervention"),
+      textarea("governanceModel", "Modele de gouvernance et cadence de decision", "Ex: comite de pilotage mensuel, revue budgetaire trimestrielle, validation technique."),
+      input("focalPointName", "Point focal organisation", "text", true),
+      input("focalPointFunction", "Fonction du point focal", "text"),
+      input("phone", "Telephone", "tel"),
+      input("email", "Email institutionnel", "email")
+    ]);
+    configs.portfolios = cfg("Registre des portefeuilles", "Alignement strategique", "Enregistrer le portefeuille", ["id", "title", "strategicDocumentId", "ownerId", "priority", "governanceCadence", "status"], [
+      input("id", "ID portefeuille", "text", false, "Auto: PORT-001"),
+      input("title", "Nom du portefeuille", "text", true),
+      select("strategicDocumentId", "Document strategique de reference", true, function () { return optionPairs(store.strategicDocuments, "id", "name"); }),
+      select("ownerId", "Responsable portefeuille", true, function () { return optionPairs(store.staffs, "id", staffFullName); }, true),
+      select("priority", "Priorite strategique", true, ["Critical", "High", "Medium", "Low"]),
+      textarea("valueStatement", "Valeur attendue / contribution aux objectifs strategiques"),
+      input("governanceCadence", "Cadence de revue", "text", false, "Monthly portfolio review"),
+      textarea("decisionRules", "Regles de priorisation et d'arbitrage")
+    ]);
+    configs.programmes = cfg("Registre des programmes", "Coordination des benefices", "Enregistrer le programme", ["id", "portfolioId", "title", "strategicDocumentId", "managerId", "startDate", "endDate", "status"], [
+      input("id", "ID programme", "text", false, "Auto: PRG-001"),
+      select("portfolioId", "Portefeuille rattache", true, function () { return optionPairs(store.portfolios, "id", "title"); }, true),
+      input("title", "Nom du programme", "text", true),
+      select("strategicDocumentId", "Document strategique de reference", true, function () { return optionPairs(store.strategicDocuments, "id", "name"); }),
+      select("managerId", "Programme manager", true, function () { return optionPairs(store.staffs, "id", staffFullName); }, true),
+      input("startDate", "Date de debut", "date", true),
+      input("endDate", "Date de fin", "date", true),
+      textarea("expectedBenefits", "Benefices attendus et indicateurs de valeur"),
+      textarea("coordinationMechanism", "Mecanisme de coordination entre projets")
+    ]);
     configs.fieldOffices = cfg("Creation des Offices in charge", "Referentiel terrain", "Enregistrer l'office", ["id", "country", "officeType", "name", "location", "staffTotal", "activeVehicles", "assetCount", "status"], [
       input("id", "ID Office", "text", false, "Auto: 001/CMR/2026", "", "Genere automatiquement: 03 chiffres / initiales pays / annee de creation."),
       country("country", "Pays", true),
@@ -446,8 +498,11 @@
       select("staffStatus", "Statut du staff", true, ["Actif", "Inactif"]),
       select("reportsTo", "Rapporte a", false, function () { return optionPairs(store.staffs, "id", function (s) { return s.firstName + " " + s.lastName; }); }, true)
     ]);
-    configs.projects = cfg("Enregistrement des projets", "Projet", "Enregistrer le projet", ["id", "title", "strategicDocumentId", "startDate", "endDate", "currency", "partnerVendor", "grantCodes", "fdpIds", "budgetXaf"], [
-      input("id", "ID du projet", "text", true, "P001A"), input("title", "Titre du projet", "text", true), select("strategicDocumentId", "Document strategique rattache", true, function () { return optionPairs(store.strategicDocuments, "id", "name"); }),
+    configs.projects = cfg("Enregistrement des projets", "Projet", "Enregistrer le projet", ["id", "title", "portfolioId", "programmeId", "strategicDocumentId", "startDate", "endDate", "currency", "partnerVendor", "grantCodes", "fdpIds", "budgetXaf"], [
+      input("id", "ID du projet", "text", true, "P001A"), input("title", "Titre du projet", "text", true),
+      select("portfolioId", "Portefeuille rattache", false, function () { return optionPairs(store.portfolios, "id", "title"); }, true),
+      select("programmeId", "Programme rattache", false, function (draft) { return programmeOptionsForPortfolio(draft.portfolioId); }, true, "portfolioId"),
+      select("strategicDocumentId", "Document strategique rattache", true, function () { return optionPairs(store.strategicDocuments, "id", "name"); }),
       input("agreementNumber", "Numero d'accord / contrat", "text"), input("soaNumber", "SOA Number", "text"), input("poNumber", "PO Number", "text"),
       input("startDate", "Date de debut du projet", "date", true), input("endDate", "Date de fin du projet", "date", true),
       select("currency", "Monnaie du projet", true, currencyOptions()),
@@ -495,6 +550,77 @@
       input("endDate", "Date fin", "date"),
       select("staffStatus", "Statut du staff", true, ["Actif", "Inactif"]),
       textarea("comment", "Commentaire")
+    ]);
+    configs.implementationPlans = cfg("Plans integres de mise en oeuvre", "Integration, calendrier et livrables", "Enregistrer le plan integre", ["id", "projectId", "planType", "workstream", "ownerId", "startDate", "endDate", "milestone", "status"], [
+      input("id", "ID plan", "text", false, "Auto: IMP/P001A/2026"),
+      select("projectId", "Projet rattache", true, function () { return optionPairs(store.projects, "id", "title"); }),
+      select("planType", "Type de plan", true, ["Integrated implementation plan", "Chronogramme de mise en oeuvre", "M&E plan", "Budget execution plan", "Communication plan", "Procurement plan", "Risk response plan", "Quality management plan", "Resource management plan", "Change management plan"]),
+      input("workstream", "Composante / workstream", "text", true),
+      select("ownerId", "Responsable du plan", true, function () { return optionPairs(store.staffs, "id", staffFullName); }, true),
+      input("startDate", "Debut prevu", "date", true),
+      input("endDate", "Fin prevue", "date", true),
+      input("milestone", "Jalon principal", "text", true),
+      textarea("deliverable", "Livrable attendu"),
+      textarea("dependencies", "Dependances critiques"),
+      textarea("acceptanceCriteria", "Criteres d'acceptation / Definition of Done"),
+      textarea("controlMethod", "Methode de controle et frequence de revue")
+    ]);
+    configs.communicationPlans = cfg("Plan de communication", "Parties prenantes et information", "Enregistrer la ligne de communication", ["id", "projectId", "audience", "messageType", "channel", "frequency", "ownerId", "status"], [
+      input("id", "ID communication", "text", false, "Auto: COM/P001A/001"),
+      select("projectId", "Projet rattache", true, function () { return optionPairs(store.projects, "id", "title"); }),
+      select("stakeholderId", "Partie prenante cible", false, function (draft) { return projectStakeholderOptions(draft.projectId); }, true, "projectId"),
+      input("audience", "Audience / groupe cible", "text", true),
+      select("messageType", "Type de message", true, ["Decision", "Progress update", "Risk alert", "Community engagement", "Donor reporting", "Technical coordination", "Complaint feedback", "Other"]),
+      select("channel", "Canal", true, ["Email", "Reunion", "Telephone", "WhatsApp", "Rapport PDF", "Dashboard", "Atelier", "Radio communautaire", "Other"]),
+      input("frequency", "Frequence", "text", true, "Hebdomadaire / mensuelle / ad hoc"),
+      select("ownerId", "Responsable communication", true, function () { return optionPairs(store.staffs, "id", staffFullName); }, true),
+      textarea("contentStandard", "Format attendu, pieces jointes et niveau de validation")
+    ]);
+    configs.procurementPlans = cfg("Plan procurement", "Achats, contrats et fournisseurs", "Enregistrer le package procurement", ["id", "projectId", "packageName", "procurementMethod", "estimatedAmount", "plannedAwardDate", "ownerId", "status"], [
+      input("id", "ID package", "text", false, "Auto: PROC/P001A/001"),
+      select("projectId", "Projet rattache", true, function () { return optionPairs(store.projects, "id", "title"); }),
+      input("packageName", "Package / besoin a acheter", "text", true),
+      select("procurementMethod", "Methode procurement", true, ["Request for quotation", "Competitive bidding", "Direct contracting", "Framework agreement", "Purchase order", "Service contract", "Community procurement", "Other"]),
+      input("estimatedAmount", "Montant estime", "number", true),
+      select("currency", "Monnaie", true, currencyOptions()),
+      input("plannedLaunchDate", "Date lancement prevue", "date"),
+      input("plannedAwardDate", "Date attribution prevue", "date", true),
+      select("ownerId", "Responsable procurement", true, function () { return optionPairs(store.staffs, "id", staffFullName); }, true),
+      textarea("selectionCriteria", "Criteres de selection et conformite"),
+      textarea("deliveryRequirements", "Exigences de livraison / reception")
+    ]);
+    configs.riskRegisters = cfg("Registre des risques", "Risque, reponse et escalation", "Enregistrer le risque", ["id", "projectId", "riskCategory", "riskStatement", "probability", "impact", "responseStrategy", "ownerId", "riskStatus"], [
+      input("id", "ID risque", "text", false, "Auto: RISK/P001A/001"),
+      select("projectId", "Projet rattache", true, function () { return optionPairs(store.projects, "id", "title"); }),
+      select("riskCategory", "Categorie", true, ["Strategic", "Operational", "Financial", "Security", "Access", "Procurement", "Quality", "Safeguarding", "Data", "Stakeholder", "Other"]),
+      textarea("riskStatement", "Enonce du risque", "Formule: si [cause], alors [evenement], avec impact sur [objectif]."),
+      select("probability", "Probabilite", true, ["Low", "Medium", "High", "Very high"]),
+      select("impact", "Impact", true, ["Low", "Medium", "High", "Critical"]),
+      select("responseStrategy", "Strategie de reponse", true, ["Avoid", "Mitigate", "Transfer", "Accept", "Escalate"]),
+      select("ownerId", "Risk owner", true, function () { return optionPairs(store.staffs, "id", staffFullName); }, true),
+      textarea("mitigationAction", "Action de mitigation / contingence"),
+      input("reviewDate", "Date prochaine revue", "date"),
+      select("riskStatus", "Statut du risque", true, ["Open", "Monitoring", "Escalated", "Closed"])
+    ]);
+    configs.qualityPlans = cfg("Plan qualite", "Criteres, controles et acceptation", "Enregistrer le controle qualite", ["id", "projectId", "deliverable", "qualityStandard", "controlMethod", "ownerId", "reviewFrequency", "status"], [
+      input("id", "ID controle qualite", "text", false, "Auto: QLT/P001A/001"),
+      select("projectId", "Projet rattache", true, function () { return optionPairs(store.projects, "id", "title"); }),
+      input("deliverable", "Livrable / produit a controler", "text", true),
+      textarea("qualityStandard", "Standard qualite / criteres d'acceptation"),
+      select("controlMethod", "Methode de controle", true, ["Checklist", "Spot check", "Data quality review", "Field monitoring", "Peer review", "Beneficiary feedback", "Audit trail", "Other"]),
+      select("ownerId", "Responsable qualite", true, function () { return optionPairs(store.staffs, "id", staffFullName); }, true),
+      input("reviewFrequency", "Frequence de controle", "text", true, "Mensuelle / trimestrielle / a chaque livraison"),
+      textarea("evidenceRequired", "Preuves attendues")
+    ]);
+    configs.resourcePlans = cfg("Plan des ressources", "Equipe, capacite et responsabilites", "Enregistrer la ressource", ["id", "projectId", "resourceType", "roleOrAsset", "quantity", "ownerId", "availabilityWindow", "status"], [
+      input("id", "ID ressource", "text", false, "Auto: RES/P001A/001"),
+      select("projectId", "Projet rattache", true, function () { return optionPairs(store.projects, "id", "title"); }),
+      select("resourceType", "Type de ressource", true, ["Human resource", "Vehicle", "Asset", "Equipment", "Consultant", "Partner capacity", "Budget support", "Other"]),
+      input("roleOrAsset", "Role / asset / capacite", "text", true),
+      input("quantity", "Quantite / niveau de capacite", "number", true),
+      select("ownerId", "Responsable ressource", false, function () { return optionPairs(store.staffs, "id", staffFullName); }, true),
+      input("availabilityWindow", "Fenetre de disponibilite", "text", false, "Mai-Decembre 2026"),
+      textarea("constraints", "Contraintes, dependances et besoin de renforcement")
     ]);
     configs.projectActivities = cfg("Creation des activites associees au projet", "Plan de travail", "Enregistrer l'activite", ["id", "projectId", "modality", "grantCodes", "label", "startDate"], [
       select("projectId", "Projet rattache", true, function () { return optionPairs(store.projects, "id", "title"); }), input("id", "ID activite", "text", false, "Auto: Act001/P001A"), input("label", "Libelle", "text", true),
@@ -1011,7 +1137,7 @@
     if (state.page === "home") renderHome();
     else if (state.page === "overview") renderOverview();
     else if (state.page === "operationsDashboard") renderOperationsDashboard();
-    else if (state.page === "projectPlan") renderProjectWorkspace("Plan du projet", "Cadre projet", ["stakeholders", "projectActivities", "kpis", "projectSubActivities", "budgets", "grantInKinds", "baselines"]);
+    else if (state.page === "projectPlan") renderProjectWorkspace("Plan integre du projet", "Gouvernance et plans PMBOK", ["stakeholders", "implementationPlans", "projectActivities", "kpis", "projectSubActivities", "budgets", "processIndicators", "communicationPlans", "riskRegisters", "procurementPlans", "qualityPlans", "resourcePlans", "grantInKinds", "baselines"]);
     else if (state.page === "monthlyPlanning") renderProjectWorkspace("Planification mensuelle", "Planification", ["monthlyPlans", "processIndicators"]);
     else if (state.page === "executionWorkspace") renderProjectWorkspace("Execution", "Execution", ["monthlyReports", "monthlyExpenses", "recommendations", "processReports", "distributionReports"]);
     else if (state.page === "reportingWorkspace") renderProjectWorkspace("Reporting", "Reporting", ["progressReport", "partnerInvoice"]);
@@ -1070,6 +1196,12 @@
   function workspaceModuleMeta(pageId) {
     var page = pageById(pageId) || ["", pageId, ""];
     var map = {
+      implementationPlans: { icon: "I", title: "Plans integres", subtitle: "Consolider chronogramme, livrables, dependances et controles" },
+      communicationPlans: { icon: "C", title: "Communication", subtitle: "Definir audience, canal, frequence et validation" },
+      riskRegisters: { icon: "R", title: "Risques", subtitle: "Identifier, coter, assigner et suivre les reponses" },
+      procurementPlans: { icon: "P", title: "Procurement", subtitle: "Planifier packages, methode, montant et attribution" },
+      qualityPlans: { icon: "Q", title: "Qualite", subtitle: "Fixer criteres, controles et preuves d'acceptation" },
+      resourcePlans: { icon: "H", title: "Ressources", subtitle: "Planifier equipe, capacites, assets et contraintes" },
       stakeholders: { icon: "👥", title: "Parties prenantes", subtitle: "Cartographier les acteurs, roles et staffs partenaires" },
       projectActivities: { icon: "🧭", title: "Activites projet", subtitle: "Structurer les activites et les modalites" },
       kpis: { icon: "📊", title: "KPIs", subtitle: "Definir les indicateurs, cibles et sources" },
@@ -1099,12 +1231,12 @@
     setFormPanelMode(false, true);
     removeFilters();
     removeCreateButton();
-    elements.title.textContent = "Operations Management";
-    elements.kicker.textContent = "Gestion de projets, opérations, finances et reporting";
+    elements.title.textContent = "Project, Programme and Portfolio Management";
+    elements.kicker.textContent = "Strategie, gouvernance, execution, finances et reporting";
     elements.formKicker.textContent = "Connexion";
     elements.formTitle.textContent = "Accéder à l'application";
     setRegisterHeaderLabel("Accueil");
-    elements.tableTitle.textContent = "Bienvenue sur Operations Management";
+    elements.tableTitle.textContent = "Bienvenue sur Project, Programme and Portfolio Management";
     elements.tableCount.textContent = "";
     elements.form.innerHTML =
       '<div class="auth-panel active">' +
@@ -1114,11 +1246,11 @@
       '<button type="button" class="secondary-action full-width-action" id="open-register-button">Créer un compte</button>' +
       '<button type="button" class="link-action" id="forgot-password-button">Mot de passe oublié ?</button>' +
       '<small>Les nouveaux comptes sont créés avec le niveau Visiteur. Un administrateur attribue ensuite les accès.</small>' +
-      '<div class="service-access-help"><strong>Votre compte n&rsquo;est pas rattach&eacute; &agrave; OP Management ?</strong><span>Consultez les autres espaces NutVitaGlobalis auxquels vous avez acc&egrave;s.</span><div><a href="/services" target="_top">Tous les services</a><a href="/connexion" target="_top">Espace client</a><a href="/partenaire/connexion" target="_top">Espace nutritionniste</a><a href="/maximus/login" target="_top">Maximus</a></div></div>' +
+      '<div class="service-access-help"><strong>Votre compte n&rsquo;est pas rattach&eacute; &agrave; Project, Programme and Portfolio Management ?</strong><span>Consultez les autres espaces NutVitaGlobalis auxquels vous avez acc&egrave;s.</span><div><a href="/services" target="_top">Tous les services</a><a href="/connexion" target="_top">Espace client</a><a href="/partenaire/connexion" target="_top">Espace nutritionniste</a><a href="/maximus/login" target="_top">Maximus</a></div></div>' +
       '</div>';
     elements.tableHead.innerHTML = "";
     elements.tableBody.innerHTML = '<tr><td><section class="landing-hero">' +
-      '<div><p class="eyebrow">Plateforme opérationnelle</p><h2>Une application modulable pour piloter les projets de n’importe quelle organisation.</h2><p>Elle centralise les référentiels, la planification, l’exécution, les distributions, le budget, les factures, les recommandations et les rapports narratifs ou financiers.</p><div class="landing-icon-row"><span>Projets</span><span>Finance</span><span>Reporting</span><span>Accès</span></div></div>' +
+      '<div><p class="eyebrow">Plateforme P3M</p><h2>Une application modulable pour piloter portefeuilles, programmes et projets.</h2><p>Elle relie la strategie aux registres, plans integres, risques, budget, procurement, execution, preuves et rapports de progression.</p><div class="landing-icon-row"><span>Portefeuille</span><span>Plans</span><span>Risques</span><span>Reporting</span></div></div>' +
       '<div class="landing-product-visual" aria-hidden="true">' +
       '<div class="product-window"><div class="window-dots"><span></span><span></span><span></span></div><div class="window-title">Vue projet consolidée</div>' +
       '<div class="product-kpis"><span><strong>24</strong><small>Activités</small></span><span><strong>86%</strong><small>Réalisation</small></span><span><strong>12</strong><small>Sites</small></span></div>' +
@@ -1143,7 +1275,7 @@
 
   function homeLandingHtml() {
     return '<tr><td><section class="landing-banner" aria-hidden="true"></section><section class="landing-hero">' +
-      '<div><p class="eyebrow">Plateforme op&eacute;rationnelle</p><div class="landing-statement"><h2>Une application modulable pour piloter les projets de n&rsquo;importe quelle organisation.</h2></div><p>Elle centralise les r&eacute;f&eacute;rentiels, la planification, l&rsquo;ex&eacute;cution, les distributions, le budget, les factures, les recommandations et les rapports narratifs ou financiers.</p><div class="landing-icon-row"><span>Projets</span><span>Finance</span><span>Reporting</span><span>Acc&egrave;s</span></div></div>' +
+      '<div><p class="eyebrow">Plateforme P3M</p><div class="landing-statement"><h2>Une application modulable pour piloter portefeuilles, programmes et projets.</h2></div><p>Elle relie la strat&eacute;gie aux registres, plans int&eacute;gr&eacute;s, risques, budget, procurement, ex&eacute;cution, preuves et rapports de progression.</p><div class="landing-icon-row"><span>Portefeuille</span><span>Plans</span><span>Risques</span><span>Reporting</span></div></div>' +
       '<div class="landing-feature-stack" aria-label="Capacit&eacute;s cl&eacute;s">' +
       '<article><i aria-hidden="true">&#8761;</i><strong>Donn&eacute;es consolid&eacute;es</strong><span>Suivi clair des projets, sites, grants, activit&eacute;s et rapports.</span></article>' +
       '<article><i aria-hidden="true">&#9670;</i><strong>D&eacute;cision rapide</strong><span>Tableaux de bord, alertes, filtres et comparaisons planifi&eacute; versus r&eacute;alis&eacute;.</span></article>' +
@@ -1185,7 +1317,7 @@
     backdrop.className = "modal-backdrop";
     backdrop.id = "home-info-modal";
     backdrop.innerHTML = '<div class="modal-card home-info-card" role="dialog" aria-modal="true">' +
-      '<div class="modal-header"><div><p>Operations Management</p><h3>' + escapeHtml(content.title) + '</h3></div><button type="button" class="modal-close" data-close-home-info>x</button></div>' +
+      '<div class="modal-header"><div><p>Project, Programme and Portfolio Management</p><h3>' + escapeHtml(content.title) + '</h3></div><button type="button" class="modal-close" data-close-home-info>x</button></div>' +
       '<div class="home-info-body">' + content.html + '</div>' +
       '<div class="modal-actions"><button type="button" class="primary-action" data-close-home-info>J ai compris</button></div></div>';
     document.body.appendChild(backdrop);
@@ -1206,7 +1338,7 @@
     backdrop.innerHTML = '<div class="modal-card account-modal-card" role="dialog" aria-modal="true">' +
       '<div class="modal-header"><div><p>Accès utilisateur</p><h3>Créer un compte</h3></div><button type="button" class="modal-close" data-close-home-info>x</button></div>' +
       '<form id="create-account-form" class="modal-form account-form">' +
-      '<div class="account-intro"><span aria-hidden="true">+</span><div><strong>Bienvenue dans Operations Management</strong><small>Créez votre profil. Vos accès seront ensuite attribués par un administrateur selon votre périmètre d’intervention.</small></div></div>' +
+      '<div class="account-intro"><span aria-hidden="true">+</span><div><strong>Bienvenue dans Project, Programme and Portfolio Management</strong><small>Créez votre profil. Vos accès seront ensuite attribués par un administrateur selon votre périmètre d’intervention.</small></div></div>' +
       '<div class="form-grid">' +
       '<label>Nom<input name="regLastName" type="text" required></label>' +
       '<label>Prénom<input name="regFirstName" type="text" required></label>' +
@@ -1251,8 +1383,8 @@
       var token = createPasswordResetToken(user);
       saveStoredData();
       var link = resetPasswordLink(token);
-      var subject = encodeURIComponent("Reinitialisation du mot de passe - Operations Management");
-      var body = encodeURIComponent("Bonjour,\n\nVeuillez utiliser ce lien pour initialiser votre mot de passe Operations Management:\n" + link + "\n\nSi vous n'avez pas demande cette action, ignorez ce message.");
+      var subject = encodeURIComponent("Reinitialisation du mot de passe - Project, Programme and Portfolio Management");
+      var body = encodeURIComponent("Bonjour,\n\nVeuillez utiliser ce lien pour initialiser votre mot de passe Project, Programme and Portfolio Management:\n" + link + "\n\nSi vous n'avez pas demande cette action, ignorez ce message.");
       window.location.href = "mailto:" + encodeURIComponent(user.email) + "?subject=" + subject + "&body=" + body;
       window.alert("Le lien de reinitialisation a ete prepare dans votre client email.");
       closeHomeInfoModal();
@@ -1339,7 +1471,7 @@
     }
     return {
       title: "Copyright",
-      html: '<p>Copyright (c) ' + new Date().getFullYear() + ' Operations Management. Tous droits reserves.</p><p>L application, sa structure, ses formulaires, ses tableaux de bord et ses modeles de rapports sont destines a l usage autorise de l organisation qui l exploite. Toute reproduction, redistribution ou adaptation non autorisee est interdite sans accord prealable.</p>'
+      html: '<p>Copyright (c) ' + new Date().getFullYear() + ' Project, Programme and Portfolio Management. Tous droits reserves.</p><p>L application, sa structure, ses formulaires, ses tableaux de bord et ses modeles de rapports sont destines a l usage autorise de l organisation qui l exploite. Toute reproduction, redistribution ou adaptation non autorisee est interdite sans accord prealable.</p>'
     };
   }
 
@@ -1348,15 +1480,15 @@
     var password = formValue("loginPassword");
     var user = findUserByEmail(email);
     if (!user) {
-      window.alert("Ce compte ne dispose pas d'un acces a OP Management. Verifiez l'adresse utilisee pour ce service ou consultez les autres services NutVitaGlobalis proposes sous le formulaire.");
+      window.alert("Ce compte ne dispose pas d'un acces a Project, Programme and Portfolio Management. Verifiez l'adresse utilisee pour ce service ou consultez les autres services NutVitaGlobalis proposes sous le formulaire.");
       return;
     }
     if (user.status === "Inactive") {
-      window.alert("Votre acces a OP Management est inactif. Contactez l'administrateur du service.");
+      window.alert("Votre acces a Project, Programme and Portfolio Management est inactif. Contactez l'administrateur du service.");
       return;
     }
     if (user.password !== password) {
-      window.alert("Mot de passe OP Management incorrect.");
+      window.alert("Mot de passe Project, Programme and Portfolio Management incorrect.");
       return;
     }
     saveCurrentUser(user.email);
@@ -1430,16 +1562,16 @@
   function renderOverview() {
     setFormPanelMode(false, false);
     removeFilters();
-    elements.title.textContent = "Configuration Field Level Agreement";
-    elements.kicker.textContent = "Referentiels, projets et suivi";
+    elements.title.textContent = "Configuration Project, Programme and Portfolio";
+    elements.kicker.textContent = "Organisation, strategie, gouvernance, plans et suivi";
     elements.formKicker.textContent = "Flux recommande";
     elements.formTitle.textContent = "Ordre de configuration";
     elements.tableTitle.textContent = "Synthese des registres";
-    elements.tableCount.textContent = "29";
-    elements.form.innerHTML = '<div class="empty-state"><strong>1. Creer les referentiels</strong><p>Offices in charge, FDP, sites administratifs, partenaires cooperants, Coops/GICs, documents strategiques, grants et staffs.</p><strong>2. Creer les projets</strong><p>Rattacher chaque projet a un document strategique, un partenaire cooperant, un grant, des sites, des SO et des activites.</p><strong>3. Ajouter le suivi</strong><p>Parties prenantes et staff partenaire, activites projet, KPIs, budget detaille et baseline.</p></div>';
+    elements.tableCount.textContent = "52";
+    elements.form.innerHTML = '<div class="empty-state"><strong>1. Configurer l organisation</strong><p>Enregistrer la structure, ses bureaux, ses staffs, ses partenaires, ses sites et ses documents strategiques.</p><strong>2. Structurer la gouvernance</strong><p>Creer les portefeuilles, programmes et projets; relier chaque projet a la strategie, au financement, aux sites et au partenaire.</p><strong>3. Construire les plans PMBOK</strong><p>Documenter le plan integre, le chronogramme, le budget, le plan M&E, les risques, la communication, le procurement, la qualite et les ressources.</p><strong>4. Suivre l execution</strong><p>Renseigner les plans mensuels, realisations, depenses, process monitoring, recommandations, distributions et preuves de mise en oeuvre.</p><strong>5. Produire les rapports</strong><p>Generer les progress reports par periode ajustable, rapports financiers, factures et impressions de registres.</p></div>';
     elements.tableHead.innerHTML = "<tr><th>Module</th><th>Enregistrements</th><th>Action utile</th></tr>";
     var rows = "";
-    var keys = ["fieldOffices", "sites", "fdps", "partners", "cooperativePartners", "strategicDocuments", "grants", "staffs", "partnerStaffs", "projects", "stakeholders", "projectActivities", "projectSubActivities", "monthlyPlans", "monthlyReports", "monthlyExpenses", "recommendations", "distributionReports", "nfis", "nfiDistributions", "nfiInventories", "partnerInvoices", "partnerInvoicePayments", "processIndicators", "processReports", "amendments", "users", "kpis", "budgets", "grantInKinds", "baselines", "hgsfIngredients", "hgsfMenus", "hgsfSchoolMenus", "hgsfEstimations", "hgsfPurchaseOrders", "hgsfDeliveries", "hgsfDeliveryInvoices", "hgsfInvoicePayments", "hgsfSchoolCoopPayments", "assistanceRations", "gfdNeeds", "cbtNeeds", "nutritionNeeds"];
+    var keys = ["workspaceProfiles", "fieldOffices", "sites", "fdps", "partners", "cooperativePartners", "strategicDocuments", "grants", "staffs", "partnerStaffs", "portfolios", "programmes", "projects", "stakeholders", "implementationPlans", "projectActivities", "projectSubActivities", "monthlyPlans", "monthlyReports", "monthlyExpenses", "recommendations", "distributionReports", "nfis", "nfiDistributions", "nfiInventories", "partnerInvoices", "partnerInvoicePayments", "processIndicators", "processReports", "communicationPlans", "procurementPlans", "riskRegisters", "qualityPlans", "resourcePlans", "amendments", "users", "kpis", "budgets", "grantInKinds", "baselines", "hgsfIngredients", "hgsfMenus", "hgsfSchoolMenus", "hgsfEstimations", "hgsfPurchaseOrders", "hgsfDeliveries", "hgsfDeliveryInvoices", "hgsfInvoicePayments", "hgsfSchoolCoopPayments", "assistanceRations", "gfdNeeds", "cbtNeeds", "nutritionNeeds"];
     for (var i = 0; i < keys.length; i += 1) rows += "<tr><td>" + pageLabel(keys[i]) + "</td><td>" + store[keys[i]].length + "</td><td>" + nextAction(keys[i]) + "</td></tr>";
     elements.tableBody.innerHTML = rows;
   }
@@ -3780,7 +3912,7 @@
   }
 
   function projectScopedPage(pageId) {
-    return ["stakeholders", "projectActivities", "kpis", "projectSubActivities", "budgets", "grantInKinds", "baselines", "monthlyPlans", "processIndicators", "monthlyReports", "monthlyExpenses", "recommendations", "processReports", "distributionReports", "partnerInvoices", "partnerInvoicePayments", "nfis", "nfiDistributions", "nfiInventories"].indexOf(pageId) > -1;
+    return ["stakeholders", "implementationPlans", "projectActivities", "kpis", "projectSubActivities", "budgets", "grantInKinds", "baselines", "monthlyPlans", "processIndicators", "communicationPlans", "procurementPlans", "riskRegisters", "qualityPlans", "resourcePlans", "monthlyReports", "monthlyExpenses", "recommendations", "processReports", "distributionReports", "partnerInvoices", "partnerInvoicePayments", "nfis", "nfiDistributions", "nfiInventories"].indexOf(pageId) > -1;
   }
 
   function setFormPanelMode(isModal, isVisible) {
@@ -5272,6 +5404,14 @@
       staffs: { sex: true, fieldOfficeId: true, staffStatus: true, reportsTo: true },
       fdps: { fdpType: true, arrondissement: true, siteFocalPointSex: true },
       stakeholders: { projectId: true, type: true, fdpIds: true },
+      portfolios: { strategicDocumentId: true, ownerId: true, priority: true },
+      programmes: { portfolioId: true, strategicDocumentId: true, managerId: true },
+      implementationPlans: { projectId: true, planType: true, ownerId: true },
+      communicationPlans: { projectId: true, messageType: true, channel: true, ownerId: true },
+      procurementPlans: { projectId: true, procurementMethod: true, ownerId: true },
+      riskRegisters: { projectId: true, riskCategory: true, probability: true, impact: true, responseStrategy: true, riskStatus: true },
+      qualityPlans: { projectId: true, controlMethod: true, ownerId: true },
+      resourcePlans: { projectId: true, resourceType: true, ownerId: true },
       projectActivities: { projectId: true, modality: true, grantCodes: true, startDate: true, endDate: true },
       monthlyPlans: { projectId: true, activityId: true, month: true },
       processIndicators: { projectId: true },
@@ -5289,6 +5429,10 @@
 
   function genericFilterOptions(field) {
     if (field === "projectId") return optionPairs(store.projects, "id", "title");
+    if (field === "portfolioId") return optionPairs(store.portfolios, "id", "title");
+    if (field === "programmeId") return optionPairs(store.programmes, "id", "title");
+    if (field === "ownerId" || field === "managerId") return optionPairs(store.staffs, "id", staffFullName);
+    if (field === "strategicDocumentId") return optionPairs(store.strategicDocuments, "id", "name");
     if (field === "fieldOfficeId") return optionPairs(store.fieldOffices, "id", "name");
     if (field === "partnerVendor") return optionPairs(store.partners, "vendor", "name");
     if (field === "invoiceId") return optionPairs(store.partnerInvoices, "id", function (inv) { return inv.id; });
@@ -6888,6 +7032,10 @@
         if (state.page === "hgsfPurchaseOrders" && column === "schoolFdpIds") value = hgsfSchoolIdsLabel(records[r].schoolFdpIds || []);
         if (state.page === "hgsfPurchaseOrders" && column === "periodFrom") value = (records[r].periodFrom || "") + " - " + (records[r].periodTo || "");
         if (state.page === "staffs" && column === "fieldOfficeId") value = fieldOfficeLabel(records[r][column]);
+        if (column === "portfolioId") value = resolveReferenceLabel("portfolioId", records[r][column]);
+        if (column === "programmeId") value = resolveReferenceLabel("programmeId", records[r][column]);
+        if (column === "ownerId" || column === "managerId") value = resolveReferenceLabel("staffId", records[r][column]);
+        if (column === "strategicDocumentId") value = resolveReferenceLabel("strategicDocumentId", records[r][column]);
         if (state.page === "projects" && column === "fdpIds") value = projectFdpsLabel(records[r]);
         if (state.page === "monthlyPlans" && column === "grantContributions") value = monthlyGrantContributionsLabel(records[r]);
         if (state.page === "monthlyPlans" && column === "subActivityLabel") value = subActivityLabel(records[r].subActivityId);
@@ -7487,7 +7635,7 @@
   function reportActions(id) {
     if (state.page === "users") {
       var user = findByRecordId(store.users, id);
-      var html = '<button type="button" data-action="print" data-id="' + escapeHtml(id) + '">Imprimer</button>';
+      var html = '<button type="button" data-action="view" data-id="' + escapeHtml(id) + '">Voir</button><button type="button" data-action="print" data-id="' + escapeHtml(id) + '">Imprimer</button>';
       if (userCanWorkflowAction(user, "edit")) html += '<button type="button" data-action="edit" data-id="' + escapeHtml(id) + '">Modifier acces</button>';
       if (userCanWorkflowAction(user, "delete")) html += '<button type="button" data-action="delete" data-id="' + escapeHtml(id) + '">Supprimer</button>';
       return html;
@@ -7785,7 +7933,8 @@
     if (!record) return "";
     var id = escapeHtml(recordKey(record));
     var status = normalizeWorkflowStatus(record.status);
-    var html = userCanWorkflowAction(record, "print") ? '<button type="button" data-action="print" data-id="' + id + '">Imprimer</button>' : "";
+    var html = userCanWorkflowAction(record, "view") ? '<button type="button" data-action="view" data-id="' + id + '">Voir</button>' : "";
+    if (userCanWorkflowAction(record, "print")) html += '<button type="button" data-action="print" data-id="' + id + '">Imprimer</button>';
     if (status === "Draft" || status === "Returned") {
       if (userCanWorkflowAction(record, "edit")) html += '<button type="button" data-action="edit" data-id="' + id + '">Modifier</button>';
       if (userCanWorkflowAction(record, "submit")) html += '<button type="button" data-action="submit" data-id="' + id + '">Soumettre</button>';
@@ -7830,6 +7979,10 @@
       return;
     }
     if (action === "preview") {
+      showPreview(record, false);
+      return;
+    }
+    if (action === "view") {
       showPreview(record, false);
       return;
     }
@@ -9238,8 +9391,11 @@
     if (pageId === "sites") return normalizeSiteDraft({ country: "Cameroon" });
     if (pageId === "fdps") return { arrondissement: firstArrondissement(), id: generatedFdpId({ arrondissement: firstArrondissement() }, "") };
     if (pageId === "cooperativePartners") return normalizeCooperativePartnerDraft({ country: "Cameroon", organizationType: "Cooperative" });
+    if (pageId === "workspaceProfiles") return { id: generatedSimpleSequentialId("ORG", store.workspaceProfiles, ""), country: "Cameroon", organizationType: "ONG" };
     if (pageId === "strategicDocuments") return { id: generatedMonthYearId("DOC", store.strategicDocuments, todayIsoDate(), ""), name: "CSP2", validFrom: currentMonthValue(), validTo: String(new Date().getFullYear() + 4) + "-12", soIds: ["SO1"], cspActivityIds: ["A1"] };
-    if (pageId === "projects") return { currency: "XAF" };
+    if (pageId === "portfolios") return { id: generatedSimpleSequentialId("PORT", store.portfolios, ""), strategicDocumentId: firstStrategicDocumentId(), ownerId: firstStaffId(), priority: "High", governanceCadence: "Monthly portfolio review" };
+    if (pageId === "programmes") return { id: generatedSimpleSequentialId("PRG", store.programmes, ""), portfolioId: firstPortfolioId(), strategicDocumentId: firstStrategicDocumentId(), managerId: firstStaffId(), startDate: todayIsoDate() };
+    if (pageId === "projects") return { currency: "XAF", portfolioId: firstPortfolioId(), programmeId: firstProgrammeId(firstPortfolioId()) };
     if (pageId === "stakeholders") return { projectId: activeProject, localizedStakeholder: "Non", localizationLevel: "FDP", localizationCountry: "Cameroon", isPartnerStaff: "Non", id: generatedStakeholderId({ projectId: activeProject }, "") };
     if (pageId === "partnerStaffs") {
       var partnerStaffProject = findByRecordId(store.projects, firstProjectId()) || {};
@@ -9249,6 +9405,12 @@
     if (pageId === "projectSubActivities") return { projectId: activeProject, activityId: firstActivityId(activeProject), id: generatedSubActivityId({ projectId: activeProject, activityId: firstActivityId(activeProject) }, "") };
     if (pageId === "kpis") return { projectId: activeProject, activityId: firstActivityId(activeProject), id: generatedKpiId({ projectId: activeProject, activityId: firstActivityId(activeProject) }, "") };
     if (pageId === "processIndicators") return { projectId: activeProject, kpiIds: [], processKpiDetails: [], id: generatedProcessIndicatorId({ projectId: activeProject }, "") };
+    if (pageId === "implementationPlans") return { id: generatedSimpleSequentialId("IMP", store.implementationPlans, "/" + activeProject), projectId: activeProject, planType: "Integrated implementation plan", ownerId: firstStaffId(), startDate: todayIsoDate() };
+    if (pageId === "communicationPlans") return { id: generatedSimpleSequentialId("COM", store.communicationPlans, "/" + activeProject), projectId: activeProject, messageType: "Progress update", channel: "Reunion", frequency: "Mensuelle", ownerId: firstStaffId() };
+    if (pageId === "procurementPlans") return { id: generatedSimpleSequentialId("PROC", store.procurementPlans, "/" + activeProject), projectId: activeProject, procurementMethod: "Request for quotation", currency: projectCurrency(activeProject), ownerId: firstStaffId() };
+    if (pageId === "riskRegisters") return { id: generatedSimpleSequentialId("RISK", store.riskRegisters, "/" + activeProject), projectId: activeProject, riskCategory: "Operational", probability: "Medium", impact: "High", responseStrategy: "Mitigate", ownerId: firstStaffId(), riskStatus: "Open" };
+    if (pageId === "qualityPlans") return { id: generatedSimpleSequentialId("QLT", store.qualityPlans, "/" + activeProject), projectId: activeProject, controlMethod: "Checklist", ownerId: firstStaffId(), reviewFrequency: "Mensuelle" };
+    if (pageId === "resourcePlans") return { id: generatedSimpleSequentialId("RES", store.resourcePlans, "/" + activeProject), projectId: activeProject, resourceType: "Human resource", quantity: 1, ownerId: firstStaffId() };
     if (pageId === "budgets") return { projectId: activeProject, grantCode: firstGrantCodeForProject(activeProject), costCategory: firstCostCategory(), subCategory: firstSubCategory(firstCostCategory()), id: generatedBudgetId({ projectId: activeProject, costCategory: firstCostCategory(), subCategory: firstSubCategory(firstCostCategory()) }, "") };
     if (pageId === "grantInKinds") return normalizeGrantInKindDraft({ projectId: activeProject, grantCode: firstGrantCodeForProject(activeProject), hasInKind: "Non" });
     if (pageId === "monthlyPlans") {
@@ -10037,6 +10199,33 @@
     return store.projects.length ? store.projects[0].id : "";
   }
 
+  function firstStrategicDocumentId() {
+    return store.strategicDocuments.length ? store.strategicDocuments[0].id : "";
+  }
+
+  function firstPortfolioId() {
+    return store.portfolios.length ? store.portfolios[0].id : "";
+  }
+
+  function firstProgrammeId(portfolioId) {
+    for (var i = 0; i < store.programmes.length; i += 1) {
+      if (!portfolioId || store.programmes[i].portfolioId === portfolioId) return store.programmes[i].id;
+    }
+    return "";
+  }
+
+  function firstStaffId() {
+    return store.staffs.length ? store.staffs[0].id : "";
+  }
+
+  function programmeOptionsForPortfolio(portfolioId) {
+    var out = [];
+    for (var i = 0; i < store.programmes.length; i += 1) {
+      if (!portfolioId || store.programmes[i].portfolioId === portfolioId) out.push({ value: store.programmes[i].id, label: store.programmes[i].id + " - " + store.programmes[i].title });
+    }
+    return out;
+  }
+
   function firstArrondissement() {
     var options = arrondissementOptions();
     return options.length ? options[0].value : "";
@@ -10185,7 +10374,7 @@
   }
 
   function migrateWorkflowStatuses() {
-    var keys = ["fieldOffices", "sites", "fdps", "partners", "cooperativePartners", "strategicDocuments", "grants", "staffs", "partnerStaffs", "projects", "stakeholders", "projectActivities", "projectSubActivities", "monthlyPlans", "monthlyReports", "monthlyExpenses", "recommendations", "distributionReports", "nfis", "nfiDistributions", "nfiInventories", "partnerInvoices", "partnerInvoicePayments", "processIndicators", "processReports", "amendments", "distributionCycles", "kpis", "budgets", "grantInKinds", "baselines", "hgsfIngredients", "hgsfMenus", "hgsfSchoolMenus", "hgsfEstimations", "hgsfPurchaseOrders", "hgsfDeliveries", "hgsfDeliveryInvoices", "hgsfInvoicePayments", "hgsfSchoolCoopPayments", "assistanceRations", "gfdNeeds", "cbtNeeds", "nutritionNeeds"];
+    var keys = ["workspaceProfiles", "fieldOffices", "sites", "fdps", "partners", "cooperativePartners", "strategicDocuments", "grants", "staffs", "partnerStaffs", "portfolios", "programmes", "projects", "stakeholders", "implementationPlans", "communicationPlans", "procurementPlans", "riskRegisters", "qualityPlans", "resourcePlans", "projectActivities", "projectSubActivities", "monthlyPlans", "monthlyReports", "monthlyExpenses", "recommendations", "distributionReports", "nfis", "nfiDistributions", "nfiInventories", "partnerInvoices", "partnerInvoicePayments", "processIndicators", "processReports", "amendments", "distributionCycles", "kpis", "budgets", "grantInKinds", "baselines", "hgsfIngredients", "hgsfMenus", "hgsfSchoolMenus", "hgsfEstimations", "hgsfPurchaseOrders", "hgsfDeliveries", "hgsfDeliveryInvoices", "hgsfInvoicePayments", "hgsfSchoolCoopPayments", "assistanceRations", "gfdNeeds", "cbtNeeds", "nutritionNeeds"];
     for (var i = 0; i < keys.length; i += 1) {
       var items = store[keys[i]] || [];
       for (var j = 0; j < items.length; j += 1) items[j].status = normalizeWorkflowStatus(items[j].status);
@@ -10200,6 +10389,8 @@
     for (var i = 0; i < store.projects.length; i += 1) {
       if (!store.projects[i].grantCodes) store.projects[i].grantCodes = store.projects[i].grantCode ? [store.projects[i].grantCode] : [];
       if (!store.projects[i].currency) store.projects[i].currency = "XAF";
+      if (!store.projects[i].portfolioId) store.projects[i].portfolioId = firstPortfolioId();
+      if (!store.projects[i].programmeId) store.projects[i].programmeId = firstProgrammeId(store.projects[i].portfolioId);
     }
   }
 
@@ -10308,8 +10499,8 @@
   function userCanWorkflowAction(record, action) {
     var user = currentUser();
     if (!user) return false;
-    if (state.page === "users" && record && record.email === adminEmail && user.email !== adminEmail && action !== "print" && action !== "preview") return false;
-    if (action === "print" || action === "preview") return userCanAccessRecord(record, state.page);
+    if (state.page === "users" && record && record.email === adminEmail && user.email !== adminEmail && action !== "print" && action !== "preview" && action !== "view") return false;
+    if (action === "print" || action === "preview" || action === "view") return userCanAccessRecord(record, state.page);
     if (isAdminUser(user)) return true;
     if (!userCanAccessRecord(record, state.page)) return false;
     if (action === "delete" || action === "return") return user.role === "Validator";
@@ -10548,7 +10739,7 @@
     elements.metricProjects.textContent = store.projects.length;
     elements.metricBudget.textContent = (budgetParts.join(" + ") || "0") + " budgetise";
     elements.metricKpis.textContent = store.kpis.length;
-    elements.portfolioCount.textContent = store.projects.length + " projets - " + store.grants.length + " grants";
+    elements.portfolioCount.textContent = store.portfolios.length + " portefeuille(s) - " + store.programmes.length + " programme(s) - " + store.projects.length + " projet(s)";
   }
 
   function syncContextDefaults() {
@@ -11532,6 +11723,14 @@
       item = findByRecordId(store.projects, id);
       return item ? id + " - " + item.title : id;
     }
+    if (key === "portfolioId") {
+      item = findByRecordId(store.portfolios, id);
+      return item ? id + " - " + item.title : id;
+    }
+    if (key === "programmeId") {
+      item = findByRecordId(store.programmes, id);
+      return item ? id + " - " + item.title : id;
+    }
     if (key === "strategicDocumentId") {
       item = findByRecordId(store.strategicDocuments, id);
       return item ? id + " - " + item.name : id;
@@ -11605,7 +11804,7 @@
   }
 
   function isStaffReferenceKey(key) {
-    return key === "reportsTo" || key === "pamOwner" || key === "pamFocalPoint" || key === "reportedBy" || key === "validatedBy" || key === "requestedBy" || key === "responsiblePam" || key === "personResponsible";
+    return key === "staffId" || key === "ownerId" || key === "managerId" || key === "reportsTo" || key === "pamOwner" || key === "pamFocalPoint" || key === "reportedBy" || key === "validatedBy" || key === "requestedBy" || key === "responsiblePam" || key === "personResponsible";
   }
 
   function staffFullName(staff) {
@@ -11640,6 +11839,38 @@
   function labelize(value) {
     var labels = {
       projectId: "ID Projet",
+      portfolioId: "Portefeuille",
+      programmeId: "Programme",
+      organizationName: "Organisation",
+      organizationType: "Type de structure",
+      governanceModel: "Modele de gouvernance",
+      ownerId: "Responsable",
+      managerId: "Manager",
+      valueStatement: "Valeur attendue",
+      expectedBenefits: "Benefices attendus",
+      planType: "Type de plan",
+      workstream: "Composante",
+      milestone: "Jalon",
+      deliverable: "Livrable",
+      dependencies: "Dependances",
+      acceptanceCriteria: "Criteres d'acceptation",
+      riskCategory: "Categorie risque",
+      riskStatement: "Enonce du risque",
+      probability: "Probabilite",
+      impact: "Impact",
+      responseStrategy: "Strategie de reponse",
+      mitigationAction: "Action mitigation",
+      riskStatus: "Statut risque",
+      messageType: "Type message",
+      procurementMethod: "Methode procurement",
+      packageName: "Package procurement",
+      estimatedAmount: "Montant estime",
+      plannedAwardDate: "Attribution prevue",
+      qualityStandard: "Standard qualite",
+      controlMethod: "Methode controle",
+      resourceType: "Type ressource",
+      roleOrAsset: "Role / asset",
+      availabilityWindow: "Disponibilite",
       strategicDocumentId: "Document strategique",
       agreementNumber: "Numero accord / contrat",
       validFrom: "Valide de",
@@ -11787,6 +12018,9 @@
   function nextAction(key) {
     var map = {
       fieldOffices: "Verifier staffing et vehicules actifs",
+      workspaceProfiles: "Completer la gouvernance et le point focal",
+      portfolios: "Relier la valeur attendue au document strategique",
+      programmes: "Definir les benefices et la coordination inter-projets",
       strategicDocuments: "Definir SO et activites strategiques utilisables",
       sites: "Completer les arrondissements prioritaires",
       fdps: "Rattacher les points de distribution aux arrondissements",
@@ -11810,6 +12044,7 @@
       nutritionNeeds: "Estimer les besoins Nutrition",
       projects: "Ajouter activites, KPI et budget",
       stakeholders: "Cartographier interets majeurs",
+      implementationPlans: "Consolider livrables, dependances et jalons",
       projectActivities: "Definir les KPI",
       projectSubActivities: "Associer les KPIs aux sous activites",
       monthlyPlans: "Planifier cible, KPI, FDP et grant rattache",
@@ -11826,6 +12061,11 @@
       partnerInvoice: "Generer les factures partenaire",
       kpis: "Renseigner les cibles",
       budgets: "Comparer budget projet et lignes detaillees",
+      communicationPlans: "Clarifier audience, canal et frequence de partage",
+      procurementPlans: "Suivre packages, methode et date d'attribution",
+      riskRegisters: "Prioriser les risques et actions de mitigation",
+      qualityPlans: "Fixer controles, criteres et preuves d'acceptation",
+      resourcePlans: "Verifier capacite, assets et contraintes",
       baselines: "Documenter sources et valeurs"
     };
     return map[key] || "";

@@ -9,7 +9,7 @@ create table if not exists public.platform_service_access (
   unique(user_id,service_key)
 );
 alter table public.platform_service_access drop constraint if exists platform_service_access_service_key_check;
-alter table public.platform_service_access add constraint platform_service_access_service_key_check check(service_key in ('client','academy','health','child_growth','teleconsultation','recruitment','nutritrack','maximus','administration'));
+alter table public.platform_service_access add constraint platform_service_access_service_key_check check(service_key in ('client','academy','health','child_growth','teleconsultation','survey','project_management','recruitment','nutritrack','maximus','administration'));
 create table if not exists public.platform_session_selections (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -18,6 +18,9 @@ create table if not exists public.platform_session_selections (
 );
 alter table public.formations add column if not exists academy_course_id uuid unique;
 alter table public.formations add column if not exists source text not null default 'nutvita';
+
+-- Principal accounts can enter the operational nutritionist workspace without a recruitment application.
+alter table public.dietitian_profiles alter column application_id drop not null;
 
 create or replace function public.is_platform_principal() returns boolean language sql stable security definer set search_path=public as $$
   select public.is_super_admin() or lower(coalesce((select email from auth.users where id=(select auth.uid())),'')) in ('pauln.zebaze@gmail.com','contact@nutvitaglobalis.com');
@@ -41,10 +44,16 @@ select id,email,coalesce(raw_user_meta_data->>'full_name',email),'super_admin',t
 where lower(email) in ('pauln.zebaze@gmail.com','contact@nutvitaglobalis.com')
 on conflict(id) do update set role='super_admin',active=true,email=excluded.email;
 
+insert into public.dietitian_profiles(id,candidate_id,application_id,status,full_name,specialties,languages)
+select id,id,null,'active',coalesce(raw_user_meta_data->>'full_name',email),array[]::text[],array[]::text[] from auth.users
+where lower(email) in ('pauln.zebaze@gmail.com','contact@nutvitaglobalis.com')
+on conflict(candidate_id) do update set status='active',full_name=excluded.full_name;
+
 insert into public.platform_service_access(user_id,service_key,roles)
 select u.id,s.service_key,s.roles from auth.users u cross join (values
   ('client',array['client']),('academy',array['student','instructor','admin']),('health',array['client','nutritionist','admin']),
   ('child_growth',array['client','nutritionist','admin']),('teleconsultation',array['client','nutritionist','admin']),
+  ('survey',array['client','admin']),('project_management',array['client','admin']),
   ('recruitment',array['candidate','admin']),
   ('nutritrack',array['client','admin']),('maximus',array['staff','admin']),('administration',array['admin'])
 ) as s(service_key,roles) where lower(u.email) in ('pauln.zebaze@gmail.com','contact@nutvitaglobalis.com')

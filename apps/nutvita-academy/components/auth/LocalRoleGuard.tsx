@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   LoaderCircle,
   ShieldAlert,
@@ -22,7 +21,6 @@ export function LocalRoleGuard({
   children,
   allowedRoles,
 }: LocalRoleGuardProps) {
-  const router = useRouter();
   const { text } = useLanguage();
 
   const {
@@ -33,12 +31,12 @@ export function LocalRoleGuard({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace("/login");
+      const origin = process.env.NEXT_PUBLIC_PLATFORM_ORIGIN?.replace(/\/$/, "") ?? "";
+      window.location.assign(`${origin}/connexion?redirect=${encodeURIComponent("/choisir-acces")}`);
     }
   }, [
     isAuthenticated,
     isLoading,
-    router,
   ]);
 
   if (isLoading) {

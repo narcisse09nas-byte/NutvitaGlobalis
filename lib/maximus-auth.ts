@@ -18,10 +18,10 @@ export async function requireMaximusAccess(module?: string) {
     return { supabase: createLocalClient(), user: admin, admin, isSuperAdmin: true, allowedModules: undefined };
   }
 
-  if (!hasSupabaseConfig()) redirect("/maximus/login?setup=1");
+  if (!hasSupabaseConfig()) redirect("/connexion?erreur=configuration");
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/maximus/login");
+  if (!user) redirect("/connexion?redirect=/choisir-acces");
 
   const [{ data: admin }, { data: access }] = await Promise.all([
     supabase.from("admin_users").select("id,email,full_name,role,active").eq("id", user.id).eq("active", true).maybeSingle(),
@@ -29,8 +29,7 @@ export async function requireMaximusAccess(module?: string) {
   ]);
   const isSuperAdmin = admin?.role === "super_admin";
   if (!isSuperAdmin && !access) {
-    await supabase.auth.signOut();
-    redirect("/maximus/login?unauthorized=1");
+    redirect("/choisir-acces?erreur=maximus_non_autorise");
   }
   const allowedModules = isSuperAdmin ? undefined : modulesForAccess(
     Array.isArray(access!.units) && access!.units.length ? access!.units : [access!.unit],

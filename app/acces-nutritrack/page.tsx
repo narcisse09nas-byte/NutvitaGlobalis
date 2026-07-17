@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import NutriTrackAccess from '@/components/nutritrack/NutriTrackAccess';
 import { getNutriTrackAccess } from '@/lib/nutritrack-auth';
+import { redirect } from 'next/navigation';
 
 export const metadata = { title: 'Acces NutriTrack' };
 
 export default async function NutriTrackAccessPage() {
-  const { user, organization } = await getNutriTrackAccess();
+  const { user, member, organization } = await getNutriTrackAccess();
+  if (user && member?.status === 'active' && organization?.status === 'approved') redirect('/nutritrack');
   return (
     <main className="min-h-screen bg-slate-100 px-5 py-10">
       <div className="mx-auto mb-8 max-w-3xl">

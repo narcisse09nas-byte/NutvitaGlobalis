@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 
 import { useLocalAuth } from "@/hooks/use-local-auth";
@@ -12,7 +11,6 @@ export function LocalAuthGuard({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const { text } = useLanguage();
 
   const {
@@ -22,20 +20,12 @@ export function LocalAuthGuard({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace(
-        "/login?error=" +
-          encodeURIComponent(
-            text(
-              "Veuillez vous connecter pour accéder au tableau de bord.",
-              "Please sign in to access the dashboard.",
-            )
-          )
-      );
+      const origin = process.env.NEXT_PUBLIC_PLATFORM_ORIGIN?.replace(/\/$/, "") ?? "";
+      window.location.assign(`${origin}/connexion?redirect=${encodeURIComponent("/choisir-acces")}`);
     }
   }, [
     isAuthenticated,
     isLoading,
-    router,
     text,
   ]);
 

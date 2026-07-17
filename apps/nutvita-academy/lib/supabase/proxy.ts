@@ -74,9 +74,8 @@ export async function updateSession(
     await supabase.auth.getUser();
 
   const isDashboardRoute =
-    request.nextUrl.pathname.startsWith(
-      "/dashboard"
-    );
+    request.nextUrl.pathname.startsWith("/dashboard") ||
+    request.nextUrl.pathname.startsWith("/academy/dashboard");
 
   const isAuthRoute =
     request.nextUrl.pathname.startsWith(
@@ -87,16 +86,9 @@ export async function updateSession(
     isDashboardRoute &&
     !user
   ) {
-    const url =
-      request.nextUrl.clone();
-
-    url.pathname =
-      "/auth/sign-in";
-
-    url.searchParams.set(
-      "next",
-      request.nextUrl.pathname
-    );
+    const platformOrigin = process.env.NEXT_PUBLIC_PLATFORM_ORIGIN?.replace(/\/$/, "") || request.nextUrl.origin;
+    const url = new URL("/connexion", platformOrigin);
+    url.searchParams.set("redirect", "/choisir-acces");
 
     return NextResponse.redirect(
       url

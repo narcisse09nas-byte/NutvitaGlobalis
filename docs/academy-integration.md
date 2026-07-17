@@ -24,4 +24,4 @@ Apres connexion, `/choisir-acces` demande d'abord le service puis l'espace autor
 
 ## Production
 
-Deployer `apps/nutvita-academy` comme second projet depuis le meme depot et definir `ACADEMY_ORIGIN` dans le projet principal avec son URL interne ou publique. La variable `NEXT_PUBLIC_SITE_URL` du projet Academy doit se terminer par `/academy`.
+Deployer `apps/nutvita-academy` comme second projet depuis le meme depot et definir `ACADEMY_ORIGIN` dans le projet principal avec son URL interne ou publique. La variable `NEXT_PUBLIC_SITE_URL` du projet Academy doit se terminer par `/academy`. Definir aussi `NEXT_PUBLIC_PLATFORM_ORIGIN=https://nutvitaglobalis.com` dans le projet Academy afin que tout besoin d'authentification revienne vers la connexion unique du site principal.

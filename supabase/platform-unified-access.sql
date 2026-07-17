@@ -19,9 +19,6 @@ create table if not exists public.platform_session_selections (
 alter table public.formations add column if not exists academy_course_id uuid unique;
 alter table public.formations add column if not exists source text not null default 'nutvita';
 
--- Principal accounts can enter the operational nutritionist workspace without a recruitment application.
-alter table public.dietitian_profiles alter column application_id drop not null;
-
 create or replace function public.is_platform_principal() returns boolean language sql stable security definer set search_path=public as $$
   select public.is_super_admin() or lower(coalesce((select email from auth.users where id=(select auth.uid())),'')) in ('pauln.zebaze@gmail.com','contact@nutvitaglobalis.com');
 $$;
@@ -44,10 +41,16 @@ select id,email,coalesce(raw_user_meta_data->>'full_name',email),'super_admin',t
 where lower(email) in ('pauln.zebaze@gmail.com','contact@nutvitaglobalis.com')
 on conflict(id) do update set role='super_admin',active=true,email=excluded.email;
 
-insert into public.dietitian_profiles(id,candidate_id,application_id,status,full_name,specialties,languages)
-select id,id,null,'active',coalesce(raw_user_meta_data->>'full_name',email),array[]::text[],array[]::text[] from auth.users
+insert into public.recruitment_applications(candidate_id,full_name,email,status)
+select id,coalesce(raw_user_meta_data->>'full_name',email),email,'integrated' from auth.users
 where lower(email) in ('pauln.zebaze@gmail.com','contact@nutvitaglobalis.com')
-on conflict(candidate_id) do update set status='active',full_name=excluded.full_name;
+on conflict(candidate_id) do update set full_name=excluded.full_name,email=excluded.email,status='integrated';
+
+insert into public.dietitian_profiles(id,candidate_id,application_id,status,full_name,specialties,languages)
+select u.id,u.id,a.id,'active',coalesce(u.raw_user_meta_data->>'full_name',u.email),array[]::text[],array[]::text[]
+from auth.users u join public.recruitment_applications a on a.candidate_id=u.id
+where lower(u.email) in ('pauln.zebaze@gmail.com','contact@nutvitaglobalis.com')
+on conflict(candidate_id) do update set status='active',full_name=excluded.full_name,application_id=excluded.application_id;
 
 insert into public.platform_service_access(user_id,service_key,roles)
 select u.id,s.service_key,s.roles from auth.users u cross join (values

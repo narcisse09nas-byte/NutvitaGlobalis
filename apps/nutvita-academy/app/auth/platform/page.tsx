@@ -17,7 +17,14 @@ export default function PlatformSessionPage() {
       setError("Session centrale manquante.");
       return;
     }
-    void createSupabaseBrowserClient().auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error: sessionError }) => {
+    let supabase;
+    try {
+      supabase = createSupabaseBrowserClient();
+    } catch {
+      setError("Academy n’est pas connectée à Supabase sur Vercel. Configurez NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY dans le projet Academy, puis redéployez-le.");
+      return;
+    }
+    void supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).then(({ error: sessionError }) => {
       if (sessionError) {
         setError("La session Academy n’a pas pu être ouverte. Vérifiez que les deux projets utilisent le même projet Supabase.");
         return;

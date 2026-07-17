@@ -25,15 +25,23 @@ export async function requirePartner() {
   let profile = existing;
   const principal = isPrincipalEmail(user.email) || Boolean(admin?.active && admin.role === "super_admin");
   if (!profile && principal) {
-    const { data } = await createAdminClient().from("dietitian_profiles").upsert({
+    const service = createAdminClient();
+    const fullName = admin?.full_name || user.user_metadata.full_name || user.email || "Super administrateur";
+    const { data: application } = await service.from("recruitment_applications").upsert({
+      candidate_id: user.id,
+      full_name: fullName,
+      email: user.email,
+      status: "integrated",
+    }, { onConflict: "candidate_id" }).select("id").single();
+    const { data } = application ? await service.from("dietitian_profiles").upsert({
       id: user.id,
       candidate_id: user.id,
-      application_id: null,
+      application_id: application.id,
       status: "active",
-      full_name: admin?.full_name || user.user_metadata.full_name || user.email || "Super administrateur",
+      full_name: fullName,
       specialties: [],
       languages: [],
-    }, { onConflict: "candidate_id" }).select("*").single();
+    }, { onConflict: "candidate_id" }).select("*").single() : { data: null };
     profile = data;
   }
   if (!profile) redirect("/choisir-acces?erreur=partenaire_non_autorise");

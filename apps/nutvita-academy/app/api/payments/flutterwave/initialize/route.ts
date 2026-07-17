@@ -31,20 +31,20 @@ export async function POST(request: Request) {
   const subtotal = courses.reduce((total, course) => total + Number(course.price_usd), 0);
   if (subtotal <= 0) return Response.json({ error: "Le montant de la commande est invalide." }, { status: 409 });
   const reference = `NVGA-${Date.now()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-  const { data: order, error: orderError } = await admin.from("orders").insert({ user_id: auth.user.id, status: "pending", currency: "USD", subtotal, discount: 0, total: subtotal, payment_provider: "flutterwave", transaction_reference: reference }).select("id").single();
+  const { data: order, error: orderError } = await admin.from("academy_orders").insert({ user_id: auth.user.id, status: "pending", currency: "USD", subtotal, discount: 0, total: subtotal, payment_provider: "flutterwave", transaction_reference: reference }).select("id").single();
   if (orderError || !order) return Response.json({ error: apiText(request, "Impossible de créer la commande.", "Unable to create the order.") }, { status: 500 });
-  const { error: itemsError } = await admin.from("order_items").insert(courses.map((course) => ({ order_id: order.id, course_id: course.id, course_title: course.title, unit_price: Number(course.price_usd), discount: 0, final_price: Number(course.price_usd) })));
+  const { error: itemsError } = await admin.from("academy_order_items").insert(courses.map((course) => ({ order_id: order.id, course_id: course.id, course_title: course.title, unit_price: Number(course.price_usd), discount: 0, final_price: Number(course.price_usd) })));
   if (itemsError) {
-    await admin.from("orders").update({ status: "failed" }).eq("id", order.id);
+    await admin.from("academy_orders").update({ status: "failed" }).eq("id", order.id);
     return Response.json({ error: apiText(request, "Impossible de préparer la commande.", "Unable to prepare the order.") }, { status: 500 });
   }
 
   try {
     const checkoutUrl = await createFlutterwaveCheckout({ transactionReference: reference, amount: subtotal, currency: "USD", customer: { email: profile?.email ?? auth.user.email ?? "", name: profile?.full_name ?? auth.user.user_metadata.full_name ?? "Candidat" } });
-    await admin.from("orders").update({ checkout_url: checkoutUrl }).eq("id", order.id);
+    await admin.from("academy_orders").update({ checkout_url: checkoutUrl }).eq("id", order.id);
     return Response.json({ checkoutUrl, reference });
   } catch (error) {
-    await admin.from("orders").update({ status: "failed" }).eq("id", order.id);
+    await admin.from("academy_orders").update({ status: "failed" }).eq("id", order.id);
     return Response.json({ error: error instanceof Error ? error.message : "Flutterwave indisponible." }, { status: 502 });
   }
 }

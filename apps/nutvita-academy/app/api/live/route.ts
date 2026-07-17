@@ -8,10 +8,10 @@ export async function GET(request: Request) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return Response.json({ error: "Authentification requise." }, { status: 401 });
   const [sessions, registrations, attendance, messages] = await Promise.all([
-    supabase.from("live_sessions").select("*").order("starts_at", { ascending: true }),
-    supabase.from("live_registrations").select("*").order("registered_at", { ascending: false }),
-    supabase.from("live_attendance").select("*").order("joined_at", { ascending: false }),
-    supabase.from("live_messages").select("*").order("created_at", { ascending: true }),
+    supabase.from("academy_live_sessions").select("*").order("starts_at", { ascending: true }),
+    supabase.from("academy_live_registrations").select("*").order("registered_at", { ascending: false }),
+    supabase.from("academy_live_attendance").select("*").order("joined_at", { ascending: false }),
+    supabase.from("academy_live_messages").select("*").order("created_at", { ascending: true }),
   ]);
   const error = sessions.error ?? registrations.error ?? attendance.error ?? messages.error;
   if (error) return Response.json({ error: error.message }, { status: 500 });
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const capacity = Number(body?.capacity);
   if (!body || !String(body.title ?? "").trim() || Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt || !Number.isInteger(capacity) || capacity < 1 || capacity > 500) return Response.json({ error: apiText(request, "Données de session invalides.", "Invalid session data.") }, { status: 400 });
   const roomName = String(body.roomName ?? `nvga-${crypto.randomUUID()}`).trim().replace(/[^a-zA-Z0-9_-]/g, "-");
-  const { data, error } = await supabase.from("live_sessions").insert({ title: String(body.title).trim(), description: String(body.description ?? "").trim(), provider: String(body.provider ?? "jitsi"), room_name: roomName, external_url: body.externalUrl ? String(body.externalUrl) : null, instructor_user_id: auth.user.id, instructor_name: profile.full_name, starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), timezone: String(body.timezone ?? "Africa/Lagos"), capacity, status: "scheduled" }).select("id").single();
+  const { data, error } = await supabase.from("academy_live_sessions").insert({ title: String(body.title).trim(), description: String(body.description ?? "").trim(), provider: String(body.provider ?? "jitsi"), room_name: roomName, external_url: body.externalUrl ? String(body.externalUrl) : null, instructor_user_id: auth.user.id, instructor_name: profile.full_name, starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), timezone: String(body.timezone ?? "Africa/Lagos"), capacity, status: "scheduled" }).select("id").single();
   if (error || !data) return Response.json({ error: error?.message ?? apiText(request, "Création impossible.", "Unable to create session.") }, { status: 500 });
   return Response.json({ id: data.id }, { status: 201 });
 }

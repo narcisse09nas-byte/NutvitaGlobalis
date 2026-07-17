@@ -126,9 +126,9 @@ export function LiveSessionProvider({
     void refreshRemote();
     const supabase = createSupabaseBrowserClient();
     const channel = supabase.channel("academy-live-sync")
-      .on("postgres_changes", { event: "*", schema: "public", table: "live_sessions" }, () => { void refreshRemote(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "live_registrations" }, () => { void refreshRemote(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "live_messages" }, () => { void refreshRemote(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "academy_live_sessions" }, () => { void refreshRemote(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "academy_live_registrations" }, () => { void refreshRemote(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "academy_live_messages" }, () => { void refreshRemote(); })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [refreshRemote]);

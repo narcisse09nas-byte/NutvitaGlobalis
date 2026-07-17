@@ -1,13 +1,19 @@
 -- Production source of truth for commerce, enrollments, live classes and
 -- public certificate verification. Apply after 001-005.
 
-create type public.order_status as enum (
-  'pending', 'paid', 'failed', 'cancelled', 'refunded'
-);
+do $$ begin
+  create type public.academy_order_status as enum (
+    'pending', 'paid', 'failed', 'cancelled', 'refunded'
+  );
+exception when duplicate_object then null;
+end $$;
 
-create type public.live_session_status as enum (
-  'scheduled', 'live', 'completed', 'cancelled'
-);
+do $$ begin
+  create type public.academy_live_session_status as enum (
+    'scheduled', 'live', 'completed', 'cancelled'
+  );
+exception when duplicate_object then null;
+end $$;
 
 alter table public.courses
   add column if not exists studio_payload jsonb not null default '{}'::jsonb;
@@ -87,10 +93,10 @@ with check (
   )
 );
 
-create table public.orders (
+create table if not exists public.academy_orders (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete restrict,
-  status public.order_status not null default 'pending',
+  status public.academy_order_status not null default 'pending',
   currency text not null default 'USD',
   subtotal numeric(12,2) not null check (subtotal >= 0),
   discount numeric(12,2) not null default 0 check (discount >= 0),
@@ -105,9 +111,9 @@ create table public.orders (
   updated_at timestamptz not null default now()
 );
 
-create table public.order_items (
+create table if not exists public.academy_order_items (
   id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references public.orders(id) on delete cascade,
+  order_id uuid not null references public.academy_orders(id) on delete cascade,
   course_id uuid not null references public.courses(id) on delete restrict,
   course_title text not null,
   unit_price numeric(12,2) not null check (unit_price >= 0),
@@ -117,13 +123,13 @@ create table public.order_items (
 );
 
 alter table public.enrollments
-  add column if not exists order_id uuid references public.orders(id) on delete set null;
+  add column if not exists academy_order_id uuid references public.academy_orders(id) on delete set null;
 
-create index orders_user_idx on public.orders(user_id, created_at desc);
-create index order_items_order_idx on public.order_items(order_id);
-create index enrollments_order_idx on public.enrollments(order_id);
+create index if not exists academy_orders_user_idx on public.academy_orders(user_id, created_at desc);
+create index if not exists academy_order_items_order_idx on public.academy_order_items(order_id);
+create index if not exists academy_enrollments_order_idx on public.enrollments(academy_order_id);
 
-create table public.live_sessions (
+create table if not exists public.academy_live_sessions (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid references public.organizations(id) on delete cascade,
   course_id uuid references public.courses(id) on delete set null,
@@ -138,15 +144,15 @@ create table public.live_sessions (
   ends_at timestamptz not null,
   timezone text not null default 'Africa/Lagos',
   capacity integer not null check (capacity between 1 and 500),
-  status public.live_session_status not null default 'scheduled',
+  status public.academy_live_session_status not null default 'scheduled',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (ends_at > starts_at)
 );
 
-create table public.live_registrations (
+create table if not exists public.academy_live_registrations (
   id uuid primary key default gen_random_uuid(),
-  session_id uuid not null references public.live_sessions(id) on delete cascade,
+  session_id uuid not null references public.academy_live_sessions(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
   full_name text not null,
   email citext not null,
@@ -154,9 +160,9 @@ create table public.live_registrations (
   unique (session_id, user_id)
 );
 
-create table public.live_attendance (
+create table if not exists public.academy_live_attendance (
   id uuid primary key default gen_random_uuid(),
-  session_id uuid not null references public.live_sessions(id) on delete cascade,
+  session_id uuid not null references public.academy_live_sessions(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
   full_name text not null,
   joined_at timestamptz not null default now(),
@@ -164,30 +170,32 @@ create table public.live_attendance (
   unique (session_id, user_id, joined_at)
 );
 
-create table public.live_messages (
+create table if not exists public.academy_live_messages (
   id uuid primary key default gen_random_uuid(),
-  session_id uuid not null references public.live_sessions(id) on delete cascade,
+  session_id uuid not null references public.academy_live_sessions(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
   author_name text not null,
   content text not null check (char_length(content) between 1 and 2000),
   created_at timestamptz not null default now()
 );
 
-create index live_sessions_start_idx on public.live_sessions(starts_at);
-create index live_registrations_session_idx on public.live_registrations(session_id);
-create index live_messages_session_idx on public.live_messages(session_id, created_at);
+create index if not exists academy_live_sessions_start_idx on public.academy_live_sessions(starts_at);
+create index if not exists academy_live_registrations_session_idx on public.academy_live_registrations(session_id);
+create index if not exists academy_live_messages_session_idx on public.academy_live_messages(session_id, created_at);
 
-alter table public.orders enable row level security;
-alter table public.order_items enable row level security;
-alter table public.live_sessions enable row level security;
-alter table public.live_registrations enable row level security;
-alter table public.live_attendance enable row level security;
-alter table public.live_messages enable row level security;
+alter table public.academy_orders enable row level security;
+alter table public.academy_order_items enable row level security;
+alter table public.academy_live_sessions enable row level security;
+alter table public.academy_live_registrations enable row level security;
+alter table public.academy_live_attendance enable row level security;
+alter table public.academy_live_messages enable row level security;
 
-create policy "orders_select_own_or_admin" on public.orders
+drop policy if exists "orders_select_own_or_admin" on public.academy_orders;
+create policy "orders_select_own_or_admin" on public.academy_orders
 for select to authenticated
 using (user_id = auth.uid() or public.has_app_role(array['admin','super_admin']::public.app_role[]));
 
+drop policy if exists "modules_manage_staff" on public.course_modules;
 create policy "modules_manage_staff" on public.course_modules
 for all to authenticated
 using (exists (
@@ -199,6 +207,7 @@ with check (exists (
   and (c.instructor_user_id = auth.uid() or public.has_app_role(array['admin','super_admin']::public.app_role[]))
 ));
 
+drop policy if exists "lessons_manage_staff" on public.lessons;
 create policy "lessons_manage_staff" on public.lessons
 for all to authenticated
 using (exists (
@@ -212,10 +221,11 @@ with check (exists (
   and (c.instructor_user_id = auth.uid() or public.has_app_role(array['admin','super_admin']::public.app_role[]))
 ));
 
-create policy "order_items_select_via_order" on public.order_items
+drop policy if exists "order_items_select_via_order" on public.academy_order_items;
+create policy "order_items_select_via_order" on public.academy_order_items
 for select to authenticated
 using (exists (
-  select 1 from public.orders o where o.id = order_items.order_id
+  select 1 from public.academy_orders o where o.id = academy_order_items.order_id
   and (o.user_id = auth.uid() or public.has_app_role(array['admin','super_admin']::public.app_role[]))
 ));
 
@@ -223,22 +233,26 @@ using (exists (
 -- action. A learner must never grant access to themself.
 drop policy if exists "enrollments_insert_own" on public.enrollments;
 
+drop policy if exists "enrollments_manage_admin" on public.enrollments;
 create policy "enrollments_manage_admin" on public.enrollments
 for all to authenticated
 using (public.has_app_role(array['admin','super_admin']::public.app_role[]))
 with check (public.has_app_role(array['admin','super_admin']::public.app_role[]));
 
-create policy "live_sessions_select_authenticated" on public.live_sessions
+drop policy if exists "live_sessions_select_authenticated" on public.academy_live_sessions;
+create policy "live_sessions_select_authenticated" on public.academy_live_sessions
 for select to authenticated using (true);
 
-create policy "live_sessions_create_staff" on public.live_sessions
+drop policy if exists "live_sessions_create_staff" on public.academy_live_sessions;
+create policy "live_sessions_create_staff" on public.academy_live_sessions
 for insert to authenticated
 with check (
   instructor_user_id = auth.uid()
   and public.has_app_role(array['instructor','admin','super_admin']::public.app_role[])
 );
 
-create policy "live_sessions_update_staff" on public.live_sessions
+drop policy if exists "live_sessions_update_staff" on public.academy_live_sessions;
+create policy "live_sessions_update_staff" on public.academy_live_sessions
 for update to authenticated
 using (
   instructor_user_id = auth.uid()
@@ -249,66 +263,73 @@ with check (
   or public.has_app_role(array['admin','super_admin']::public.app_role[])
 );
 
-create policy "live_registrations_select_related" on public.live_registrations
+drop policy if exists "live_registrations_select_related" on public.academy_live_registrations;
+create policy "live_registrations_select_related" on public.academy_live_registrations
 for select to authenticated
 using (
   user_id = auth.uid()
-  or exists (select 1 from public.live_sessions s where s.id = session_id and s.instructor_user_id = auth.uid())
+  or exists (select 1 from public.academy_live_sessions s where s.id = session_id and s.instructor_user_id = auth.uid())
   or public.has_app_role(array['admin','super_admin']::public.app_role[])
 );
 
-create policy "live_registrations_delete_own" on public.live_registrations
+drop policy if exists "live_registrations_delete_own" on public.academy_live_registrations;
+create policy "live_registrations_delete_own" on public.academy_live_registrations
 for delete to authenticated using (user_id = auth.uid());
 
-create policy "live_attendance_select_related" on public.live_attendance
+drop policy if exists "live_attendance_select_related" on public.academy_live_attendance;
+create policy "live_attendance_select_related" on public.academy_live_attendance
 for select to authenticated
 using (
   user_id = auth.uid()
-  or exists (select 1 from public.live_sessions s where s.id = session_id and s.instructor_user_id = auth.uid())
+  or exists (select 1 from public.academy_live_sessions s where s.id = session_id and s.instructor_user_id = auth.uid())
   or public.has_app_role(array['admin','super_admin']::public.app_role[])
 );
 
-create policy "live_attendance_own" on public.live_attendance
+drop policy if exists "live_attendance_own" on public.academy_live_attendance;
+create policy "live_attendance_own" on public.academy_live_attendance
 for insert to authenticated with check (user_id = auth.uid());
 
-create policy "live_attendance_update_own" on public.live_attendance
+drop policy if exists "live_attendance_update_own" on public.academy_live_attendance;
+create policy "live_attendance_update_own" on public.academy_live_attendance
 for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 
-create policy "live_messages_select_registered" on public.live_messages
+drop policy if exists "live_messages_select_registered" on public.academy_live_messages;
+create policy "live_messages_select_registered" on public.academy_live_messages
 for select to authenticated
 using (exists (
-  select 1 from public.live_registrations r
-  where r.session_id = live_messages.session_id and r.user_id = auth.uid()
+  select 1 from public.academy_live_registrations r
+  where r.session_id = academy_live_messages.session_id and r.user_id = auth.uid()
 ) or exists (
-  select 1 from public.live_sessions s
-  where s.id = live_messages.session_id and s.instructor_user_id = auth.uid()
+  select 1 from public.academy_live_sessions s
+  where s.id = academy_live_messages.session_id and s.instructor_user_id = auth.uid()
 ));
 
-create policy "live_messages_insert_registered" on public.live_messages
+drop policy if exists "live_messages_insert_registered" on public.academy_live_messages;
+create policy "live_messages_insert_registered" on public.academy_live_messages
 for insert to authenticated
 with check (
   user_id = auth.uid()
   and (
-    exists (select 1 from public.live_registrations r where r.session_id = live_messages.session_id and r.user_id = auth.uid())
-    or exists (select 1 from public.live_sessions s where s.id = live_messages.session_id and s.instructor_user_id = auth.uid())
+    exists (select 1 from public.academy_live_registrations r where r.session_id = academy_live_messages.session_id and r.user_id = auth.uid())
+    or exists (select 1 from public.academy_live_sessions s where s.id = academy_live_messages.session_id and s.instructor_user_id = auth.uid())
   )
 );
 
-create or replace function public.register_for_live_session(target_session_id uuid)
-returns public.live_registrations
+create or replace function public.academy_register_for_live_session(target_session_id uuid)
+returns public.academy_live_registrations
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  target public.live_sessions;
-  result public.live_registrations;
+  target public.academy_live_sessions;
+  result public.academy_live_registrations;
   registration_count integer;
   candidate public.profiles;
 begin
   if auth.uid() is null then raise exception 'authentication_required'; end if;
 
-  select * into target from public.live_sessions
+  select * into target from public.academy_live_sessions
   where id = target_session_id for update;
 
   if target.id is null then raise exception 'session_not_found'; end if;
@@ -316,23 +337,23 @@ begin
   select * into candidate from public.profiles where id = auth.uid();
 
   select count(*) into registration_count
-  from public.live_registrations where session_id = target_session_id;
+  from public.academy_live_registrations where session_id = target_session_id;
 
   if registration_count >= target.capacity then raise exception 'session_full'; end if;
 
-  insert into public.live_registrations(session_id, user_id, full_name, email)
+  insert into public.academy_live_registrations(session_id, user_id, full_name, email)
   values (target_session_id, auth.uid(), candidate.full_name, candidate.email)
-  on conflict (session_id, user_id) do update set registered_at = live_registrations.registered_at
+  on conflict (session_id, user_id) do update set registered_at = academy_live_registrations.registered_at
   returning * into result;
 
   return result;
 end;
 $$;
 
-revoke all on function public.register_for_live_session(uuid) from public;
-grant execute on function public.register_for_live_session(uuid) to authenticated;
+revoke all on function public.academy_register_for_live_session(uuid) from public;
+grant execute on function public.academy_register_for_live_session(uuid) to authenticated;
 
-create or replace function public.finalize_verified_order(
+create or replace function public.academy_finalize_verified_order(
   target_reference text,
   target_provider_transaction_id text,
   verified_amount numeric,
@@ -345,9 +366,9 @@ security definer
 set search_path = public
 as $$
 declare
-  target public.orders;
+  target public.academy_orders;
 begin
-  select * into target from public.orders
+  select * into target from public.academy_orders
   where transaction_reference = target_reference for update;
 
   if target.id is null then raise exception 'order_not_found'; end if;
@@ -356,7 +377,7 @@ begin
   if upper(target.currency) <> upper(verified_currency) then raise exception 'currency_mismatch'; end if;
   if verified_amount < target.total then raise exception 'amount_mismatch'; end if;
 
-  update public.orders set
+  update public.academy_orders set
     status = 'paid',
     provider_transaction_id = target_provider_transaction_id,
     provider_payload = raw_provider_payload,
@@ -364,12 +385,12 @@ begin
     updated_at = now()
   where id = target.id;
 
-  insert into public.enrollments(course_id, user_id, order_id)
+  insert into public.enrollments(course_id, user_id, academy_order_id)
   select item.course_id, target.user_id, target.id
-  from public.order_items item
+  from public.academy_order_items item
   where item.order_id = target.id
   on conflict (course_id, user_id) do update
-    set order_id = excluded.order_id;
+    set academy_order_id = excluded.academy_order_id;
 
   insert into public.audit_logs(actor_user_id, action, entity_type, entity_id, metadata)
   values (target.user_id, 'payment.verified_and_enrolled', 'order', target.id,
@@ -379,8 +400,8 @@ begin
 end;
 $$;
 
-revoke all on function public.finalize_verified_order(text,text,numeric,text,jsonb) from public, anon, authenticated;
-grant execute on function public.finalize_verified_order(text,text,numeric,text,jsonb) to service_role;
+revoke all on function public.academy_finalize_verified_order(text,text,numeric,text,jsonb) from public, anon, authenticated;
+grant execute on function public.academy_finalize_verified_order(text,text,numeric,text,jsonb) to service_role;
 
 create or replace function public.verify_certificate(public_certificate_number text)
 returns table (
@@ -421,20 +442,24 @@ do $$
 begin
   if not exists (
     select 1 from pg_publication_tables
-    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'live_sessions'
-  ) then alter publication supabase_realtime add table public.live_sessions; end if;
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'academy_live_sessions'
+  ) then alter publication supabase_realtime add table public.academy_live_sessions; end if;
   if not exists (
     select 1 from pg_publication_tables
-    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'live_registrations'
-  ) then alter publication supabase_realtime add table public.live_registrations; end if;
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'academy_live_registrations'
+  ) then alter publication supabase_realtime add table public.academy_live_registrations; end if;
   if not exists (
     select 1 from pg_publication_tables
-    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'live_messages'
-  ) then alter publication supabase_realtime add table public.live_messages; end if;
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'academy_live_messages'
+  ) then alter publication supabase_realtime add table public.academy_live_messages; end if;
 end $$;
 
-create trigger orders_updated_at before update on public.orders
+drop trigger if exists academy_orders_updated_at on public.academy_orders;
+drop trigger if exists orders_updated_at on public.academy_orders;
+create trigger academy_orders_updated_at before update on public.academy_orders
 for each row execute procedure public.set_updated_at();
 
-create trigger live_sessions_updated_at before update on public.live_sessions
+drop trigger if exists academy_live_sessions_updated_at on public.academy_live_sessions;
+drop trigger if exists live_sessions_updated_at on public.academy_live_sessions;
+create trigger academy_live_sessions_updated_at before update on public.academy_live_sessions
 for each row execute procedure public.set_updated_at();

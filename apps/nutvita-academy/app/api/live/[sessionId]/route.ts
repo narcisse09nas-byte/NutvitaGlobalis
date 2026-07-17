@@ -10,7 +10,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ se
   if (!auth.user) return Response.json({ error: "Authentification requise." }, { status: 401 });
   const body = await request.json().catch(() => null) as { status?: string } | null;
   if (!body?.status || !["scheduled", "live", "completed", "cancelled"].includes(body.status)) return Response.json({ error: "Statut invalide." }, { status: 400 });
-  const { error } = await supabase.from("live_sessions").update({ status: body.status }).eq("id", sessionId);
+  const { error } = await supabase.from("academy_live_sessions").update({ status: body.status }).eq("id", sessionId);
   if (error) return Response.json({ error: error.message }, { status: 403 });
   return Response.json({ success: true });
 }

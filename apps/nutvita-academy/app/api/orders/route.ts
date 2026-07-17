@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return Response.json({ error: "Authentification requise." }, { status: 401 });
-  const { data, error } = await supabase.from("orders").select("id, status, currency, subtotal, discount, total, transaction_reference, paid_at, created_at, order_items(course_id, course_title, unit_price, discount, final_price)").order("created_at", { ascending: false });
+  const { data, error } = await supabase.from("academy_orders").select("id, status, currency, subtotal, discount, total, transaction_reference, paid_at, created_at, order_items:academy_order_items(course_id, course_title, unit_price, discount, final_price)").order("created_at", { ascending: false });
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ orders: data ?? [] });
 }

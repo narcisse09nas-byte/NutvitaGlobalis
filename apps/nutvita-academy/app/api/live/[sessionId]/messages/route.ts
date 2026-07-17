@@ -12,7 +12,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
   const content = body?.content?.trim() ?? "";
   if (!content || content.length > 2000) return Response.json({ error: "Message invalide." }, { status: 400 });
   const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", auth.user.id).single();
-  const { error } = await supabase.from("live_messages").insert({ session_id: sessionId, user_id: auth.user.id, author_name: profile?.full_name ?? "Participant", content });
+  const { error } = await supabase.from("academy_live_messages").insert({ session_id: sessionId, user_id: auth.user.id, author_name: profile?.full_name ?? "Participant", content });
   if (error) return Response.json({ error: error.message }, { status: 403 });
   return Response.json({ success: true }, { status: 201 });
 }

@@ -23,6 +23,7 @@ export async function GET(request: Request) {
   target.hash = new URLSearchParams({
     access_token: session.access_token,
     refresh_token: session.refresh_token,
+    role,
     next: destinations[role],
   }).toString();
   return NextResponse.redirect(target, { headers: { "Cache-Control": "no-store" } });

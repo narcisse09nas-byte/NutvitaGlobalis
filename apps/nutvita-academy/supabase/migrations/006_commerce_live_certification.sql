@@ -40,15 +40,15 @@ for insert
 to authenticated
 with check (
   (
-    instructor_user_id = auth.uid()
-    or exists (
+    (instructor_user_id = auth.uid() and public.has_app_role(array['instructor']::public.app_role[]))
+    or (public.has_app_role(array['instructor','admin']::public.app_role[]) and exists (
       select 1
       from public.organization_members member
       where member.organization_id = courses.organization_id
         and member.user_id = auth.uid()
         and member.active = true
         and member.role in ('owner', 'admin', 'manager', 'instructor')
-    )
+    ))
     or public.has_app_role(array['admin', 'super_admin']::public.app_role[])
   )
   and (
@@ -63,28 +63,28 @@ on public.courses
 for update
 to authenticated
 using (
-  instructor_user_id = auth.uid()
-  or exists (
+  (instructor_user_id = auth.uid() and public.has_app_role(array['instructor']::public.app_role[]))
+  or (public.has_app_role(array['instructor','admin']::public.app_role[]) and exists (
     select 1
     from public.organization_members member
     where member.organization_id = courses.organization_id
       and member.user_id = auth.uid()
       and member.active = true
       and member.role in ('owner', 'admin', 'manager')
-  )
+  ))
   or public.has_app_role(array['admin', 'super_admin']::public.app_role[])
 )
 with check (
   (
-    instructor_user_id = auth.uid()
-    or exists (
+    (instructor_user_id = auth.uid() and public.has_app_role(array['instructor']::public.app_role[]))
+    or (public.has_app_role(array['instructor','admin']::public.app_role[]) and exists (
       select 1
       from public.organization_members member
       where member.organization_id = courses.organization_id
         and member.user_id = auth.uid()
         and member.active = true
         and member.role in ('owner', 'admin', 'manager')
-    )
+    ))
     or public.has_app_role(array['admin', 'super_admin']::public.app_role[])
   )
   and (
@@ -200,11 +200,11 @@ create policy "modules_manage_staff" on public.course_modules
 for all to authenticated
 using (exists (
   select 1 from public.courses c where c.id = course_modules.course_id
-  and (c.instructor_user_id = auth.uid() or public.has_app_role(array['admin','super_admin']::public.app_role[]))
+  and ((c.instructor_user_id = auth.uid() and public.has_app_role(array['instructor']::public.app_role[])) or public.has_app_role(array['admin','super_admin']::public.app_role[]))
 ))
 with check (exists (
   select 1 from public.courses c where c.id = course_modules.course_id
-  and (c.instructor_user_id = auth.uid() or public.has_app_role(array['admin','super_admin']::public.app_role[]))
+  and ((c.instructor_user_id = auth.uid() and public.has_app_role(array['instructor']::public.app_role[])) or public.has_app_role(array['admin','super_admin']::public.app_role[]))
 ));
 
 drop policy if exists "lessons_manage_staff" on public.lessons;
@@ -213,12 +213,12 @@ for all to authenticated
 using (exists (
   select 1 from public.course_modules m join public.courses c on c.id = m.course_id
   where m.id = lessons.module_id
-  and (c.instructor_user_id = auth.uid() or public.has_app_role(array['admin','super_admin']::public.app_role[]))
+  and ((c.instructor_user_id = auth.uid() and public.has_app_role(array['instructor']::public.app_role[])) or public.has_app_role(array['admin','super_admin']::public.app_role[]))
 ))
 with check (exists (
   select 1 from public.course_modules m join public.courses c on c.id = m.course_id
   where m.id = lessons.module_id
-  and (c.instructor_user_id = auth.uid() or public.has_app_role(array['admin','super_admin']::public.app_role[]))
+  and ((c.instructor_user_id = auth.uid() and public.has_app_role(array['instructor']::public.app_role[])) or public.has_app_role(array['admin','super_admin']::public.app_role[]))
 ));
 
 drop policy if exists "order_items_select_via_order" on public.academy_order_items;
@@ -255,11 +255,11 @@ drop policy if exists "live_sessions_update_staff" on public.academy_live_sessio
 create policy "live_sessions_update_staff" on public.academy_live_sessions
 for update to authenticated
 using (
-  instructor_user_id = auth.uid()
+  (instructor_user_id = auth.uid() and public.has_app_role(array['instructor']::public.app_role[]))
   or public.has_app_role(array['admin','super_admin']::public.app_role[])
 )
 with check (
-  instructor_user_id = auth.uid()
+  (instructor_user_id = auth.uid() and public.has_app_role(array['instructor']::public.app_role[]))
   or public.has_app_role(array['admin','super_admin']::public.app_role[])
 );
 
@@ -268,7 +268,7 @@ create policy "live_registrations_select_related" on public.academy_live_registr
 for select to authenticated
 using (
   user_id = auth.uid()
-  or exists (select 1 from public.academy_live_sessions s where s.id = session_id and s.instructor_user_id = auth.uid())
+  or (public.has_app_role(array['instructor']::public.app_role[]) and exists (select 1 from public.academy_live_sessions s where s.id = session_id and s.instructor_user_id = auth.uid()))
   or public.has_app_role(array['admin','super_admin']::public.app_role[])
 );
 
@@ -281,7 +281,7 @@ create policy "live_attendance_select_related" on public.academy_live_attendance
 for select to authenticated
 using (
   user_id = auth.uid()
-  or exists (select 1 from public.academy_live_sessions s where s.id = session_id and s.instructor_user_id = auth.uid())
+  or (public.has_app_role(array['instructor']::public.app_role[]) and exists (select 1 from public.academy_live_sessions s where s.id = session_id and s.instructor_user_id = auth.uid()))
   or public.has_app_role(array['admin','super_admin']::public.app_role[])
 );
 
@@ -301,7 +301,7 @@ using (exists (
   where r.session_id = academy_live_messages.session_id and r.user_id = auth.uid()
 ) or exists (
   select 1 from public.academy_live_sessions s
-  where s.id = academy_live_messages.session_id and s.instructor_user_id = auth.uid()
+  where s.id = academy_live_messages.session_id and s.instructor_user_id = auth.uid() and public.has_app_role(array['instructor']::public.app_role[])
 ));
 
 drop policy if exists "live_messages_insert_registered" on public.academy_live_messages;
@@ -311,7 +311,7 @@ with check (
   user_id = auth.uid()
   and (
     exists (select 1 from public.academy_live_registrations r where r.session_id = academy_live_messages.session_id and r.user_id = auth.uid())
-    or exists (select 1 from public.academy_live_sessions s where s.id = academy_live_messages.session_id and s.instructor_user_id = auth.uid())
+    or (public.has_app_role(array['instructor']::public.app_role[]) and exists (select 1 from public.academy_live_sessions s where s.id = academy_live_messages.session_id and s.instructor_user_id = auth.uid()))
   )
 );
 

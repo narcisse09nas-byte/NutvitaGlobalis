@@ -28,7 +28,7 @@ export const platformServices: PlatformService[] = [
   { key: "recruitment", title: "Candidatures", description: "Dossier et suivi de candidature.", roles: [{ key: "candidate", label: "Candidat", href: "/candidat" }, { key: "admin", label: "Administration recrutement", href: "/admin/recrutement" }] },
   { key: "nutritrack", title: "NutriTrack", description: "Prise en charge et pilotage de la malnutrition.", roles: [{ key: "client", label: "Utilisateur terrain", href: "/nutritrack" }, { key: "admin", label: "Administration NutriTrack", href: "/super-admin/nutritrack" }] },
   { key: "maximus", title: "Maximus", description: "Gestion interne du cabinet.", roles: [{ key: "staff", label: "Membre du personnel", href: "/maximus" }, { key: "admin", label: "Administration Maximus", href: "/maximus" }] },
-  { key: "administration", title: "Administration NutVitaGlobalis", description: "Configuration et contrôle transversal de la plateforme.", roles: [{ key: "admin", label: "Administrateur", href: "/admin" }] },
+  { key: "administration", title: "Administration NutVitaGlobalis", description: "Configuration et contrôle transversal de la plateforme.", roles: [{ key: "super_admin", label: "Super administrateur", href: "/admin" }] },
 ];
 
 export function isPrincipalEmail(email?: string | null) {

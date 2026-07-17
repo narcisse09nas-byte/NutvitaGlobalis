@@ -10,6 +10,8 @@ export default function PlatformSessionPage() {
     const values = new URLSearchParams(window.location.hash.slice(1));
     const accessToken = values.get("access_token");
     const refreshToken = values.get("refresh_token");
+    const requestedRole = values.get("role") || "student";
+    const workspaceRole = requestedRole === "admin" ? "super_admin" : requestedRole;
     const requested = values.get("next") || "/academy/dashboard";
     const next = requested.startsWith("/academy/dashboard") ? requested : "/academy/dashboard";
     window.history.replaceState(null, "", window.location.pathname);
@@ -28,6 +30,9 @@ export default function PlatformSessionPage() {
       if (sessionError) {
         setError("La session Academy n’a pas pu être ouverte. Vérifiez que les deux projets utilisent le même projet Supabase.");
         return;
+      }
+      if (["student", "instructor", "super_admin"].includes(workspaceRole)) {
+        window.sessionStorage.setItem("nutvita-super-admin-workspace", workspaceRole);
       }
       window.location.replace(next);
     });

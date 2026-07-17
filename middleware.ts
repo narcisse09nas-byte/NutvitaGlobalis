@@ -113,6 +113,7 @@ export async function middleware(request: NextRequest) {
     { prefixes: ["/espace-client/dossier", "/espace-client/tendances", "/espace-client/analyse"], service: "health" },
     { prefixes: ["/espace-client/croissance-enfant"], service: "child_growth" },
     { prefixes: ["/espace-client/consultations", "/espace-client/messages", "/espace-client/appels"], service: "teleconsultation" },
+    { prefixes: ["/candidat"], service: "recruitment" },
     { prefixes: ["/nutritrack"], service: "nutritrack" },
     { prefixes: ["/maximus"], service: "maximus" },
   ].find(item => item.prefixes.some(prefix => prefix === "/academy" ? localized.pathname === prefix : localized.pathname.startsWith(prefix)));

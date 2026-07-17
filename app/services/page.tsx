@@ -1,8 +1,7 @@
 import Link from "next/link";
 import {
   AcademicCapIcon, ArrowRightIcon, BuildingOffice2Icon, ChartBarSquareIcon,
-  ClipboardDocumentListIcon, CommandLineIcon, HeartIcon, PresentationChartLineIcon,
-  RectangleGroupIcon, VideoCameraIcon,
+  ClipboardDocumentListIcon, HeartIcon, PresentationChartLineIcon, VideoCameraIcon,
 } from "@heroicons/react/24/outline";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { localizedPath } from "@/lib/i18n";
@@ -42,16 +41,6 @@ const services = [
     titleFr: "Project, Programme and Portfolio Management", titleEn: "Project, Programme and Portfolio Management", href: "/op-management", icon: PresentationChartLineIcon, tone: "bg-blue-50 text-blue-700",
     fr: "Pilotez portefeuilles, programmes, projets et financements depuis un espace concu pour les initiatives complexes et multi-acteurs. Le service structure l'organisation, les bureaux, sites, staffs, partenaires, documents strategiques, portefeuilles, programmes, projets, parties prenantes, plans integres, risques, procurement, qualite, ressources, budgets et indicateurs. Les equipes peuvent relier chaque activite aux objectifs, suivre les plans mensuels, documenter les realisations, depenses, recommandations et preuves, puis produire des rapports de progression par periode. L'objectif est de transformer les informations dispersees en une vision exploitable de l'execution, des ecarts, des arbitrages et des decisions.",
     en: "Manage portfolios, programmes, projects and funding from a workspace designed for complex, multi-stakeholder initiatives. The service structures organization records, offices, sites, staff, partners, strategic documents, portfolios, programmes, projects, stakeholders, integrated plans, risks, procurement, quality, resources, budgets and indicators. Teams can link each activity to objectives, track monthly plans, document achievements, expenditure, recommendations and evidence, then produce period-based progress reports. Its purpose is to turn fragmented operational information into an actionable view of implementation, variances, trade-offs and decisions while preserving the relationships between strategy, plans, resources and field delivery.",
-  },
-  {
-    titleFr: "Manager", titleEn: "Manager", href: "/manager", icon: RectangleGroupIcon, tone: "bg-rose-50 text-rose-700",
-    fr: "Manager offre aux responsables une console de direction pour superviser les équipes, les opérations, les ressources et les performances de l’organisation. L’espace rassemble les informations utiles au pilotage, facilite la lecture des priorités et soutient la coordination entre fonctions. Les décideurs peuvent suivre l’avancement des activités, identifier les points de blocage et accéder plus rapidement aux outils nécessaires à l’action. Pensé pour une utilisation répétée, Manager privilégie une organisation claire et une navigation directe. Il contribue à rapprocher la stratégie du travail quotidien et à rendre les responsabilités plus visibles au sein de l’organisation.",
-    en: "Manager gives leaders a focused workspace for supervising teams, operations, resources and organizational performance. It brings together the information needed for management, makes priorities easier to read and supports coordination across functions. Decision-makers can monitor progress, identify bottlenecks and reach the tools required for action more quickly. Designed for repeated operational use, Manager favors clear organization and direct navigation. It helps connect strategy with daily work, improve visibility over responsibilities and create a shared management rhythm across departments, without forcing leaders to assemble essential information from multiple disconnected interfaces.",
-  },
-  {
-    titleFr: "Maximus", titleEn: "Maximus", href: "/maximus", icon: CommandLineIcon, tone: "bg-slate-900 text-white",
-    fr: "Maximus est le cockpit interne de NutVitaGlobalis réservé aux responsables autorisés. Il réunit les fonctions essentielles de gestion du cabinet : personnel, recrutement, communications, accès, réunions, workflows, finances, analyses et suivi administratif. Son architecture permet de coordonner les activités internes tout en conservant des responsabilités distinctes et des traces vérifiables. Les équipes peuvent collaborer entre elles, inviter des participants externes lorsque nécessaire et suivre les processus depuis un registre commun. Maximus donne ainsi à la direction une vision transversale des opérations et un cadre solide pour accompagner la croissance de l’organisation.",
-    en: "Maximus is NutVitaGlobalis’s internal command center for authorized leaders. It brings together the firm’s essential management functions, including staff, recruitment, communications, access, meetings, workflows, finance, analysis and administrative monitoring. Its architecture supports internal coordination while maintaining distinct responsibilities and verifiable records. Teams can collaborate with one another, involve external participants when required and follow processes through shared registers. Maximus gives leadership a cross-functional view of operations and a dependable framework for organizational growth, helping the firm maintain control, consistency and accountability as its services and teams expand.",
   },
 ] as const;
 

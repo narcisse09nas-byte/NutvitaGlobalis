@@ -34,7 +34,7 @@ export default function Footer() {
         <div>
           <h3 className="mb-4 font-bold text-white">{t.access}</h3>
           <div className="grid gap-3 text-sm text-white/65">
-            <Link href={localizedPath(locale, "/acces")}>{t.chooseSpace}</Link>
+            <Link href={localizedPath(locale, "/connexion")}>{t.chooseSpace}</Link>
             <Link href="/connexion">{t.clientArea}</Link>
             <Link href="/candidat">{t.candidate}</Link>
             <Link href="/admin">{t.admin}</Link>

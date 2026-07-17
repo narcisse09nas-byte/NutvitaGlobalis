@@ -1,4 +1,4 @@
-create or replace function public.handle_new_user()
+create or replace function public.handle_new_academy_user()
 returns trigger
 language plpgsql
 security definer
@@ -17,19 +17,22 @@ begin
       split_part(new.email, '@', 1)
     ),
     new.email
-  );
+  )
+  on conflict (id) do update set
+    full_name = excluded.full_name,
+    email = excluded.email;
 
   return new;
 end;
 $$;
 
-drop trigger if exists on_auth_user_created
+drop trigger if exists on_auth_academy_user_created
 on auth.users;
 
-create trigger on_auth_user_created
+create trigger on_auth_academy_user_created
 after insert on auth.users
 for each row
-execute procedure public.handle_new_user();
+execute procedure public.handle_new_academy_user();
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -41,16 +44,19 @@ begin
 end;
 $$;
 
+drop trigger if exists profiles_updated_at on public.profiles;
 create trigger profiles_updated_at
 before update on public.profiles
 for each row
 execute procedure public.set_updated_at();
 
+drop trigger if exists organizations_updated_at on public.organizations;
 create trigger organizations_updated_at
 before update on public.organizations
 for each row
 execute procedure public.set_updated_at();
 
+drop trigger if exists courses_updated_at on public.courses;
 create trigger courses_updated_at
 before update on public.courses
 for each row

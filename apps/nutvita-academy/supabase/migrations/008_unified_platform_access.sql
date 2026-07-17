@@ -1,4 +1,12 @@
 -- Run after the host migration supabase/platform-unified-access.sql when Academy and NutVitaGlobalis share Supabase.
+do $$
+begin
+  if to_regtype('public.app_role') is null or to_regclass('public.profiles') is null then
+    raise exception 'Academy schema is missing'
+      using hint = 'Run Academy migrations 001_extensions.sql through 007_ai_identity_proctoring.sql in order, then rerun 008.';
+  end if;
+end $$;
+
 insert into public.profiles(id,full_name,email,role)
 select id,coalesce(raw_user_meta_data->>'full_name',email),email,'super_admin'::public.app_role
 from auth.users where lower(email) in ('pauln.zebaze@gmail.com','contact@nutvitaglobalis.com')

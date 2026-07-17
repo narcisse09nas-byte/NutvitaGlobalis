@@ -14,10 +14,11 @@ Les ressources Next.js de cette zone utilisent le prefixe distinct `/academy-sta
 
 ## Acces unifie et catalogue
 
-1. Executer `supabase/platform-unified-access.sql` dans le projet Supabase principal.
-2. Executer `apps/nutvita-academy/supabase/migrations/008_unified_platform_access.sql` dans le meme projet.
-3. Configurer le site principal et Academy avec la meme URL Supabase et la meme cle publique.
-4. Definir `NEXT_PUBLIC_XOF_PER_USD` dans Academy pour convertir le prix du catalogue public.
+1. Executer les migrations Academy `001_extensions.sql` a `007_ai_identity_proctoring.sql`, dans l'ordre, dans le projet Supabase partage. Elles creent notamment `public.app_role` et `public.profiles`.
+2. Executer `supabase/platform-unified-access.sql` dans le projet Supabase principal.
+3. Executer `apps/nutvita-academy/supabase/migrations/008_unified_platform_access.sql` dans le meme projet. Ne pas executer `008` seule.
+4. Configurer le site principal et Academy avec la meme URL Supabase et la meme cle publique.
+5. Definir `NEXT_PUBLIC_XOF_PER_USD` dans Academy pour convertir le prix du catalogue public.
 
 Apres connexion, `/choisir-acces` demande d'abord le service puis l'espace autorise. Les deux comptes principaux disposent de tous les services et espaces sans achat. Lorsqu'un cours Academy est publie, sa fiche est synchronisee vers `formations` et devient visible dans le catalogue et sur l'accueil du site principal. Un cours remis en brouillon est retire de ces pages publiques.
 

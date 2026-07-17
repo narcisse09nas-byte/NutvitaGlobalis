@@ -1,12 +1,12 @@
-create type public.app_role as enum (
+do $$ begin create type public.app_role as enum (
   'student',
   'instructor',
   'reviewer',
   'admin',
   'super_admin'
-);
+); exception when duplicate_object then null; end $$;
 
-create type public.organization_role as enum (
+do $$ begin create type public.organization_role as enum (
   'owner',
   'admin',
   'manager',
@@ -14,16 +14,16 @@ create type public.organization_role as enum (
   'reviewer',
   'member',
   'viewer'
-);
+); exception when duplicate_object then null; end $$;
 
-create type public.course_status as enum (
+do $$ begin create type public.course_status as enum (
   'draft',
   'review',
   'published',
   'archived'
-);
+); exception when duplicate_object then null; end $$;
 
-create table public.profiles (
+create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text not null,
   email citext not null unique,
@@ -33,7 +33,7 @@ create table public.profiles (
   updated_at timestamptz not null default now()
 );
 
-create table public.organizations (
+create table if not exists public.organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   slug citext not null unique,
@@ -44,7 +44,7 @@ create table public.organizations (
   updated_at timestamptz not null default now()
 );
 
-create table public.organization_members (
+create table if not exists public.organization_members (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -54,7 +54,7 @@ create table public.organization_members (
   unique (organization_id, user_id)
 );
 
-create table public.courses (
+create table if not exists public.courses (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid references public.organizations(id) on delete cascade,
   slug citext not null,
@@ -69,7 +69,7 @@ create table public.courses (
   unique (organization_id, slug)
 );
 
-create table public.course_modules (
+create table if not exists public.course_modules (
   id uuid primary key default gen_random_uuid(),
   course_id uuid not null references public.courses(id) on delete cascade,
   title text not null,
@@ -79,7 +79,7 @@ create table public.course_modules (
   unique (course_id, slug)
 );
 
-create table public.lessons (
+create table if not exists public.lessons (
   id uuid primary key default gen_random_uuid(),
   module_id uuid not null references public.course_modules(id) on delete cascade,
   title text not null,
@@ -92,7 +92,7 @@ create table public.lessons (
   unique (module_id, slug)
 );
 
-create table public.enrollments (
+create table if not exists public.enrollments (
   id uuid primary key default gen_random_uuid(),
   course_id uuid not null references public.courses(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -101,7 +101,7 @@ create table public.enrollments (
   unique (course_id, user_id)
 );
 
-create table public.lesson_progress (
+create table if not exists public.lesson_progress (
   id uuid primary key default gen_random_uuid(),
   lesson_id uuid not null references public.lessons(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -113,7 +113,7 @@ create table public.lesson_progress (
   unique (lesson_id, user_id)
 );
 
-create table public.certificates (
+create table if not exists public.certificates (
   id uuid primary key default gen_random_uuid(),
   certificate_number citext not null unique,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -125,7 +125,7 @@ create table public.certificates (
   metadata jsonb not null default '{}'::jsonb
 );
 
-create table public.audit_logs (
+create table if not exists public.audit_logs (
   id uuid primary key default gen_random_uuid(),
   actor_user_id uuid references public.profiles(id) on delete set null,
   organization_id uuid references public.organizations(id) on delete cascade,
@@ -136,17 +136,22 @@ create table public.audit_logs (
   created_at timestamptz not null default now()
 );
 
-create index organization_members_user_idx
+alter table public.audit_logs add column if not exists actor_user_id uuid references public.profiles(id) on delete set null;
+alter table public.audit_logs add column if not exists organization_id uuid references public.organizations(id) on delete cascade;
+alter table public.audit_logs add column if not exists entity_type text;
+alter table public.audit_logs add column if not exists entity_id uuid;
+
+create index if not exists organization_members_user_idx
   on public.organization_members(user_id);
 
-create index courses_organization_idx
+create index if not exists courses_organization_idx
   on public.courses(organization_id);
 
-create index enrollments_user_idx
+create index if not exists enrollments_user_idx
   on public.enrollments(user_id);
 
-create index lesson_progress_user_idx
+create index if not exists lesson_progress_user_idx
   on public.lesson_progress(user_id);
 
-create index certificates_user_idx
+create index if not exists certificates_user_idx
   on public.certificates(user_id);

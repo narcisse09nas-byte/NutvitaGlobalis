@@ -92,7 +92,7 @@ export default function Header() {
         )}
       </div>
   ) : (
-    <Link href={localizedPath(locale, "/acces")} className="btn-primary"><UserCircleIcon className="mr-2 h-5" />{t.login}</Link>
+    <Link href={localizedPath(locale, "/connexion")} className="btn-primary"><UserCircleIcon className="mr-2 h-5" />{t.login}</Link>
   );
 
   return <header className="sticky top-0 z-50 border-b border-forest/10 bg-cream/95 backdrop-blur">
@@ -131,7 +131,7 @@ export default function Header() {
           <button type="button" onClick={logout} className="btn-primary mt-2"><ArrowRightOnRectangleIcon className="mr-2 h-5" />{locale === "en" ? "Sign out" : "Se deconnecter"}</button>
         </>
       ) : (
-        <Link onClick={() => setOpen(false)} href={localizedPath(locale, "/acces")} className="btn-primary mt-2"><UserCircleIcon className="mr-2 h-5" />{t.login}</Link>
+        <Link onClick={() => setOpen(false)} href={localizedPath(locale, "/connexion")} className="btn-primary mt-2"><UserCircleIcon className="mr-2 h-5" />{t.login}</Link>
       )}
     </nav>}
   </header>;

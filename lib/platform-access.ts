@@ -33,18 +33,22 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
   }
   const allowed = new Map<string, Set<string>>();
   const add = (service: string, role: string) => { if (!allowed.has(service)) allowed.set(service, new Set()); allowed.get(service)!.add(role); };
-  add("client", "client");
+  if (!identity.supabase) add("client", "client");
   if (identity.supabase) {
     const userId = identity.user.id;
-    const [{ data: grants }, { data: enrollments }, { data: subscriptions }, { data: plans }, { data: bookings }, { data: partner }, { data: nutritrack }] = await Promise.all([
+    const [{ data: grants }, { data: clientProfile }, { data: enrollments }, { data: subscriptions }, { data: plans }, { data: bookings }, { data: partner }, { data: candidate }, { data: nutritrack }, { data: maximus }] = await Promise.all([
       identity.supabase.from("platform_service_access").select("service_key,roles").eq("user_id", userId).eq("active", true),
+      identity.supabase.from("client_profiles").select("id").eq("id", userId).maybeSingle(),
       identity.supabase.from("formation_enrollments").select("id").eq("client_id", userId).limit(1),
       identity.supabase.from("subscriptions").select("plan_id,child_id,status,expires_at").eq("client_id", userId).eq("status", "active"),
       identity.supabase.from("subscription_plans").select("id,service_type"),
       identity.supabase.from("consultation_bookings").select("status,access_expires_at").eq("client_id", userId),
       identity.supabase.from("partner_profiles").select("id,status").eq("id", userId).maybeSingle(),
+      identity.supabase.from("candidate_profiles").select("id").eq("id", userId).maybeSingle(),
       identity.supabase.from("nutritrack_members").select("id,status").eq("user_id", userId).maybeSingle(),
+      identity.supabase.from("maximus_user_access").select("active").eq("user_id", userId).eq("active", true).maybeSingle(),
     ]);
+    if (clientProfile) add("client", "client");
     for (const grant of grants || []) for (const role of grant.roles || []) add(grant.service_key, role);
     if (enrollments?.length) add("academy", "student");
     const types = new Map((plans || []).map((plan: any) => [plan.id, plan.service_type]));
@@ -53,7 +57,9 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
     if (active.some((item: any) => item.child_id || types.get(item.plan_id) === "child_growth")) add("child_growth", "client");
     if ((bookings || []).some((item: any) => !["cancelled", "refunded"].includes(item.status) && (!item.access_expires_at || +new Date(item.access_expires_at) > Date.now()))) add("teleconsultation", "client");
     if (partner?.status === "active") for (const service of ["health", "child_growth", "teleconsultation"] as const) add(service, "nutritionist");
+    if (candidate) add("recruitment", "candidate");
     if (nutritrack?.status === "active") add("nutritrack", "client");
+    if (maximus?.active) add("maximus", "staff");
   }
   const choices = platformServices.flatMap(service => service.roles.filter(role => allowed.get(service.key)?.has(role.key)).map(role => ({ service: service.key, role: role.key, label: `${service.title} — ${role.label}`, href: role.href })));
   return { email: identity.user.email || "", superAdmin: false, choices };

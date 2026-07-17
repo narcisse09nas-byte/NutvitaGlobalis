@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   if (!account) {
     const result = await ctx.service.auth.admin.inviteUserByEmail(payload.email, {
       data: { full_name: payload.full_name, account_type: "maximus_user" },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin}/maximus/login`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin}/auth/callback?next=/choisir-acces`,
     });
     if (result.error || !result.data.user) return NextResponse.json({ message: result.error?.message || "Invitation impossible." }, { status: 400 });
     account = result.data.user;
@@ -83,12 +83,20 @@ export async function POST(request: Request) {
     updated_at: new Date().toISOString(),
   }).select("*").single();
   if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+  await ctx.service.from("platform_service_access").upsert({
+    user_id: account.id,
+    service_key: "maximus",
+    roles: ["staff"],
+    active: payload.active,
+    granted_by: ctx.user.id,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id,service_key" });
   if (!invited) {
     await resend("/emails", {
       from: process.env.MAIL_FROM ?? "NutVitaGlobalis <contact@nutvitaglobalis.com>",
       to: [payload.email],
       subject: "Votre acces Maximus a ete configure",
-      text: `Bonjour ${payload.full_name},\n\nVotre acces Maximus est actif pour ${payload.units.length} perimetre(s) metier. Connectez-vous avec votre compte NutVitaGlobalis.\n\n${process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin}/maximus/login`,
+      text: `Bonjour ${payload.full_name},\n\nVotre acces Maximus est actif pour ${payload.units.length} perimetre(s) metier. Connectez-vous avec votre compte NutVitaGlobalis.\n\n${process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin}/connexion`,
     }).catch(() => undefined);
   }
   return NextResponse.json({ user: data, invited });
@@ -104,5 +112,13 @@ export async function PATCH(request: Request) {
   if (!payload.full_name || !payload.units.length || !isEmail(payload.email)) return NextResponse.json({ message: "Donnees utilisateur invalides." }, { status: 400 });
   const { data, error } = await ctx.service.from("maximus_user_access").update({ ...payload, updated_at: new Date().toISOString() }).eq("user_id", userId).select("*").single();
   if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+  await ctx.service.from("platform_service_access").upsert({
+    user_id: userId,
+    service_key: "maximus",
+    roles: ["staff"],
+    active: payload.active,
+    granted_by: ctx.user.id,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id,service_key" });
   return NextResponse.json({ user: data });
 }

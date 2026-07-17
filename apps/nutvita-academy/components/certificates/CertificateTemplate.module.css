@@ -1,0 +1,547 @@
+.section {
+  width: 100%;
+}
+
+.viewport {
+  width: 100%;
+  overflow-x: auto;
+  padding: 20px 0 30px;
+}
+
+.certificate {
+  position: relative;
+  isolation: isolate;
+
+  width: 1365px;
+  height: 810px;
+
+  margin: 0 auto;
+
+  overflow: hidden;
+  border-radius: 26px;
+
+  background-color: #fffdf4;
+
+  box-shadow:
+    0 30px 80px rgba(6, 61, 46, 0.18),
+    0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+/* Image complète du certificat utilisée comme fond */
+
+.background {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+
+  width: 100%;
+  height: 100%;
+
+  background-image: url("/certificates/camms-master.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Zones limitées de masquage */
+
+.mask {
+  position: absolute;
+  z-index: 2;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 253, 244, 0.9),
+      rgba(255, 253, 244, 0.98),
+      rgba(255, 253, 244, 0.9)
+    );
+
+  border-radius: 6px;
+
+  box-shadow:
+    0 0 16px rgba(255, 253, 244, 0.9);
+}
+
+.nameMask {
+  top: 36.5%;
+  left: 30%;
+  width: 40%;
+  height: 9%;
+}
+
+.courseMask {
+  top: 49.8%;
+  left: 27%;
+  width: 46%;
+  height: 12.5%;
+}
+
+.dateMask {
+  top: 78.5%;
+  left: 18.5%;
+  width: 18%;
+  height: 9%;
+}
+
+.idMask {
+  top: 79%;
+  left: 41.8%;
+  width: 19%;
+  height: 9%;
+}
+
+.signatureMask {
+  top: 75.8%;
+  left: 63.5%;
+  width: 18%;
+  height: 13%;
+}
+
+.qrMask {
+  top: 50.5%;
+  left: 79.5%;
+  width: 13.5%;
+  height: 22.5%;
+}
+
+/* Nom du bénéficiaire */
+
+.recipientName {
+  position: absolute;
+  z-index: 4;
+
+  top: 37.5%;
+  left: 50%;
+
+  width: 53%;
+
+  transform: translateX(-50%);
+
+  text-align: center;
+
+  color: #063d2e;
+
+  font-family:
+    "Edwardian Script ITC",
+    "Palace Script MT",
+    "Segoe Script",
+    "Brush Script MT",
+    cursive;
+
+  font-size: 59px;
+  font-weight: 400;
+  line-height: 1;
+
+  white-space: nowrap;
+
+  text-shadow:
+    0.4px 0.4px 0 rgba(184, 135, 36, 0.38);
+}
+
+/* Formation */
+
+.courseBlock {
+  position: absolute;
+  z-index: 4;
+
+  top: 51%;
+  left: 50%;
+
+  width: 49%;
+
+  transform: translateX(-50%);
+
+  text-align: center;
+}
+
+.courseBlock h2 {
+  margin: 0;
+
+  color: #063d2e;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1.16;
+
+  text-transform: uppercase;
+}
+
+.courseBlock p {
+  margin: 10px 0 0;
+
+  color: #334e45;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  font-size: 18px;
+  font-style: italic;
+  line-height: 1.2;
+}
+
+/* QR Code */
+
+.qrCode {
+  position: absolute;
+  z-index: 4;
+
+  top: 51.3%;
+  left: 85.1%;
+
+  width: 180px;
+
+  transform: translateX(-50%);
+
+  text-align: center;
+
+  color: #112c24;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+}
+
+.qrFrame {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 6px;
+
+  border: 3px solid #b88724;
+  border-radius: 4px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 5px 12px rgba(6, 61, 46, 0.12);
+}
+
+.qrCode strong {
+  display: block;
+
+  margin-top: 7px;
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.qrCode span {
+  display: block;
+
+  margin-top: 3px;
+
+  font-size: 9px;
+}
+
+/* Date */
+
+.completionDate {
+  position: absolute;
+  z-index: 4;
+
+  top: 80.5%;
+  left: 27.1%;
+
+  min-width: 190px;
+
+  transform: translateX(-50%);
+
+  text-align: center;
+
+  color: #112c24;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+}
+
+.completionDate span {
+  display: block;
+
+  font-size: 13px;
+}
+
+.completionDate strong {
+  display: block;
+
+  margin-top: 6px;
+
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Identifiant */
+
+.certificateId {
+  position: absolute;
+  z-index: 4;
+
+  top: 81%;
+  left: 51.2%;
+
+  min-width: 225px;
+
+  transform: translateX(-50%);
+
+  text-align: center;
+
+  color: #112c24;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+}
+
+.certificateId span {
+  display: block;
+
+  font-size: 13px;
+}
+
+.certificateId strong {
+  display: block;
+
+  margin-top: 6px;
+
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Signature */
+
+.signature {
+  position: absolute;
+  z-index: 4;
+
+  top: 76.7%;
+  left: 70.5%;
+
+  width: 215px;
+
+  text-align: center;
+
+  color: #112c24;
+
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+}
+
+.signatureName {
+  font-family:
+    "Edwardian Script ITC",
+    "Palace Script MT",
+    "Segoe Script",
+    "Brush Script MT",
+    cursive;
+
+  font-size: 38px;
+  line-height: 1;
+
+  transform: rotate(-4deg);
+}
+
+.signatureLine {
+  width: 160px;
+  height: 1px;
+
+  margin: 4px auto 7px;
+
+  background: rgba(17, 44, 36, 0.72);
+}
+
+.signature span {
+  display: block;
+
+  font-size: 12px;
+}
+
+.signature strong {
+  display: block;
+
+  margin-top: 4px;
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Hologramme placé en bas à droite */
+
+.hologram {
+  position: absolute;
+  z-index: 6;
+
+  right: 74px;
+  bottom: 48px;
+
+  width: 76px;
+  height: 76px;
+
+  object-fit: contain;
+
+  border-radius: 50%;
+
+  opacity: 0.9;
+
+  filter:
+    saturate(1.15)
+    contrast(1.05)
+    drop-shadow(
+      0 5px 8px rgba(6, 61, 46, 0.28)
+    );
+
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Boutons */
+
+.actions {
+  display: flex;
+
+  flex-wrap: wrap;
+  justify-content: center;
+
+  gap: 14px;
+
+  margin-top: 8px;
+}
+
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 9px;
+
+  min-height: 46px;
+
+  padding: 0 24px;
+
+  border-radius: 999px;
+
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    transform 160ms ease,
+    background-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.primaryButton {
+  border: 1px solid #f58220;
+
+  background: #f58220;
+  color: #ffffff;
+
+  box-shadow:
+    0 8px 20px rgba(245, 130, 32, 0.22);
+}
+
+.primaryButton:hover {
+  transform: translateY(-2px);
+
+  background: #df6d0d;
+}
+
+.primaryButton:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.secondaryButton {
+  border: 1px solid #0b5d3b;
+
+  background: #ffffff;
+  color: #0b5d3b;
+}
+
+.secondaryButton:hover {
+  transform: translateY(-2px);
+
+  background: #ddf5e8;
+}
+
+.spinner {
+  animation: certificateSpin 800ms linear infinite;
+}
+
+@keyframes certificateSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Impression */
+
+@page {
+  size: landscape;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+
+    background: #ffffff !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .certificate,
+  .certificate * {
+    visibility: visible !important;
+  }
+
+  .certificate {
+    position: fixed;
+
+    inset: 0;
+
+    width: 100vw;
+    height: 59.34vw;
+
+    margin: 0;
+
+    border-radius: 0;
+
+    box-shadow: none;
+  }
+
+  .viewport {
+    padding: 0;
+
+    overflow: visible;
+  }
+
+  .actions {
+    display: none !important;
+  }
+}

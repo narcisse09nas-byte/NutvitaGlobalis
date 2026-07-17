@@ -1,0 +1,11 @@
+export type MarketplaceCourseLevel = "beginner" | "intermediate" | "advanced" | "professional";
+export type MarketplaceCourse = { id:string; slug:string; code:string; title:string; subtitle:string; description:string; category:string; language:string; level:MarketplaceCourseLevel; instructorId:string; instructorName:string; priceUsd:number; compareAtPriceUsd?:number; rating:number; reviewCount:number; studentCount:number; durationHours:number; lessonsCount:number; featured:boolean; published:boolean; };
+export type MarketplaceReview = { id:string; courseSlug:string; userId:string; authorName:string; rating:number; comment:string; createdAt:string; };
+export type MarketplaceCartItem = { courseSlug:string; addedAt:string; };
+export type MarketplaceWishlistItem = { courseSlug:string; addedAt:string; };
+export type MarketplaceCoupon = { code:string; type:"percent"|"fixed"; value:number; active:boolean; expiresAt?:string; };
+export type MarketplaceOrderItem = { courseSlug:string; courseTitle:string; instructorId:string; unitPriceUsd:number; discountUsd:number; finalPriceUsd:number; };
+export type MarketplaceOrder = { id:string; userId:string; items:MarketplaceOrderItem[]; subtotalUsd:number; discountUsd:number; totalUsd:number; couponCode?:string; status:"paid"|"pending"|"failed"|"cancelled"|"refunded"; paymentMethod:"flutterwave"; createdAt:string; reference:string; };
+export type MarketplaceEnrollment = { userId:string; courseSlug:string; orderId:string; enrolledAt:string; };
+export type MarketplacePayout = { instructorId:string; grossRevenueUsd:number; commissionUsd:number; netRevenueUsd:number; orderCount:number; };
+export type MarketplaceStore = { version:2; cart:MarketplaceCartItem[]; wishlist:MarketplaceWishlistItem[]; reviews:MarketplaceReview[]; orders:MarketplaceOrder[]; enrollments:MarketplaceEnrollment[]; };

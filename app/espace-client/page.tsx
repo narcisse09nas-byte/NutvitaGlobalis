@@ -33,7 +33,13 @@ export default async function ClientHome({ searchParams }: { searchParams: Promi
       })}
       {!subscriptions?.length&&!bookings?.filter((item:any)=>!["cancelled","refunded"].includes(item.status)).length&&<Empty href="/espace-client/services" label="Choisir un service"/>}
     </Section>
-    <Section title="Mes formations achetees">{enrollments?.length ? enrollments.map((item: any) => <article key={item.id} className="rounded-xl bg-slate-50 p-4"><b>{item.formations?.title || "Formation"}</b><p className="mt-1 text-xs text-slate-500">Statut : {item.status}</p>{item.access_url && <a href={item.access_url} target="_blank" className="mt-3 inline-block font-bold text-leaf">Acceder a la formation</a>}</article>) : <Empty href="/espace-client/services?categorie=formations" label="Decouvrir les formations"/>}</Section>
+    <Section title="Mes formations achetees">
+      <a href="/academy/dashboard/courses" className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-forest p-5 text-white transition hover:bg-leaf">
+        <span><b className="text-lg">NutVitaGlobalis Academy</b><span className="mt-1 block text-sm text-white/75">Cours, evaluations, progression et certificats dans votre espace de formation.</span></span>
+        <span className="rounded-full bg-white px-4 py-2 text-sm font-black text-forest">Ouvrir mes formations</span>
+      </a>
+      {enrollments?.length ? enrollments.map((item: any) => <article key={item.id} className="rounded-xl bg-slate-50 p-4"><b>{item.formations?.title || "Formation"}</b><p className="mt-1 text-xs text-slate-500">Statut : {item.status}</p>{item.access_url && <a href={item.access_url} target="_blank" rel="noreferrer" className="mt-3 inline-block font-bold text-leaf">Acceder a la formation</a>}</article>) : <Empty href="/espace-client/services?categorie=formations" label="Decouvrir les formations"/>}
+    </Section>
     <Section title="Mes consultations reservees">{bookings?.length ? bookings.map((item: any) => <article key={item.id} className="rounded-xl bg-slate-50 p-4"><b>Pack {item.teleconseils?.name || "nutrition"}</b><p className="mt-1 text-sm">Statut : {item.status}</p>{item.scheduled_at ? <p className="mt-2 font-bold text-leaf">Creneau confirme : {new Date(item.scheduled_at).toLocaleString("fr-FR")}</p> : <BookingSlots bookingId={item.id} initial={item.preferred_slots || []}/>}</article>) : <Empty href="/espace-client/consultations" label="Reserver une consultation"/>}</Section>
     <div className="grid gap-6 xl:grid-cols-2">
       <Section title="Mes paiements">{payments?.length ? payments.map((item: any) => <PaymentRow key={item.id} item={item}/>) : <p className="text-slate-400">Aucun paiement.</p>}</Section>

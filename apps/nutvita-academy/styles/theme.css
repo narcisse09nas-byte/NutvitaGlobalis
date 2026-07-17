@@ -1,0 +1,27 @@
+:root {
+
+  /* ===========================
+      NutVita Colors
+  ============================ */
+
+  --green-900:#063D2E;
+  --green-800:#0B5D3B;
+  --green-700:#147A50;
+  --green-100:#DDF5E8;
+
+  --orange:#F58220;
+
+  --white:#FFFFFF;
+
+  --background:#F8FAFC;
+
+  --text:#1F2937;
+
+  --border:#E5E7EB;
+
+  --radius:20px;
+
+  --shadow:
+      0 8px 25px rgba(0,0,0,.05);
+
+}

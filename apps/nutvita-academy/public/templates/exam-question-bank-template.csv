@@ -1,0 +1,5 @@
+id,type,section,domain,difficulty,prompt,promptEn,caseText,caseTextEn,options,optionsEn,correct,correctNumericAnswer,numericTolerance,numericUnit,explanation,explanationEn,points
+qcm-001,multiple,qcm,fundamentals,medium,Choisissez les réponses correctes,Select the correct answers,,,"Option A|Option B|Option C|Option D","Option A|Option B|Option C|Option D","1|3",,,,Explication française,English explanation,1
+qcu-001,single,qcu,screening,easy,Choisissez une seule réponse,Choose one answer,,,"Option A|Option B|Option C|Option D","Option A|Option B|Option C|Option D",2,,,,Explication française,English explanation,1
+case-001,case_single,case_study,clinical,hard,Quelle décision prenez-vous ?,What decision do you make?,Scénario clinique français,English clinical scenario,"Option A|Option B|Option C","Option A|Option B|Option C",1,,,,Explication française,English explanation,2
+numeric-001,numeric,case_study,anthropometry,medium,Calculez la valeur demandée,Calculate the requested value,Scénario numérique français,English numeric scenario,,,,42,0.5,mm,Explication française,English explanation,2

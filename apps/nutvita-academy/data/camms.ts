@@ -1,0 +1,25 @@
+export const cammsCourse = {
+  code: "CAMMS",
+  title: "Certified Acute Malnutrition Management Specialist",
+  titleFr: "Spécialiste certifié en prise en charge communautaire de la malnutrition aiguë",
+  price: "100 USD",
+  duration: "45–60 heures",
+  language: "Français + English",
+  level: "Advanced Professional",
+  description:
+    "Une certification professionnelle conçue pour renforcer les compétences pratiques en dépistage, classification, référence, prise en charge et suivi de la malnutrition aiguë chez les enfants.",
+  modules: [
+    "Introduction à la malnutrition aiguë",
+    "Causes et conséquences de la malnutrition",
+    "Dépistage communautaire",
+    "Anthropométrie : MUAC, poids, taille, œdèmes",
+    "Classification MAS/MAM",
+    "Admission et critères de référence",
+    "Prise en charge ambulatoire",
+    "Prise en charge hospitalière",
+    "Aliments thérapeutiques",
+    "Suivi, sortie et rechute",
+    "Rapportage et qualité des données",
+    "Cas pratiques et examen final",
+  ],
+};

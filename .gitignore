@@ -6,3 +6,9 @@ node_modules/
 .vscode/
 *.tsbuildinfo
 *.log
+
+# Temporary Academy video recreation artifacts
+/tmp/video-recreation/
+/output/video/
+/scripts/recreate-academy-intro.ps1
+/scripts/render-academy-intro-v2.mjs

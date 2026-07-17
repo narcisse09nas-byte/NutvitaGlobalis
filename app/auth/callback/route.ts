@@ -4,8 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSystemEmail } from "@/lib/system-email";
 
 export async function GET(request: Request) {
-  const url = new URL(request.url), code = url.searchParams.get("code"), rawNext = url.searchParams.get("next") || "/espace-client";
-  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/espace-client";
+  const url = new URL(request.url), code = url.searchParams.get("code"), rawNext = url.searchParams.get("next") || "/choisir-acces";
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/choisir-acces";
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);

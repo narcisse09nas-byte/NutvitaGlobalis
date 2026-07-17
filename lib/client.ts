@@ -4,6 +4,7 @@ import {createClient} from "@/lib/supabase/server";
 import {hasLocalAdminMode,hasSupabaseConfig} from "@/lib/supabase/config";
 import {createLocalClient} from "@/lib/supabase/local";
 import {localClientUser} from "@/lib/local-seed";
+import {isPrincipalEmail} from "@/lib/platform-services";
 
 export type ClientEntitlements={health:boolean;childGrowth:boolean;teleconsultation:boolean};
 
@@ -22,6 +23,9 @@ export async function requireClient(){
 }
 
 export async function getClientEntitlements(supabase:any,userId:string):Promise<ClientEntitlements>{
+  const authResult=typeof supabase.auth?.getUser==='function'?await supabase.auth.getUser():{data:{user:null}};
+  const {data:admin}=await supabase.from('admin_users').select('role,active').eq('id',userId).maybeSingle();
+  if(isPrincipalEmail(authResult.data?.user?.email)||(admin?.active&&admin.role==='super_admin'))return{health:true,childGrowth:true,teleconsultation:true};
   const now=Date.now();
   const [{data:subscriptions},{data:plans},{data:bookings}]=await Promise.all([
     supabase.from('subscriptions').select('*').eq('client_id',userId).eq('status','active'),

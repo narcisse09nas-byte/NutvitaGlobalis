@@ -68,6 +68,7 @@ export default function ClientShellClient({ children, email, access }: { childre
     {healthPages.some(item => path.startsWith(item)) && <MedicalDisclaimer />}
     <div className="mx-auto grid max-w-7xl gap-7 px-5 py-8 lg:grid-cols-[250px_1fr]">
       <nav className="h-fit rounded-2xl bg-forest p-4 text-white">
+        <a href="/choisir-acces" className="mb-2 flex gap-3 rounded-xl bg-white/10 px-4 py-3 font-bold hover:bg-white/15"><SparklesIcon className="h-5" />Changer de service</a>
         <a href="/academy/dashboard/courses" className="flex gap-3 rounded-xl px-4 py-3 font-bold hover:bg-white/10"><SparklesIcon className="h-5" />Mes formations</a>
         {links.filter(([, , , visible]) => visible).map(([href, label, Icon]) => <Link key={href} href={href} className={`flex gap-3 rounded-xl px-4 py-3 font-bold ${path === href ? "bg-white/15" : "hover:bg-white/10"}`}><Icon className="h-5" />{label}</Link>)}
       </nav>

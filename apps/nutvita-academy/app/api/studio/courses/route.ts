@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { StudioCourse } from "@/types/instructor-studio";
 import { isSupabaseConfigured } from "@/lib/env";
 import { apiText } from "@/lib/api-i18n";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
   if (!isSupabaseConfigured())
@@ -167,5 +168,27 @@ export async function POST(request: Request) {
         return Response.json({ error: lessonError.message }, { status: 500 });
     }
   }
+  const admin = createSupabaseAdminClient();
+  const durationMinutes = course.modules.reduce((total, item) => total + item.lessons.reduce((sum, lesson) => sum + lesson.durationMinutes, 0), 0);
+  const publicCourse = {
+    academy_course_id: courseId,
+    source: "academy",
+    title: course.title || course.titleEn,
+    title_en: course.titleEn || null,
+    short_description: course.subtitle || course.description.slice(0, 220),
+    short_description_en: course.subtitleEn || course.descriptionEn?.slice(0, 220) || null,
+    description: course.description || course.descriptionEn,
+    description_en: course.descriptionEn || null,
+    duration: `${Math.max(1, Math.ceil(durationMinutes / 60))} h`,
+    level: course.level,
+    price: Math.round(Number(course.priceUsd || 0) * Number(process.env.NEXT_PUBLIC_XOF_PER_USD || 600)),
+    moodle_url: `/academy/dashboard/marketplace/${course.slug}`,
+    category: course.category,
+    status: course.status === "published" ? "published" : "draft",
+    featured: course.status === "published",
+    publication_locale_status: course.contentLanguages.length === 2 ? "both" : course.contentLanguages[0] || "fr",
+  };
+  const { error: catalogError } = await admin.from("formations").upsert(publicCourse, { onConflict: "academy_course_id" });
+  if (catalogError) return Response.json({ error: `Formation enregistrée, mais synchronisation du catalogue impossible : ${catalogError.message}` }, { status: 500 });
   return Response.json({ id: courseId, synchronized: true });
 }

@@ -101,7 +101,7 @@ export default async function Home() {
       <div className="container-site">
         <span className="eyebrow bg-white">{english ? "Learn" : "Se former"}</span>
         <h2 className="mb-10 text-4xl font-black">{english ? "Featured Courses" : "Formations mises en avant"}</h2>
-        <div className="grid gap-6 md:grid-cols-2">{formations.slice(0, 4).map((course) => <div className="card flex flex-col gap-5 p-7 sm:flex-row" key={course.title}><div className="relative h-40 w-full shrink-0 overflow-hidden sm:w-48"><Image src={course.image} alt={course.title} fill className="object-cover" /></div><div><h3 className="text-2xl font-black">{course.title}</h3><p className="mt-3 flex items-center gap-2 text-sm text-slate-500"><ClockIcon className="h-5 text-orange" />{course.duration} · {course.level}</p><Link href="/formations" className="mt-5 inline-block font-bold text-leaf">{english ? "Discover" : "Découvrir"} →</Link></div></div>)}</div>
+        <div className="grid gap-6 md:grid-cols-2">{formations.map((course) => <div className="card flex flex-col gap-5 p-7 sm:flex-row" key={course.title}><div className="relative h-40 w-full shrink-0 overflow-hidden sm:w-48"><Image src={course.image} alt={course.title} fill className="object-cover" /></div><div><h3 className="text-2xl font-black">{course.title}</h3><p className="mt-3 flex items-center gap-2 text-sm text-slate-500"><ClockIcon className="h-5 text-orange" />{course.duration} · {course.level}</p><Link href="/formations" className="mt-5 inline-block font-bold text-leaf">{english ? "Discover" : "Découvrir"} →</Link></div></div>)}</div>
       </div>
     </section>}
 

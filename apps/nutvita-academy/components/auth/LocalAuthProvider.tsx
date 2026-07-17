@@ -17,6 +17,7 @@ import {
   logoutLocalUser,
   registerLocalUser,
   updateLocalUser,
+  isLocalSuperAdminEmail,
 } from "@/lib/local-auth";
 import type {
   LocalUser,
@@ -115,7 +116,7 @@ export function LocalAuthProvider({ children }: { children: React.ReactNode }) {
         auth.user.email?.split("@")[0] ??
         "Utilisateur",
       email: profile?.email ?? auth.user.email ?? "",
-      role: normalizeRole(profile?.role),
+      role: isLocalSuperAdminEmail(profile?.email ?? auth.user.email ?? "") ? "super_admin" : normalizeRole(profile?.role),
       active: true,
       password: "",
       createdAt: profile?.created_at ?? auth.user.created_at,

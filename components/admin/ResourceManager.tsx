@@ -86,6 +86,7 @@ export default function ResourceManager({ config }: { config: ResourceConfig }) 
     const next = String(row[config.statusField]) === options[1] ? options[0] : options[1];
     const payload: Record<string, unknown> = { [config.statusField]: next };
     if (config.table === "articles") payload.published_at = next === "published" ? new Date().toISOString() : row.published_at;
+    if (config.table === "formations" && next === "published") payload.featured = true;
     await createClient().from(config.table).update(payload).eq("id", row.id);
     load();
   }

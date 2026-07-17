@@ -8,7 +8,7 @@ export const LOCAL_SUPER_ADMIN_EMAILS = [
   "contact@nutvitaglobalis.com",
 ] as const;
 
-export const LOCAL_SUPER_ADMIN_DEFAULT_PASSWORD = "NutVita@2026";
+export const LOCAL_SUPER_ADMIN_DEFAULT_PASSWORD = process.env.NEXT_PUBLIC_LOCAL_SUPER_ADMIN_PASSWORD || "";
 
 function isBrowser() {
   return typeof window !== "undefined";
@@ -70,6 +70,7 @@ export function ensureLocalSuperAdmins() {
       continue;
     }
 
+    if (!LOCAL_SUPER_ADMIN_DEFAULT_PASSWORD) continue;
     users.push({
       id: createId(),
       fullName: email.startsWith("pauln.") ? "Paul Narcisse Zebaze" : "NutVitaGlobalis",

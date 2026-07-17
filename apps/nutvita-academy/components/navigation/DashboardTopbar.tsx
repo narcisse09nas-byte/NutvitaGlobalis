@@ -64,6 +64,12 @@ export function DashboardTopbar({ onOpenMenu }: DashboardTopbarProps) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <a
+            href="/choisir-acces"
+            className="hidden rounded-full border border-slate-200 px-3 py-2 text-xs font-bold text-[#063D2E] 2xl:inline-flex"
+          >
+            Changer de service
+          </a>
           {accountRole === "super_admin" && (
             <Link
               href="/session-select"

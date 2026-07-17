@@ -108,6 +108,20 @@ export async function middleware(request: NextRequest) {
   });
   const { data: { user } } = await supabase.auth.getUser();
 
+  const protectedService = [
+    { prefixes: ["/academy/", "/academy"], service: "academy" },
+    { prefixes: ["/espace-client/dossier", "/espace-client/tendances", "/espace-client/analyse"], service: "health" },
+    { prefixes: ["/espace-client/croissance-enfant"], service: "child_growth" },
+    { prefixes: ["/espace-client/consultations", "/espace-client/messages", "/espace-client/appels"], service: "teleconsultation" },
+    { prefixes: ["/nutritrack"], service: "nutritrack" },
+    { prefixes: ["/maximus"], service: "maximus" },
+  ].find(item => item.prefixes.some(prefix => prefix === "/academy" ? localized.pathname === prefix : localized.pathname.startsWith(prefix)));
+  if (protectedService && user && request.cookies.get("nutvita_active_service")?.value !== protectedService.service) {
+    const chooser = new URL("/choisir-acces", request.url);
+    chooser.searchParams.set("service", protectedService.service);
+    return NextResponse.redirect(chooser);
+  }
+
   if (localized.pathname.startsWith("/admin") && localized.pathname !== "/admin") {
     if (!user) return NextResponse.redirect(new URL("/admin", request.url));
     const { data: admin } = await supabase.from("admin_users").select("role,active").eq("id", user.id).maybeSingle();

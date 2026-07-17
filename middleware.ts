@@ -1,4 +1,3 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const access: Record<string, string[]> = {
@@ -118,48 +117,19 @@ function activeSessionRule(pathname: string): SessionRule | null {
 
 export async function middleware(request: NextRequest) {
   const localized = localizedRequest(request);
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  let response = localized.rewrite ? NextResponse.rewrite(localized.rewrite) : NextResponse.next({ request });
+  const response = localized.rewrite ? NextResponse.rewrite(localized.rewrite) : NextResponse.next({ request });
   response.cookies.set("nutvita_locale", localized.locale, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
 
-  if (process.env.NEXT_PUBLIC_LOCAL_ADMIN_MODE === "true" && (!url || !key)) {
+  if (process.env.NEXT_PUBLIC_LOCAL_ADMIN_MODE === "true") {
     if (localized.pathname.startsWith("/admin") && localized.pathname !== "/admin" && request.cookies.get("nutvita_local_admin")?.value !== "1") return NextResponse.redirect(new URL("/admin", request.url));
     return response;
   }
-  if (!url || !key) return response;
-
-  try {
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll: () => request.cookies.getAll(),
-      setAll(cookies) {
-        cookies.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = localized.rewrite ? NextResponse.rewrite(localized.rewrite) : NextResponse.next({ request });
-        cookies.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-        response.cookies.set("nutvita_locale", localized.locale, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
-      },
-    },
-  });
-  const { data: { user } } = await supabase.auth.getUser();
 
   const sessionRule = activeSessionRule(localized.pathname);
   if (sessionRule) {
-    if (!user) return NextResponse.redirect(new URL("/connexion?redirect=/choisir-acces", request.url));
     const service = request.cookies.get("nutvita_active_service")?.value;
     const role = request.cookies.get("nutvita_active_role")?.value;
-    const { data: latest } = await supabase
-      .from("platform_session_selections")
-      .select("service_key,role_key,selected_at")
-      .eq("user_id", user.id)
-      .gte("selected_at", new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString())
-      .order("selected_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const allowed = Boolean(
-      latest && latest.service_key === service && latest.role_key === role
-      && sessionRule.services.includes(service || "") && sessionRule.roles.includes(role || ""),
-    );
+    const allowed = sessionRule.services.includes(service || "") && sessionRule.roles.includes(role || "");
     if (!allowed) {
       if (localized.pathname.startsWith("/api/")) return NextResponse.json({ message: "Le mode de session actif ne permet pas cette action." }, { status: 403 });
       const chooser = new URL("/choisir-acces", request.url);
@@ -168,42 +138,6 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const protectedService = [
-    { prefixes: ["/academy/", "/academy"], service: "academy" },
-    { prefixes: ["/espace-client/dossier", "/espace-client/tendances", "/espace-client/analyse"], service: "health" },
-    { prefixes: ["/espace-client/croissance-enfant"], service: "child_growth" },
-    { prefixes: ["/espace-client/consultations", "/espace-client/messages", "/espace-client/appels"], service: "teleconsultation" },
-    { prefixes: ["/candidat"], service: "recruitment" },
-    { prefixes: ["/surveys"], service: "survey" },
-    { prefixes: ["/op-management"], service: "project_management" },
-    { prefixes: ["/nutritrack"], service: "nutritrack" },
-    { prefixes: ["/maximus"], service: "maximus" },
-  ].find(item => item.prefixes.some(prefix => prefix === "/academy" ? localized.pathname === prefix : localized.pathname.startsWith(prefix)));
-  if (protectedService && user && request.cookies.get("nutvita_active_service")?.value !== protectedService.service) {
-    const chooser = new URL("/choisir-acces", request.url);
-    chooser.searchParams.set("service", protectedService.service);
-    return NextResponse.redirect(chooser);
-  }
-
-  if (localized.pathname.startsWith("/admin") && localized.pathname !== "/admin") {
-    if (!user) return NextResponse.redirect(new URL("/admin", request.url));
-    const { data: admin } = await supabase.from("admin_users").select("role,active").eq("id", user.id).maybeSingle();
-    if (!admin?.active) return NextResponse.redirect(new URL("/admin?unauthorized=1", request.url));
-    const rule = Object.entries(access).sort(([a], [b]) => b.length - a.length).find(([prefix]) => localized.pathname.startsWith(prefix));
-    if (rule && !rule[1].includes(admin.role)) return NextResponse.redirect(new URL("/admin?acces=refuse", request.url));
-  }
-
-  } catch (error) {
-    console.error("middleware_session_validation_failed", error);
-    const protectedRequest = Boolean(activeSessionRule(localized.pathname)) || (localized.pathname.startsWith("/admin") && localized.pathname !== "/admin");
-    if (!protectedRequest) return response;
-    if (localized.pathname.startsWith("/api/")) {
-      return NextResponse.json({ message: "Validation de session temporairement indisponible." }, { status: 503 });
-    }
-    const login = new URL("/connexion", request.url);
-    login.searchParams.set("erreur", "session_indisponible");
-    return NextResponse.redirect(login);
-  }
   return response;
 }
 

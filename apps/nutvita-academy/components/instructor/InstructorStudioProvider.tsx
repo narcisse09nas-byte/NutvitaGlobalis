@@ -250,6 +250,7 @@ export function InstructorStudioProvider({
       const course = createStudioCourse({
         ...input,
         instructorUserId: user.id,
+        creatorRole: user.role as "instructor" | "admin" | "super_admin",
       });
       persist((current) => ({
         ...current,
@@ -266,6 +267,10 @@ export function InstructorStudioProvider({
       const current = data.courses.find((course) => course.id === courseId);
       if (!current || !canManageCourse(current))
         return { success: false, error: text("Action non autorisée.", "Unauthorized action.") };
+      const canAssign = user?.role === "admin" || user?.role === "super_admin";
+      const instructorUserId = canAssign && patch.instructorUserId
+        ? patch.instructorUserId
+        : current.instructorUserId;
       persist((store) => ({
         ...store,
         courses: store.courses.map((course) =>
@@ -274,7 +279,7 @@ export function InstructorStudioProvider({
                 ...course,
                 ...patch,
                 id: course.id,
-                instructorUserId: course.instructorUserId,
+                instructorUserId,
                 updatedAt: new Date().toISOString(),
               }
             : course,
@@ -284,12 +289,12 @@ export function InstructorStudioProvider({
         ...current,
         ...patch,
         id: current.id,
-        instructorUserId: current.instructorUserId,
+        instructorUserId,
         updatedAt: new Date().toISOString(),
       });
       return { success: true };
     },
-    [canManageCourse, data.courses, persist, syncCourse, text],
+    [canManageCourse, data.courses, persist, syncCourse, text, user?.role],
   );
 
   const updateStatus = useCallback(

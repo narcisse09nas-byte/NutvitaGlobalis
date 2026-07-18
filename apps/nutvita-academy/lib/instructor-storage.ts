@@ -1,4 +1,5 @@
 import type { StudioCourse, StudioStoreData } from "@/types/instructor-studio";
+import { legacyStudioCourses, mergeLegacyStudioCourses } from "@/data/legacy-studio-courses";
 
 const KEY = "nutvita-instructor-studio";
 const browser = () => typeof window !== "undefined";
@@ -19,7 +20,7 @@ export function createStudioSlug(value: string) {
 }
 
 export function emptyStudioStore(): StudioStoreData {
-  return { version: 4, courses: [] };
+  return { version: 4, courses: legacyStudioCourses.map(normalizeStudioCourse) };
 }
 
 export function normalizeStudioCourse(course: StudioCourse): StudioCourse {
@@ -90,6 +91,8 @@ export function normalizeStudioCourse(course: StudioCourse): StudioCourse {
         }
       : null,
     reviewNotes: course.reviewNotes ?? "",
+    buildApproved: course.buildApproved ?? course.status !== "review",
+    createdByRole: course.createdByRole ?? "instructor",
     certification: {
       enabled: course.certification?.enabled ?? false,
       minimumCourseProgress: course.certification?.minimumCourseProgress ?? 100,
@@ -112,7 +115,7 @@ export function loadStudioStore(): StudioStoreData {
     const parsed = JSON.parse(raw) as StudioStoreData;
     return {
       version: 4,
-      courses: (parsed.courses ?? []).map(normalizeStudioCourse),
+      courses: mergeLegacyStudioCourses(parsed.courses ?? []).map(normalizeStudioCourse),
     };
   } catch {
     return emptyStudioStore();
@@ -127,6 +130,7 @@ export function saveStudioStore(data: StudioStoreData) {
 export function createStudioCourse(input: {
   instructorUserId: string;
   title: string;
+  creatorRole: "instructor" | "admin" | "super_admin";
   titleEn?: string;
   code: string;
 }): StudioCourse {
@@ -146,7 +150,9 @@ export function createStudioCourse(input: {
     contentLanguages: ["fr", "en"],
     level: "Professionnel",
     priceUsd: 0,
-    status: "draft",
+    status: input.creatorRole === "instructor" ? "review" : "draft",
+    buildApproved: input.creatorRole === "admin" || input.creatorRole === "super_admin",
+    createdByRole: input.creatorRole,
     instructorUserId: input.instructorUserId,
     modules: [],
     quizzes: [],

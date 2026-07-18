@@ -1,6 +1,7 @@
 "use client";
 
-import { Save, ShieldCheck } from "lucide-react";
+import { Save, ShieldCheck, UserCheck } from "lucide-react";
+import { useEffect, useState } from "react";
 import { StudioCertificationEditor } from "@/components/instructor/StudioCertificationEditor";
 import { StudioCurriculumBuilder } from "@/components/instructor/StudioCurriculumBuilder";
 import { StudioExamBuilder } from "@/components/instructor/StudioExamBuilder";
@@ -28,6 +29,16 @@ export function CourseStudioEditor({ courseId }: { courseId: string }) {
     useInstructorStudio();
   const { user } = useLocalAuth();
   const { locale } = useLanguage();
+  const isAdministrator = user?.role === "admin" || user?.role === "super_admin";
+  const [instructors, setInstructors] = useState<Array<{ id: string; full_name: string; email: string }>>([]);
+  useEffect(() => {
+    if (!isAdministrator) return;
+    void fetch("/api/studio/courses?directory=instructors", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : { instructors: [] })
+      .then((payload: { instructors?: Array<{ id: string; full_name: string; email: string }> }) =>
+        setInstructors(payload.instructors ?? []));
+  }, [isAdministrator]);
+
   const course = data.courses.find((item) => item.id === courseId) ?? null;
   if (!course)
     return (
@@ -44,8 +55,6 @@ export function CourseStudioEditor({ courseId }: { courseId: string }) {
       </div>
     );
 
-  const isAdministrator =
-    user?.role === "admin" || user?.role === "super_admin";
   const errors = validateStudioCourse(course);
   const change = (patch: Partial<StudioCourse>) =>
     updateCourse(course.id, patch);
@@ -86,7 +95,7 @@ export function CourseStudioEditor({ courseId }: { courseId: string }) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {!isAdministrator && (
+            {!isAdministrator && course.buildApproved && (
               <button
                 type="button"
                 onClick={() => changeStatus("review")}
@@ -122,6 +131,23 @@ export function CourseStudioEditor({ courseId }: { courseId: string }) {
             )}
           </div>
         </div>
+
+        {!course.buildApproved && (
+          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+            <p className="font-extrabold">{locale === "fr" ? "Validation administrative requise" : "Administrative approval required"}</p>
+            <p className="mt-1 text-sm">
+              {locale === "fr"
+                ? "Le formateur pourra construire les modules, lecons, quiz et examens apres cette validation."
+                : "The instructor can build modules, lessons, quizzes and exams after approval."}
+            </p>
+            {isAdministrator && (
+              <button type="button" onClick={() => change({ buildApproved: true, status: "draft" })}
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#0B5D3B] px-5 py-3 text-sm font-bold text-white">
+                <UserCheck size={17} /> {locale === "fr" ? "Autoriser la construction" : "Approve course building"}
+              </button>
+            )}
+          </div>
+        )}
 
         {errors.length > 0 && (
           <div className="mt-5 rounded-2xl border border-orange-200 bg-orange-50 p-4">
@@ -266,6 +292,23 @@ export function CourseStudioEditor({ courseId }: { courseId: string }) {
           </label>
         </div>
 
+        {isAdministrator && (
+          <label className="mt-5 block text-sm font-bold text-[#063D2E]">
+            {locale === "fr" ? "Formateur responsable" : "Assigned instructor"}
+            <select value={course.instructorUserId}
+              onChange={(event) => change({ instructorUserId: event.target.value })}
+              className={inputClass}>
+              {!instructors.some((item) => item.id === course.instructorUserId) && (
+                <option value={course.instructorUserId}>{locale === "fr" ? "Responsable actuel" : "Current owner"}</option>
+              )}
+              {instructors.map((instructor) => (
+                <option key={instructor.id} value={instructor.id}>
+                  {instructor.full_name || instructor.email} ({instructor.email})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="mt-4 block text-sm font-bold text-[#063D2E]">
           {locale === "fr" ? "Notes de révision" : "Review notes"}
           <textarea
@@ -286,10 +329,12 @@ export function CourseStudioEditor({ courseId }: { courseId: string }) {
         </div>
       </section>
 
-      <StudioCurriculumBuilder course={course} onChange={change} />
-      <StudioQuizBuilder course={course} onChange={change} />
-      <StudioExamBuilder course={course} onChange={change} />
-      <StudioCertificationEditor course={course} onChange={change} />
+      {(course.buildApproved || isAdministrator) && <>
+        <StudioCurriculumBuilder course={course} onChange={change} />
+        <StudioQuizBuilder course={course} onChange={change} />
+        <StudioExamBuilder course={course} onChange={change} />
+        <StudioCertificationEditor course={course} onChange={change} />
+      </>}
     </div>
   );
 }

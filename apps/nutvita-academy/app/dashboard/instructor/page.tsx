@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpen, GraduationCap } from "lucide-react";
+import { BookOpen, GraduationCap, Users } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
 export default function InstructorPage() {
@@ -22,7 +22,7 @@ export default function InstructorPage() {
           : "Create, organize and publish your courses."}
       </p>
 
-      <div className="mt-8 grid gap-5 md:grid-cols-2">
+      <div className="mt-8 grid gap-5 md:grid-cols-3">
         <Link
           href="/dashboard/instructor/courses"
           className="rounded-[24px] border border-green-100 bg-white p-6"
@@ -30,6 +30,16 @@ export default function InstructorPage() {
           <BookOpen className="text-[#0B5D3B]" />
           <h2 className="mt-4 text-xl font-extrabold text-[#063D2E]">
             {locale === "fr" ? "Mes formations" : "My courses"}
+          </h2>
+        </Link>
+
+        <Link
+          href="/dashboard/instructor/learners"
+          className="rounded-[24px] border border-green-100 bg-white p-6"
+        >
+          <Users className="text-[#0B5D3B]" />
+          <h2 className="mt-4 text-xl font-extrabold text-[#063D2E]">
+            {locale === "fr" ? "Apprenants et progression" : "Learners and progress"}
           </h2>
         </Link>
 

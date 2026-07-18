@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { dashboardNavigation } from "@/config/dashboard-navigation";
-import { canAccessDashboardPath } from "@/config/dashboard-access";
+import { canAccessDashboardPath, dashboardHomeForRole } from "@/config/dashboard-access";
 import { useLocalAuth } from "@/hooks/use-local-auth";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -35,7 +35,7 @@ export function DashboardSidebar({ onNavigate }: DashboardSidebarProps) {
   return (
     <aside className="flex h-screen w-72 flex-col overflow-hidden bg-[#063D2E] text-white">
       <div className="shrink-0 border-b border-white/10 px-6 py-6">
-        <Link href="/dashboard" onClick={onNavigate} className="block">
+        <Link href={dashboardHomeForRole(user?.role)} onClick={onNavigate} className="block">
           <p className="text-xl font-extrabold leading-none">
             NutVita
             <span className="text-[#F58220]">Globalis</span>

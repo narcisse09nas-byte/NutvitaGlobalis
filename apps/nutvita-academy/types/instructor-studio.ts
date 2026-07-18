@@ -68,6 +68,8 @@ export type StudioCourse = {
   level: string;
   priceUsd: number;
   status: StudioCourseStatus;
+  buildApproved: boolean;
+  createdByRole: "instructor" | "admin" | "super_admin";
   instructorUserId: string;
   modules: StudioModule[];
   quizzes: QuizDefinition[];

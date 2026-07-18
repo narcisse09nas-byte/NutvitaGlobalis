@@ -14,6 +14,7 @@ import {
 function academyRoleRule(pathname: string, method: string): string[] | null {
   const path = pathname.startsWith("/academy/") ? pathname.slice("/academy".length) : pathname;
   if (path.startsWith("/auth/")) return null;
+  if (["/dashboard/profile", "/dashboard/notifications", "/dashboard/resources", "/dashboard/history"].some((route) => path.startsWith(route))) return ["student", "instructor", "admin"];
   if (path.startsWith("/dashboard/admin")) return ["admin"];
   if (path.startsWith("/dashboard/instructor")) return ["instructor"];
   if (path.startsWith("/dashboard") || path.startsWith("/learn/") || path.startsWith("/enroll/")) return ["student"];

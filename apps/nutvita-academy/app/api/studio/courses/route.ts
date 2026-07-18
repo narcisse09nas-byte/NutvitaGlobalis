@@ -1,8 +1,10 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import type { StudioCourse } from "@/types/instructor-studio";
 import { isSupabaseConfigured } from "@/lib/env";
 import { apiText } from "@/lib/api-i18n";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { mergeLegacyStudioCourses } from "@/data/legacy-studio-courses";
 
 export async function GET(request: Request) {
   if (!isSupabaseConfigured())
@@ -14,12 +16,36 @@ export async function GET(request: Request) {
       { error: "Authentification requise." },
       { status: 401 },
     );
-  const { data, error } = await supabase
+  const { data: currentProfile } = await supabase.from("profiles").select("role").eq("id", auth.user.id).single();
+  const selectedRole = (await cookies()).get("nutvita_active_role")?.value;
+  const effectiveRole = selectedRole === "instructor" || selectedRole === "admin" ? selectedRole : currentProfile?.role;
+  if (!effectiveRole || !["instructor", "admin", "super_admin"].includes(effectiveRole))
+    return Response.json({ error: "Acces Studio refuse." }, { status: 403 });
+
+  const directory = new URL(request.url).searchParams.get("directory");
+  if (directory === "instructors") {
+    const profile = { role: effectiveRole };
+    if (!profile || !["admin", "super_admin"].includes(profile.role))
+      return Response.json({ error: "Acces administrateur requis." }, { status: 403 });
+    const admin = createSupabaseAdminClient();
+    const { data: instructors, error: directoryError } = await admin
+      .from("profiles")
+      .select("id, full_name, email, role")
+      .in("role", ["instructor", "admin", "super_admin"])
+      .order("full_name");
+    if (directoryError)
+      return Response.json({ error: directoryError.message }, { status: 500 });
+    return Response.json({ instructors: instructors ?? [] });
+  }
+
+  let courseQuery = supabase
     .from("courses")
     .select(
       "id, status, instructor_user_id, created_at, updated_at, studio_payload",
     )
     .order("updated_at", { ascending: false });
+  if (effectiveRole === "instructor") courseQuery = courseQuery.eq("instructor_user_id", auth.user.id);
+  const { data, error } = await courseQuery;
   if (error) return Response.json({ error: error.message }, { status: 500 });
   const courses = (data ?? []).flatMap((row) => {
     const payload = row.studio_payload as Partial<StudioCourse> | null;
@@ -35,7 +61,7 @@ export async function GET(request: Request) {
       } as StudioCourse,
     ];
   });
-  return Response.json({ version: 4, courses });
+  return Response.json({ version: 4, courses: mergeLegacyStudioCourses(courses) });
 }
 
 export async function POST(request: Request) {
@@ -53,9 +79,12 @@ export async function POST(request: Request) {
     .select("role")
     .eq("id", auth.user.id)
     .single();
+  const selectedRole = (await cookies()).get("nutvita_active_role")?.value;
+  const effectiveRole = selectedRole === "instructor" || selectedRole === "admin" ? selectedRole : profile?.role;
+
   if (
     !profile ||
-    !["instructor", "admin", "super_admin"].includes(profile.role)
+    !["instructor", "admin", "super_admin"].includes(effectiveRole ?? "")
   )
     return Response.json({ error: apiText(request, "Accès Studio refusé.", "Studio access denied.") }, { status: 403 });
   const course = (await request
@@ -65,7 +94,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Formation invalide." }, { status: 400 });
   if (
     course.status === "published" &&
-    !["admin", "super_admin"].includes(profile.role)
+    !["admin", "super_admin"].includes(effectiveRole ?? "")
   )
     return Response.json(
       { error: "Seul un administrateur peut publier." },
@@ -74,18 +103,25 @@ export async function POST(request: Request) {
 
   const { data: existing } = await supabase
     .from("courses")
-    .select("id, instructor_user_id")
+    .select("id, instructor_user_id, studio_payload")
     .eq("slug", course.slug)
     .maybeSingle();
   if (
     existing &&
     existing.instructor_user_id !== auth.user.id &&
-    !["admin", "super_admin"].includes(profile.role)
+    !["admin", "super_admin"].includes(effectiveRole ?? "")
   )
     return Response.json(
       { error: apiText(request, "Formation gérée par un autre formateur.", "Course managed by another instructor.") },
       { status: 403 },
     );
+  const isAdministrator = ["admin", "super_admin"].includes(effectiveRole ?? "");
+  const previousPayload = existing?.studio_payload as Partial<StudioCourse> | null | undefined;
+  const buildApproved = isAdministrator ? course.buildApproved : Boolean(previousPayload?.buildApproved);
+  if (!buildApproved && course.modules.length > 0)
+    return Response.json({ error: "Validation administrative requise avant la construction des modules." }, { status: 403 });
+  const synchronizedCourse = { ...course, buildApproved };
+
   const values = {
     slug: course.slug,
     code: course.code,
@@ -93,8 +129,8 @@ export async function POST(request: Request) {
     description: course.description || course.descriptionEn,
     status: course.status,
     price_usd: course.priceUsd,
-    instructor_user_id: existing?.instructor_user_id ?? auth.user.id,
-    studio_payload: course,
+    instructor_user_id: isAdministrator && course.instructorUserId ? course.instructorUserId : existing?.instructor_user_id ?? auth.user.id,
+    studio_payload: synchronizedCourse,
   };
   const result = existing
     ? await supabase

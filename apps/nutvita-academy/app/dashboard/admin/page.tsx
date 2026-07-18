@@ -43,7 +43,7 @@ export default function AdminPage() {
           </Link>
 
           <Link
-            href="/dashboard/instructor"
+            href="/dashboard/admin/courses"
             className="rounded-[24px] border border-green-100 bg-white p-6"
           >
             <Settings className="text-[#F58220]" />

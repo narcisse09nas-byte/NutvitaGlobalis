@@ -122,7 +122,7 @@ export function CourseStudioList() {
               {course.modules.length} module(s) · {course.quizzes.length} quiz
             </p>
             <Link
-              href={`/dashboard/instructor/courses/${course.id}`}
+              href={`${isAdministrator ? "/dashboard/admin/courses" : "/dashboard/instructor/courses"}/${course.id}`}
               className="mt-6 inline-flex rounded-full bg-[#0B5D3B] px-5 py-3 text-sm font-bold text-white"
             >
               {locale === "fr" ? "Ouvrir le studio" : "Open Studio"}

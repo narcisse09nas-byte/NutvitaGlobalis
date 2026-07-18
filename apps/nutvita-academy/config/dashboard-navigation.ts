@@ -40,10 +40,12 @@ export const dashboardNavigation: NavigationSection[] = [
     { label: "Instructor Studio", href: "/dashboard/instructor", icon: WalletCards },
     { label: "Surveillance examens", href: "/dashboard/instructor/proctoring", icon: MonitorUp },
     { label: "Sessions formateur", href: "/dashboard/instructor/live", icon: Radio },
+    { label: "Apprenants et progression", href: "/dashboard/instructor/learners", icon: Users },
     { label: "Revenus formateur", href: "/dashboard/instructor/revenue", icon: CreditCard },
     { label: "Notes et résultats", href: "/dashboard/instructor/grades", icon: ClipboardCheck },
     { label: "Administration", href: "/dashboard/admin", icon: ShieldCheck },
     { label: "Utilisateurs", href: "/dashboard/admin/users", icon: Users },
+    { label: "Gestion des formations", href: "/dashboard/admin/courses", icon: BookOpen },
   ] },
   { title: "Compte", items: [
     { label: "Mon profil", href: "/dashboard/profile", icon: User },

@@ -1,15 +1,26 @@
 import type { LocalUserRole } from "@/types/local-auth";
 
 export function canAccessDashboardPath(role: LocalUserRole, href: string) {
-  if (href.startsWith("/dashboard/admin")) {
-    return role === "admin" || role === "super_admin";
-  }
+  const common = [
+    "/dashboard/profile", "/dashboard/notifications", "/dashboard/resources",
+    "/dashboard/history",
+  ];
+  if (common.some((path) => href === path || href.startsWith(`${path}/`))) return true;
+  if (role === "admin" || role === "super_admin") return href.startsWith("/dashboard/admin");
+  if (role === "instructor") return href.startsWith("/dashboard/instructor") || href === "/dashboard/ai-pro";
+  const learnerPrefixes = [
+    "/dashboard/courses", "/dashboard/live", "/dashboard/assessments",
+    "/dashboard/exams", "/dashboard/rewards", "/dashboard/certificates",
+    "/dashboard/marketplace", "/dashboard/cart", "/dashboard/wishlist",
+    "/dashboard/orders", "/dashboard/notes",
+  ];
+  return href === "/dashboard" || learnerPrefixes.some((path) => href === path || href.startsWith(`${path}/`));
+}
 
-  if (href.startsWith("/dashboard/instructor") || href === "/dashboard/ai-pro") {
-    return role === "instructor" || role === "admin" || role === "super_admin";
-  }
-
-  return true;
+export function dashboardHomeForRole(role?: LocalUserRole | null) {
+  if (role === "admin" || role === "super_admin") return "/dashboard/admin";
+  if (role === "instructor") return "/dashboard/instructor";
+  return "/dashboard";
 }
 
 export function getDashboardSpaceLabel(pathname: string) {

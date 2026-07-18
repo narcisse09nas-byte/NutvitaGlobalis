@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 
@@ -23,7 +23,7 @@ export function QuizCatalogCard({ quiz }: QuizCatalogCardProps) {
 
   const bestAttempt = getBestAttempt(quiz.slug);
 
-  const attemptsRemaining = Math.max(0, quiz.maxAttempts - attempts.length);
+  const attemptsRemaining = quiz.maxAttempts <= 0 ? Number.POSITIVE_INFINITY : Math.max(0, quiz.maxAttempts - attempts.length);
 
   const canAttempt = attemptsRemaining > 0 || bestAttempt?.passed;
 
@@ -37,7 +37,7 @@ export function QuizCatalogCard({ quiz }: QuizCatalogCardProps) {
 
           {bestAttempt?.passed && (
             <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
-              {text("Réussi", "Passed")}
+              {text("RÃ©ussi", "Passed")}
             </span>
           )}
         </div>
@@ -71,7 +71,7 @@ export function QuizCatalogCard({ quiz }: QuizCatalogCardProps) {
             </p>
 
             <p className="text-xs text-slate-500">
-              {text("Durée", "Duration")}
+              {text("DurÃ©e", "Duration")}
             </p>
           </div>
 
@@ -91,7 +91,7 @@ export function QuizCatalogCard({ quiz }: QuizCatalogCardProps) {
             <RotateCcw className="text-[#0B5D3B]" />
 
             <p className="mt-3 font-extrabold text-[#063D2E]">
-              {attemptsRemaining}
+              {Number.isFinite(attemptsRemaining) ? attemptsRemaining : text("Illimitees", "Unlimited")}
             </p>
 
             <p className="text-xs text-slate-500">
@@ -122,7 +122,7 @@ export function QuizCatalogCard({ quiz }: QuizCatalogCardProps) {
         }`}
       >
         {bestAttempt?.passed
-          ? text("Consulter les résultats", "View results")
+          ? text("Consulter les rÃ©sultats", "View results")
           : attempts.length > 0
             ? text("Nouvelle tentative", "New attempt")
             : text("Commencer le quiz", "Start quiz")}

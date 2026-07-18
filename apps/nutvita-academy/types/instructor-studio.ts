@@ -1,5 +1,6 @@
 import type { ExamDefinition, ExamQuestion } from "@/types/exam";
 import type { QuizDefinition } from "@/types/quiz";
+import type { ApplicationExercise } from "@/types/application-exercise";
 
 export type StudioCourseStatus = "draft" | "review" | "published" | "archived";
 export type StudioLessonType =
@@ -73,6 +74,7 @@ export type StudioCourse = {
   instructorUserId: string;
   modules: StudioModule[];
   quizzes: QuizDefinition[];
+  applicationExercises?: ApplicationExercise[];
   finalExam: StudioFinalExam | null;
   certification: StudioCertificationSettings;
   reviewNotes: string;

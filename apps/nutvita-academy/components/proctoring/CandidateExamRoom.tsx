@@ -762,7 +762,7 @@ export function CandidateExamRoom({ bookingId }: { bookingId: string }) {
         <RoomMessage
           title={text("Copie déjà soumise", "Exam already submitted")}
           text={
-            booking.conductRating === "poor"
+            booking.conductRating ? text(`Votre resultat valide est ${booking.attemptScorePercent ?? 0} %.`, `Your validated result is ${booking.attemptScorePercent ?? 0}%.`) : booking.conductRating === "poor"
               ? text(
                   "Le déroulement a été classé Poor. Une nouvelle réservation respectant le délai de reprise est obligatoire.",
                   "The session was rated Poor. A new booking that respects the retake delay is required.",

@@ -125,3 +125,8 @@ export function saveExamAttempts(
     JSON.stringify(attempts)
   );
 }
+export function publishExamAttemptResult(userId: string, attemptId: string): void {
+  const attempts = loadExamAttempts(userId).map((attempt) => attempt.id === attemptId ? { ...attempt, resultVisibility: "published" as const } : attempt);
+  saveExamAttempts(userId, attempts);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("nutvita-exam-attempts-updated"));
+}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 
@@ -19,7 +19,7 @@ export function ExamCatalogCard({ exam }: { exam: ExamDefinition }) {
 
   const bestAttempt = getBestAttempt(exam.slug);
 
-  const attemptsRemaining = Math.max(0, exam.maxAttempts - attempts.length);
+  const attemptsRemaining = exam.maxAttempts <= 0 ? Number.POSITIVE_INFINITY : Math.max(0, exam.maxAttempts - attempts.length);
 
   return (
     <Card className="flex h-full flex-col justify-between">
@@ -31,7 +31,7 @@ export function ExamCatalogCard({ exam }: { exam: ExamDefinition }) {
 
           {bestAttempt?.passed && (
             <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
-              {text("Examen réussi", "Exam passed")}
+              {text("Examen rÃ©ussi", "Exam passed")}
             </span>
           )}
         </div>
@@ -56,7 +56,7 @@ export function ExamCatalogCard({ exam }: { exam: ExamDefinition }) {
             </p>
 
             <p className="text-xs text-slate-500">
-              {text("Questions tirées", "Selected questions")}
+              {text("Questions tirÃ©es", "Selected questions")}
             </p>
           </div>
 
@@ -68,7 +68,7 @@ export function ExamCatalogCard({ exam }: { exam: ExamDefinition }) {
             </p>
 
             <p className="text-xs text-slate-500">
-              {text("Durée", "Duration")}
+              {text("DurÃ©e", "Duration")}
             </p>
           </div>
 
@@ -88,7 +88,7 @@ export function ExamCatalogCard({ exam }: { exam: ExamDefinition }) {
             <RotateCcw className="text-[#0B5D3B]" />
 
             <p className="mt-3 font-extrabold text-[#063D2E]">
-              {attemptsRemaining}
+              {Number.isFinite(attemptsRemaining) ? attemptsRemaining : text("Illimitees", "Unlimited")}
             </p>
 
             <p className="text-xs text-slate-500">
@@ -115,10 +115,10 @@ export function ExamCatalogCard({ exam }: { exam: ExamDefinition }) {
         className="mt-7 inline-flex min-h-11 items-center justify-center rounded-full bg-[#F58220] px-5 text-sm font-bold text-white transition hover:bg-orange-600"
       >
         {bestAttempt?.passed
-          ? text("Consulter l’examen", "View exam")
+          ? text("Consulter lâ€™examen", "View exam")
           : attempts.length > 0
             ? text("Nouvelle tentative", "New attempt")
-            : text("Accéder à l’examen", "Access exam")}
+            : text("AccÃ©der Ã  lâ€™examen", "Access exam")}
       </Link>
     </Card>
   );

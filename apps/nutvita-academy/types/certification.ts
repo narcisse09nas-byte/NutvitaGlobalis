@@ -46,6 +46,9 @@ export type CertificationEligibilityResult = {
 
   examCompleted: boolean;
   examScore: number | null;
+  finalScore?: number;
+  quizScore?: number;
+  exerciseScore?: number | null;
 
   reasons: string[];
 };

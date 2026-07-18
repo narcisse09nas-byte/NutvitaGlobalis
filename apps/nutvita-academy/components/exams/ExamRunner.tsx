@@ -73,7 +73,7 @@ export function ExamRunner({
 
   const attempts = getAttemptsByExam(exam.slug);
 
-  const attemptsRemaining = Math.max(0, exam.maxAttempts - attempts.length);
+  const attemptsRemaining = exam.maxAttempts <= 0 ? Number.POSITIVE_INFINITY : Math.max(0, exam.maxAttempts - attempts.length);
 
   useEffect(() => {
     if (!user) {
@@ -175,6 +175,7 @@ export function ExamRunner({
       questions,
     });
 
+    finalAttempt.resultVisibility = bookingId ? "pending_review" : "published";
     recordAttempt(finalAttempt);
     if (bookingId) recordAttemptResult(bookingId, finalAttempt);
 
@@ -288,6 +289,7 @@ export function ExamRunner({
   }
 
   if (completedAttempt) {
+    if (bookingId) return <div className="rounded-[28px] border border-amber-200 bg-amber-50 p-10 text-center"><CheckCircle2 size={44} className="mx-auto text-amber-700" /><h2 className="mt-5 text-3xl font-extrabold text-[#063D2E]">{text("Copie soumise", "Exam submitted")}</h2><p className="mt-3 text-slate-700">{text("La correction automatique est terminee. Votre resultat reste confidentiel jusqu'a la validation du deroulement par le formateur ou le surveillant.", "Automatic grading is complete. Your result remains confidential until the instructor or proctor validates the conduct of the exam.")}</p></div>;
     return <ExamResults exam={exam} attempt={completedAttempt} />;
   }
 

@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { FileUp, Plus, Trash2 } from "lucide-react";
 import { createStudioId, createStudioSlug } from "@/lib/instructor-storage";
 import type { StudioCourse } from "@/types/instructor-studio";
 import type { QuizDefinition, QuizQuestionType } from "@/types/quiz";
+import { importQuizQuestionDocument, QUESTION_IMPORT_FORMATS } from "@/lib/question-document-import";
 
 type Props = {
   course: StudioCourse;
@@ -78,11 +79,11 @@ function QuestionComposer({
     <form onSubmit={submit} className="mt-4 rounded-xl bg-[#F8FAFC] p-4">
       <div className="grid gap-4 lg:grid-cols-2">
         <fieldset className="rounded-xl border border-blue-200 p-4">
-          <legend className="px-2 font-bold text-blue-800">🇫🇷 Question</legend>
+          <legend className="px-2 font-bold text-blue-800">ðŸ‡«ðŸ‡· Question</legend>
           <input
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            placeholder="Énoncé français / French prompt"
+            placeholder="Ã‰noncÃ© franÃ§ais / French prompt"
             className="h-11 w-full rounded-xl border px-3"
           />
           <div className="mt-3 space-y-2">
@@ -118,7 +119,7 @@ function QuestionComposer({
           />
         </fieldset>
         <fieldset className="rounded-xl border border-amber-200 p-4">
-          <legend className="px-2 font-bold text-amber-800">🇬🇧 Question</legend>
+          <legend className="px-2 font-bold text-amber-800">ðŸ‡¬ðŸ‡§ Question</legend>
           <input
             value={promptEn}
             onChange={(event) => setPromptEn(event.target.value)}
@@ -129,7 +130,7 @@ function QuestionComposer({
             {optionsEn.map((option, index) => (
               <div key={index} className="flex h-10 items-center gap-2">
                 <span className="w-6 text-center text-xs font-bold text-slate-500">
-                  {correct.includes(`${index}`) ? "✓" : ""}
+                  {correct.includes(`${index}`) ? "âœ“" : ""}
                 </span>
                 <input
                   value={option}
@@ -163,9 +164,9 @@ function QuestionComposer({
           }}
           className="h-10 rounded-xl border bg-white px-3"
         >
-          <option value="single">Réponse unique / Single answer</option>
+          <option value="single">RÃ©ponse unique / Single answer</option>
           <option value="multiple">
-            Réponses multiples / Multiple answers
+            RÃ©ponses multiples / Multiple answers
           </option>
         </select>
         <button className="inline-flex items-center gap-2 rounded-full bg-[#0B5D3B] px-4 py-2 text-sm font-bold text-white">
@@ -181,6 +182,7 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
   const [titleEn, setTitleEn] = useState("");
   const [moduleId, setModuleId] = useState(course.modules[0]?.id ?? "");
   const [passingScore, setPassingScore] = useState(70);
+  const [importingQuizId, setImportingQuizId] = useState<string | null>(null);
 
   function addQuiz(event: FormEvent) {
     event.preventDefault();
@@ -195,7 +197,7 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
       code: `${course.code}-Q${course.quizzes.length + 1}`,
       title: title.trim(),
       titleEn: titleEn.trim(),
-      description: `Évaluation du module ${courseModule.title}`,
+      description: `Ã‰valuation du module ${courseModule.title}`,
       descriptionEn: `Assessment for module ${courseModule.titleEn}`,
       courseSlug: course.slug,
       courseTitle: course.title,
@@ -206,6 +208,7 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
       durationMinutes: 10,
       passingScore,
       maxAttempts: 3,
+      allowProgressWithoutPassing: true,
       questions: [],
     };
     onChange({
@@ -241,6 +244,17 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
         quiz.id === quizId ? { ...quiz, ...patch } : quiz,
       ),
     });
+  }
+
+  async function importQuestions(quiz: QuizDefinition, file: File) {
+    setImportingQuizId(quiz.id);
+    const result = await importQuizQuestionDocument(file);
+    setImportingQuizId(null);
+    if (result.errors.length) { window.alert(`Import refuse / Import rejected: ${result.errors.slice(0, 10).join(", ")}`); return; }
+    const existing = new Set(quiz.questions.map((question) => question.id));
+    const imported = result.questions.filter((question) => !existing.has(question.id));
+    updateQuiz(quiz.id, { questions: [...quiz.questions, ...imported] });
+    window.alert(`${imported.length} question(s) imported.`);
   }
 
   function removeQuiz(quiz: QuizDefinition) {
@@ -279,13 +293,13 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
         <input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          placeholder="🇫🇷 Titre du quiz"
+          placeholder="ðŸ‡«ðŸ‡· Titre du quiz"
           className="h-12 rounded-xl border px-3"
         />
         <input
           value={titleEn}
           onChange={(event) => setTitleEn(event.target.value)}
-          placeholder="🇬🇧 Quiz title"
+          placeholder="ðŸ‡¬ðŸ‡§ Quiz title"
           className="h-12 rounded-xl border px-3"
         />
         <input
@@ -298,7 +312,7 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
           title="Score requis / Passing score"
         />
         <button className="rounded-full bg-[#F58220] px-5 font-bold text-white">
-          Créer / Create
+          CrÃ©er / Create
         </button>
       </form>
       <div className="mt-6 space-y-5">
@@ -310,14 +324,14 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
             <div className="flex justify-between gap-3">
               <div>
                 <h3 className="font-extrabold text-[#063D2E]">
-                  🇫🇷 {quiz.title || "—"}
+                  ðŸ‡«ðŸ‡· {quiz.title || "â€”"}
                 </h3>
                 <p className="font-semibold text-slate-600">
-                  🇬🇧 {quiz.titleEn || "Missing English title"}
+                  ðŸ‡¬ðŸ‡§ {quiz.titleEn || "Missing English title"}
                 </p>
                 <p className="text-sm text-slate-500">
-                  {quiz.questions.length} question(s) · {quiz.passingScore}% ·{" "}
-                  {quiz.maxAttempts} tentative(s) / attempt(s)
+                  {quiz.questions.length} question(s) Â· {quiz.passingScore}% Â·{" "}
+                  {quiz.maxAttempts <= 0 ? "Illimite / Unlimited" : `${quiz.maxAttempts} tentative(s) / attempt(s)`}
                 </p>
               </div>
               <button
@@ -331,7 +345,7 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <label className="text-xs font-bold text-slate-600">
-                Durée / Duration (min)
+                DurÃ©e / Duration (min)
                 <input
                   type="number"
                   min={1}
@@ -363,7 +377,7 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
                 Tentatives / Attempts
                 <input
                   type="number"
-                  min={1}
+                  min={0}
                   value={quiz.maxAttempts}
                   onChange={(event) =>
                     updateQuiz(quiz.id, {
@@ -372,8 +386,13 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
                   }
                   className="mt-1 h-10 w-full rounded-xl border px-3"
                 />
+                <span className="mt-1 block text-xs text-slate-500">0 = illimite / unlimited</span>
               </label>
             </div>
+            <label className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-slate-700">
+              <input type="checkbox" checked={quiz.allowProgressWithoutPassing !== false} onChange={(event) => updateQuiz(quiz.id, { allowProgressWithoutPassing: event.target.checked })} className="mt-1 accent-[#0B5D3B]" />
+              <span><strong>Autoriser la poursuite / Allow progression</strong><br />L&apos;apprenant peut ouvrir la suite meme si le score seuil n&apos;est pas atteint. La note reste enregistree.</span>
+            </label>
             {quiz.questions.length > 0 && (
               <ol className="mt-4 space-y-2">
                 {quiz.questions.map((question, index) => (
@@ -382,9 +401,9 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
                     className="flex justify-between rounded-xl bg-green-50 p-3 text-sm"
                   >
                     <span>
-                      {index + 1}. 🇫🇷 {question.prompt || "—"}
+                      {index + 1}. ðŸ‡«ðŸ‡· {question.prompt || "â€”"}
                       <br />
-                      🇬🇧 {question.promptEn || "Missing English question"}
+                      ðŸ‡¬ðŸ‡§ {question.promptEn || "Missing English question"}
                     </span>
                     <button
                       type="button"
@@ -404,6 +423,11 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
                 ))}
               </ol>
             )}
+            <div className="mt-4 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 p-4">
+              <p className="text-sm font-bold text-[#063D2E]">Importer les questions HTML, Word, PDF, CSV ou JSON</p>
+              <p className="mt-1 text-xs text-slate-600">Reponses reconnues : checked, data-correct, classe correct, ou ligne Reponse : A, C.</p>
+              <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#0B5D3B] px-4 py-2 text-sm font-bold text-white"><FileUp size={16} /> {importingQuizId === quiz.id ? "Importation..." : "Importer / Import"}<input type="file" accept={QUESTION_IMPORT_FORMATS} disabled={importingQuizId === quiz.id} className="sr-only" onChange={(event) => event.target.files?.[0] && void importQuestions(quiz, event.target.files[0])} /></label>
+            </div>
             <QuestionComposer
               onAdd={(question) =>
                 updateQuiz(quiz.id, {

@@ -16,6 +16,7 @@ import type { ExamAttempt } from "@/types/exam";
 
 type ExamContextValue = {
   attempts: ExamAttempt[];
+  allAttempts: ExamAttempt[];
   isLoading: boolean;
 
   recordAttempt: (attempt: ExamAttempt) => void;
@@ -41,9 +42,12 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    setAttempts(loadExamAttempts(user.id));
+    const sync = () => setAttempts(loadExamAttempts(user.id));
+    sync();
+    window.addEventListener("nutvita-exam-attempts-updated", sync);
 
     setIsLoading(false);
+    return () => window.removeEventListener("nutvita-exam-attempts-updated", sync);
   }, [user]);
 
   const recordAttempt = useCallback(
@@ -71,7 +75,7 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
 
   const getBestAttempt = useCallback(
     (examSlug: string) => {
-      const examAttempts = attempts.filter(
+      const examAttempts = attempts.filter((attempt) => attempt.resultVisibility !== "pending_review").filter(
         (attempt) => attempt.examSlug === examSlug,
       );
 
@@ -88,7 +92,8 @@ export function ExamProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(
     () => ({
-      attempts,
+      attempts: attempts.filter((attempt) => attempt.resultVisibility !== "pending_review"),
+      allAttempts: attempts,
       isLoading,
       recordAttempt,
       getAttemptsByExam,

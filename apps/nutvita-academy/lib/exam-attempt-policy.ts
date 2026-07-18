@@ -1,4 +1,4 @@
-import type { ExamAttempt, ExamDefinition } from "@/types/exam";
+﻿import type { ExamAttempt, ExamDefinition } from "@/types/exam";
 import type { ExamBooking } from "@/types/proctoring";
 import { CERTIFICATION_RETAKE_DELAYS } from "@/lib/exam-engine";
 
@@ -50,7 +50,7 @@ export function evaluateExamBookingPolicy(input: {
   if (activeBooking)
     return {
       canBook: false,
-      attemptNumber: Math.min(attempts.length + 1, input.definition.maxAttempts),
+      attemptNumber: input.definition.maxAttempts <= 0 ? attempts.length + 1 : Math.min(attempts.length + 1, input.definition.maxAttempts),
       earliestSlotAt: null,
       status: "active_booking",
     };
@@ -87,7 +87,7 @@ export function evaluateExamBookingPolicy(input: {
         status: "awaiting_conduct_review",
       };
   }
-  if (attempts.length >= input.definition.maxAttempts)
+  if (input.definition.maxAttempts > 0 && attempts.length >= input.definition.maxAttempts)
     return {
       canBook: false,
       attemptNumber: attempts.length,

@@ -49,6 +49,7 @@ export function normalizeStudioCourse(course: StudioCourse): StudioCourse {
         resourceUrlEn: lesson.resourceUrlEn,
       })),
     })),
+    applicationExercises: course.applicationExercises ?? [],
     quizzes: (course.quizzes ?? []).map((quiz) => ({
       ...quiz,
       titleEn: quiz.titleEn ?? "",
@@ -156,6 +157,7 @@ export function createStudioCourse(input: {
     instructorUserId: input.instructorUserId,
     modules: [],
     quizzes: [],
+    applicationExercises: [],
     finalExam: null,
     certification: {
       enabled: false,

@@ -144,7 +144,7 @@ export function getStudioCertificationRequirement(
   if (!course.certification.enabled || !course.finalExam) return null;
   return {
     courseSlug: course.slug,
-    requiredQuizSlugs: course.quizzes.map((quiz) => quiz.slug),
+    requiredQuizSlugs: course.quizzes.filter((quiz) => quiz.allowProgressWithoutPassing === false).map((quiz) => quiz.slug),
     requiredExamSlug: course.finalExam.definition.slug,
     minimumCourseProgress: course.certification.minimumCourseProgress,
   };

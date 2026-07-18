@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   createRoomCode,
+  createWeeklyOccurrences,
   emptyProctoringStore,
   loadProctoringStore,
   proctoringId,
@@ -28,6 +29,7 @@ import { assessSurveillanceRisk } from "@/lib/proctoring/surveillance-engine";
 import { useLanguage } from "@/hooks/use-language";
 import { buildConductDecisionNotification } from "@/lib/notification-engine";
 import { pushNotificationForUser } from "@/lib/notification-storage";
+import { publishExamAttemptResult } from "@/lib/exam-storage";
 
 type Result = { success: boolean; error?: string };
 
@@ -157,17 +159,13 @@ export function ProctoringProvider({
             `Capacity must be between 1 and ${data.policy.maximumCandidates}.`,
           ),
         };
-      const now = new Date().toISOString();
-      const slot: ExamSlot = {
-        ...input,
-        id: proctoringId("slot"),
-        createdAt: now,
-        updatedAt: now,
-      };
+      const slots = input.recurrenceWeekday === undefined
+        ? [{ ...input, id: proctoringId("slot"), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]
+        : createWeeklyOccurrences(input, 26);
       persist((current) => ({
         ...current,
-        slots: [slot, ...current.slots],
-        roomStatuses: { ...current.roomStatuses, [slot.id]: "scheduled" },
+        slots: [...slots, ...current.slots],
+        roomStatuses: { ...current.roomStatuses, ...Object.fromEntries(slots.map((slot) => [slot.id, "scheduled" as const])) },
       }));
       return { success: true };
     },
@@ -377,6 +375,7 @@ export function ProctoringProvider({
             : item,
         ),
       }));
+      publishExamAttemptResult(booking.userId, booking.attemptId);
       pushNotificationForUser(
         booking.userId,
         buildConductDecisionNotification(booking, rating),

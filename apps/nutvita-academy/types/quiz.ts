@@ -40,6 +40,7 @@ export type QuizDefinition = {
   durationMinutes: number;
   passingScore: number;
   maxAttempts: number;
+  allowProgressWithoutPassing?: boolean;
 
   questions: QuizQuestion[];
 };

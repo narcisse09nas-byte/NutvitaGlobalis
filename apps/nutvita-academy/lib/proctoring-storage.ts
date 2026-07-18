@@ -25,17 +25,41 @@ export function emptyProctoringStore(): ProctoringStore {
   };
 }
 
+export function createWeeklyOccurrences(slot: Omit<ProctoringStore["slots"][number], "id" | "createdAt" | "updatedAt">, weeks = 26) {
+  const first = new Date(slot.startsAt);
+  const group = slot.recurrenceGroupId ?? proctoringId("weekly-slot");
+  const now = new Date().toISOString();
+  return Array.from({ length: weeks }, (_, index) => {
+    const date = new Date(first);
+    date.setDate(first.getDate() + index * 7);
+    return { ...slot, id: `${group}-${date.toISOString().slice(0, 10)}`, recurrenceGroupId: group, startsAt: date.toISOString(), createdAt: now, updatedAt: now };
+  });
+}
+
+function replenishWeeklySlots(store: ProctoringStore) {
+  const templates = new Map<string, ProctoringStore["slots"][number]>();
+  store.slots.forEach((slot) => { if (slot.recurrenceGroupId) templates.set(slot.recurrenceGroupId, slot); });
+  const existing = new Set(store.slots.map((slot) => slot.id));
+  const additions = [...templates.values()].flatMap((template) => {
+    const weekday = template.recurrenceWeekday ?? new Date(template.startsAt).getDay();
+    const [hours, minutes] = (template.recurrenceTime ?? "09:00").split(":").map(Number);
+    const first = new Date(); first.setHours(hours, minutes, 0, 0);
+    first.setDate(first.getDate() + ((weekday - first.getDay() + 7) % 7 || (first <= new Date() ? 7 : 0)));
+    return createWeeklyOccurrences({ ...template, startsAt: first.toISOString(), recurrenceGroupId: template.recurrenceGroupId }, 26).filter((slot) => !existing.has(slot.id));
+  });
+  return additions.length ? { ...store, slots: [...store.slots.filter((slot) => new Date(slot.startsAt).getTime() > Date.now() - 86400000), ...additions] } : store;
+}
 export function loadProctoringStore(): ProctoringStore {
   if (typeof window === "undefined") return emptyProctoringStore();
   try {
     const parsed = JSON.parse(localStorage.getItem(KEY) ?? "null") as Partial<ProctoringStore> | null;
     if (!parsed) return emptyProctoringStore();
-    return {
+    return replenishWeeklySlots({
       ...emptyProctoringStore(),
       ...parsed,
       policy: { ...defaultProctoringPolicy, ...parsed.policy },
       version: 2,
-    };
+    });
   } catch {
     return emptyProctoringStore();
   }

@@ -5,6 +5,15 @@ import { getCurrentLocale } from "@/lib/i18n-server";
 import { legalTemplateMap, type LegalSection } from "@/lib/legal-documents";
 import { hasSupabaseConfig } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
+function mergePublishedSections(required: LegalSection[], published: LegalSection[]) {
+  const normalize = (value: string) => value.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ");
+  const known = new Set(published.map(section => normalize(section.title)));
+  return [
+    ...published,
+    ...required.filter(section => !known.has(normalize(section.title))),
+  ];
+}
+
 
 export default async function LegalPage({ type }: { type: string }) {
   const locale = await getCurrentLocale();
@@ -22,7 +31,13 @@ export default async function LegalPage({ type }: { type: string }) {
     version = legal?.current_version || legal?.version || version;
     if (legal?.id) {
       const { data: translation } = await supabase.from("legal_translations").select("*").eq("document_id", legal.id).eq("locale", locale).maybeSingle();
-      if (translation?.content?.sections) doc = { title: translation.title, intro: translation.content.intro || doc.intro, sections: translation.content.sections as LegalSection[] };
+      if (translation?.content?.sections) {
+        const publishedSections = translation.content.sections as LegalSection[];
+        doc = {
+          title: translation.title, intro: translation.content.intro || doc.intro,
+          sections: mergePublishedSections(doc.sections, publishedSections),
+        };
+      }
     }
   }
 

@@ -148,13 +148,6 @@ export function validateStudioCourse(course: StudioCourse): string[] {
       errors.push(
         "La banque finale doit contenir au minimum 50 QCM, 35 QCU et 15 cas pratiques / The final bank must contain at least 50 MCQ, 35 SCQ and 15 case studies.",
       );
-    if (
-      course.finalExam.definition.passingScore !== 70 ||
-      course.finalExam.definition.maxAttempts !== 3
-    )
-      errors.push(
-        "La certification impose un seuil de 70 % et trois tentatives maximum / Certification requires a 70% threshold and no more than three attempts.",
-      );
   }
   if (
     requiresEnglish &&

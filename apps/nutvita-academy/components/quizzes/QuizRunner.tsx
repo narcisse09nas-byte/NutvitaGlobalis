@@ -66,7 +66,7 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
 
   const attempts = getQuizAttempts(quiz.slug);
 
-  const attemptsRemaining = Math.max(0, quiz.maxAttempts - attempts.length);
+  const attemptsRemaining = quiz.maxAttempts <= 0 ? Number.POSITIVE_INFINITY : Math.max(0, quiz.maxAttempts - attempts.length);
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
@@ -128,7 +128,7 @@ export function QuizRunner({ quiz }: QuizRunnerProps) {
 
     recordAttempt(attempt);
 
-    if (passed) {
+    if (passed || quiz.allowProgressWithoutPassing !== false) {
       completeLesson({
         lessonId: quiz.lessonId,
         courseSlug: quiz.courseSlug,

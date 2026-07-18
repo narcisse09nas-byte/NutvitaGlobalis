@@ -20,10 +20,23 @@ function mapArticle(a: Record<string, any>, locale: Locale): Article {
     accessType: a.access_type,
   };
 }
+const fallbackArticlesEn: Record<string, Pick<Article, "title" | "excerpt" | "category">> = {
+  "nutrition-diabete": { title: "Eating well with diabetes", excerpt: "Simple guidance for balanced meals without giving up familiar local flavours.", category: "Clinical nutrition" },
+  "prevenir-malnutrition-enfant": { title: "Preventing child malnutrition", excerpt: "Warning signs and essential actions that support healthy growth.", category: "Child health" },
+  "assiette-africaine-equilibree": { title: "Building a balanced African plate", excerpt: "Find the right everyday balance of staples, proteins and vegetables.", category: "Well-being" },
+  "grossesse-alimentation": { title: "Eating well during pregnancy", excerpt: "The nutrients that matter for the mother and the baby's development.", category: "Maternity" },
+  "hygiene-alimentaire-maison": { title: "Five food hygiene rules", excerpt: "Reduce contamination risks in your kitchen through simple habits.", category: "Food safety" },
+  "diversification-alimentaire": { title: "Successful complementary feeding", excerpt: "When to start, which foods to offer and how to respect your baby's pace.", category: "Infant nutrition" },
+};
+
+function localizedFallbackArticles(locale: Locale) {
+  if (locale === "fr") return fallbackArticles;
+  return fallbackArticles.map(article => ({ ...article, ...(fallbackArticlesEn[article.slug] || {}) }));
+}
 
 export async function getArticles(featured = false): Promise<Article[]> {
   const locale = await getCurrentLocale();
-  if (!hasSupabaseConfig()) return featured ? fallbackArticles.slice(0, 6) : fallbackArticles;
+  if (!hasSupabaseConfig()) return featured ? localizedFallbackArticles(locale).slice(0, 6) : localizedFallbackArticles(locale);
   const supabase = await createClient();
   let query = supabase.from("articles").select("*").in("publication_locale_status", locale === "en" ? ["en", "both"] : ["fr", "both"]).eq("status", "published").order("published_at", { ascending: false });
   if (featured) query = query.eq("featured", true);
@@ -34,7 +47,7 @@ export async function getArticles(featured = false): Promise<Article[]> {
 
 export async function getArticle(slug: string) {
   const locale = await getCurrentLocale();
-  const fallback = fallbackArticles.find(a => a.slug === slug);
+  const fallback = localizedFallbackArticles(locale).find(article => article.slug === slug);
   if (!hasSupabaseConfig()) return fallback;
   const supabase = await createClient();
   const column = locale === "en" ? "slug_en" : "slug";
@@ -85,6 +98,15 @@ export async function getTestimonials() {
 
 export async function getHomepage() {
   const locale = await getCurrentLocale();
+  const baseServices = locale === "en" ? [
+    { title: "Certified courses", text: "Build practical skills through expert-designed learning paths." },
+    { title: "Nutrition counselling", text: "Talk remotely with a professional and receive tailored guidance." },
+    { title: "Personalized monitoring", text: "Make lasting progress with support that fits your daily life." },
+  ] : [
+    { title: "Formations certifiantes", text: "Developpez des competences concretes avec des parcours concus par des experts." },
+    { title: "Teleconseils nutritionnels", text: "Echangez a distance avec un professionnel et obtenez des conseils adaptes." },
+    { title: "Suivi personnalise", text: "Avancez durablement grace a un accompagnement qui respecte votre quotidien." },
+  ];
   const packServices = locale === "en" ? [
     { title: "Weight Loss Pack", text: "3 months of professional support with Premium Autonomous Health Monitoring included." },
     { title: "Diabetes Pack", text: "3 months of nutrition support with Premium Autonomous Health Monitoring included." },
@@ -96,14 +118,21 @@ export async function getHomepage() {
     { title: "Pack Femme enceinte", text: "Suivi Croissance Premium inclus 3 mois, plus Suivi Sante Autonome Premium inclus 4 mois." },
     { title: "Pack Nutrition infantile", text: "3 mois de conseils alimentaires avec le Suivi Croissance Enfant Premium inclus." },
   ];
-  if (!hasSupabaseConfig()) return { services: [
-    { title: locale === "en" ? "Certified courses" : "Formations certifiantes", text: locale === "en" ? "Build practical skills through expert-designed learning paths." : "Developpez des competences concretes avec des parcours concus par des experts." },
-    { title: locale === "en" ? "Nutrition counselling" : "Teleconseils nutritionnels", text: locale === "en" ? "Talk remotely with a professional and receive tailored guidance." : "Echangez a distance avec un professionnel et obtenez des conseils adaptes." },
-    { title: locale === "en" ? "Personalized monitoring" : "Suivi personnalise", text: locale === "en" ? "Make lasting progress with support that fits your daily life." : "Avancez durablement grace a un accompagnement qui respecte votre quotidien." },
-    ...packServices,
-  ] };
+  if (!hasSupabaseConfig()) return { services: [...baseServices, ...packServices] };
   const { data } = await (await createClient()).from("homepage_settings").select("*").eq("id", 1).maybeSingle();
-  return data ? { ...data, services: [...(Array.isArray(data.services) ? data.services : []), ...packServices] } : { services: packServices };
+  if (!data) return { services: [...baseServices, ...packServices] };
+  const storedServices = locale === "en" && Array.isArray(data.services_en) ? data.services_en : locale === "fr" && Array.isArray(data.services) ? data.services : [];
+  return {
+    ...data,
+    hero_title: pickLocalized(data, "hero_title", locale),
+    slogan: pickLocalized(data, "slogan", locale),
+    presentation: pickLocalized(data, "presentation", locale),
+    primary_button_label: pickLocalized(data, "primary_button_label", locale),
+    secondary_button_label: pickLocalized(data, "secondary_button_label", locale),
+    newsletter_title: pickLocalized(data, "newsletter_title", locale),
+    newsletter_text: pickLocalized(data, "newsletter_text", locale),
+    services: [...(storedServices.length ? storedServices : baseServices), ...packServices],
+  };
 }
 
 export async function getHomepageCommunity() {

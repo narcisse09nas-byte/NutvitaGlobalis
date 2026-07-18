@@ -22,6 +22,9 @@ export type ExamSlot = {
   courseSlug: string;
   examSlug: string;
   startsAt: string;
+  recurrenceGroupId?: string;
+  recurrenceWeekday?: number;
+  recurrenceTime?: string;
   durationMinutes: number;
   capacity: number;
   createdBy: string;

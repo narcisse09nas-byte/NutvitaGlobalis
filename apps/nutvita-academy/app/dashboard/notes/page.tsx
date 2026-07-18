@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 
@@ -11,6 +11,7 @@ import { loadManualGrades } from "@/lib/gradebook-storage";
 import { useLocalAuth } from "@/hooks/use-local-auth";
 import type { ManualGrade } from "@/types/gradebook";
 import { useLanguage } from "@/hooks/use-language";
+import { FinalGradeOverview } from "@/components/grades/FinalGradeOverview";
 
 export default function NotesPage() {
   const { text } = useLanguage();
@@ -35,7 +36,7 @@ export default function NotesPage() {
 
       <p className="mt-3 max-w-3xl text-slate-600">
         {text(
-          "Retrouvez toutes vos notes personnelles enregistrées pendant les formations.",
+          "Retrouvez toutes vos notes personnelles enregistrÃ©es pendant les formations.",
           "Find all the personal notes saved during your courses.",
         )}
       </p>
@@ -43,14 +44,14 @@ export default function NotesPage() {
       <div className="mt-8 space-y-4">
         {isLoading ? (
           <div className="rounded-[24px] bg-white p-8">
-            {text("Chargement…", "Loading…")}
+            {text("Chargementâ€¦", "Loadingâ€¦")}
           </div>
         ) : notes.length === 0 ? (
           <div className="rounded-[24px] border border-dashed border-green-200 bg-white p-12 text-center">
             <FileText size={40} className="mx-auto text-[#0B5D3B]" />
 
             <h2 className="mt-5 text-2xl font-extrabold text-[#063D2E]">
-              {text("Aucune note enregistrée", "No saved notes")}
+              {text("Aucune note enregistrÃ©e", "No saved notes")}
             </h2>
           </div>
         ) : (
@@ -107,10 +108,12 @@ export default function NotesPage() {
         )}
       </div>
 
+      <div className="mt-10"><FinalGradeOverview learnerOnly /></div>
+
       <section className="mt-12">
         <h2 className="text-3xl font-extrabold text-[#063D2E]">
           {text(
-            "Notes et appréciations du formateur",
+            "Notes et apprÃ©ciations du formateur",
             "Instructor grades and feedback",
           )}
         </h2>
@@ -139,7 +142,7 @@ export default function NotesPage() {
           {assignedGrades.length === 0 && (
             <div className="rounded-[24px] border border-dashed border-green-200 bg-white p-8 text-center text-slate-500 md:col-span-2">
               {text(
-                "Aucune note attribuée par un formateur.",
+                "Aucune note attribuÃ©e par un formateur.",
                 "No grade has been assigned by an instructor.",
               )}
             </div>

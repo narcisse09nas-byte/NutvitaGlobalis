@@ -150,6 +150,7 @@ export type ExamAttempt = {
 
   startedAt: string;
   submittedAt: string;
+  resultVisibility?: "pending_review" | "published";
   durationSeconds: number;
 };
 

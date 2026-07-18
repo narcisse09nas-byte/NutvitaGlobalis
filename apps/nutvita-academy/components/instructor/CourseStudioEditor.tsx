@@ -7,6 +7,7 @@ import { StudioCurriculumBuilder } from "@/components/instructor/StudioCurriculu
 import { StudioExamBuilder } from "@/components/instructor/StudioExamBuilder";
 import { validateStudioCourse } from "@/components/instructor/InstructorStudioProvider";
 import { StudioQuizBuilder } from "@/components/instructor/StudioQuizBuilder";
+import { StudioApplicationExerciseBuilder } from "@/components/instructor/StudioApplicationExerciseBuilder";
 import { useInstructorStudio } from "@/hooks/use-instructor-studio";
 import { useLanguage } from "@/hooks/use-language";
 import { useLocalAuth } from "@/hooks/use-local-auth";
@@ -332,6 +333,7 @@ export function CourseStudioEditor({ courseId }: { courseId: string }) {
       {(course.buildApproved || isAdministrator) && <>
         <StudioCurriculumBuilder course={course} onChange={change} />
         <StudioQuizBuilder course={course} onChange={change} />
+        <StudioApplicationExerciseBuilder course={course} onChange={change} />
         <StudioExamBuilder course={course} onChange={change} />
         <StudioCertificationEditor course={course} onChange={change} />
       </>}

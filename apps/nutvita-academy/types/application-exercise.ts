@@ -1,0 +1,2 @@
+export type ApplicationExercise = { id: string; courseSlug: string; title: string; instructions: string; resourceUrl?: string; maxAttempts: number | null; createdAt: string };
+export type ExerciseSubmission = { id: string; exerciseId: string; courseSlug: string; studentUserId: string; responseText: string; attachmentUrl?: string; submittedAt: string; attemptNumber: number; scorePercent?: number; feedback?: string; gradedBy?: string; gradedAt?: string };

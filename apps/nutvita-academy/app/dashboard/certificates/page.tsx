@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Award } from "lucide-react";
 import { getLocalCourseBySlug } from "@/lib/course-catalog";
@@ -7,6 +7,7 @@ import { useProgress } from "@/hooks/use-progress";
 import { useQuiz } from "@/hooks/use-quiz";
 import { useExam } from "@/hooks/use-exam";
 import { useCertificates } from "@/hooks/use-certificates";
+import { useLocalAuth } from "@/hooks/use-local-auth";
 import { evaluateCertificationEligibility } from "@/lib/certificate-engine";
 import {
   getPublishedStudioCourses,
@@ -17,9 +18,12 @@ import { CertificationEligibility } from "@/components/certification/Certificati
 import { IssueCertificateButton } from "@/components/certification/IssueCertificateButton";
 import { CertificateCard } from "@/components/certification/CertificateCard";
 import { useLanguage } from "@/hooks/use-language";
+import { loadExerciseSubmissions } from "@/lib/application-exercise-storage";
+import { calculateFinalGrade } from "@/lib/final-grade-engine";
 
 export default function CertificatesPage() {
   const { locale, text } = useLanguage();
+  const { user } = useLocalAuth();
   const { data } = useInstructorStudio();
   const { getCourseSummary } = useProgress();
   const { attempts: quizAttempts } = useQuiz();
@@ -46,7 +50,7 @@ export default function CertificatesPage() {
       </h1>
       <p className="mt-3 max-w-3xl text-slate-600">
         {text(
-          "Vérifiez votre éligibilité, générez et consultez vos certificats professionnels.",
+          "VÃ©rifiez votre Ã©ligibilitÃ©, gÃ©nÃ©rez et consultez vos certificats professionnels.",
           "Check your eligibility, generate and review your professional certificates.",
         )}
       </p>
@@ -58,13 +62,25 @@ export default function CertificatesPage() {
               .map((lesson) => lesson.id),
           );
           const progressSummary = getCourseSummary(course.slug, lessonIds);
-          const eligibility = evaluateCertificationEligibility({
+          const studioCourse = data.courses.find((item) => item.slug === course.slug);
+          const grade = calculateFinalGrade({ courseSlug: course.slug, quizSlugs: studioCourse?.quizzes.map((quiz) => quiz.slug) ?? requirement?.requiredQuizSlugs ?? [], quizAttempts, examSlug: studioCourse?.finalExam?.definition.slug ?? requirement?.requiredExamSlug ?? "", examAttempts, exercisesCount: studioCourse?.applicationExercises?.length ?? 0, submissions: loadExerciseSubmissions().filter((item) => item.studentUserId === user?.id) });
+          const baseEligibility = evaluateCertificationEligibility({
             course,
             progressSummary,
             quizAttempts,
             examAttempts,
             requirement,
           });
+          const eligibility = {
+            ...baseEligibility,
+            eligible: baseEligibility.eligible && grade.passed,
+            finalScore: grade.finalScore,
+            quizScore: grade.quizScore,
+            exerciseScore: grade.exerciseScore,
+            reasons: grade.passed
+              ? baseEligibility.reasons
+              : [...baseEligibility.reasons, "La note finale ponderee doit atteindre 70 %."],
+          };
           return (
             <section key={course.slug}>
               <h2 className="mb-4 text-2xl font-extrabold text-[#063D2E]">
@@ -83,7 +99,7 @@ export default function CertificatesPage() {
         {candidates.length === 0 && (
           <div className="rounded-[24px] bg-white p-8 text-center text-slate-500">
             {text(
-              "Aucune formation certifiante publiée.",
+              "Aucune formation certifiante publiÃ©e.",
               "No published certification course.",
             )}
           </div>
@@ -91,15 +107,15 @@ export default function CertificatesPage() {
       </div>
       <section className="mt-12">
         <h2 className="text-3xl font-extrabold text-[#063D2E]">
-          {text("Certificats délivrés", "Issued certificates")}
+          {text("Certificats dÃ©livrÃ©s", "Issued certificates")}
         </h2>
         {isLoading ? (
-          <p className="mt-6">{text("Chargement…", "Loading…")}</p>
+          <p className="mt-6">{text("Chargementâ€¦", "Loadingâ€¦")}</p>
         ) : certificates.length === 0 ? (
           <div className="mt-6 rounded-[24px] border border-dashed border-green-200 bg-white p-12 text-center">
             <Award size={44} className="mx-auto text-[#0B5D3B]" />
             <h3 className="mt-5 text-2xl font-extrabold text-[#063D2E]">
-              {text("Aucun certificat délivré", "No certificate issued")}
+              {text("Aucun certificat dÃ©livrÃ©", "No certificate issued")}
             </h3>
           </div>
         ) : (

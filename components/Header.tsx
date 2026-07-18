@@ -112,7 +112,7 @@ export default function Header() {
         <LanguageSwitcher compact />
         {accountControls}
       </div>
-      <button type="button" aria-label={open ? "Fermer le menu" : "Ouvrir le menu"} aria-expanded={open} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-forest/15 bg-white text-forest shadow-sm lg:hidden" onClick={() => setOpen(!open)}>{open ? <XMarkIcon className="h-6" /> : <Bars3Icon className="h-6" />}</button>
+      <button type="button" aria-label={open ? (locale === "en" ? "Close menu" : "Fermer le menu") : (locale === "en" ? "Open menu" : "Ouvrir le menu")} aria-expanded={open} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-forest/15 bg-white text-forest shadow-sm lg:hidden" onClick={() => setOpen(!open)}>{open ? <XMarkIcon className="h-6" /> : <Bars3Icon className="h-6" />}</button>
     </div>
     {open && <nav className="container-site grid gap-1 border-t py-4 lg:hidden">
       {links.slice(0,5).map(([href, label]) => <Link onClick={() => setOpen(false)} key={href} href={localizedPath(locale, href)} className={`rounded-xl px-4 py-3 font-semibold ${canonical === href.split("#")[0] ? "bg-mint text-leaf" : "hover:bg-mint"}`}>{label}</Link>)}

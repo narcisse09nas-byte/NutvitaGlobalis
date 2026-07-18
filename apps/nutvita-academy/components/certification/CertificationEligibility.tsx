@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   CheckCircle2,
@@ -20,7 +20,7 @@ export function CertificationEligibility({
   const requirements = [
     {
       label:
-        text("Formation terminée", "Course completed"),
+        text("Formation terminÃ©e", "Course completed"),
       completed:
         result.courseCompleted,
       details:
@@ -29,24 +29,24 @@ export function CertificationEligibility({
 
     {
       label:
-        text("Quiz obligatoires réussis", "Required quizzes passed"),
+        text("Quiz obligatoires rÃ©ussis", "Required quizzes passed"),
       completed:
         result.quizzesCompleted,
       details:
         result.quizzesCompleted
-          ? text("Tous les quiz sont réussis", "All quizzes are passed")
+          ? text("Tous les quiz sont rÃ©ussis", "All quizzes are passed")
           : `${result.missingQuizSlugs.length} ${text("quiz restant(s)", "quiz(zes) remaining")}`,
     },
 
     {
       label:
-        text("Examen final réussi", "Final exam passed"),
+        text("Examen final rÃ©ussi", "Final exam passed"),
       completed:
         result.examCompleted,
       details:
         result.examScore !== null
           ? `Score : ${result.examScore} %`
-          : text("Aucun examen réussi", "No exam passed"),
+          : text("Aucun examen rÃ©ussi", "No exam passed"),
     },
   ];
 
@@ -61,12 +61,12 @@ export function CertificationEligibility({
 
         <div>
           <h2 className="text-2xl font-extrabold text-[#063D2E]">
-            {text("Éligibilité au certificat", "Certificate eligibility")}
+            {text("Ã‰ligibilitÃ© au certificat", "Certificate eligibility")}
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
             {text(
-              "Vérification automatique des conditions de certification.",
+              "VÃ©rification automatique des conditions de certification.",
               "Automatic verification of certification requirements.",
             )}
           </p>
@@ -74,6 +74,16 @@ export function CertificationEligibility({
       </div>
 
       <div className="mt-7 space-y-3">
+        {result.finalScore !== undefined && (
+          <div className="rounded-2xl border border-green-100 bg-green-50 p-4">
+            <p className="font-extrabold text-[#063D2E]">
+              {text("Note finale ponderee", "Weighted final grade")}: {result.finalScore}%
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              Quiz: {result.quizScore ?? 0}% Â· {text("Exercice", "Assignment")}: {result.exerciseScore ?? text("non prevu", "not included")} Â· {text("Examen final", "Final exam")}: {result.examScore ?? 0}%
+            </p>
+          </div>
+        )}
         {requirements.map(
           (requirement) => (
             <div
@@ -127,11 +137,11 @@ export function CertificationEligibility({
       >
         {result.eligible
           ? text(
-              "Toutes les conditions sont remplies. Votre certificat peut être généré.",
+              "Toutes les conditions sont remplies. Votre certificat peut Ãªtre gÃ©nÃ©rÃ©.",
               "All requirements are met. Your certificate can be generated.",
             )
           : text(
-              "Certaines conditions doivent encore être remplies.",
+              "Certaines conditions doivent encore Ãªtre remplies.",
               "Some requirements still need to be met.",
             )}
       </div>

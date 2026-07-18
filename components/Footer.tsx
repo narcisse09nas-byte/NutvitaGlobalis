@@ -1,16 +1,21 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import { siteConfig, whatsappUrl } from "@/data/site";
+import WhatsAppContact from "@/components/WhatsAppContact";
+import { siteConfig } from "@/data/site";
 import { localizedPath, normalizeLocale, stripLocale, ui } from "@/lib/i18n";
 
-export default function Footer() {
+export default function Footer({ settings = {} }: { settings?: Record<string, unknown> }) {
   const pathname = usePathname();
   const locale = normalizeLocale(stripLocale(pathname).locale);
   const t = ui[locale].footer;
+  const number = String(settings.whatsapp_number || siteConfig.whatsappNumber || "").replace(/\D/g, "");
+  const whatsappLabel = String(settings.whatsapp_label || siteConfig.whatsappLabel);
+  const facebookUrl = String(settings.facebook_url || "");
+  const linkedinUrl = String(settings.linkedin_url || "");
 
   return (
     <footer className="bg-forest text-white">
@@ -41,10 +46,12 @@ export default function Footer() {
           </div>
         </div>
         <div>
-          <h3 className="mb-4 font-bold text-white">Contact</h3>
+          <h3 className="mb-4 font-bold text-white"><WhatsAppContact number={number} label="Contact" /></h3>
           <div className="grid gap-3 text-sm text-white/65">
             <a href={`mailto:${siteConfig.email}`}>{siteConfig.email}</a>
-            <Link href={whatsappUrl()} target="_blank">{siteConfig.whatsappLabel}</Link>
+            <WhatsAppContact number={number} label={whatsappLabel} />
+            {facebookUrl && <a href={facebookUrl} target="_blank" rel="noopener noreferrer">Facebook</a>}
+            {linkedinUrl && <a href={linkedinUrl} target="_blank" rel="noopener noreferrer">LinkedIn</a>}
             <span>{siteConfig.address}</span>
             <Link href={localizedPath(locale, "/confidentialite")}>{t.privacy}</Link>
           </div>

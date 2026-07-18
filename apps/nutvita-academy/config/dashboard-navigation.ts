@@ -13,6 +13,7 @@ export const dashboardNavigation: NavigationSection[] = [
     { label: "Mes formations", href: "/dashboard/courses", icon: BookOpen },
     { label: "Classes virtuelles", href: "/dashboard/live", icon: Video },
     { label: "Quiz", href: "/dashboard/assessments", icon: ClipboardCheck },
+    { label: "Exercices d'application", href: "/dashboard/assignments", icon: NotebookPen },
     { label: "Examens finaux", href: "/dashboard/exams", icon: FileCheck2 },
     { label: "Planifier un examen", href: "/dashboard/exams/schedule", icon: CalendarClock },
     { label: "Récompenses", href: "/dashboard/rewards", icon: Gift },

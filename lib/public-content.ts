@@ -1,4 +1,4 @@
-import { articles as fallbackArticles, formations as fallbackFormations, type Article } from "@/data/content";
+﻿import { articles as fallbackArticles, formations as fallbackFormations, type Article } from "@/data/content";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { pickLocalized, type Locale } from "@/lib/i18n";
 import { hasSupabaseConfig } from "@/lib/supabase/config";
@@ -98,43 +98,27 @@ export async function getTestimonials() {
 
 export async function getHomepage() {
   const locale = await getCurrentLocale();
-  const baseServices = locale === "en" ? [
-    { title: "Certified courses", text: "Build practical skills through expert-designed learning paths." },
-    { title: "Nutrition counselling", text: "Talk remotely with a professional and receive tailored guidance." },
-    { title: "Personalized monitoring", text: "Make lasting progress with support that fits your daily life." },
+  const marketingServices = locale === "en" ? [
+    { title: "Certified training", text: "Build practical skills through certification pathways designed by nutrition and health experts." },
+    { title: "Nutrition tele-counselling", text: "Connect remotely with qualified professionals for confidential guidance tailored to your daily needs." },
+    { title: "Acute malnutrition care support application (Nutritrack)", text: "Digitize screening, admission, clinical follow-up, stock management and reporting for acute malnutrition programmes." },
+    { title: "Food security and nutrition survey support application.", text: "Design questionnaires, collect reliable data and rapidly turn findings into decision-ready analysis." },
+    { title: "Project, programme and portfolio management support application", text: "Plan, coordinate and manage projects, programmes and portfolios with clear visibility over activities, resources and results." },
+    { title: "Personalized health monitoring application for children (growth monitoring) and adults.", text: "Monitor child growth and adult health indicators through secure, accessible tools tailored to each care journey." },
   ] : [
-    { title: "Formations certifiantes", text: "Developpez des competences concretes avec des parcours concus par des experts." },
-    { title: "Teleconseils nutritionnels", text: "Echangez a distance avec un professionnel et obtenez des conseils adaptes." },
-    { title: "Suivi personnalise", text: "Avancez durablement grace a un accompagnement qui respecte votre quotidien." },
+    { title: "Formations certifiantes", text: "Renforcez vos competences avec des parcours pratiques, certifiants et concus par des experts de la nutrition et de la sante." },
+    { title: "Teleconseils nutritionnels", text: "Accedez a distance a des professionnels qualifies pour obtenir une orientation personnalisee, confidentielle et adaptee a votre quotidien." },
+    { title: "Application de support a la prise en charge de la malnutrition aigue (Nutritrack)", text: "Digitalisez le depistage, l admission, le suivi clinique, les stocks et le reporting des programmes de prise en charge de la malnutrition aigue." },
+    { title: "Application de Support aux enquetes de securite alimentaire et nutrition.", text: "Concevez vos questionnaires, collectez des donnees fiables et transformez rapidement les resultats en analyses utiles a la decision." },
+    { title: "Application de support a la gestion des projets, programmes et portefeuilles", text: "Planifiez, coordonnez et pilotez vos projets, programmes et portefeuilles avec une vision claire des activites, ressources et resultats." },
+    { title: "Application de Suivi sante personnalise Pour enfants (suivi de la croissance) et adultes.", text: "Suivez la croissance des enfants et les indicateurs de sante des adultes grace a des outils simples, securises et adaptes a chaque parcours." },
   ];
-  const packServices = locale === "en" ? [
-    { title: "Weight Loss Pack", text: "3 months of professional support with Premium Autonomous Health Monitoring included." },
-    { title: "Diabetes Pack", text: "3 months of nutrition support with Premium Autonomous Health Monitoring included." },
-    { title: "Pregnancy Pack", text: "Premium Growth Monitoring included for 3 months, plus Premium Autonomous Health Monitoring for 4 months." },
-    { title: "Infant Nutrition Pack", text: "3 months of feeding guidance with Premium Child Growth Monitoring included." },
-  ] : [
-    { title: "Pack Perte de poids", text: "3 mois d'accompagnement professionnel avec le Suivi Sante Autonome Premium inclus." },
-    { title: "Pack Diabete", text: "3 mois de suivi nutritionnel avec le Suivi Sante Autonome Premium inclus." },
-    { title: "Pack Femme enceinte", text: "Suivi Croissance Premium inclus 3 mois, plus Suivi Sante Autonome Premium inclus 4 mois." },
-    { title: "Pack Nutrition infantile", text: "3 mois de conseils alimentaires avec le Suivi Croissance Enfant Premium inclus." },
-  ];
-  if (!hasSupabaseConfig()) return { services: [...baseServices, ...packServices] };
+  if (!hasSupabaseConfig()) return { services: marketingServices };
   const { data } = await (await createClient()).from("homepage_settings").select("*").eq("id", 1).maybeSingle();
-  if (!data) return { services: [...baseServices, ...packServices] };
+  if (!data) return { services: marketingServices };
   const storedServices = locale === "en" && Array.isArray(data.services_en) ? data.services_en : locale === "fr" && Array.isArray(data.services) ? data.services : [];
-  return {
-    ...data,
-    hero_title: pickLocalized(data, "hero_title", locale),
-    slogan: pickLocalized(data, "slogan", locale),
-    presentation: pickLocalized(data, "presentation", locale),
-    primary_button_label: pickLocalized(data, "primary_button_label", locale),
-    secondary_button_label: pickLocalized(data, "secondary_button_label", locale),
-    newsletter_title: pickLocalized(data, "newsletter_title", locale),
-    newsletter_text: pickLocalized(data, "newsletter_text", locale),
-    services: [...(storedServices.length ? storedServices : baseServices), ...packServices],
-  };
+  return { ...data, hero_title: pickLocalized(data, "hero_title", locale), slogan: pickLocalized(data, "slogan", locale), presentation: pickLocalized(data, "presentation", locale), primary_button_label: pickLocalized(data, "primary_button_label", locale), secondary_button_label: pickLocalized(data, "secondary_button_label", locale), newsletter_title: pickLocalized(data, "newsletter_title", locale), newsletter_text: pickLocalized(data, "newsletter_text", locale), services: storedServices.length >= 6 ? storedServices : marketingServices };
 }
-
 export async function getHomepageCommunity() {
   const locale = await getCurrentLocale();
   if (!hasSupabaseConfig()) return { locale, announcements: [], gallery: [], topics: [], messages: [] };

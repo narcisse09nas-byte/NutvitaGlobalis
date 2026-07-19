@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -81,6 +81,7 @@ const navGroups = [
     ["/admin/ressources-premium", "Ressources premium", LockClosedIcon, [...all, "content_admin"]],
     ["/admin/temoignages", "Temoignages", StarIcon, [...all, "content_admin"]],
     ["/admin/newsletter", "Newsletter", EnvelopeIcon, [...all, "content_admin"]],
+    ["/admin/messages-externes", "Messages externes", EnvelopeIcon, [...all, "content_admin"]],
   ]},
 ] as const;
 

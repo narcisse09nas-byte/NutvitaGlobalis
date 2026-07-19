@@ -1,4 +1,4 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import Link from "next/link";
 import { CheckBadgeIcon, ClockIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import FeaturedArticlesCarousel from "@/components/FeaturedArticlesCarousel";
@@ -8,28 +8,28 @@ import { getArticles, getFormations, getHomepage, getHomepageCommunity, getTesti
 
 import { localizedPath } from "@/lib/i18n";
 const welcome = {
-  fr: `Nous croyons qu’une alimentation de qualité peut transformer des vies, renforcer les communautés et bâtir un futur plus sain pour tous.
+  fr: `Nous croyons quâ€™une alimentation de qualitÃ© peut transformer des vies, renforcer les communautÃ©s et bÃ¢tir un futur plus sain pour tous.
 
 Chaque jour, nous accompagnons :
-- les formations sanitaires, avec des repas thérapeutiques équilibrés conçus pour soutenir la guérison, ainsi qu’avec des programmes et applications dédiés à la prise en charge de la malnutrition infantile ;
-- les entreprises, grâce à des solutions de restauration premium qui favorisent le bien-être et la productivité ;
-- le grand public, en proposant des menus variés, savoureux et accessibles ;
-- les familles, grâce à nos outils digitaux pour le suivi de la croissance et de la santé nutritionnelle des enfants ;
-- les individus, via des consultations diététiques personnalisées adaptées à chaque profil de santé ;
-- les institutions, en leur offrant un appui technique dans la planification, la gestion et la conduite d’enquêtes nutritionnelles ;
-- les professionnels, étudiants et communautés, à travers nos formations certifiantes en nutrition et diététique, conçues pour renforcer les compétences, améliorer les pratiques et développer des experts capables d’impacter durablement la santé publique.
+- les formations sanitaires, avec des repas thÃ©rapeutiques Ã©quilibrÃ©s conÃ§us pour soutenir la guÃ©rison, ainsi quâ€™avec des programmes et applications dÃ©diÃ©s Ã  la prise en charge de la malnutrition infantile ;
+- les entreprises, grÃ¢ce Ã  des solutions de restauration premium qui favorisent le bien-Ãªtre et la productivitÃ© ;
+- le grand public, en proposant des menus variÃ©s, savoureux et accessibles ;
+- les familles, grÃ¢ce Ã  nos outils digitaux pour le suivi de la croissance et de la santÃ© nutritionnelle des enfants ;
+- les individus, via des consultations diÃ©tÃ©tiques personnalisÃ©es adaptÃ©es Ã  chaque profil de santÃ© ;
+- les institutions, en leur offrant un appui technique dans la planification, la gestion et la conduite dâ€™enquÃªtes nutritionnelles ;
+- les professionnels, Ã©tudiants et communautÃ©s, Ã  travers nos formations certifiantes en nutrition et diÃ©tÃ©tique, conÃ§ues pour renforcer les compÃ©tences, amÃ©liorer les pratiques et dÃ©velopper des experts capables dâ€™impacter durablement la santÃ© publique.
 
-Chez NutVitaGlobalis, nous ne servons pas seulement des repas : nous créons des solutions nutritionnelles qui soignent, protègent, éduquent et transforment.
+Chez NutVitaGlobalis, nous ne servons pas seulement des repas : nous crÃ©ons des solutions nutritionnelles qui soignent, protÃ¨gent, Ã©duquent et transforment.
 
 *Nourish Life. Build the Future.*
-**Ensemble, construisons un avenir où chacun a accès à une alimentation saine, durable et porteuse d’espoir.**`,
+**Ensemble, construisons un avenir oÃ¹ chacun a accÃ¨s Ã  une alimentation saine, durable et porteuse dâ€™espoir.**`,
   en: `We believe that quality nutrition can transform lives, strengthen communities and build a healthier future for all.
 
 Every day, we support:
 - health facilities, with balanced therapeutic meals designed to support recovery, as well as programmes and applications dedicated to the management of childhood malnutrition;
 - businesses, through premium catering solutions that promote well-being and productivity;
 - the general public, by offering varied, tasty and accessible menus;
-- families, through our digital tools for monitoring children’s growth and nutritional health;
+- families, through our digital tools for monitoring childrenâ€™s growth and nutritional health;
 - individuals, through personalized dietary consultations tailored to each health profile;
 - institutions, by providing technical assistance in the planning, management and implementation of nutrition surveys;
 - professionals, students and communities, through certified nutrition and dietetics training designed to strengthen skills, improve practices and develop experts capable of making a lasting impact on public health.
@@ -71,12 +71,12 @@ export default async function Home() {
       <div className="absolute inset-0 bg-gradient-to-r from-forest via-forest/90 to-forest/10" />
       <div className="container-site relative flex min-h-[680px] items-center py-20">
         <div className="max-w-2xl text-white">
-          <span className="mb-5 inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[.18em]">{settings?.slogan || (english ? "Health begins on the plate" : "La santé commence dans l’assiette")}</span>
-          <h1 className="text-5xl font-black leading-[1.05] text-white md:text-7xl">{settings?.hero_title || (english ? "Nutrition, health and well-being for all" : "Nutrition, santé et bien-être pour tous")}</h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-white/75">{settings?.presentation || (english ? "Reliable expertise and practical solutions for families, professionals and communities." : "Une expertise fiable et des solutions concrètes pour les familles, les professionnels et les communautés.")}</p>
+          <span className="mb-5 inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[.18em]">{settings?.slogan || (english ? "Health begins on the plate" : "La santÃ© commence dans lâ€™assiette")}</span>
+          <h1 className="text-5xl font-black leading-[1.05] text-white md:text-7xl">{settings?.hero_title || (english ? "Nutrition, health and well-being for all" : "Nutrition, santÃ© et bien-Ãªtre pour tous")}</h1>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-white/75">{settings?.presentation || (english ? "Reliable expertise and practical solutions for families, professionals and communities." : "Une expertise fiable et des solutions concrÃ¨tes pour les familles, les professionnels et les communautÃ©s.")}</p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <Link className="btn-primary" href={localizedPath(community.locale, settings?.primary_button_url || "/formations")}>{settings?.primary_button_label || (english ? "Explore our courses" : "Découvrir nos formations")}</Link>
-            <Link className="btn-secondary border-white/30 bg-white/10 text-white" href={localizedPath(community.locale, settings?.secondary_button_url || "/teleconseils")}>{settings?.secondary_button_label || (english ? "Book a consultation" : "Réserver un téléconseil")}</Link>
+            <Link className="btn-primary" href={localizedPath(community.locale, settings?.primary_button_url || "/formations")}>{settings?.primary_button_label || (english ? "Explore our courses" : "DÃ©couvrir nos formations")}</Link>
+            <Link className="btn-secondary border-white/30 bg-white/10 text-white" href={localizedPath(community.locale, settings?.secondary_button_url || "/teleconseils")}>{settings?.secondary_button_label || (english ? "Book a consultation" : "RÃ©server un tÃ©lÃ©conseil")}</Link>
           </div>
         </div>
       </div>
@@ -99,14 +99,14 @@ export default async function Home() {
         <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {settings.services.map((service: { title: string; text: string }, index: number) => <article key={`${service.title}-${index}`} className="card border-t-4 border-t-leaf p-7">
             <span className="text-xs font-black uppercase tracking-[.18em] text-orange">{String(index + 1).padStart(2, "0")}</span>
-            <h3 className="mt-4 text-2xl font-black text-forest">{service.title}</h3><p className="mt-3 leading-7 text-slate-600">{service.text}</p>
+            <h3 className="mt-4 text-2xl font-black text-forest">{service.title}</h3><p className="mt-3 leading-7 text-slate-600">{service.text}</p><Link href={localizedPath(community.locale, ["/formations","/teleconseils","/nutritrack","/surveys","/op-management","/suivi-sante"][index] || "/services")} className="mt-5 inline-flex font-black text-leaf">{english ? "Discover the solution" : "Decouvrir la solution"} &rarr;</Link>
           </article>)}
         </div>
       </div>
     </section>}
     {articles.length > 0 && <section className="section">
       <div className="container-site">
-        <span className="eyebrow">{english ? "Insights" : "À lire"}</span>
+        <span className="eyebrow">{english ? "Insights" : "Ã€ lire"}</span>
         <h2 className="mb-10 text-4xl font-black">{english ? "Featured Articles" : "Articles mis en avant"}</h2>
         <FeaturedArticlesCarousel articles={articles} locale={community.locale} />
       </div>
@@ -116,14 +116,14 @@ export default async function Home() {
       <div className="container-site">
         <span className="eyebrow bg-white">{english ? "Learn" : "Se former"}</span>
         <h2 className="mb-10 text-4xl font-black">{english ? "Featured Courses" : "Formations mises en avant"}</h2>
-        <div className="grid gap-6 md:grid-cols-2">{formations.map((course) => <div className="card flex flex-col gap-5 p-7 sm:flex-row" key={course.title}><div className="relative h-40 w-full shrink-0 overflow-hidden sm:w-48"><Image src={course.image} alt={course.title} fill className="object-cover" /></div><div><h3 className="text-2xl font-black">{course.title}</h3><p className="mt-3 flex items-center gap-2 text-sm text-slate-500"><ClockIcon className="h-5 text-orange" />{course.duration} · {course.level}</p><Link href={localizedPath(community.locale, "/formations")} className="mt-5 inline-block font-bold text-leaf">{english ? "Discover" : "Découvrir"} →</Link></div></div>)}</div>
+        <div className="grid gap-6 md:grid-cols-2">{formations.map((course) => <div className="card flex flex-col gap-5 p-7 sm:flex-row" key={course.title}><div className="relative h-40 w-full shrink-0 overflow-hidden sm:w-48"><Image src={course.image} alt={course.title} fill className="object-cover" /></div><div><h3 className="text-2xl font-black">{course.title}</h3><p className="mt-3 flex items-center gap-2 text-sm text-slate-500"><ClockIcon className="h-5 text-orange" />{course.duration} Â· {course.level}</p><Link href={localizedPath(community.locale, "/formations")} className="mt-5 inline-block font-bold text-leaf">{english ? "Discover" : "DÃ©couvrir"} â†’</Link></div></div>)}</div>
       </div>
     </section>}
 
     <section className="section">
       <div className="container-site grid items-center gap-10 bg-white px-6 py-10 shadow-soft lg:grid-cols-2 lg:px-14">
         <div><span className="eyebrow"><LockClosedIcon className="mr-2 h-4" />{english ? "Premium resources" : "Ressources premium"}</span><h2 className="text-4xl font-black">{english ? "Go further in your practice." : "Allez plus loin dans votre pratique."}</h2><Link className="btn-primary mt-7" href={localizedPath(community.locale, "/ressources")}>{english ? "Explore resources" : "Explorer les ressources"}</Link></div>
-        <div className="grid gap-3">{(english ? ["Evidence-based guides","Immediately applicable tools","Regular updates"] : ["Guides fondés sur les données scientifiques","Outils immédiatement applicables","Mises à jour régulières"]).map((text) => <div key={text} className="flex items-center gap-3 bg-mint p-5 font-bold text-forest"><CheckBadgeIcon className="h-6 text-leaf" />{text}</div>)}</div>
+        <div className="grid gap-3">{(english ? ["Evidence-based guides","Immediately applicable tools","Regular updates"] : ["Guides fondÃ©s sur les donnÃ©es scientifiques","Outils immÃ©diatement applicables","Mises Ã  jour rÃ©guliÃ¨res"]).map((text) => <div key={text} className="flex items-center gap-3 bg-mint p-5 font-bold text-forest"><CheckBadgeIcon className="h-6 text-leaf" />{text}</div>)}</div>
       </div>
     </section>
 
@@ -131,9 +131,9 @@ export default async function Home() {
 
     {(testimonials?.length || 0) > 0 && <section className="section">
       <div className="container-site text-center">
-        <span className="eyebrow">{english ? "Testimonials" : "Témoignages"}</span>
+        <span className="eyebrow">{english ? "Testimonials" : "TÃ©moignages"}</span>
         <h2 className="text-4xl font-black">{english ? "They trust us" : "Ils nous font confiance"}</h2>
-        <div className="mt-10 grid gap-6 md:grid-cols-3">{testimonials!.slice(0, 3).map((item) => <blockquote key={item.name} className="card p-8 text-left"><div className="mb-4 text-orange">{"★".repeat(item.rating || 5)}</div><p className="text-lg leading-8">“{item.testimony}”</p><footer className="mt-6 font-bold text-forest">{item.name}</footer></blockquote>)}</div>
+        <div className="mt-10 grid gap-6 md:grid-cols-3">{testimonials!.slice(0, 3).map((item) => <blockquote key={item.name} className="card p-8 text-left"><div className="mb-4 text-orange">{"â˜…".repeat(item.rating || 5)}</div><p className="text-lg leading-8">â€œ{item.testimony}â€</p><footer className="mt-6 font-bold text-forest">{item.name}</footer></blockquote>)}</div>
       </div>
     </section>}
     <Newsletter />

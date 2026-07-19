@@ -1,4 +1,4 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import Link from "next/link";
 import { CheckBadgeIcon, ClockIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import FeaturedArticlesCarousel from "@/components/FeaturedArticlesCarousel";
@@ -7,6 +7,7 @@ import Newsletter from "@/components/Newsletter";
 import { getArticles, getFormations, getHomepage, getHomepageCommunity, getTestimonials } from "@/lib/public-content";
 
 import { localizedPath } from "@/lib/i18n";
+import { repairMojibake } from "@/lib/text-encoding";
 const welcome = {
   fr: `Nous croyons quâ€™une alimentation de qualitÃ© peut transformer des vies, renforcer les communautÃ©s et bÃ¢tir un futur plus sain pour tous.
 
@@ -63,7 +64,7 @@ export default async function Home() {
     getHomepage(), getArticles(true), getFormations(true), getTestimonials(), getHomepageCommunity(),
   ]);
   const english = community.locale === "en";
-  const welcomeMessage = english ? settings?.welcome_message_en || welcome.en : settings?.welcome_message_fr || welcome.fr;
+  const welcomeMessage = repairMojibake(english ? settings?.welcome_message_en || welcome.en : settings?.welcome_message_fr || welcome.fr);
 
   return <>
     <section className="relative min-h-[680px] overflow-hidden bg-forest">

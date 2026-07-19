@@ -1,8 +1,9 @@
-﻿import { articles as fallbackArticles, formations as fallbackFormations, type Article } from "@/data/content";
+import { articles as fallbackArticles, formations as fallbackFormations, type Article } from "@/data/content";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { pickLocalized, type Locale } from "@/lib/i18n";
 import { hasSupabaseConfig } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
+import { repairContent } from "@/lib/text-encoding";
 
 function mapArticle(a: Record<string, any>, locale: Locale): Article {
   return {
@@ -117,7 +118,7 @@ export async function getHomepage() {
   const { data } = await (await createClient()).from("homepage_settings").select("*").eq("id", 1).maybeSingle();
   if (!data) return { services: marketingServices };
   const storedServices = locale === "en" && Array.isArray(data.services_en) ? data.services_en : locale === "fr" && Array.isArray(data.services) ? data.services : [];
-  return { ...data, hero_title: pickLocalized(data, "hero_title", locale), slogan: pickLocalized(data, "slogan", locale), presentation: pickLocalized(data, "presentation", locale), primary_button_label: pickLocalized(data, "primary_button_label", locale), secondary_button_label: pickLocalized(data, "secondary_button_label", locale), newsletter_title: pickLocalized(data, "newsletter_title", locale), newsletter_text: pickLocalized(data, "newsletter_text", locale), services: storedServices.length >= 6 ? storedServices : marketingServices };
+  return repairContent({ ...data, hero_title: pickLocalized(data, "hero_title", locale), slogan: pickLocalized(data, "slogan", locale), presentation: pickLocalized(data, "presentation", locale), primary_button_label: pickLocalized(data, "primary_button_label", locale), secondary_button_label: pickLocalized(data, "secondary_button_label", locale), newsletter_title: pickLocalized(data, "newsletter_title", locale), newsletter_text: pickLocalized(data, "newsletter_text", locale), services: storedServices.length >= 6 ? storedServices : marketingServices });
 }
 export async function getHomepageCommunity() {
   const locale = await getCurrentLocale();

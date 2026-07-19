@@ -1,11 +1,11 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { hasLocalAdminMode, hasSupabaseConfig } from "@/lib/supabase/config";
 import { findPlatformRole, isPrincipalEmail, platformServices, type PlatformRole, type PlatformServiceKey } from "@/lib/platform-services";
 import { getCurrentLocale } from "@/lib/i18n-server";
 
-export type AccessChoice = { service: PlatformServiceKey; role: PlatformRole; label: string; href: string };
+export type AccessChoice = { service: PlatformServiceKey; role: PlatformRole; serviceTitle: string; roleLabel: string; href: string };
 
 export async function getPlatformIdentity() {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
@@ -32,7 +32,7 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
   const english = (await getCurrentLocale()) === "en";
   const serviceTitle = (service: (typeof platformServices)[number]) => english ? service.titleEn || service.title : service.title;
   if (identity.superAdmin) {
-    return { email: identity.user.email || "", superAdmin: true, choices: platformServices.flatMap(service => service.roles.map(role => ({ service: service.key, role: role.key, label: `${serviceTitle(service)} â€” ${role.label}`, href: role.href }))) };
+    return { email: identity.user.email || "", superAdmin: true, choices: platformServices.flatMap(service => service.roles.map(role => ({ service: service.key, role: role.key, serviceTitle: serviceTitle(service), roleLabel: role.label, href: role.href }))) };
   }
   const allowed = new Map<string, Set<string>>();
   const add = (service: string, role: string) => { if (!allowed.has(service)) allowed.set(service, new Set()); allowed.get(service)!.add(role); };
@@ -67,7 +67,7 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
     if (nutritrack?.status === "active") add("nutritrack", "client");
     if (maximus?.active) add("maximus", "staff");
   }
-  const choices = platformServices.flatMap(service => service.roles.filter(role => allowed.get(service.key)?.has(role.key)).map(role => ({ service: service.key, role: role.key, label: `${serviceTitle(service)} â€” ${role.label}`, href: role.href })));
+  const choices = platformServices.flatMap(service => service.roles.filter(role => allowed.get(service.key)?.has(role.key)).map(role => ({ service: service.key, role: role.key, serviceTitle: serviceTitle(service), roleLabel: role.label, href: role.href })));
   return { email: identity.user.email || "", superAdmin: false, choices };
 }
 

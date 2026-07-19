@@ -22,6 +22,7 @@ import { loadQuizAttempts } from "@/lib/quiz-storage";
 import { loadExamAttempts } from "@/lib/exam-storage";
 import { loadExerciseSubmissions } from "@/lib/application-exercise-storage";
 import { calculateFinalGrade } from "@/lib/final-grade-engine";
+import { pushNotificationForUser } from "@/lib/notification-storage";
 import { ProctoringAiReadiness } from "@/components/proctoring/ProctoringAiReadiness";
 import { useLanguage } from "@/hooks/use-language";
 import type { ExamConductRating } from "@/types/proctoring";
@@ -94,86 +95,25 @@ export function ExaminerCockpit() {
     );
   }
 
-  function reviewConductAndPublish(
-    bookingId: string,
-    rating: ExamConductRating,
-    reviewerId: string,
-    note: string,
-  ) {
+  function reviewConductAndPublish(bookingId: string, rating: ExamConductRating, reviewerId: string, note: string) {
     const result = reviewConduct(bookingId, rating, reviewerId, note);
-    const approved = rating === "good" || rating === "passable";
-    if (!result.success || !approved) return result;
+    if (!result.success) return result;
     const booking = data.bookings.find((item) => item.id === bookingId);
-    if (!booking || booking.attemptScorePercent === undefined) return result;
+    if (!booking || booking.attemptScorePercent === undefined || !booking.attemptId) return result;
+    const approved = rating === "good" || rating === "passable";
     const studioCourse = publishedStudioCourses.find((item) => item.slug === booking.courseSlug);
-    const weightedGrade = studioCourse?.finalExam
-      ? calculateFinalGrade({
-          courseSlug: booking.courseSlug,
-          quizSlugs: studioCourse.quizzes.map((quiz) => quiz.slug),
-          quizAttempts: loadQuizAttempts(booking.userId),
-          examSlug: studioCourse.finalExam.definition.slug,
-          examAttempts: loadExamAttempts(booking.userId),
-          exercisesCount: studioCourse.applicationExercises?.length ?? 0,
-          submissions: loadExerciseSubmissions().filter((item) => item.studentUserId === booking.userId),
-        })
-      : null;
+    const weightedGrade = studioCourse?.finalExam ? calculateFinalGrade({ courseSlug: booking.courseSlug, quizSlugs: studioCourse.quizzes.map((quiz) => quiz.slug), quizAttempts: loadQuizAttempts(booking.userId), examSlug: studioCourse.finalExam.definition.slug, examAttempts: loadExamAttempts(booking.userId), exercisesCount: studioCourse.applicationExercises?.length ?? 0, submissions: loadExerciseSubmissions().filter((item) => item.studentUserId === booking.userId) }) : null;
     const finalScore = weightedGrade?.finalScore ?? booking.attemptScorePercent;
-    if (finalScore < 70) {
-      window.alert(text(`Integrite validee. Note finale ${finalScore}% : certificat non delivre.`, `Integrity approved. Final grade ${finalScore}%: certificate not issued.`));
-      return result;
-    }
-    const course =
-      getLocalCourseBySlug(booking.courseSlug) ??
-      publishedStudioCourses
-        .filter((item) => item.slug === booking.courseSlug)
-        .map((item) => studioCourseToAcademyCourse(item))[0];
-    if (course) {
-      saveCertificate(
-        createCertificateRecord({
-          user: {
-            id: booking.userId,
-            fullName: booking.candidateName,
-            email: booking.candidateEmail,
-          },
-          course,
-          finalScore,
-        }),
-      );
-    }
-    void fetch("/api/certificates/publish", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        candidateEmail: booking.candidateEmail,
-        courseSlug: booking.courseSlug,
-        finalScore,
-        conductRating: rating,
-        attemptId: booking.attemptId,
-      }),
-    })
-      .then(async (response) => ({
-        response,
-        payload: (await response.json()) as {
-          certificateNumber?: string;
-          error?: string;
-        },
-      }))
-      .then(({ response, payload }) =>
-        window.alert(
-          response.ok
-            ? text(
-                `Certificat public ${payload.certificateNumber} publiÃ©.`,
-                `Public certificate ${payload.certificateNumber} published.`,
-              )
-            : text(
-                `IntÃ©gritÃ© validÃ©e, publication serveur impossible : ${payload.error ?? "erreur"}`,
-                `Integrity approved, but server publication failed: ${payload.error ?? "error"}`,
-              ),
-        ),
-      );
+    const certified = approved && finalScore >= 70;
+    const course = getLocalCourseBySlug(booking.courseSlug) ?? (studioCourse ? studioCourseToAcademyCourse(studioCourse) : undefined);
+    if (certified && course) saveCertificate(createCertificateRecord({ user: { id: booking.userId, fullName: booking.candidateName, email: booking.candidateEmail }, course, finalScore }));
+    const failureMessage = !approved ? `Le deroulement de votre test n'a pas ete valide par le surveillant. ${note || "Consultez votre espace pour les details."}` : `Votre note finale ponderee est de ${finalScore} %, sous le seuil de certification de 70 %.`;
+    pushNotificationForUser(booking.userId, { id: `certification-decision-${booking.attemptId}`, type: certified ? "certificate" : "exam", priority: "high", source: "manual", title: certified ? "Felicitations, votre certificat est disponible !" : "Decision de certification disponible", titleEn: certified ? "Congratulations, your certificate is available!" : "Certification decision available", message: certified ? `Felicitations ! Votre note finale est de ${finalScore} %. Votre certificat est disponible dans votre espace.` : failureMessage, messageEn: certified ? `Congratulations! Your final grade is ${finalScore}%. Your certificate is available in your account.` : `No certificate was issued. Your final grade is ${finalScore}%. See your account for details.`, href: certified ? "/dashboard/certificates" : "/dashboard/exams", createdAt: new Date().toISOString() });
+    void fetch("/api/certificates/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ candidateEmail: booking.candidateEmail, courseSlug: booking.courseSlug, finalScore, conductRating: rating, attemptId: booking.attemptId, failureMessage }) })
+      .then(async (response) => ({ response, payload: await response.json() as { certified?: boolean; certificateNumber?: string; emailStatus?: string; error?: string } }))
+      .then(({ response, payload }) => window.alert(response.ok ? payload.certified ? text(`Certificat public ${payload.certificateNumber} publie et message envoye (${payload.emailStatus}).`, `Public certificate ${payload.certificateNumber} published and message sent (${payload.emailStatus}).`) : text(`Decision d'echec enregistree et message envoye (${payload.emailStatus}).`, `Failure decision saved and message sent (${payload.emailStatus}).`) : text(`Decision locale enregistree, mais synchronisation serveur impossible : ${payload.error ?? "erreur"}`, `Local decision saved, but server synchronization failed: ${payload.error ?? "error"}`)));
     return result;
   }
-
   return (
     <div className="space-y-8">
       <ProctoringAiReadiness />

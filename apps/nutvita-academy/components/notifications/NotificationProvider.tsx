@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   createContext,
@@ -107,9 +107,17 @@ export function NotificationProvider({
       return;
     }
 
-    setStoredNotifications(
-      loadNotifications(user.id)
-    );
+    const local = loadNotifications(user.id);
+    setStoredNotifications(local);
+    void fetch("/api/notifications", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : { items: [] })
+      .then((payload: { items?: AcademyNotification[] }) => {
+        const remote = payload.items ?? [];
+        const merged = Array.from(new Map([...remote, ...loadNotifications(user.id)].map((item) => [item.id, item])).values());
+        saveNotifications(user.id, merged);
+        setStoredNotifications(merged);
+      })
+      .catch(() => undefined);
 
     setPreferences(
       loadNotificationPreferences(

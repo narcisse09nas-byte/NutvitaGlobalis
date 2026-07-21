@@ -1,15 +1,9 @@
-export type LessonType =
-  | "video"
-  | "interactive-html"
-  | "reading"
-  | "quiz"
-  | "case-study"
-  | "resource";
+import type { ApplicationExercise } from "@/types/application-exercise";
 
-export type LessonStatus =
-  | "available"
-  | "locked"
-  | "completed";
+export type LessonType =
+  "video" | "interactive-html" | "reading" | "quiz" | "case-study" | "resource";
+
+export type LessonStatus = "available" | "locked" | "completed";
 
 export type CourseLesson = {
   id: string;
@@ -53,4 +47,5 @@ export type AcademyCourse = {
   enrolled: boolean;
   featured: boolean;
   modules: CourseModule[];
+  applicationExercises?: ApplicationExercise[];
 };

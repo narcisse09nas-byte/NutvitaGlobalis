@@ -1,22 +1,12 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-} from "react";
+import { useEffect, useState } from "react";
 
 import Link from "next/link";
 
-import {
-  ArrowLeft,
-  BookOpen,
-  Clock3,
-} from "lucide-react";
+import { ArrowLeft, BookOpen, Clock3 } from "lucide-react";
 
-import type {
-  AcademyCourse,
-  CourseModule,
-} from "@/types/course";
+import type { AcademyCourse, CourseModule } from "@/types/course";
 
 import { useProgress } from "@/hooks/use-progress";
 
@@ -32,6 +22,9 @@ import { LocalMediaLink } from "@/components/player/LocalMediaLink";
 import { InteractiveHtmlLesson } from "@/components/player/InteractiveHtmlLesson";
 import { isLessonCompleted, isLessonUnlocked } from "@/lib/course-progress";
 import { useLanguage } from "@/hooks/use-language";
+import { useLocalAuth } from "@/hooks/use-local-auth";
+import { loadExerciseSubmissions } from "@/lib/application-exercise-storage";
+import type { ExerciseSubmission } from "@/types/application-exercise";
 
 type ModuleLearningWorkspaceProps = {
   course: AcademyCourse;
@@ -44,52 +37,42 @@ export function ModuleLearningWorkspace({
   module,
   selectedLessonSlug,
 }: ModuleLearningWorkspaceProps) {
-  const {
-    data,
-    registerLessonVisit,
-    updateLessonProgress,
-    getLessonProgress,
-  } = useProgress();
+  const { data, registerLessonVisit, updateLessonProgress, getLessonProgress } =
+    useProgress();
   const { text } = useLanguage();
+  const { user } = useLocalAuth();
+  const [submissions, setSubmissions] = useState<ExerciseSubmission[]>([]);
+  useEffect(() => {
+    const refresh = () => setSubmissions(loadExerciseSubmissions());
+    refresh();
+    window.addEventListener("nutvita-exercises-updated", refresh);
+    return () =>
+      window.removeEventListener("nutvita-exercises-updated", refresh);
+  }, []);
+  const exerciseContext = { userId: user?.id, submissions };
 
-  const availableLessons =
-    useMemo(
-      () =>
-        module.lessons.filter((lesson) =>
-          isLessonUnlocked(course, data, module.slug, lesson.slug),
-        ),
-      [course, data, module.lessons, module.slug]
-    );
+  const availableLessons = module.lessons.filter((lesson) =>
+    isLessonUnlocked(course, data, module.slug, lesson.slug, exerciseContext),
+  );
 
   const selectedLesson =
-    availableLessons.find(
-      (lesson) =>
-        lesson.slug ===
-        selectedLessonSlug
-    ) ?? availableLessons[0];
+    availableLessons.find((lesson) => lesson.slug === selectedLessonSlug) ??
+    availableLessons[0];
 
-  const currentProgress =
-    selectedLesson
-      ? getLessonProgress(
-          course.slug,
-          module.slug,
-          selectedLesson.slug
-        )
-      : null;
+  const currentProgress = selectedLesson
+    ? getLessonProgress(course.slug, module.slug, selectedLesson.slug)
+    : null;
 
-  const lessonReference =
-    selectedLesson
-      ? {
-          courseSlug: course.slug,
-          moduleSlug: module.slug,
-          lessonSlug:
-            selectedLesson.slug,
-          lessonTitle:
-            selectedLesson.title,
-          moduleTitle: module.title,
-          courseTitle: course.title,
-        }
-      : null;
+  const lessonReference = selectedLesson
+    ? {
+        courseSlug: course.slug,
+        moduleSlug: module.slug,
+        lessonSlug: selectedLesson.slug,
+        lessonTitle: selectedLesson.title,
+        moduleTitle: module.title,
+        courseTitle: course.title,
+      }
+    : null;
 
   useEffect(() => {
     if (!selectedLesson) {
@@ -97,63 +80,39 @@ export function ModuleLearningWorkspace({
     }
 
     registerLessonVisit({
-      lessonId:
-        selectedLesson.id,
+      lessonId: selectedLesson.id,
       courseSlug: course.slug,
       moduleSlug: module.slug,
-      lessonSlug:
-        selectedLesson.slug,
+      lessonSlug: selectedLesson.slug,
     });
-  }, [
-    selectedLesson,
-    course.slug,
-    module.slug,
-    registerLessonVisit,
-  ]);
+  }, [selectedLesson, course.slug, module.slug, registerLessonVisit]);
 
   useEffect(() => {
-    if (
-      !selectedLesson ||
-      selectedLesson.type ===
-        "video"
-    ) {
+    if (!selectedLesson || selectedLesson.type === "video") {
       return;
     }
 
-    const interval =
-      window.setInterval(() => {
-        updateLessonProgress({
-          lessonId:
-            selectedLesson.id,
-          courseSlug: course.slug,
-          moduleSlug: module.slug,
-          lessonSlug:
-            selectedLesson.slug,
-          additionalTimeSeconds: 20,
-        });
-      }, 20000);
+    const interval = window.setInterval(() => {
+      updateLessonProgress({
+        lessonId: selectedLesson.id,
+        courseSlug: course.slug,
+        moduleSlug: module.slug,
+        lessonSlug: selectedLesson.slug,
+        additionalTimeSeconds: 20,
+      });
+    }, 20000);
 
     return () => {
-      window.clearInterval(
-        interval
-      );
+      window.clearInterval(interval);
     };
-  }, [
-    selectedLesson,
-    course.slug,
-    module.slug,
-    updateLessonProgress,
-  ]);
+  }, [selectedLesson, course.slug, module.slug, updateLessonProgress]);
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {lessonReference && (
         <LearningHistoryTracker
           reference={lessonReference}
-          videoTimeSeconds={
-            currentProgress
-              ?.lastPositionSeconds
-          }
+          videoTimeSeconds={currentProgress?.lastPositionSeconds}
         />
       )}
 
@@ -178,93 +137,75 @@ export function ModuleLearningWorkspace({
 
             <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
               <Clock3 size={17} />
-
               {module.estimatedMinutes} minutes
             </div>
 
             <div className="mt-6 space-y-3">
-              {module.lessons.map(
-                (lesson, index) => {
-                  const completed = isLessonCompleted(
-                    data,
-                    course.slug,
-                    module.slug,
-                    lesson.slug,
-                  );
+              {module.lessons.map((lesson, index) => {
+                const completed = isLessonCompleted(
+                  data,
+                  course.slug,
+                  module.slug,
+                  lesson.slug,
+                );
 
-                  const isLocked = !isLessonUnlocked(
-                    course,
-                    data,
-                    module.slug,
-                    lesson.slug,
-                  );
+                const isLocked = !isLessonUnlocked(
+                  course,
+                  data,
+                  module.slug,
+                  lesson.slug,
+                  exerciseContext,
+                );
 
-                  const isActive =
-                    selectedLesson?.slug ===
-                    lesson.slug;
+                const isActive = selectedLesson?.slug === lesson.slug;
 
-                  const dynamicStatus =
-                    completed
-                      ? "completed"
-                      : isLocked
-                        ? "locked"
-                        : "available";
+                const dynamicStatus = completed
+                  ? "completed"
+                  : isLocked
+                    ? "locked"
+                    : "available";
 
-                  if (isLocked) {
-                    return (
-                      <div
-                        key={lesson.id}
-                        className="rounded-2xl bg-slate-50 p-4 opacity-60"
-                      >
-                        <p className="text-sm font-bold text-slate-500">
-                          {index + 1}.{" "}
-                          {lesson.title}
-                        </p>
-
-                        <div className="mt-2">
-                          <LessonStatusBadge
-                            status={
-                              dynamicStatus
-                            }
-                          />
-                        </div>
-                      </div>
-                    );
-                  }
-
+                if (isLocked) {
                   return (
-                    <Link
+                    <div
                       key={lesson.id}
-                      href={`/dashboard/courses/${course.slug}/${module.slug}?lesson=${lesson.slug}`}
-                      className={`block rounded-2xl p-4 transition ${
-                        isActive
-                          ? "bg-[#DDF5E8] ring-1 ring-[#0B5D3B]"
-                          : "bg-[#F8FAFC] hover:bg-green-50"
-                      }`}
+                      className="rounded-2xl bg-slate-50 p-4 opacity-60"
                     >
-                      <p className="text-sm font-extrabold text-[#063D2E]">
-                        {index + 1}.{" "}
-                        {lesson.title}
+                      <p className="text-sm font-bold text-slate-500">
+                        {index + 1}. {lesson.title}
                       </p>
 
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <span className="text-xs text-slate-500">
-                          {
-                            lesson.durationMinutes
-                          }{" "}
-                          min
-                        </span>
-
-                        <LessonStatusBadge
-                          status={
-                            dynamicStatus
-                          }
-                        />
+                      <div className="mt-2">
+                        <LessonStatusBadge status={dynamicStatus} />
                       </div>
-                    </Link>
+                    </div>
                   );
                 }
-              )}
+
+                return (
+                  <Link
+                    key={lesson.id}
+                    href={`/dashboard/courses/${course.slug}/${module.slug}?lesson=${lesson.slug}`}
+                    className={`block rounded-2xl p-4 transition ${
+                      isActive
+                        ? "bg-[#DDF5E8] ring-1 ring-[#0B5D3B]"
+                        : "bg-[#F8FAFC] hover:bg-green-50"
+                    }`}
+                  >
+                    <p className="text-sm font-extrabold text-[#063D2E]">
+                      {index + 1}. {lesson.title}
+                    </p>
+
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="text-xs text-slate-500">
+                        {lesson.durationMinutes} min
+                      </span>
+
+                      <LessonStatusBadge status={dynamicStatus} />
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </Card>
         </aside>
@@ -286,9 +227,7 @@ export function ModuleLearningWorkspace({
 
                   <LessonStatusBadge
                     status={
-                      currentProgress
-                        ?.status ===
-                      "completed"
+                      currentProgress?.status === "completed"
                         ? "completed"
                         : selectedLesson.status
                     }
@@ -296,22 +235,14 @@ export function ModuleLearningWorkspace({
                 </div>
 
                 <ProgressBar
-                  value={
-                    currentProgress
-                      ?.progressPercent ??
-                    0
-                  }
+                  value={currentProgress?.progressPercent ?? 0}
                   label={text("Progression de la leçon", "Lesson progress")}
                   className="mt-7"
                 />
 
                 {lessonReference && (
                   <div className="mt-5">
-                    <FavoriteLessonButton
-                      reference={
-                        lessonReference
-                      }
-                    />
+                    <FavoriteLessonButton reference={lessonReference} />
                   </div>
                 )}
 
@@ -320,9 +251,7 @@ export function ModuleLearningWorkspace({
                     <LessonVideoSection
                       course={course}
                       module={module}
-                      lesson={
-                        selectedLesson
-                      }
+                      lesson={selectedLesson}
                     />
                   ) : selectedLesson.type === "interactive-html" &&
                     selectedLesson.htmlUrl ? (
@@ -356,19 +285,14 @@ export function ModuleLearningWorkspace({
                     </div>
                   ) : (
                     <div className="rounded-[24px] bg-[#F8FAFC] p-8">
-                      <BookOpen
-                        size={42}
-                        className="text-[#0B5D3B]"
-                      />
+                      <BookOpen size={42} className="text-[#0B5D3B]" />
 
                       <h3 className="mt-5 text-2xl font-extrabold text-[#063D2E]">
                         Contenu de lecture
                       </h3>
 
                       <p className="mt-4 leading-7 text-slate-600">
-                        {
-                          selectedLesson.description
-                        }
+                        {selectedLesson.description}
                       </p>
 
                       {selectedLesson.resourceUrl && (
@@ -389,55 +313,34 @@ export function ModuleLearningWorkspace({
                   </h3>
 
                   <p className="mt-3 leading-7 text-slate-600">
-                    {
-                      selectedLesson.description
-                    }
+                    {selectedLesson.description}
                   </p>
 
                   <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-slate-500">
-                    <Clock3
-                      size={17}
-                    />
-
-                    {text("Durée estimée", "Estimated duration")}: {" "}
-                    {
-                      selectedLesson.durationMinutes
-                    }{" "}
-                    minutes
+                    <Clock3 size={17} />
+                    {text("Durée estimée", "Estimated duration")}:{" "}
+                    {selectedLesson.durationMinutes} minutes
                   </div>
                 </div>
 
                 {selectedLesson.type !== "video" &&
                   selectedLesson.type !== "interactive-html" &&
                   selectedLesson.type !== "quiz" && (
-                <div className="mt-7 flex justify-end">
-                  <LessonProgressButton
-                    lessonId={
-                      selectedLesson.id
-                    }
-                    courseSlug={
-                      course.slug
-                    }
-                    moduleSlug={
-                      module.slug
-                    }
-                    lessonSlug={
-                      selectedLesson.slug
-                    }
-                  />
-                </div>
+                    <div className="mt-7 flex justify-end">
+                      <LessonProgressButton
+                        lessonId={selectedLesson.id}
+                        courseSlug={course.slug}
+                        moduleSlug={module.slug}
+                        lessonSlug={selectedLesson.slug}
+                      />
+                    </div>
                   )}
               </Card>
 
               {lessonReference && (
                 <LessonNotesPanel
-                  reference={
-                    lessonReference
-                  }
-                  currentVideoTime={
-                    currentProgress
-                      ?.lastPositionSeconds
-                  }
+                  reference={lessonReference}
+                  currentVideoTime={currentProgress?.lastPositionSeconds}
                 />
               )}
             </>

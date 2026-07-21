@@ -8,10 +8,24 @@ import { useProgress } from "@/hooks/use-progress";
 import { LessonStatusBadge } from "@/components/courses/LessonStatusBadge";
 import { Card } from "@/components/ui/Card";
 import { useLanguage } from "@/hooks/use-language";
+import { useLocalAuth } from "@/hooks/use-local-auth";
+import { loadExerciseSubmissions } from "@/lib/application-exercise-storage";
+import { useEffect, useState } from "react";
+import type { ExerciseSubmission } from "@/types/application-exercise";
 
 export function CourseModuleList({ course }: { course: AcademyCourse }) {
   const { text } = useLanguage();
   const { data } = useProgress();
+  const { user } = useLocalAuth();
+  const [submissions, setSubmissions] = useState<ExerciseSubmission[]>([]);
+  useEffect(() => {
+    const refresh = () => setSubmissions(loadExerciseSubmissions());
+    refresh();
+    window.addEventListener("nutvita-exercises-updated", refresh);
+    return () =>
+      window.removeEventListener("nutvita-exercises-updated", refresh);
+  }, []);
+  const exerciseContext = { userId: user?.id, submissions };
 
   return (
     <div className="space-y-6">
@@ -55,6 +69,7 @@ export function CourseModuleList({ course }: { course: AcademyCourse }) {
                     data,
                     courseModule.slug,
                     lesson.slug,
+                    exerciseContext,
                   );
                   const completed = isLessonCompleted(
                     data,

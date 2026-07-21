@@ -33,6 +33,7 @@ export function studioCourseToAcademyCourse(
     progress: 0,
     enrolled: false,
     featured: false,
+    applicationExercises: course.applicationExercises ?? [],
     modules: course.modules.map((module, index) => ({
       id: module.id,
       slug: module.slug,
@@ -60,9 +61,7 @@ export function studioCourseToAcademyCourse(
         videoUrl: english
           ? lesson.videoUrlEn || lesson.videoUrl
           : lesson.videoUrl,
-        htmlUrl: english
-          ? lesson.htmlUrlEn || lesson.htmlUrl
-          : lesson.htmlUrl,
+        htmlUrl: english ? lesson.htmlUrlEn || lesson.htmlUrl : lesson.htmlUrl,
         quizSlug: course.quizzes.find((quiz) => quiz.lessonId === lesson.id)
           ?.slug,
         resourceUrl: english
@@ -116,15 +115,15 @@ export function localizeExamQuestions(
 ): ExamQuestion[] {
   if (locale === "fr") return questions;
   return questions.map((question) => ({
-      ...question,
-      prompt: question.promptEn || question.prompt,
-      caseText: question.caseTextEn || question.caseText,
-      explanation: question.explanationEn || question.explanation,
-      options: question.options?.map((option) => ({
-        ...option,
-        text: option.textEn || option.text,
-      })),
-    }));
+    ...question,
+    prompt: question.promptEn || question.prompt,
+    caseText: question.caseTextEn || question.caseText,
+    explanation: question.explanationEn || question.explanation,
+    options: question.options?.map((option) => ({
+      ...option,
+      text: option.textEn || option.text,
+    })),
+  }));
 }
 
 export function getPublishedStudioCourses(data: StudioStoreData) {
@@ -144,7 +143,9 @@ export function getStudioCertificationRequirement(
   if (!course.certification.enabled || !course.finalExam) return null;
   return {
     courseSlug: course.slug,
-    requiredQuizSlugs: course.quizzes.filter((quiz) => quiz.allowProgressWithoutPassing === false).map((quiz) => quiz.slug),
+    requiredQuizSlugs: course.quizzes
+      .filter((quiz) => quiz.allowProgressWithoutPassing === false)
+      .map((quiz) => quiz.slug),
     requiredExamSlug: course.finalExam.definition.slug,
     minimumCourseProgress: course.certification.minimumCourseProgress,
   };

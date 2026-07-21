@@ -5,7 +5,10 @@ import { FileUp, Plus, Trash2 } from "lucide-react";
 import { createStudioId, createStudioSlug } from "@/lib/instructor-storage";
 import type { StudioCourse } from "@/types/instructor-studio";
 import type { QuizDefinition, QuizQuestionType } from "@/types/quiz";
-import { importQuizQuestionDocument, QUESTION_IMPORT_FORMATS } from "@/lib/question-document-import";
+import {
+  importQuizQuestionDocument,
+  QUESTION_IMPORT_FORMATS,
+} from "@/lib/question-document-import";
 
 type Props = {
   course: StudioCourse;
@@ -246,15 +249,87 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
     });
   }
 
-  async function importQuestions(quiz: QuizDefinition, file: File) {
+  async function importQuestions(
+    quiz: QuizDefinition,
+    file: File,
+    locale: "fr" | "en",
+  ) {
     setImportingQuizId(quiz.id);
     const result = await importQuizQuestionDocument(file);
     setImportingQuizId(null);
-    if (result.errors.length) { window.alert(`Import refuse / Import rejected: ${result.errors.slice(0, 10).join(", ")}`); return; }
-    const existing = new Set(quiz.questions.map((question) => question.id));
-    const imported = result.questions.filter((question) => !existing.has(question.id));
-    updateQuiz(quiz.id, { questions: [...quiz.questions, ...imported] });
-    window.alert(`${imported.length} question(s) imported.`);
+    if (result.errors.length) {
+      window.alert(
+        `Import refuse / Import rejected: ${result.errors.slice(0, 10).join(", ")}`,
+      );
+      return;
+    }
+    if (
+      quiz.questions.length &&
+      quiz.questions.length !== result.questions.length
+    ) {
+      window.alert(
+        `Import refuse : le fichier ${locale.toUpperCase()} contient ${result.questions.length} questions, mais le quiz en contient ${quiz.questions.length}.`,
+      );
+      return;
+    }
+    try {
+      const questions = result.questions.map((imported, index) => {
+        const current = quiz.questions[index];
+        if (!current)
+          return locale === "fr"
+            ? imported
+            : {
+                ...imported,
+                prompt: "",
+                promptEn: imported.prompt,
+                explanation: "",
+                explanationEn: imported.explanation,
+                options: imported.options.map((item) => ({
+                  ...item,
+                  text: "",
+                  textEn: item.text,
+                })),
+              };
+        const currentCorrect = current.correctOptionIds
+          .map((id) => current.options.findIndex((item) => item.id === id))
+          .sort();
+        const importedCorrect = imported.correctOptionIds
+          .map((id) => imported.options.findIndex((item) => item.id === id))
+          .sort();
+        if (
+          current.type !== imported.type ||
+          current.options.length !== imported.options.length ||
+          currentCorrect.join(",") !== importedCorrect.join(",")
+        )
+          throw new Error(`QUESTION_${index + 1}_LANGUAGES_MISMATCH`);
+        return {
+          ...current,
+          prompt: locale === "fr" ? imported.prompt : current.prompt,
+          promptEn: locale === "en" ? imported.prompt : current.promptEn,
+          explanation:
+            locale === "fr" ? imported.explanation : current.explanation,
+          explanationEn:
+            locale === "en" ? imported.explanation : current.explanationEn,
+          options: current.options.map((item, optionIndex) => ({
+            ...item,
+            text:
+              locale === "fr" ? imported.options[optionIndex].text : item.text,
+            textEn:
+              locale === "en"
+                ? imported.options[optionIndex].text
+                : item.textEn,
+          })),
+        };
+      });
+      updateQuiz(quiz.id, { questions });
+      window.alert(
+        `${questions.length} question(s) ${locale.toUpperCase()} importee(s) et associee(s).`,
+      );
+    } catch (error) {
+      window.alert(
+        error instanceof Error ? error.message : "LANGUAGES_MISMATCH",
+      );
+    }
   }
 
   function removeQuiz(quiz: QuizDefinition) {
@@ -331,7 +406,9 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
                 </p>
                 <p className="text-sm text-slate-500">
                   {quiz.questions.length} question(s) · {quiz.passingScore}% ·{" "}
-                  {quiz.maxAttempts <= 0 ? "Illimite / Unlimited" : `${quiz.maxAttempts} tentative(s) / attempt(s)`}
+                  {quiz.maxAttempts <= 0
+                    ? "Illimite / Unlimited"
+                    : `${quiz.maxAttempts} tentative(s) / attempt(s)`}
                 </p>
               </div>
               <button
@@ -386,12 +463,28 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
                   }
                   className="mt-1 h-10 w-full rounded-xl border px-3"
                 />
-                <span className="mt-1 block text-xs text-slate-500">0 = illimite / unlimited</span>
+                <span className="mt-1 block text-xs text-slate-500">
+                  0 = illimite / unlimited
+                </span>
               </label>
             </div>
             <label className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-slate-700">
-              <input type="checkbox" checked={quiz.allowProgressWithoutPassing !== false} onChange={(event) => updateQuiz(quiz.id, { allowProgressWithoutPassing: event.target.checked })} className="mt-1 accent-[#0B5D3B]" />
-              <span><strong>Autoriser la poursuite / Allow progression</strong><br />L&apos;apprenant peut ouvrir la suite meme si le score seuil n&apos;est pas atteint. La note reste enregistree.</span>
+              <input
+                type="checkbox"
+                checked={quiz.allowProgressWithoutPassing !== false}
+                onChange={(event) =>
+                  updateQuiz(quiz.id, {
+                    allowProgressWithoutPassing: event.target.checked,
+                  })
+                }
+                className="mt-1 accent-[#0B5D3B]"
+              />
+              <span>
+                <strong>Autoriser la poursuite / Allow progression</strong>
+                <br />
+                L&apos;apprenant peut ouvrir la suite meme si le score seuil
+                n&apos;est pas atteint. La note reste enregistree.
+              </span>
             </label>
             {quiz.questions.length > 0 && (
               <ol className="mt-4 space-y-2">
@@ -424,9 +517,37 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
               </ol>
             )}
             <div className="mt-4 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 p-4">
-              <p className="text-sm font-bold text-[#063D2E]">Importer les questions HTML, Word, PDF, CSV ou JSON</p>
-              <p className="mt-1 text-xs text-slate-600">Reponses reconnues : checked, data-correct, classe correct, ou ligne Reponse : A, C.</p>
-              <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#0B5D3B] px-4 py-2 text-sm font-bold text-white"><FileUp size={16} /> {importingQuizId === quiz.id ? "Importation..." : "Importer / Import"}<input type="file" accept={QUESTION_IMPORT_FORMATS} disabled={importingQuizId === quiz.id} className="sr-only" onChange={(event) => event.target.files?.[0] && void importQuestions(quiz, event.target.files[0])} /></label>
+              <p className="text-sm font-bold text-[#063D2E]">
+                Importer les questions HTML, Word, PDF, CSV ou JSON
+              </p>
+              <p className="mt-1 text-xs text-slate-600">
+                Format HTML QUESTIONS (QCU/QCM), Word, PDF, CSV ou JSON.
+                Importez les versions FR et EN dans le meme ordre.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(["fr", "en"] as const).map((locale) => (
+                  <label
+                    key={locale}
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#0B5D3B] px-4 py-2 text-sm font-bold text-white"
+                  >
+                    <FileUp size={16} />
+                    {importingQuizId === quiz.id
+                      ? "Importation..."
+                      : `Importer ${locale.toUpperCase()}`}
+                    <input
+                      type="file"
+                      accept={QUESTION_IMPORT_FORMATS}
+                      disabled={importingQuizId === quiz.id}
+                      className="sr-only"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void importQuestions(quiz, file, locale);
+                        event.target.value = "";
+                      }}
+                    />
+                  </label>
+                ))}
+              </div>
             </div>
             <QuestionComposer
               onAdd={(question) =>

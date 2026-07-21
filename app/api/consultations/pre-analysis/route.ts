@@ -30,6 +30,16 @@ const schema={
 
 function localAnalysis(input:any):Analysis{
   const assessment=input.clinical_assessments||{},findings:string[]=[],attentionPoints:string[]=[],missingData:string[]=[];
+  const labs=assessment.laboratory_parameters||{};
+  for(const [name,raw] of Object.entries(labs) as Array<[string,any]>) {
+    const value=Number(raw?.value),min=raw?.normal_min==null?null:Number(raw.normal_min),max=raw?.normal_max==null?null:Number(raw.normal_max),unit=String(raw?.unit||"");
+    if(!Number.isFinite(value)) continue;
+    const interval=min!==null||max!==null?`reference laboratoire ${min??"-"} a ${max??"-"} ${unit}`:"reference laboratoire non renseignee";
+    findings.push(`${name}: ${value} ${unit} (${interval}).`);
+    if((min!==null&&value<min)||(max!==null&&value>max)) attentionPoints.push(`${name} hors de la plage du laboratoire; verifier unite, methode, contexte clinique et confirmer le resultat.`);
+    if(!unit) missingData.push(`Unite de ${name}.`);
+    if(min===null&&max===null) missingData.push(`Intervalle de reference du laboratoire pour ${name}.`);
+  }
   const dietary=assessment.dietary?.result;
   if(dietary) findings.push(`Diversite alimentaire: ${dietary.score??dietary.mddScore??"non calculee"} groupe(s); seuil ${dietary.met??dietary.mddMet?"atteint":"non atteint"}.`);
   else missingData.push("Evaluation de la diversite alimentaire.");

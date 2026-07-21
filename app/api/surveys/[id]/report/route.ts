@@ -115,7 +115,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       ['54-59', 54, 59],
     ] as const;
     table(
-      ['Âge (mois)', 'Garçons n', 'Filles n', 'Total n', '% échantillon', 'Ratio G/F'],
+      ['ge (mois)', 'Garçons n', 'Filles n', 'Total n', '% échantillon', 'Ratio G/F'],
       ageBands.map(([label, minimum, maximum]) => {
         const group = observations.filter(item => item.age >= minimum && item.age <= maximum);
         const boys = group.filter(item => item.sex === 'male').length;

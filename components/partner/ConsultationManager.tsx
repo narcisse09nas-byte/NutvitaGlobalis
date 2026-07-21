@@ -5,6 +5,7 @@ import { EyeIcon, PlusIcon, PrinterIcon, SparklesIcon, XMarkIcon } from "@heroic
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/client";
 import {ageInMonths,calculateIycf,calculateMddw,childFoodItems,mddwFoodItems} from "@/lib/dietary-diversity";
+import LabParameterEditor, { defaultLabParameters, serializeLabParameters, type LabParameter } from "@/components/health/LabParameterEditor";
 
 type Row = Record<string, any>;
 type Goal = { label: string; target: string; unit: string };
@@ -53,6 +54,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
   const [childId,setChildId]=useState("");
   const [preAnalysis,setPreAnalysis]=useState<Row|null>(null);
   const [analysisLoading,setAnalysisLoading]=useState(false);
+  const [labParameters,setLabParameters]=useState<LabParameter[]>(defaultLabParameters);
   const client = clients.find(item => item.id === clientId);
   const children=Array.isArray(client?.children)?client.children:[];
   const selectedChild=children.find((item:Row)=>item.id===childId);
@@ -71,7 +73,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
     const calorieIntake=["breakfast_kcal","lunch_kcal","dinner_kcal","snacks_kcal","drinks_kcal"].reduce((sum,key)=>sum+Number(data.get(key)||0),0);
     const vigorousMinutes=(Number(data.get("vigorous_work_days")||0)*Number(data.get("vigorous_work_minutes")||0))+(Number(data.get("vigorous_leisure_days")||0)*Number(data.get("vigorous_leisure_minutes")||0));
     const moderateMinutes=(Number(data.get("moderate_work_days")||0)*Number(data.get("moderate_work_minutes")||0))+(Number(data.get("moderate_leisure_days")||0)*Number(data.get("moderate_leisure_minutes")||0))+(Number(data.get("transport_days")||0)*Number(data.get("transport_minutes")||0));
-    return {dietary:{module:iycf?"MAD_6_23":"MDD_10_GROUPS_ADAPTED",age_months:childAge,foods:dietaryFoods,result:dietary},calorie:{estimated_intake_kcal:calorieIntake,estimated_need_kcal:Number(data.get("estimated_need_kcal")||0),method:"24h meal estimate"},physical_activity:{met_minutes_week:vigorousMinutes*8+moderateMinutes*4,vigorous_minutes_week:vigorousMinutes,moderate_transport_minutes_week:moderateMinutes,sitting_minutes_day:Number(data.get("sitting_minutes_day")||0),method:"WHO GPAQ domains"},lifestyle:{sleep_hours:Number(data.get("sleep_hours")||0),sleep_quality:data.get("sleep_quality"),stress_level:Number(data.get("stress_level")||0),water_liters:Number(data.get("water_liters")||0),screen_hours:Number(data.get("screen_hours")||0),tobacco:data.get("tobacco"),alcohol:data.get("alcohol")}};
+    return {laboratory_parameters:serializeLabParameters(labParameters),dietary:{module:iycf?"MAD_6_23":"MDD_10_GROUPS_ADAPTED",age_months:childAge,foods:dietaryFoods,result:dietary},calorie:{estimated_intake_kcal:calorieIntake,estimated_need_kcal:Number(data.get("estimated_need_kcal")||0),method:"24h meal estimate"},physical_activity:{met_minutes_week:vigorousMinutes*8+moderateMinutes*4,vigorous_minutes_week:vigorousMinutes,moderate_transport_minutes_week:moderateMinutes,sitting_minutes_day:Number(data.get("sitting_minutes_day")||0),method:"WHO GPAQ domains"},lifestyle:{sleep_hours:Number(data.get("sleep_hours")||0),sleep_quality:data.get("sleep_quality"),stress_level:Number(data.get("stress_level")||0),water_liters:Number(data.get("water_liters")||0),screen_hours:Number(data.get("screen_hours")||0),tobacco:data.get("tobacco"),alcohol:data.get("alcohol")}};
   }
 
   async function analyzeBeforePlan(form:HTMLFormElement){
@@ -124,6 +126,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
     setClientId("");
     setPack("general");
     setPreAnalysis(null);
+    setLabParameters(defaultLabParameters);
     setMessage("Consultation finalisee, documents crees et prochain rendez-vous programme.");
   }
 
@@ -157,8 +160,14 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
         <label className="mt-4 grid gap-2 text-sm font-bold">Autres plaintes et contexte<textarea name="complaint_notes" rows={4} className="admin-input" /></label>
       </section>
 
+      <section className="rounded-3xl border border-forest/10 bg-white p-6 shadow-soft">
+        <Step number="3" title="Résultats biologiques et sanguins" />
+        <p className="mt-3 text-sm leading-6 text-slate-600">Saisissez les résultats disponibles avec l’unité et les limites de référence propres au laboratoire. Ces informations seront intégrées dans l’analyse préparatoire.</p>
+        <div className="mt-5"><LabParameterEditor items={labParameters} onChange={setLabParameters}/></div>
+      </section>
+
       <section className="rounded-2xl border bg-white p-6">
-        <Step number="3" title="Evaluation alimentaire, energetique et mode de vie" />
+        <Step number="4" title="Evaluation alimentaire, energetique et mode de vie" />
         <div className="mt-5 rounded-xl bg-mint p-4 text-sm text-forest"><b>{iycf?"MAD OMS/UNICEF 6-23 mois":"Diversite alimentaire adaptee sur 10 groupes"}</b><p className="mt-1">{iycf?"Le calcul combine diversite minimale, frequence minimale des repas et, si non allaite, frequence des apports lactes.":"Pour les femmes de 15-49 ans, le seuil 5/10 correspond au MDD-W FAO. Pour les autres personnes de plus de 2 ans, il est affiche comme repere adapte de diversite et non comme indicateur MDD-W valide."}</p></div>
         {iycf&&<div className="mt-4 grid gap-3 md:grid-cols-5"><MiniSelect name="breastfed" label="Allaite actuellement"/><MiniNumber name="solid_meals" label="Repas solides"/><MiniNumber name="formula_feeds" label="Formule infantile"/><MiniNumber name="animal_milk_feeds" label="Lait animal"/><MiniNumber name="yogurt_feeds" label="Yaourt liquide"/></div>}
         <div className="mt-4 grid gap-3 md:grid-cols-2">{dietaryGroups.map(group=><fieldset key={group.key} className="rounded-xl border bg-slate-50 p-4"><legend className="font-black">{group.labelFr}</legend><p className="mt-1 text-xs text-slate-500">{group.examplesFr}</p><div className="mt-3 flex gap-4">{["yes","no"].map(value=><label key={value} className="flex gap-2 text-sm font-bold"><input type="radio" name={`diet_${group.key}`} value={value} required/>{value==="yes"?"Oui":"Non"}</label>)}</div></fieldset>)}</div>
@@ -168,32 +177,32 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
       </section>
 
       <section className="rounded-2xl border-2 border-leaf bg-white p-6">
-        <Step number="4" title="Analyse IA preparatoire" />
+        <Step number="5" title="Analyse IA preparatoire" />
         <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">Cette aide analyse les informations disponibles avant la fixation des objectifs et du plan. Elle ne pose aucun diagnostic, ne prescrit rien et doit etre validee par le nutritionniste.</p>
         <button type="button" onClick={event=>analyzeBeforePlan(event.currentTarget.form!)} disabled={analysisLoading||!clientId} className="btn-primary mt-5"><SparklesIcon className="mr-2 h-5"/>{analysisLoading?"Analyse en cours...":"Analyser les informations disponibles"}</button>
         {preAnalysis&&<div className="mt-6 grid gap-4"><div className="rounded-xl bg-mint p-5"><h3 className="font-black">Synthese professionnelle</h3><p className="mt-2 text-sm leading-6">{preAnalysis.analysis?.summary}</p></div><div className="grid gap-4 md:grid-cols-2"><AnalysisList title="Constats" items={preAnalysis.analysis?.findings}/><AnalysisList title="Points de vigilance" items={preAnalysis.analysis?.attentionPoints}/><AnalysisList title="Donnees manquantes" items={preAnalysis.analysis?.missingData}/><AnalysisList title="Objectifs a envisager" items={preAnalysis.analysis?.suggestedObjectives}/><AnalysisList title="Questions a verifier" items={preAnalysis.analysis?.questionsToVerify}/><AnalysisList title="Limites" items={preAnalysis.analysis?.limitations}/></div><div className="flex flex-wrap gap-3"><button type="button" onClick={()=>openDocument(preAnalysis.pdf_path)} className="btn-secondary">Ouvrir le PDF de l'analyse</button><button type="button" onClick={()=>setGoals([...(preAnalysis.analysis?.suggestedObjectives||[]).map((label:string)=>({label,target:"",unit:""})),...goals])} className="btn-secondary">Reprendre les objectifs suggeres</button></div><p className="text-xs font-bold text-orange">{preAnalysis.warning}</p></div>}
       </section>
 
       <section className="rounded-2xl border bg-white p-6">
-        <Step number="5" title="Objectifs a atteindre" />
+        <Step number="6" title="Objectifs a atteindre" />
         <div className="mt-4 flex flex-wrap gap-2">{presets.goals.map(item => <label key={item} className="flex gap-2 rounded-full border px-4 py-2 text-sm font-bold"><input type="checkbox" checked={goals.some(goal => goal.label === item)} onChange={event => toggleGoal(item, event.target.checked)} />{item}</label>)}</div>
         <div className="mt-4 grid gap-3">{goals.map((goal, index) => <div key={`${goal.label}-${index}`} className="grid gap-3 md:grid-cols-[1.3fr_1fr_.7fr_auto]"><input value={goal.label} onChange={event => setGoals(goals.map((item, i) => i === index ? { ...item, label: event.target.value } : item))} placeholder="Parametre" className="admin-input"/><input value={goal.target} onChange={event => setGoals(goals.map((item, i) => i === index ? { ...item, target: event.target.value } : item))} placeholder="Cible a atteindre" className="admin-input"/><input value={goal.unit} onChange={event => setGoals(goals.map((item, i) => i === index ? { ...item, unit: event.target.value } : item))} placeholder="Unite" className="admin-input"/><button type="button" aria-label="Supprimer" onClick={() => setGoals(goals.filter((_, i) => i !== index))} className="grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-700"><XMarkIcon className="h-5"/></button></div>)}</div>
         <button type="button" onClick={() => setGoals([...goals, { label: "", target: "", unit: "" }])} className="btn-secondary mt-4 px-4 py-2"><PlusIcon className="mr-2 h-4"/>Ajouter un parametre</button>
       </section>
 
       <section className="rounded-2xl border bg-white p-6">
-        <Step number="6" title="Plan pour atteindre les objectifs" />
+        <Step number="7" title="Plan pour atteindre les objectifs" />
         <div className="mt-5 grid gap-4 md:grid-cols-2"><Area name="actions" label="Actions prioritaires"/><Area name="meal_plan" label="Plan alimentaire"/><Area name="monitoring" label="Mesures et rythme de suivi"/><Area name="education" label="Education nutritionnelle et conseils"/></div>
       </section>
 
       <section className="rounded-2xl border bg-white p-6">
-        <Step number="7" title="Prochain rendez-vous" />
+        <Step number="8" title="Prochain rendez-vous" />
         <p className="mt-2 text-sm text-slate-500">La date sera automatiquement ajoutee dans la salle de reunion du client et du nutritionniste.</p>
         <input name="next_appointment_at" type="datetime-local" required className="admin-input mt-4 max-w-md" />
       </section>
 
       <section className="rounded-2xl border bg-white p-6">
-        <Step number="8" title="Ordonnance d'examens" />
+        <Step number="9" title="Ordonnance d'examens" />
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{presets.exams.map(item => <label key={item} className="flex gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold"><input name="prescription_items" value={item} type="checkbox" />{item}</label>)}</div>
         <label className="mt-4 grid gap-2 text-sm font-bold">Examens supplementaires<input name="prescription_items" className="admin-input" placeholder="Saisir un examen supplementaire" /></label>
         <label className="mt-4 grid gap-2 text-sm font-bold">Indications et commentaires<textarea name="prescription_notes" rows={3} className="admin-input" /></label>
@@ -226,7 +235,7 @@ function MiniSelect({name,label}:{name:string;label:string}){return <label class
 function AnalysisList({title,items}:{title:string;items?:string[]}){return <section className="rounded-xl bg-slate-50 p-4"><h3 className="font-black">{title}</h3><ul className="mt-2 grid gap-2 text-sm text-slate-600">{(items||[]).map((item,index)=><li key={`${item}-${index}`}>- {item}</li>)}{!items?.length&&<li>-</li>}</ul></section>}
 function ConsultationDetails({ row, close, openDocument }: { row: Row; close: () => void; openDocument: (path?: string) => void }) {
   const goals = parseArray(row.goals);
-  return <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/70 p-4"><article className="mx-auto my-8 max-w-4xl rounded-2xl bg-white p-7 print:my-0 print:max-w-none"><div className="flex justify-between gap-4"><div><p className="text-xs font-bold uppercase text-leaf">Consultation finalisee</p><h2 className="text-2xl font-black">{row.client_profiles?.full_name || "Client"}</h2><p className="text-sm text-slate-500">{new Date(row.finalized_at || row.scheduled_at).toLocaleString("fr-FR")}</p></div><button type="button" onClick={close} aria-label="Fermer"><XMarkIcon className="h-7"/></button></div>
+  return <div className="nvg-modal-backdrop fixed inset-0 z-[100] overflow-y-auto p-4"><article className="nvg-modal-panel mx-auto my-8 max-w-4xl bg-white p-7 print:my-0 print:max-w-none"><div className="flex justify-between gap-4"><div><p className="text-xs font-bold uppercase text-leaf">Consultation finalisee</p><h2 className="text-2xl font-black">{row.client_profiles?.full_name || "Client"}</h2><p className="text-sm text-slate-500">{new Date(row.finalized_at || row.scheduled_at).toLocaleString("fr-FR")}</p></div><button type="button" onClick={close} aria-label="Fermer"><XMarkIcon className="h-7"/></button></div>
     <div className="mt-7 grid gap-5 md:grid-cols-2"><Detail title="Plaintes" text={`${parseArray(row.complaints).join(", ")} ${row.complaint_notes || ""}`}/><Detail title="Objectifs" text={goals.map((item: any) => `${item.label}: ${item.target || "-"} ${item.unit || ""}`).join("\n")}/><Detail title="Evaluations" text={row.clinical_assessments?JSON.stringify(row.clinical_assessments,null,2):"-"}/><Detail title="Plan" text={Object.values(row.care_plan || {}).filter(Boolean).join("\n")}/><Detail title="Prochain rendez-vous" text={row.next_appointment_at ? new Date(row.next_appointment_at).toLocaleString("fr-FR") : "Non programme"}/><Detail title="Examens" text={parseArray(row.prescription_items).join("\n")}/></div>
     <PrintableAccessQr email={row.client_profiles?.email}/>
     <div className="mt-7 flex flex-wrap gap-3 print:hidden"><button type="button" onClick={() => window.print()} className="btn-secondary"><PrinterIcon className="mr-2 h-4"/>Imprimer la fiche</button><button type="button" onClick={() => openDocument(row.consultation_pdf_path)} className="btn-primary">Compte rendu PDF</button>{row.prescription_pdf_path && <button type="button" onClick={() => openDocument(row.prescription_pdf_path)} className="btn-secondary">Ordonnance PDF</button>}</div>

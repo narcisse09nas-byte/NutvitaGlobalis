@@ -70,3 +70,9 @@
   color: inherit;
   letter-spacing: 0;
 }
+
+@layer components {
+  .nvg-modal-backdrop { @apply bg-forest/80 backdrop-blur-sm; }
+  .nvg-modal-panel { @apply overflow-hidden rounded-[2rem] border border-white/40 shadow-2xl shadow-slate-950/30; }
+  .nvg-modal-panel::before { content: ""; display: block; height: .4rem; margin: -1.75rem -1.75rem 1.5rem; background: linear-gradient(90deg, #0f5132, #3a9d6f, #e77b3b); }
+}

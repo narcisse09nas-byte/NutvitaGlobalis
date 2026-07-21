@@ -42,7 +42,7 @@ const moduleSchemas = {
     label: 'Anthropométrie OMS/SMART',
     fields: [
       ['id', 'Identifiant', false, ['id', 'identifiant', 'child_id']],
-      ['age', 'Âge estimé/révolu en mois', false, ['age', 'age_months', 'agemonths', 'anthro_age_months']],
+      ['age', 'ge estimé/révolu en mois', false, ['age', 'age_months', 'agemonths', 'anthro_age_months']],
       ['birthDate', 'Date de naissance', false, ['birth_date', 'birthdate', 'date_naissance', 'dob']],
       ['surveyDate', 'Date de l’enquête/mesure', false, ['survey_date', 'surveydate', 'date_enquete', 'measurement_date', 'submitted_at']],
       ['sex', 'Sexe', true, ['sex', 'sexe', 'gender']],
@@ -59,7 +59,7 @@ const moduleSchemas = {
   iycf_mad: {
     label: 'MDD, MMF et MAD (enfants 6-23 mois)',
     fields: [
-      ['PCMADChildAge_months', 'Âge de l’enfant en mois', true, ['age_months', 'child_age_months']],
+      ['PCMADChildAge_months', 'ge de l’enfant en mois', true, ['age_months', 'child_age_months']],
       ['PCMADBreastfeed', 'Allaitement la veille', true, ['breastfed', 'breastfeeding']],
       ...['StapCer','StapRoo','Pulse','Dairy','PrMeatF','PrEgg','PrFish','VegOrg','VegGre','VegOth','FruitOrg','FruitOth'].map(name => [`PCMAD${name}`, `Groupe alimentaire ${name}`, true, [`pcmad${name}`.toLowerCase()]] as [string, string, boolean, string[]]),
       ['PCMADMeals', 'Repas solides/semi-solides/mous', true, ['solid_meals', 'meals']],
@@ -675,7 +675,7 @@ export default function SurveyAnalysisWorkspace({
   function applyModuleMapping() {
     const selected = moduleMappings[mappingModule] || {};
     if (mappingModule === 'anthropometry' && !selected.age && !selected.birthDate) {
-      setMessage('Associez soit “Âge estimé/révolu en mois”, soit “Date de naissance”.');
+      setMessage('Associez soit “ge estimé/révolu en mois”, soit “Date de naissance”.');
       return;
     }
     if (mappingModule === 'anthropometry' && selected.birthDate && !selected.age && !selected.surveyDate && !rows.some(row => row.submitted_at)) {
@@ -1080,7 +1080,7 @@ export default function SurveyAnalysisWorkspace({
       <div className="grid gap-3 md:grid-cols-4">
         {([
           ['id', 'Identifiant'],
-          ['age', 'Âge estimé/révolu en mois'],
+          ['age', 'ge estimé/révolu en mois'],
           ['birthDate', 'Date de naissance'],
           ['surveyDate', 'Date de l’enquête/mesure'],
           ['sex', 'Sexe'],
@@ -1098,10 +1098,10 @@ export default function SurveyAnalysisWorkspace({
       {plausibility && <div className="mt-6 grid gap-6">
         {showAnthropometryData && <div className="overflow-x-auto border">
           <table className="min-w-[1100px] text-sm">
-            <thead className="bg-slate-100 text-left"><tr>{['Ligne', 'ID', 'Grappe', 'Sexe', 'Âge', 'Source âge', 'Poids', 'Taille', 'Œdème', 'MUAC', 'P/A Z', 'T/A Z', 'P/T Z', 'Signalements'].map(label => <th key={label} className="p-3">{label}</th>)}</tr></thead>
+            <thead className="bg-slate-100 text-left"><tr>{['Ligne', 'ID', 'Grappe', 'Sexe', 'ge', 'Source âge', 'Poids', 'Taille', 'Œdème', 'MUAC', 'P/A Z', 'T/A Z', 'P/T Z', 'Signalements'].map(label => <th key={label} className="p-3">{label}</th>)}</tr></thead>
             <tbody>{(plausibility.observations || []).map((item: Row) => <tr key={item.row} className="border-t">
               <td className="p-3">{item.row}</td><td className="p-3">{item.id ?? '-'}</td><td className="p-3">{item.cluster ?? '-'}</td><td className="p-3">{item.sex ?? '-'}</td>
-              <td className="p-3">{item.age ?? '-'}</td><td className="p-3 text-xs">{item.ageSource === 'reported_months' ? 'Âge en mois' : item.ageSource === 'birth_date' ? 'Date de naissance' : '-'}</td><td className="p-3">{item.weight ?? '-'}</td><td className="p-3">{item.height ?? '-'}</td><td className="p-3">{item.oedema ?? '-'}</td><td className="p-3">{item.muac ?? '-'}</td>
+              <td className="p-3">{item.age ?? '-'}</td><td className="p-3 text-xs">{item.ageSource === 'reported_months' ? 'ge en mois' : item.ageSource === 'birth_date' ? 'Date de naissance' : '-'}</td><td className="p-3">{item.weight ?? '-'}</td><td className="p-3">{item.height ?? '-'}</td><td className="p-3">{item.oedema ?? '-'}</td><td className="p-3">{item.muac ?? '-'}</td>
               <td className="p-3 font-mono">{item.waz?.toFixed?.(2) ?? '-'}</td><td className="p-3 font-mono">{item.haz?.toFixed?.(2) ?? '-'}</td><td className="p-3 font-mono">{item.whz?.toFixed?.(2) ?? '-'}</td>
               <td className={`p-3 text-xs font-bold ${item.flags?.length ? 'text-red-700' : 'text-emerald-700'}`}>{item.flags?.join(', ') || 'Valide'}</td>
             </tr>)}</tbody>

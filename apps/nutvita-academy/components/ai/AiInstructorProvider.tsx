@@ -11,9 +11,7 @@ import {
 import { useLocalAuth } from "@/hooks/use-local-auth";
 import { useLanguage } from "@/hooks/use-language";
 
-import {
-  generateLocalAiAnswer,
-} from "@/lib/ai-instructor-engine";
+import { generateLocalAiAnswer } from "@/lib/ai-instructor-engine";
 
 import {
   loadAiConversation,
@@ -28,44 +26,33 @@ import type {
 } from "@/types/ai-instructor";
 
 type AiInstructorContextValue = {
-  conversation:
-    AiInstructorConversation | null;
+  conversation: AiInstructorConversation | null;
 
   isLoading: boolean;
   isResponding: boolean;
 
-  sendMessage: (
-    content: string,
-    context?: AiInstructorContext
-  ) => void;
+  sendMessage: (content: string, context?: AiInstructorContext) => void;
 
   clearConversation: () => void;
 };
 
 export const AiInstructorContextStore =
-  createContext<AiInstructorContextValue | null>(
-    null
-  );
+  createContext<AiInstructorContextValue | null>(null);
 
 function createMessage(
-  role:
-    | "user"
-    | "assistant",
-  content: string
+  role: "user" | "assistant",
+  content: string,
 ): AiInstructorMessage {
   return {
     id:
-      typeof crypto !==
-        "undefined" &&
-      crypto.randomUUID
+      typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
         : `${role}-${Date.now()}`,
 
     role,
     content,
 
-    createdAt:
-      new Date().toISOString(),
+    createdAt: new Date().toISOString(),
   };
 }
 
@@ -74,27 +61,15 @@ export function AiInstructorProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } =
-    useLocalAuth();
-  const { text } = useLanguage();
+  const { user } = useLocalAuth();
+  const { locale, text } = useLanguage();
 
-  const [
-    conversation,
-    setConversation,
-  ] =
-    useState<AiInstructorConversation | null>(
-      null
-    );
+  const [conversation, setConversation] =
+    useState<AiInstructorConversation | null>(null);
 
-  const [
-    isLoading,
-    setIsLoading,
-  ] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [
-    isResponding,
-    setIsResponding,
-  ] = useState(false);
+  const [isResponding, setIsResponding] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -103,169 +78,120 @@ export function AiInstructorProvider({
       return;
     }
 
-    const stored =
-      loadAiConversation(
-        user.id
-      );
+    const stored = loadAiConversation(user.id);
 
     if (stored) {
       setConversation(stored);
     } else {
-      const initialConversation:
-        AiInstructorConversation =
-        {
-          id: `ai-${user.id}`,
-          userId: user.id,
+      const initialConversation: AiInstructorConversation = {
+        id: `ai-${user.id}`,
+        userId: user.id,
 
-          context: {},
+        context: {},
 
-          messages: [
-            createMessage(
-              "assistant",
-              text(
-                `Bonjour ${user.fullName}. Je suis votre instructeur pédagogique NutVita AI. Posez-moi une question sur votre formation.`,
-                `Hello ${user.fullName}. I am your NutVita AI learning instructor. Ask me a question about your course.`,
-              )
+        messages: [
+          createMessage(
+            "assistant",
+            text(
+              `Bonjour ${user.fullName}. Je suis votre instructeur pédagogique NutVita AI. Posez-moi une question sur votre formation.`,
+              `Hello ${user.fullName}. I am your NutVita AI learning instructor. Ask me a question about your course.`,
             ),
-          ],
+          ),
+        ],
 
-          updatedAt:
-            new Date().toISOString(),
-        };
+        updatedAt: new Date().toISOString(),
+      };
 
-      setConversation(
-        initialConversation
-      );
+      setConversation(initialConversation);
 
-      saveAiConversation(
-        initialConversation
-      );
+      saveAiConversation(initialConversation);
     }
 
     setIsLoading(false);
   }, [text, user]);
 
-  const sendMessage =
-    useCallback(
-      (
-        content: string,
-        context:
-          AiInstructorContext = {}
-      ) => {
-        if (
-          !user ||
-          !content.trim()
-        ) {
-          return;
-        }
-
-        setIsResponding(true);
-
-        setConversation(
-          (current) => {
-            const base =
-              current ?? {
-                id: `ai-${user.id}`,
-                userId: user.id,
-                context: {},
-                messages: [],
-                updatedAt:
-                  new Date().toISOString(),
-              };
-
-            const userMessage =
-              createMessage(
-                "user",
-                content.trim()
-              );
-
-            const answer =
-              generateLocalAiAnswer(
-                content,
-                context
-              );
-
-            const assistantMessage =
-              createMessage(
-                "assistant",
-                answer
-              );
-
-            const updated:
-              AiInstructorConversation =
-              {
-                ...base,
-
-                context,
-
-                messages: [
-                  ...base.messages,
-                  userMessage,
-                  assistantMessage,
-                ],
-
-                updatedAt:
-                  new Date().toISOString(),
-              };
-
-            saveAiConversation(
-              updated
-            );
-
-            return updated;
-          }
-        );
-
-        window.setTimeout(
-          () => {
-            setIsResponding(false);
-          },
-          450
-        );
-      },
-      [user]
-    );
-
-  const clearConversation =
-    useCallback(() => {
-      if (!user) {
-        return;
-      }
-
-      removeAiConversation(
-        user.id
-      );
-
-      const emptyConversation:
-        AiInstructorConversation =
-        {
+  const sendMessage = useCallback(
+    (content: string, context: AiInstructorContext = {}) => {
+      if (!user || !content.trim()) return;
+      const userMessage = createMessage("user", content.trim());
+      setIsResponding(true);
+      setConversation((current) => {
+        const base = current ?? {
           id: `ai-${user.id}`,
           userId: user.id,
-
           context: {},
-
-          messages: [
-            createMessage(
-              "assistant",
-              text(
-                "La conversation a été réinitialisée. Comment puis-je vous aider ?",
-                "The conversation has been reset. How can I help you?",
-              )
-            ),
-          ],
-
-          updatedAt:
-            new Date().toISOString(),
+          messages: [],
+          updatedAt: new Date().toISOString(),
         };
+        const updated = {
+          ...base,
+          context,
+          messages: [...base.messages, userMessage],
+          updatedAt: new Date().toISOString(),
+        };
+        saveAiConversation(updated);
+        return updated;
+      });
+      void fetch("/api/ai/tutor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: content.trim(), context, locale }),
+      })
+        .then(async (response) => {
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error ?? "AI_UNAVAILABLE");
+          return String(payload.content);
+        })
+        .catch(() => generateLocalAiAnswer(content, context))
+        .then((answer) =>
+          setConversation((current) => {
+            if (!current) return current;
+            const updated = {
+              ...current,
+              messages: [
+                ...current.messages,
+                createMessage("assistant", answer),
+              ],
+              updatedAt: new Date().toISOString(),
+            };
+            saveAiConversation(updated);
+            return updated;
+          }),
+        )
+        .finally(() => setIsResponding(false));
+    },
+    [locale, user],
+  );
+  const clearConversation = useCallback(() => {
+    if (!user) {
+      return;
+    }
 
-      saveAiConversation(
-        emptyConversation
-      );
+    removeAiConversation(user.id);
 
-      setConversation(
-        emptyConversation
-      );
-    }, [text, user]);
+    const emptyConversation: AiInstructorConversation = {
+      id: `ai-${user.id}`,
+      userId: user.id,
+
+      context: {},
+
+      messages: [
+        createMessage(
+          "assistant",
+          text(
+            "La conversation a été réinitialisée. Comment puis-je vous aider ?",
+            "The conversation has been reset. How can I help you?",
+          ),
+        ),
+      ],
+
+      updatedAt: new Date().toISOString(),
+    };
+
+    saveAiConversation(emptyConversation);
+
+    setConversation(emptyConversation);
+  }, [text, user]);
 
   const value = useMemo(
     () => ({
@@ -275,19 +201,11 @@ export function AiInstructorProvider({
       sendMessage,
       clearConversation,
     }),
-    [
-      conversation,
-      isLoading,
-      isResponding,
-      sendMessage,
-      clearConversation,
-    ]
+    [conversation, isLoading, isResponding, sendMessage, clearConversation],
   );
 
   return (
-    <AiInstructorContextStore.Provider
-      value={value}
-    >
+    <AiInstructorContextStore.Provider value={value}>
       {children}
     </AiInstructorContextStore.Provider>
   );

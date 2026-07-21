@@ -91,7 +91,7 @@ export function ExaminerCockpit() {
       createdBy: user.id,
     });
     window.alert(
-      result.success ? text("CrÃ©neau crÃ©Ã©.", "Slot created.") : result.error,
+      result.success ? text("Créneau créé.", "Slot created.") : result.error,
     );
   }
 
@@ -124,7 +124,7 @@ export function ExaminerCockpit() {
       />
       <section className="rounded-[28px] border border-green-100 bg-white p-7">
         <h2 className="text-2xl font-extrabold text-[#063D2E]">
-          {text("CrÃ©er un crÃ©neau certifiant", "Create a certification slot")}
+          {text("Créer un créneau certifiant", "Create a certification slot")}
         </h2>
         <form onSubmit={submitSlot} className="mt-5 grid gap-4 lg:grid-cols-6">
           <label className="text-sm font-bold text-[#063D2E]">
@@ -144,7 +144,7 @@ export function ExaminerCockpit() {
           <label className="text-sm font-bold text-[#063D2E]">{text("Jour hebdomadaire", "Weekly day")}<select value={weekday} onChange={(event) => setWeekday(Number(event.target.value))} className="mt-2 h-12 w-full rounded-xl border bg-white px-3"><option value={1}>Lundi / Monday</option><option value={2}>Mardi / Tuesday</option><option value={3}>Mercredi / Wednesday</option><option value={4}>Jeudi / Thursday</option><option value={5}>Vendredi / Friday</option><option value={6}>Samedi / Saturday</option><option value={0}>Dimanche / Sunday</option></select></label>
           <label className="text-sm font-bold text-[#063D2E]">{text("Heure recurrente", "Recurring time")}<input required type="time" value={time} onChange={(event) => setTime(event.target.value)} className="mt-2 h-12 w-full rounded-xl border px-3" /></label>
           <label className="text-sm font-bold text-[#063D2E]">
-            {text("DurÃ©e (min)", "Duration (min)")}
+            {text("Durée (min)", "Duration (min)")}
             <input
               type="number"
               min={15}
@@ -165,7 +165,7 @@ export function ExaminerCockpit() {
             />
           </label>
           <button className="mt-auto h-12 rounded-full bg-[#0B5D3B] px-5 font-bold text-white">
-            {text("Publier le crÃ©neau", "Publish slot")}
+            {text("Publier le créneau", "Publish slot")}
           </button>
         </form>
       </section>
@@ -174,11 +174,11 @@ export function ExaminerCockpit() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-extrabold text-[#063D2E]">
-              {text("Demandes Ã  valider", "Requests to review")}
+              {text("Demandes à valider", "Requests to review")}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               {text(
-                "Lâ€™approbation gÃ©nÃ¨re un code de salle unique.",
+                "L’approbation génère un code de salle unique.",
                 "Approval generates a unique room code.",
               )}
             </p>
@@ -205,10 +205,10 @@ export function ExaminerCockpit() {
                       {booking.candidateName}
                     </p>
                     <p className="text-sm text-slate-500">
-                      {booking.candidateEmail} Â·{" "}
+                      {booking.candidateEmail} ·{" "}
                       {bookingSlot
                         ? new Date(bookingSlot.startsAt).toLocaleString(locale === "fr" ? "fr-FR" : "en-US")
-                        : text("CrÃ©neau absent", "Slot missing")}
+                        : text("Créneau absent", "Slot missing")}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -242,11 +242,11 @@ export function ExaminerCockpit() {
 
       <section className="rounded-[28px] border border-green-100 bg-white p-7">
         <h2 className="text-2xl font-extrabold text-[#063D2E]">
-          {text("ContrÃ´le dâ€™identitÃ©", "Identity verification")}
+          {text("Contrôle d’identité", "Identity verification")}
         </h2>
         <p className="mt-2 text-sm text-slate-500">
           {text(
-            "Le score local est saisi aprÃ¨s contrÃ´le humain. En production, il sera fourni par le prestataire KYC et restera rÃ©visable.",
+            "Le score local est saisi après contrôle humain. En production, il sera fourni par le prestataire KYC et restera révisable.",
             "The local score is entered after human review. In production, it will be supplied by the KYC provider and remain reviewable.",
           )}
         </p>
@@ -264,8 +264,8 @@ export function ExaminerCockpit() {
                       {booking.candidateName}
                     </p>
                     <p className="text-sm text-slate-600">
-                      {booking.identity?.documentType} Â·{" "}
-                      {booking.identity?.issuingCountry} Â· {text("expire le", "expires on")}{" "}
+                      {booking.identity?.documentType} ·{" "}
+                      {booking.identity?.issuingCountry} · {text("expire le", "expires on")}{" "}
                       {booking.identity?.expiresAt}
                     </p>
                   </div>
@@ -328,7 +328,7 @@ export function ExaminerCockpit() {
                         reviewerId: user.id,
                         note:
                           notes[booking.id] ??
-                          text("ContrÃ´le refusÃ©", "Verification rejected"),
+                          text("Contrôle refusé", "Verification rejected"),
                       })
                     }
                     className="rounded-full border border-red-200 px-4 py-2 text-sm font-bold text-red-700"
@@ -346,8 +346,8 @@ export function ExaminerCockpit() {
                           reviewerId: user.id,
                           note:
                             notes[booking.id] ??
-                            text("IdentitÃ© contrÃ´lÃ©e", "Identity reviewed"),
-                        }).error ?? text("IdentitÃ© validÃ©e.", "Identity verified."),
+                            text("Identité contrôlée", "Identity reviewed"),
+                        }).error ?? text("Identité validée.", "Identity verified."),
                       )
                     }
                     className="rounded-full bg-[#0B5D3B] px-4 py-2 text-sm font-bold text-white"
@@ -361,7 +361,7 @@ export function ExaminerCockpit() {
             (item) => item.identity?.status !== "pending_review",
           ) && (
             <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
-              {text("Aucun dossier Ã  vÃ©rifier.", "No file to review.")}
+              {text("Aucun dossier à vérifier.", "No file to review.")}
             </p>
           )}
         </div>
@@ -375,7 +375,7 @@ export function ExaminerCockpit() {
             </h2>
             <p className="mt-2 text-sm text-slate-500">
               {text(
-                "Jusquâ€™Ã  10 candidats par salle, avec Ã©tat camÃ©ra, Ã©cran et incidents.",
+                "Jusqu’à 10 candidats par salle, avec état caméra, écran et incidents.",
                 "Up to 10 candidates per room, with camera, screen and incident status.",
               )}
             </p>
@@ -385,10 +385,10 @@ export function ExaminerCockpit() {
             onChange={(event) => setSelectedSlot(event.target.value)}
             className="h-12 min-w-72 rounded-xl border bg-white px-3"
           >
-            <option value="">{text("SÃ©lectionner une salle", "Select a room")}</option>
+            <option value="">{text("Sélectionner une salle", "Select a room")}</option>
             {data.slots.map((item) => (
               <option key={item.id} value={item.id}>
-                {new Date(item.startsAt).toLocaleString(locale === "fr" ? "fr-FR" : "en-US")} Â·{" "}
+                {new Date(item.startsAt).toLocaleString(locale === "fr" ? "fr-FR" : "en-US")} ·{" "}
                 {item.examSlug}
               </option>
             ))}
@@ -405,13 +405,13 @@ export function ExaminerCockpit() {
               }}
               className="ml-auto rounded-full bg-[#F58220] px-5 py-2 text-sm font-bold text-white"
             >
-              {text("Activer lâ€™examen", "Activate exam")}
+              {text("Activer l’examen", "Activate exam")}
             </button>
             <button
               onClick={() => setRoomStatus(slot.id, "closed")}
               className="rounded-full border px-5 py-2 text-sm font-bold"
             >
-              {text("ClÃ´turer", "Close")}
+              {text("Clôturer", "Close")}
             </button>
           </div>
         )}
@@ -431,7 +431,7 @@ export function ExaminerCockpit() {
                 <div className="grid aspect-video grid-cols-2 bg-[#063D2E] text-white">
                   <div className="flex flex-col items-center justify-center border-r border-white/20">
                     <MonitorUp />
-                    <span className="mt-2 text-xs">{text("Ã‰cran partagÃ©", "Shared screen")}</span>
+                    <span className="mt-2 text-xs">{text("Écran partagé", "Shared screen")}</span>
                   </div>
                   <div className="flex flex-col items-center justify-center">
                     <Camera />
@@ -455,9 +455,9 @@ export function ExaminerCockpit() {
                     )}
                   </div>
                   <p className="mt-3 text-sm text-slate-600">
-                    {candidateIncidents.length} incident(s) Â·{" "}
+                    {candidateIncidents.length} incident(s) ·{" "}
                     {admission?.ejectedAt
-                      ? text("Ã‰jectÃ© / verrouillÃ©", "Ejected / locked")
+                      ? text("Éjecté / verrouillé", "Ejected / locked")
                       : admission?.admittedAt
                         ? text("En composition", "Taking exam")
                         : text("En attente", "Waiting")}
@@ -465,10 +465,10 @@ export function ExaminerCockpit() {
                   <p
                     className={`mt-2 text-xs font-bold ${admission?.riskLevel === "high" ? "text-red-700" : admission?.riskLevel === "medium" ? "text-amber-700" : "text-green-700"}`}
                   >
-                    {text("Risque IA", "AI risk")}: {admission?.riskScore ?? 0}/100 Â·{" "}
+                    {text("Risque IA", "AI risk")}: {admission?.riskScore ?? 0}/100 ·{" "}
                     {admission?.riskLevel ?? "low"}
                     {admission?.reviewRequiredAt
-                      ? text(" Â· revue requise", " Â· review required")
+                      ? text(" · revue requise", " · review required")
                       : ""}
                   </p>
                   {admission?.admittedAt && !admission.ejectedAt && (
@@ -477,7 +477,7 @@ export function ExaminerCockpit() {
                         ejectCandidate(
                           candidate.id,
                           text(
-                            "DÃ©cision manuelle de lâ€™examinateur",
+                            "Décision manuelle de l’examinateur",
                             "Manual examiner decision",
                           ),
                         )
@@ -496,7 +496,7 @@ export function ExaminerCockpit() {
           <div className="mt-6 rounded-2xl border border-dashed p-10 text-center text-slate-500">
             <Users className="mx-auto mb-3" />
             {text(
-              "Aucun candidat approuvÃ© dans cette salle.",
+              "Aucun candidat approuvé dans cette salle.",
               "No approved candidates in this room.",
             )}
           </div>
@@ -504,7 +504,7 @@ export function ExaminerCockpit() {
         {incidents.length > 0 && (
           <div className="mt-7">
             <h3 className="font-extrabold text-[#063D2E]">
-              {text("Journal dâ€™incidents", "Incident log")}
+              {text("Journal d’incidents", "Incident log")}
             </h3>
             <div className="mt-3 max-h-72 space-y-2 overflow-auto">
               {incidents.map((incident) => (
@@ -512,7 +512,7 @@ export function ExaminerCockpit() {
                   key={incident.id}
                   className={`rounded-xl p-3 text-sm ${incident.severity === "critical" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-800"}`}
                 >
-                  <strong>{incident.type}</strong> Â· {incident.message} Â·{" "}
+                  <strong>{incident.type}</strong> · {incident.message} ·{" "}
                   {new Date(incident.occurredAt).toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US")}
                 </div>
               ))}
@@ -549,11 +549,11 @@ function IntegrityReview({
   return (
     <section className="rounded-[28px] border border-green-100 bg-white p-7">
       <h2 className="text-2xl font-extrabold text-[#063D2E]">
-        {text("DÃ©cision finale dâ€™intÃ©gritÃ©", "Final integrity decision")}
+        {text("Décision finale d’intégrité", "Final integrity decision")}
       </h2>
       <p className="mt-2 text-sm text-slate-500">
         {text(
-          "Le certificat reste bloquÃ© jusquâ€™Ã  cette dÃ©cision, mÃªme si la note acadÃ©mique est suffisante.",
+          "Le certificat reste bloqué jusqu’à cette décision, même si la note académique est suffisante.",
           "The certificate remains blocked until this decision, even when the academic score is sufficient.",
         )}
       </p>
@@ -572,13 +572,13 @@ function IntegrityReview({
                   {booking.candidateName}
                 </p>
                 <p className="text-sm text-slate-500">
-                  {text("Score", "Score")}: {booking.attemptScorePercent ?? text("non soumis", "not submitted")}% Â· {text("Tentative", "Attempt")} {booking.attemptNumber}/3 Â· {text("Incidents", "Incidents")}: {" "}
+                  {text("Score", "Score")}: {booking.attemptScorePercent ?? text("non soumis", "not submitted")}% · {text("Tentative", "Attempt")} {booking.attemptNumber}/3 · {text("Incidents", "Incidents")}: {" "}
                   {
                     data.incidents.filter(
                       (item) => item.bookingId === booking.id,
                     ).length
                   }{" "}
-                  Â· {text("DÃ©roulement", "Conduct")}: {booking.conductRating ?? "pending"}
+                  · {text("Déroulement", "Conduct")}: {booking.conductRating ?? "pending"}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -611,7 +611,7 @@ function IntegrityReview({
                       "passable",
                       userId,
                       text(
-                        "Conditions passables aprÃ¨s revue humaine",
+                        "Conditions passables après revue humaine",
                         "Acceptable conditions after human review",
                       ),
                     )
@@ -631,7 +631,7 @@ function IntegrityReview({
                       "good",
                       userId,
                       text(
-                        "Bon dÃ©roulement certifiÃ© aprÃ¨s revue humaine",
+                        "Bon déroulement certifié après revue humaine",
                         "Good conduct certified after human review",
                       ),
                     )
@@ -647,7 +647,7 @@ function IntegrityReview({
         {bookings.length === 0 && (
           <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
             {text(
-              "Aucune session prÃªte pour la dÃ©cision finale.",
+              "Aucune session prête pour la décision finale.",
               "No session is ready for the final decision.",
             )}
           </p>

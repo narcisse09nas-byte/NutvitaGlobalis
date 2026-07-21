@@ -50,7 +50,7 @@ export default function CertificatesPage() {
       </h1>
       <p className="mt-3 max-w-3xl text-slate-600">
         {text(
-          "VÃ©rifiez votre Ã©ligibilitÃ©, gÃ©nÃ©rez et consultez vos certificats professionnels.",
+          "Vérifiez votre éligibilité, générez et consultez vos certificats professionnels.",
           "Check your eligibility, generate and review your professional certificates.",
         )}
       </p>
@@ -99,7 +99,7 @@ export default function CertificatesPage() {
         {candidates.length === 0 && (
           <div className="rounded-[24px] bg-white p-8 text-center text-slate-500">
             {text(
-              "Aucune formation certifiante publiÃ©e.",
+              "Aucune formation certifiante publiée.",
               "No published certification course.",
             )}
           </div>
@@ -107,15 +107,15 @@ export default function CertificatesPage() {
       </div>
       <section className="mt-12">
         <h2 className="text-3xl font-extrabold text-[#063D2E]">
-          {text("Certificats dÃ©livrÃ©s", "Issued certificates")}
+          {text("Certificats délivrés", "Issued certificates")}
         </h2>
         {isLoading ? (
-          <p className="mt-6">{text("Chargementâ€¦", "Loadingâ€¦")}</p>
+          <p className="mt-6">{text("Chargement…", "Loading…")}</p>
         ) : certificates.length === 0 ? (
           <div className="mt-6 rounded-[24px] border border-dashed border-green-200 bg-white p-12 text-center">
             <Award size={44} className="mx-auto text-[#0B5D3B]" />
             <h3 className="mt-5 text-2xl font-extrabold text-[#063D2E]">
-              {text("Aucun certificat dÃ©livrÃ©", "No certificate issued")}
+              {text("Aucun certificat délivré", "No certificate issued")}
             </h3>
           </div>
         ) : (

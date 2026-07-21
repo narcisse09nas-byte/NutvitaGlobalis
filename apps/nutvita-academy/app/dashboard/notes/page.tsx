@@ -36,7 +36,7 @@ export default function NotesPage() {
 
       <p className="mt-3 max-w-3xl text-slate-600">
         {text(
-          "Retrouvez toutes vos notes personnelles enregistrÃ©es pendant les formations.",
+          "Retrouvez toutes vos notes personnelles enregistrées pendant les formations.",
           "Find all the personal notes saved during your courses.",
         )}
       </p>
@@ -44,14 +44,14 @@ export default function NotesPage() {
       <div className="mt-8 space-y-4">
         {isLoading ? (
           <div className="rounded-[24px] bg-white p-8">
-            {text("Chargementâ€¦", "Loadingâ€¦")}
+            {text("Chargement…", "Loading…")}
           </div>
         ) : notes.length === 0 ? (
           <div className="rounded-[24px] border border-dashed border-green-200 bg-white p-12 text-center">
             <FileText size={40} className="mx-auto text-[#0B5D3B]" />
 
             <h2 className="mt-5 text-2xl font-extrabold text-[#063D2E]">
-              {text("Aucune note enregistrÃ©e", "No saved notes")}
+              {text("Aucune note enregistrée", "No saved notes")}
             </h2>
           </div>
         ) : (
@@ -113,7 +113,7 @@ export default function NotesPage() {
       <section className="mt-12">
         <h2 className="text-3xl font-extrabold text-[#063D2E]">
           {text(
-            "Notes et apprÃ©ciations du formateur",
+            "Notes et appréciations du formateur",
             "Instructor grades and feedback",
           )}
         </h2>
@@ -142,7 +142,7 @@ export default function NotesPage() {
           {assignedGrades.length === 0 && (
             <div className="rounded-[24px] border border-dashed border-green-200 bg-white p-8 text-center text-slate-500 md:col-span-2">
               {text(
-                "Aucune note attribuÃ©e par un formateur.",
+                "Aucune note attribuée par un formateur.",
                 "No grade has been assigned by an instructor.",
               )}
             </div>

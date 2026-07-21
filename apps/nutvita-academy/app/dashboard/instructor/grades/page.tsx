@@ -13,11 +13,11 @@ export default function InstructorGradesPage() {
         Instructor Studio
       </p>
       <h1 className="mt-3 text-4xl font-extrabold text-[#063D2E]">
-        {text("Notes et rÃ©sultats", "Grades and results")}
+        {text("Notes et résultats", "Grades and results")}
       </h1>
       <p className="mt-3 text-slate-600">
         {text(
-          "Suivez les Ã©valuations et ajoutez les apprÃ©ciations pÃ©dagogiques.",
+          "Suivez les évaluations et ajoutez les appréciations pédagogiques.",
           "Track assessments and add learning feedback.",
         )}
       </p>

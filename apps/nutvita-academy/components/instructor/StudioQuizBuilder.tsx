@@ -79,11 +79,11 @@ function QuestionComposer({
     <form onSubmit={submit} className="mt-4 rounded-xl bg-[#F8FAFC] p-4">
       <div className="grid gap-4 lg:grid-cols-2">
         <fieldset className="rounded-xl border border-blue-200 p-4">
-          <legend className="px-2 font-bold text-blue-800">ðŸ‡«ðŸ‡· Question</legend>
+          <legend className="px-2 font-bold text-blue-800">🇫🇷 Question</legend>
           <input
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            placeholder="Ã‰noncÃ© franÃ§ais / French prompt"
+            placeholder="Énoncé français / French prompt"
             className="h-11 w-full rounded-xl border px-3"
           />
           <div className="mt-3 space-y-2">
@@ -119,7 +119,7 @@ function QuestionComposer({
           />
         </fieldset>
         <fieldset className="rounded-xl border border-amber-200 p-4">
-          <legend className="px-2 font-bold text-amber-800">ðŸ‡¬ðŸ‡§ Question</legend>
+          <legend className="px-2 font-bold text-amber-800">🇬🇧 Question</legend>
           <input
             value={promptEn}
             onChange={(event) => setPromptEn(event.target.value)}
@@ -164,9 +164,9 @@ function QuestionComposer({
           }}
           className="h-10 rounded-xl border bg-white px-3"
         >
-          <option value="single">RÃ©ponse unique / Single answer</option>
+          <option value="single">Réponse unique / Single answer</option>
           <option value="multiple">
-            RÃ©ponses multiples / Multiple answers
+            Réponses multiples / Multiple answers
           </option>
         </select>
         <button className="inline-flex items-center gap-2 rounded-full bg-[#0B5D3B] px-4 py-2 text-sm font-bold text-white">
@@ -197,7 +197,7 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
       code: `${course.code}-Q${course.quizzes.length + 1}`,
       title: title.trim(),
       titleEn: titleEn.trim(),
-      description: `Ã‰valuation du module ${courseModule.title}`,
+      description: `Évaluation du module ${courseModule.title}`,
       descriptionEn: `Assessment for module ${courseModule.titleEn}`,
       courseSlug: course.slug,
       courseTitle: course.title,
@@ -275,7 +275,7 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
       </h2>
       <form
         onSubmit={addQuiz}
-        className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_150px_auto]"
+        className="mt-5 grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(6rem,.55fr)_auto]"
       >
         <select
           required
@@ -293,14 +293,14 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
         <input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          placeholder="ðŸ‡«ðŸ‡· Titre du quiz"
-          className="h-12 rounded-xl border px-3"
+          placeholder="🇫🇷 Titre du quiz"
+          className="h-12 min-w-0 rounded-xl border px-3"
         />
         <input
           value={titleEn}
           onChange={(event) => setTitleEn(event.target.value)}
-          placeholder="ðŸ‡¬ðŸ‡§ Quiz title"
-          className="h-12 rounded-xl border px-3"
+          placeholder="🇬🇧 Quiz title"
+          className="h-12 min-w-0 rounded-xl border px-3"
         />
         <input
           type="number"
@@ -308,11 +308,11 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
           max={100}
           value={passingScore}
           onChange={(event) => setPassingScore(Number(event.target.value))}
-          className="h-12 rounded-xl border px-3"
+          className="h-12 min-w-0 rounded-xl border px-3"
           title="Score requis / Passing score"
         />
-        <button className="rounded-full bg-[#F58220] px-5 font-bold text-white">
-          CrÃ©er / Create
+        <button className="min-h-12 whitespace-nowrap rounded-full bg-[#F58220] px-5 py-2 font-bold text-white">
+          Créer / Create
         </button>
       </form>
       <div className="mt-6 space-y-5">
@@ -324,13 +324,13 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
             <div className="flex justify-between gap-3">
               <div>
                 <h3 className="font-extrabold text-[#063D2E]">
-                  ðŸ‡«ðŸ‡· {quiz.title || "â€”"}
+                  🇫🇷 {quiz.title || "—"}
                 </h3>
                 <p className="font-semibold text-slate-600">
-                  ðŸ‡¬ðŸ‡§ {quiz.titleEn || "Missing English title"}
+                  🇬🇧 {quiz.titleEn || "Missing English title"}
                 </p>
                 <p className="text-sm text-slate-500">
-                  {quiz.questions.length} question(s) Â· {quiz.passingScore}% Â·{" "}
+                  {quiz.questions.length} question(s) · {quiz.passingScore}% ·{" "}
                   {quiz.maxAttempts <= 0 ? "Illimite / Unlimited" : `${quiz.maxAttempts} tentative(s) / attempt(s)`}
                 </p>
               </div>
@@ -345,7 +345,7 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <label className="text-xs font-bold text-slate-600">
-                DurÃ©e / Duration (min)
+                Durée / Duration (min)
                 <input
                   type="number"
                   min={1}
@@ -401,9 +401,9 @@ export function StudioQuizBuilder({ course, onChange }: Props) {
                     className="flex justify-between rounded-xl bg-green-50 p-3 text-sm"
                   >
                     <span>
-                      {index + 1}. ðŸ‡«ðŸ‡· {question.prompt || "â€”"}
+                      {index + 1}. 🇫🇷 {question.prompt || "—"}
                       <br />
-                      ðŸ‡¬ðŸ‡§ {question.promptEn || "Missing English question"}
+                      🇬🇧 {question.promptEn || "Missing English question"}
                     </span>
                     <button
                       type="button"

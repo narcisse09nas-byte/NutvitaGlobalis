@@ -37,7 +37,7 @@ export function QuizCatalogCard({ quiz }: QuizCatalogCardProps) {
 
           {bestAttempt?.passed && (
             <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
-              {text("RÃ©ussi", "Passed")}
+              {text("Réussi", "Passed")}
             </span>
           )}
         </div>
@@ -71,7 +71,7 @@ export function QuizCatalogCard({ quiz }: QuizCatalogCardProps) {
             </p>
 
             <p className="text-xs text-slate-500">
-              {text("DurÃ©e", "Duration")}
+              {text("Durée", "Duration")}
             </p>
           </div>
 
@@ -122,7 +122,7 @@ export function QuizCatalogCard({ quiz }: QuizCatalogCardProps) {
         }`}
       >
         {bestAttempt?.passed
-          ? text("Consulter les rÃ©sultats", "View results")
+          ? text("Consulter les résultats", "View results")
           : attempts.length > 0
             ? text("Nouvelle tentative", "New attempt")
             : text("Commencer le quiz", "Start quiz")}

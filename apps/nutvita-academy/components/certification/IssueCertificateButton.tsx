@@ -75,7 +75,7 @@ export function IssueCertificateButton({
   }
 
   if (eligibility.eligible && !integrityApproved) {
-    return <button type="button" disabled className="inline-flex items-center gap-2 rounded-full bg-slate-300 px-6 py-3 font-bold text-white"><Award size={20} />{text("Validation dâ€™intÃ©gritÃ© requise", "Integrity approval required")}</button>;
+    return <button type="button" disabled className="inline-flex items-center gap-2 rounded-full bg-slate-300 px-6 py-3 font-bold text-white"><Award size={20} />{text("Validation d’intégrité requise", "Integrity approval required")}</button>;
   }
 
   function handleIssue() {
@@ -119,7 +119,7 @@ export function IssueCertificateButton({
       className="inline-flex items-center gap-2 rounded-full bg-[#F58220] px-6 py-3 font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-slate-300"
     >
       <Award size={20} />
-      {text("GÃ©nÃ©rer mon certificat", "Generate my certificate")}
+      {text("Générer mon certificat", "Generate my certificate")}
     </button>
   );
 }

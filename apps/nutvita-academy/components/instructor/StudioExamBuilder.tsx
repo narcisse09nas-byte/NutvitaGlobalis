@@ -16,8 +16,8 @@ type Props = {
 
 const domains: { value: ExamDomain; fr: string; en: string }[] = [
   { value: "fundamentals", fr: "Fondamentaux", en: "Fundamentals" },
-  { value: "anthropometry", fr: "AnthropomÃ©trie", en: "Anthropometry" },
-  { value: "screening", fr: "DÃ©pistage", en: "Screening" },
+  { value: "anthropometry", fr: "Anthropométrie", en: "Anthropometry" },
+  { value: "screening", fr: "Dépistage", en: "Screening" },
   { value: "clinical", fr: "Clinique", en: "Clinical" },
   { value: "cmam", fr: "PCIMA/CMAM", en: "CMAM" },
   { value: "monitoring", fr: "Suivi", en: "Monitoring" },
@@ -49,9 +49,9 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           id: createStudioId("exam"),
           slug: `${course.slug}-final`,
           code: `${course.code}-FINAL`,
-          title: `Examen final â€” ${course.title}`,
-          titleEn: `Final exam â€” ${course.titleEn}`,
-          description: `Ã‰valuation finale certifiante de la formation ${course.title}.`,
+          title: `Examen final — ${course.title}`,
+          titleEn: `Final exam — ${course.titleEn}`,
+          description: `Évaluation finale certifiante de la formation ${course.title}.`,
           descriptionEn: `Final certification assessment for ${course.titleEn}.`,
           courseSlug: course.slug,
           courseTitle: course.title,
@@ -177,7 +177,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
     if (result.errors.length) {
       window.alert(
         text(
-          `Import refusÃ© : ${result.errors.slice(0, 10).join(", ")}`,
+          `Import refusé : ${result.errors.slice(0, 10).join(", ")}`,
           `Import rejected: ${result.errors.slice(0, 10).join(", ")}`,
         ),
       );
@@ -188,7 +188,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
     setQuestions([...course.finalExam.questions, ...imported]);
     window.alert(
       text(
-        `${imported.length} question(s) importÃ©e(s).`,
+        `${imported.length} question(s) importée(s).`,
         `${imported.length} question(s) imported.`,
       ),
     );
@@ -201,14 +201,14 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           Examen final / Final exam
         </h2>
         <p className="mt-2 text-slate-500">
-          CrÃ©ez simultanÃ©ment les banques franÃ§aise et anglaise. / Build the French and English question banks together.
+          Créez simultanément les banques française et anglaise. / Build the French and English question banks together.
         </p>
         <button
           type="button"
           onClick={createExam}
           className="mt-5 rounded-full bg-[#F58220] px-6 py-3 font-bold text-white"
         >
-          CrÃ©er lâ€™examen final / Create final exam
+          Créer l’examen final / Create final exam
         </button>
       </section>
     );
@@ -226,13 +226,13 @@ export function StudioExamBuilder({ course, onChange }: Props) {
             {questions.length} question(s) dans la banque / in the bank
           </p>
           <p className="mt-2 text-xs font-bold text-slate-600">
-            QCM/MCQ {capacity.qcm}/50 Â· QCU/SCQ {capacity.qcu}/35 Â· Cas/Case {capacity.case_study}/15
+            QCM/MCQ {capacity.qcm}/50 · QCU/SCQ {capacity.qcu}/35 · Cas/Case {capacity.case_study}/15
           </p>
         </div>
         <button
           type="button"
           onClick={() =>
-            window.confirm("Supprimer lâ€™examen final ?") &&
+            window.confirm("Supprimer l’examen final ?") &&
             onChange({ finalExam: null })
           }
           className="text-red-600"
@@ -246,11 +246,11 @@ export function StudioExamBuilder({ course, onChange }: Props) {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="font-extrabold text-[#063D2E]">Import HTML, Word, PDF, CSV ou JSON / HTML, Word, PDF, CSV or JSON import</p>
-            <p className="mt-1 text-xs text-slate-600">{text("Le moteur dÃ©tecte QCU/QCM et les rÃ©ponses marquÃ©es dans les fichiers HTML, DOCX et PDF. Pour Ã©viter une mauvaise correction, toute question sans rÃ©ponse dÃ©tectable est refusÃ©e.", "The engine detects single/multiple-choice questions and marked answers in HTML, DOCX and PDF files. Questions without a detectable answer are rejected.")}</p>
-            <a href="/templates/exam-question-bank-template.csv" download className="mt-2 inline-flex text-xs font-bold text-[#0B5D3B] underline">TÃ©lÃ©charger le modÃ¨le / Download template</a>
+            <p className="mt-1 text-xs text-slate-600">{text("Le moteur détecte QCU/QCM et les réponses marquées dans les fichiers HTML, DOCX et PDF. Pour éviter une mauvaise correction, toute question sans réponse détectable est refusée.", "The engine detects single/multiple-choice questions and marked answers in HTML, DOCX and PDF files. Questions without a detectable answer are rejected.")}</p>
+            <a href="/templates/exam-question-bank-template.csv" download className="mt-2 inline-flex text-xs font-bold text-[#0B5D3B] underline">Télécharger le modèle / Download template</a>
           </div>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#0B5D3B] px-5 py-3 text-sm font-bold text-white">
-            <FileUp size={17} /> {importing ? "Importation / Importingâ€¦" : "Importer la banque / Import bank"}
+            <FileUp size={17} /> {importing ? "Importation / Importing…" : "Importer la banque / Import bank"}
             <input
               type="file"
               accept={QUESTION_IMPORT_FORMATS}
@@ -265,14 +265,14 @@ export function StudioExamBuilder({ course, onChange }: Props) {
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <fieldset className="rounded-xl border border-blue-200 p-4">
           <legend className="px-2 font-bold text-blue-800">
-            ðŸ‡«ðŸ‡· MÃ©tadonnÃ©es
+            🇫🇷 Métadonnées
           </legend>
           <input
             value={definition.title}
             onChange={(event) =>
               updateDefinition({ title: event.target.value })
             }
-            placeholder="Titre de lâ€™examen"
+            placeholder="Titre de l’examen"
             className="h-11 w-full rounded-xl border px-3"
           />
           <textarea
@@ -286,7 +286,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           />
         </fieldset>
         <fieldset className="rounded-xl border border-amber-200 p-4">
-          <legend className="px-2 font-bold text-amber-800">ðŸ‡¬ðŸ‡§ Metadata</legend>
+          <legend className="px-2 font-bold text-amber-800">🇬🇧 Metadata</legend>
           <input
             value={definition.titleEn ?? ""}
             onChange={(event) =>
@@ -309,7 +309,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
 
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         <label className="text-sm font-bold text-[#063D2E]">
-          DurÃ©e / Duration (min)
+          Durée / Duration (min)
           <input
             type="number"
             min={1}
@@ -350,11 +350,11 @@ export function StudioExamBuilder({ course, onChange }: Props) {
               className="flex justify-between gap-3 rounded-xl bg-green-50 p-3 text-sm"
             >
               <span>
-                {index + 1}. ðŸ‡«ðŸ‡· {question.prompt || "â€”"}
+                {index + 1}. 🇫🇷 {question.prompt || "—"}
                 <br />
-                ðŸ‡¬ðŸ‡§ {question.promptEn || "Missing English question"}{" "}
+                🇬🇧 {question.promptEn || "Missing English question"}{" "}
                 <span className="text-slate-400">
-                  Â· {domains.find((item) => item.value === question.domain)?.fr}
+                  · {domains.find((item) => item.value === question.domain)?.fr}
                 </span>
               </span>
               <button
@@ -373,7 +373,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           ))}
           {questions.length > 100 && (
             <p className="rounded-xl bg-slate-50 p-3 text-center text-xs font-bold text-slate-600">
-              {text(`100 affichÃ©es sur ${questions.length}`, `Showing 100 of ${questions.length}`)}
+              {text(`100 affichées sur ${questions.length}`, `Showing 100 of ${questions.length}`)}
             </p>
           )}
         </div>
@@ -432,7 +432,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
             <option value="single">QCU / Single choice</option>
             <option value="true_false">Vrai-Faux / True-False</option>
             <option value="case_single">Cas pratique / Case study</option>
-            <option value="numeric">RÃ©ponse numÃ©rique / Numeric answer</option>
+            <option value="numeric">Réponse numérique / Numeric answer</option>
           </select>
           <select
             value={domain}
@@ -448,11 +448,11 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           {questionType === "numeric" && (
             <>
               <label className="text-xs font-bold text-slate-600">
-                RÃ©ponse / Answer
+                Réponse / Answer
                 <input type="number" value={numericAnswer} onChange={(event) => setNumericAnswer(Number(event.target.value))} className="block h-11 rounded-xl border px-3" />
               </label>
               <label className="text-xs font-bold text-slate-600">
-                TolÃ©rance / Tolerance
+                Tolérance / Tolerance
                 <input type="number" min={0} step="any" value={numericTolerance} onChange={(event) => setNumericTolerance(Number(event.target.value))} className="block h-11 rounded-xl border px-3" />
               </label>
             </>
@@ -504,19 +504,19 @@ function ExamLanguageFields(props: ExamLanguageFieldsProps) {
       <legend
         className={`px-2 font-bold ${isFrench ? "text-blue-800" : "text-amber-800"}`}
       >
-        {isFrench ? "ðŸ‡«ðŸ‡· Question" : "ðŸ‡¬ðŸ‡§ Question"}
+        {isFrench ? "🇫🇷 Question" : "🇬🇧 Question"}
       </legend>
       <input
         value={props.prompt}
         onChange={(event) => props.setPrompt(event.target.value)}
-        placeholder={isFrench ? "Ã‰noncÃ© de la question" : "Question prompt"}
+        placeholder={isFrench ? "Énoncé de la question" : "Question prompt"}
         className="h-11 w-full rounded-xl border px-3"
       />
       {(props.questionType === "case_single" || props.questionType === "numeric") && (
         <textarea
           value={props.caseText}
           onChange={(event) => props.setCaseText(event.target.value)}
-          placeholder={isFrench ? "ScÃ©nario du cas pratique" : "Case study scenario"}
+          placeholder={isFrench ? "Scénario du cas pratique" : "Case study scenario"}
           rows={3}
           className="mt-3 w-full rounded-xl border px-3 py-2"
         />

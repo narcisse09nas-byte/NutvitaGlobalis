@@ -31,7 +31,7 @@ export function ExamCatalogCard({ exam }: { exam: ExamDefinition }) {
 
           {bestAttempt?.passed && (
             <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
-              {text("Examen rÃ©ussi", "Exam passed")}
+              {text("Examen réussi", "Exam passed")}
             </span>
           )}
         </div>
@@ -56,7 +56,7 @@ export function ExamCatalogCard({ exam }: { exam: ExamDefinition }) {
             </p>
 
             <p className="text-xs text-slate-500">
-              {text("Questions tirÃ©es", "Selected questions")}
+              {text("Questions tirées", "Selected questions")}
             </p>
           </div>
 
@@ -68,7 +68,7 @@ export function ExamCatalogCard({ exam }: { exam: ExamDefinition }) {
             </p>
 
             <p className="text-xs text-slate-500">
-              {text("DurÃ©e", "Duration")}
+              {text("Durée", "Duration")}
             </p>
           </div>
 
@@ -115,10 +115,10 @@ export function ExamCatalogCard({ exam }: { exam: ExamDefinition }) {
         className="mt-7 inline-flex min-h-11 items-center justify-center rounded-full bg-[#F58220] px-5 text-sm font-bold text-white transition hover:bg-orange-600"
       >
         {bestAttempt?.passed
-          ? text("Consulter lâ€™examen", "View exam")
+          ? text("Consulter l’examen", "View exam")
           : attempts.length > 0
             ? text("Nouvelle tentative", "New attempt")
-            : text("AccÃ©der Ã  lâ€™examen", "Access exam")}
+            : text("Accéder à l’examen", "Access exam")}
       </Link>
     </Card>
   );

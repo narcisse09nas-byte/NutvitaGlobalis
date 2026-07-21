@@ -1,13 +1,27 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useState } from "react";
 import { FileUp, Plus, Trash2 } from "lucide-react";
 import { createStudioId } from "@/lib/instructor-storage";
-import type { ExamDifficulty, ExamDomain, ExamQuestion, ExamQuestionType } from "@/types/exam";
-import { CERTIFICATION_EXAM_BLUEPRINT, CERTIFICATION_RETAKE_DELAYS, getQuestionPoolCapacity } from "@/lib/exam-engine";
-import { importExamQuestionDocument, QUESTION_IMPORT_FORMATS } from "@/lib/question-document-import";
+import type {
+  ExamDifficulty,
+  ExamDomain,
+  ExamQuestion,
+  ExamQuestionType,
+} from "@/types/exam";
+import {
+  CERTIFICATION_EXAM_BLUEPRINT,
+  CERTIFICATION_RETAKE_DELAYS,
+  getQuestionPoolCapacity,
+} from "@/lib/exam-engine";
+import {
+  importExamQuestionDocument,
+  QUESTION_IMPORT_FORMATS,
+} from "@/lib/question-document-import";
 import { useLanguage } from "@/hooks/use-language";
 import type { StudioCourse } from "@/types/instructor-studio";
+
+type ImportPair = { id: string; fr?: File; en?: File };
 
 type Props = {
   course: StudioCourse;
@@ -16,8 +30,8 @@ type Props = {
 
 const domains: { value: ExamDomain; fr: string; en: string }[] = [
   { value: "fundamentals", fr: "Fondamentaux", en: "Fundamentals" },
-  { value: "anthropometry", fr: "Anthropométrie", en: "Anthropometry" },
-  { value: "screening", fr: "Dépistage", en: "Screening" },
+  { value: "anthropometry", fr: "Anthropom�trie", en: "Anthropometry" },
+  { value: "screening", fr: "D�pistage", en: "Screening" },
   { value: "clinical", fr: "Clinique", en: "Clinical" },
   { value: "cmam", fr: "PCIMA/CMAM", en: "CMAM" },
   { value: "monitoring", fr: "Suivi", en: "Monitoring" },
@@ -39,6 +53,9 @@ export function StudioExamBuilder({ course, onChange }: Props) {
   const [numericAnswer, setNumericAnswer] = useState(0);
   const [numericTolerance, setNumericTolerance] = useState(0);
   const [importing, setImporting] = useState(false);
+  const [importPairs, setImportPairs] = useState<ImportPair[]>(() => [
+    { id: createStudioId("exam-import-pair") },
+  ]);
   const [explanation, setExplanation] = useState("");
   const [explanationEn, setExplanationEn] = useState("");
 
@@ -49,9 +66,9 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           id: createStudioId("exam"),
           slug: `${course.slug}-final`,
           code: `${course.code}-FINAL`,
-          title: `Examen final — ${course.title}`,
-          titleEn: `Final exam — ${course.titleEn}`,
-          description: `Évaluation finale certifiante de la formation ${course.title}.`,
+          title: `Examen final � ${course.title}`,
+          titleEn: `Final exam � ${course.titleEn}`,
+          description: `�valuation finale certifiante de la formation ${course.title}.`,
           descriptionEn: `Final certification assessment for ${course.titleEn}.`,
           courseSlug: course.slug,
           courseTitle: course.title,
@@ -110,13 +127,14 @@ export function StudioExamBuilder({ course, onChange }: Props) {
       : options
           .map((text, index) => ({ text: text.trim(), index }))
           .filter((item) => item.text || optionsEn[item.index].trim());
-    const selectedIndexes = questionType === "multiple"
-      ? correctIndexes
-      : [correctIndex];
+    const selectedIndexes =
+      questionType === "multiple" ? correctIndexes : [correctIndex];
     if (
       (!numeric &&
         (validIndices.length < 2 ||
-          !validIndices.some((item) => selectedIndexes.includes(item.index)))) ||
+          !validIndices.some((item) =>
+            selectedIndexes.includes(item.index),
+          ))) ||
       ((questionType === "case_single" || numeric) &&
         !caseText.trim() &&
         !caseTextEn.trim())
@@ -169,31 +187,127 @@ export function StudioExamBuilder({ course, onChange }: Props) {
     setExplanationEn("");
   }
 
-  async function handleImport(file: File) {
-    if (!course.finalExam) return;
-    setImporting(true);
-    const result = await importExamQuestionDocument(file);
-    setImporting(false);
-    if (result.errors.length) {
-      window.alert(
-        text(
-          `Import refusé : ${result.errors.slice(0, 10).join(", ")}`,
-          `Import rejected: ${result.errors.slice(0, 10).join(", ")}`,
-        ),
-      );
-      return;
-    }
-    const existingIds = new Set(course.finalExam.questions.map((item) => item.id));
-    const imported = result.questions.filter((item) => !existingIds.has(item.id));
-    setQuestions([...course.finalExam.questions, ...imported]);
-    window.alert(
-      text(
-        `${imported.length} question(s) importée(s).`,
-        `${imported.length} question(s) imported.`,
+  function updateImportPair(id: string, locale: "fr" | "en", file?: File) {
+    setImportPairs((current) =>
+      current.map((pair) =>
+        pair.id === id ? { ...pair, [locale]: file } : pair,
       ),
     );
   }
 
+  function addImportPair() {
+    setImportPairs((current) => [
+      ...current,
+      { id: createStudioId("exam-import-pair") },
+    ]);
+  }
+
+  async function handleImport() {
+    if (!course.finalExam) return;
+    const completePairs = importPairs.filter(
+      (pair) => pair.fr && pair.en,
+    ) as Array<ImportPair & { fr: File; en: File }>;
+    if (!completePairs.length || completePairs.length !== importPairs.length) {
+      window.alert(
+        text(
+          "Chaque ligne doit contenir un fichier FR et son fichier EN.",
+          "Each row must contain a French file and its matching English file.",
+        ),
+      );
+      return;
+    }
+    setImporting(true);
+    try {
+      const importedQuestions: ExamQuestion[] = [];
+      for (
+        let pairIndex = 0;
+        pairIndex < completePairs.length;
+        pairIndex += 1
+      ) {
+        const pair = completePairs[pairIndex];
+        const [frResult, enResult] = await Promise.all([
+          importExamQuestionDocument(pair.fr),
+          importExamQuestionDocument(pair.en),
+        ]);
+        const errors = [
+          ...frResult.errors.map((error) => `FR: ${error}`),
+          ...enResult.errors.map((error) => `EN: ${error}`),
+        ];
+        if (errors.length)
+          throw new Error(
+            `PAIR_${pairIndex + 1}: ${errors.slice(0, 8).join(", ")}`,
+          );
+        if (frResult.questions.length !== enResult.questions.length)
+          throw new Error(`PAIR_${pairIndex + 1}_QUESTION_COUNT_MISMATCH`);
+        frResult.questions.forEach((frQuestion, questionIndex) => {
+          const enQuestion = enResult.questions[questionIndex];
+          const frOptions = frQuestion.options ?? [],
+            enOptions = enQuestion.options ?? [];
+          const correctPositions = (question: ExamQuestion) =>
+            (question.correctOptionIds ?? [])
+              .map((id) =>
+                (question.options ?? []).findIndex(
+                  (option) => option.id === id,
+                ),
+              )
+              .sort((a, b) => a - b);
+          if (
+            frQuestion.type !== enQuestion.type ||
+            frQuestion.section !== enQuestion.section ||
+            frOptions.length !== enOptions.length ||
+            correctPositions(frQuestion).join(",") !==
+              correctPositions(enQuestion).join(",")
+          )
+            throw new Error(
+              `PAIR_${pairIndex + 1}_QUESTION_${questionIndex + 1}_LANGUAGES_MISMATCH`,
+            );
+          const questionId = createStudioId("exam-question"),
+            optionIds = frOptions.map(() => createStudioId("exam-option"));
+          const frCorrect = new Set(correctPositions(frQuestion));
+          importedQuestions.push({
+            ...frQuestion,
+            id: questionId,
+            promptEn: enQuestion.prompt,
+            caseTextEn: enQuestion.caseText,
+            explanationEn: enQuestion.explanation,
+            options:
+              frQuestion.type === "numeric"
+                ? undefined
+                : frOptions.map((option, optionIndex) => ({
+                    id: optionIds[optionIndex],
+                    text: option.text,
+                    textEn: enOptions[optionIndex]?.text ?? "",
+                  })),
+            correctOptionIds:
+              frQuestion.type === "numeric"
+                ? undefined
+                : optionIds.filter((_, optionIndex) =>
+                    frCorrect.has(optionIndex),
+                  ),
+            correctNumericAnswer: frQuestion.correctNumericAnswer,
+            numericTolerance: frQuestion.numericTolerance,
+          });
+        });
+      }
+      setQuestions([...course.finalExam.questions, ...importedQuestions]);
+      setImportPairs([{ id: createStudioId("exam-import-pair") }]);
+      window.alert(
+        text(
+          `${importedQuestions.length} question(s) bilingue(s) ajoutee(s) a la banque.`,
+          `${importedQuestions.length} bilingual question(s) added to the bank.`,
+        ),
+      );
+    } catch (error) {
+      window.alert(
+        text(
+          `Import refuse : ${error instanceof Error ? error.message : "INVALID_IMPORT"}`,
+          `Import rejected: ${error instanceof Error ? error.message : "INVALID_IMPORT"}`,
+        ),
+      );
+    } finally {
+      setImporting(false);
+    }
+  }
   if (!course.finalExam)
     return (
       <section className="rounded-[24px] border border-green-100 bg-white p-6">
@@ -201,14 +315,15 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           Examen final / Final exam
         </h2>
         <p className="mt-2 text-slate-500">
-          Créez simultanément les banques française et anglaise. / Build the French and English question banks together.
+          Cr�ez simultan�ment les banques fran�aise et anglaise. / Build the
+          French and English question banks together.
         </p>
         <button
           type="button"
           onClick={createExam}
           className="mt-5 rounded-full bg-[#F58220] px-6 py-3 font-bold text-white"
         >
-          Créer l’examen final / Create final exam
+          Cr�er l�examen final / Create final exam
         </button>
       </section>
     );
@@ -226,13 +341,14 @@ export function StudioExamBuilder({ course, onChange }: Props) {
             {questions.length} question(s) dans la banque / in the bank
           </p>
           <p className="mt-2 text-xs font-bold text-slate-600">
-            QCM/MCQ {capacity.qcm}/50 · QCU/SCQ {capacity.qcu}/35 · Cas/Case {capacity.case_study}/15
+            QCM/MCQ {capacity.qcm}/50 � QCU/SCQ {capacity.qcu}/35 � Cas/Case{" "}
+            {capacity.case_study}/15
           </p>
         </div>
         <button
           type="button"
           onClick={() =>
-            window.confirm("Supprimer l’examen final ?") &&
+            window.confirm("Supprimer l�examen final ?") &&
             onChange({ finalExam: null })
           }
           className="text-red-600"
@@ -243,36 +359,96 @@ export function StudioExamBuilder({ course, onChange }: Props) {
       </div>
 
       <div className="mt-5 rounded-2xl border border-dashed border-[#0B5D3B] bg-green-50 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="font-extrabold text-[#063D2E]">Import HTML, Word, PDF, CSV ou JSON / HTML, Word, PDF, CSV or JSON import</p>
-            <p className="mt-1 text-xs text-slate-600">{text("Le moteur détecte QCU/QCM et les réponses marquées dans les fichiers HTML, DOCX et PDF. Pour éviter une mauvaise correction, toute question sans réponse détectable est refusée.", "The engine detects single/multiple-choice questions and marked answers in HTML, DOCX and PDF files. Questions without a detectable answer are rejected.")}</p>
-            <a href="/templates/exam-question-bank-template.csv" download className="mt-2 inline-flex text-xs font-bold text-[#0B5D3B] underline">Télécharger le modèle / Download template</a>
-          </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-[#0B5D3B] px-5 py-3 text-sm font-bold text-white">
-            <FileUp size={17} /> {importing ? "Importation / Importing…" : "Importer la banque / Import bank"}
-            <input
-              type="file"
-              accept={QUESTION_IMPORT_FORMATS}
-              disabled={importing}
-              className="sr-only"
-              onChange={(event) => event.target.files?.[0] && void handleImport(event.target.files[0])}
-            />
-          </label>
+        <p className="font-extrabold text-[#063D2E]">
+          Banque HTML bilingue par lots / Bilingual HTML bank batches
+        </p>
+        <p className="mt-1 text-xs text-slate-600">
+          Ajoutez une ligne par paire de fichiers. Chaque fichier FR doit
+          correspondre exactement au fichier EN de la meme ligne.
+        </p>
+        <div className="mt-4 space-y-3">
+          {importPairs.map((pair, index) => (
+            <div
+              key={pair.id}
+              className="grid gap-3 rounded-xl bg-white p-3 md:grid-cols-[1fr_1fr_auto]"
+            >
+              <label className="flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-3 text-sm font-bold text-blue-800">
+                <FileUp size={16} />{" "}
+                {pair.fr?.name ?? `Fichier FR ${index + 1}`}
+                <input
+                  type="file"
+                  accept={QUESTION_IMPORT_FORMATS}
+                  disabled={importing}
+                  className="sr-only"
+                  onChange={(event) => {
+                    updateImportPair(pair.id, "fr", event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-3 text-sm font-bold text-amber-800">
+                <FileUp size={16} />{" "}
+                {pair.en?.name ?? `English file ${index + 1}`}
+                <input
+                  type="file"
+                  accept={QUESTION_IMPORT_FORMATS}
+                  disabled={importing}
+                  className="sr-only"
+                  onChange={(event) => {
+                    updateImportPair(pair.id, "en", event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                disabled={importPairs.length === 1 || importing}
+                onClick={() =>
+                  setImportPairs((current) =>
+                    current.filter((item) => item.id !== pair.id),
+                  )
+                }
+                className="rounded-xl px-3 text-red-600 disabled:text-slate-300"
+                aria-label="Retirer la paire"
+              >
+                <Trash2 size={17} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={addImportPair}
+            disabled={importing}
+            className="inline-flex items-center gap-2 rounded-full border border-[#0B5D3B] px-4 py-2 text-sm font-bold text-[#0B5D3B]"
+          >
+            <Plus size={16} /> Ajouter une paire
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleImport()}
+            disabled={importing}
+            className="inline-flex items-center gap-2 rounded-full bg-[#0B5D3B] px-5 py-3 text-sm font-bold text-white disabled:bg-slate-300"
+          >
+            <FileUp size={17} />
+            {importing
+              ? "Importation..."
+              : `Importer ${importPairs.length} paire(s)`}
+          </button>
         </div>
       </div>
-
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <fieldset className="rounded-xl border border-blue-200 p-4">
           <legend className="px-2 font-bold text-blue-800">
-            🇫🇷 Métadonnées
+            ???? M�tadonn�es
           </legend>
           <input
             value={definition.title}
             onChange={(event) =>
               updateDefinition({ title: event.target.value })
             }
-            placeholder="Titre de l’examen"
+            placeholder="Titre de l�examen"
             className="h-11 w-full rounded-xl border px-3"
           />
           <textarea
@@ -286,7 +462,9 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           />
         </fieldset>
         <fieldset className="rounded-xl border border-amber-200 p-4">
-          <legend className="px-2 font-bold text-amber-800">🇬🇧 Metadata</legend>
+          <legend className="px-2 font-bold text-amber-800">
+            ???? Metadata
+          </legend>
           <input
             value={definition.titleEn ?? ""}
             onChange={(event) =>
@@ -309,7 +487,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
 
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         <label className="text-sm font-bold text-[#063D2E]">
-          Durée / Duration (min)
+          Dur�e / Duration (min)
           <input
             type="number"
             min={1}
@@ -335,10 +513,16 @@ export function StudioExamBuilder({ course, onChange }: Props) {
             type="number"
             value={definition.maxAttempts}
             min={0}
-            onChange={(event) => updateDefinition({ maxAttempts: Math.max(0, Number(event.target.value)) })}
+            onChange={(event) =>
+              updateDefinition({
+                maxAttempts: Math.max(0, Number(event.target.value)),
+              })
+            }
             className="mt-2 h-11 w-full rounded-xl border px-3"
           />
-          <span className="mt-1 block text-xs text-slate-500">0 = illimite / unlimited</span>
+          <span className="mt-1 block text-xs text-slate-500">
+            0 = illimite / unlimited
+          </span>
         </label>
       </div>
 
@@ -350,11 +534,11 @@ export function StudioExamBuilder({ course, onChange }: Props) {
               className="flex justify-between gap-3 rounded-xl bg-green-50 p-3 text-sm"
             >
               <span>
-                {index + 1}. 🇫🇷 {question.prompt || "—"}
+                {index + 1}. ???? {question.prompt || "�"}
                 <br />
-                🇬🇧 {question.promptEn || "Missing English question"}{" "}
+                ???? {question.promptEn || "Missing English question"}{" "}
                 <span className="text-slate-400">
-                  · {domains.find((item) => item.value === question.domain)?.fr}
+                  � {domains.find((item) => item.value === question.domain)?.fr}
                 </span>
               </span>
               <button
@@ -373,7 +557,10 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           ))}
           {questions.length > 100 && (
             <p className="rounded-xl bg-slate-50 p-3 text-center text-xs font-bold text-slate-600">
-              {text(`100 affichées sur ${questions.length}`, `Showing 100 of ${questions.length}`)}
+              {text(
+                `100 affich�es sur ${questions.length}`,
+                `Showing 100 of ${questions.length}`,
+              )}
             </p>
           )}
         </div>
@@ -432,7 +619,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
             <option value="single">QCU / Single choice</option>
             <option value="true_false">Vrai-Faux / True-False</option>
             <option value="case_single">Cas pratique / Case study</option>
-            <option value="numeric">Réponse numérique / Numeric answer</option>
+            <option value="numeric">R�ponse num�rique / Numeric answer</option>
           </select>
           <select
             value={domain}
@@ -448,12 +635,28 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           {questionType === "numeric" && (
             <>
               <label className="text-xs font-bold text-slate-600">
-                Réponse / Answer
-                <input type="number" value={numericAnswer} onChange={(event) => setNumericAnswer(Number(event.target.value))} className="block h-11 rounded-xl border px-3" />
+                R�ponse / Answer
+                <input
+                  type="number"
+                  value={numericAnswer}
+                  onChange={(event) =>
+                    setNumericAnswer(Number(event.target.value))
+                  }
+                  className="block h-11 rounded-xl border px-3"
+                />
               </label>
               <label className="text-xs font-bold text-slate-600">
-                Tolérance / Tolerance
-                <input type="number" min={0} step="any" value={numericTolerance} onChange={(event) => setNumericTolerance(Number(event.target.value))} className="block h-11 rounded-xl border px-3" />
+                Tol�rance / Tolerance
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={numericTolerance}
+                  onChange={(event) =>
+                    setNumericTolerance(Number(event.target.value))
+                  }
+                  className="block h-11 rounded-xl border px-3"
+                />
               </label>
             </>
           )}
@@ -504,68 +707,79 @@ function ExamLanguageFields(props: ExamLanguageFieldsProps) {
       <legend
         className={`px-2 font-bold ${isFrench ? "text-blue-800" : "text-amber-800"}`}
       >
-        {isFrench ? "🇫🇷 Question" : "🇬🇧 Question"}
+        {isFrench ? "???? Question" : "???? Question"}
       </legend>
       <input
         value={props.prompt}
         onChange={(event) => props.setPrompt(event.target.value)}
-        placeholder={isFrench ? "Énoncé de la question" : "Question prompt"}
+        placeholder={isFrench ? "�nonc� de la question" : "Question prompt"}
         className="h-11 w-full rounded-xl border px-3"
       />
-      {(props.questionType === "case_single" || props.questionType === "numeric") && (
+      {(props.questionType === "case_single" ||
+        props.questionType === "numeric") && (
         <textarea
           value={props.caseText}
           onChange={(event) => props.setCaseText(event.target.value)}
-          placeholder={isFrench ? "Scénario du cas pratique" : "Case study scenario"}
+          placeholder={
+            isFrench ? "Sc�nario du cas pratique" : "Case study scenario"
+          }
           rows={3}
           className="mt-3 w-full rounded-xl border px-3 py-2"
         />
       )}
-      {props.questionType !== "numeric" && <div className="mt-3 space-y-2">
-        {props.options.map((option, index) => (
-          <label key={index} className="flex items-center gap-2">
-            {isFrench ? (
+      {props.questionType !== "numeric" && (
+        <div className="mt-3 space-y-2">
+          {props.options.map((option, index) => (
+            <label key={index} className="flex items-center gap-2">
+              {isFrench ? (
+                <input
+                  type={
+                    props.questionType === "multiple" ? "checkbox" : "radio"
+                  }
+                  name="exam-correct"
+                  checked={
+                    props.questionType === "multiple"
+                      ? props.correctIndexes.includes(index)
+                      : props.correctIndex === index
+                  }
+                  onChange={() =>
+                    props.questionType === "multiple"
+                      ? props.setCorrectIndexes((current) =>
+                          current.includes(index)
+                            ? current.filter((item) => item !== index)
+                            : [...current, index],
+                        )
+                      : props.setCorrectIndex(index)
+                  }
+                  className="accent-[#0B5D3B]"
+                />
+              ) : (
+                <span className="w-4 text-xs font-bold">
+                  {(
+                    props.questionType === "multiple"
+                      ? props.correctIndexes.includes(index)
+                      : props.correctIndex === index
+                  )
+                    ? "✓"
+                    : ""}
+                </span>
+              )}
               <input
-                type={props.questionType === "multiple" ? "checkbox" : "radio"}
-                name="exam-correct"
-                checked={
-                  props.questionType === "multiple"
-                    ? props.correctIndexes.includes(index)
-                    : props.correctIndex === index
+                value={option}
+                onChange={(event) =>
+                  props.setOptions((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index ? event.target.value : item,
+                    ),
+                  )
                 }
-                onChange={() =>
-                  props.questionType === "multiple"
-                    ? props.setCorrectIndexes((current) =>
-                        current.includes(index)
-                          ? current.filter((item) => item !== index)
-                          : [...current, index],
-                      )
-                    : props.setCorrectIndex(index)
-                }
-                className="accent-[#0B5D3B]"
+                placeholder={`Option ${index + 1}`}
+                className="h-10 flex-1 rounded-xl border px-3"
               />
-            ) : (
-              <span className="w-4 text-xs font-bold">
-                {(props.questionType === "multiple"
-                  ? props.correctIndexes.includes(index)
-                  : props.correctIndex === index) ? "âœ“" : ""}
-              </span>
-            )}
-            <input
-              value={option}
-              onChange={(event) =>
-                props.setOptions((current) =>
-                  current.map((item, itemIndex) =>
-                    itemIndex === index ? event.target.value : item,
-                  ),
-                )
-              }
-              placeholder={`Option ${index + 1}`}
-              className="h-10 flex-1 rounded-xl border px-3"
-            />
-          </label>
-        ))}
-      </div>}
+            </label>
+          ))}
+        </div>
+      )}
       <input
         value={props.explanation}
         onChange={(event) => props.setExplanation(event.target.value)}

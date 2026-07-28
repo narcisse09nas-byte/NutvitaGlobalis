@@ -90,9 +90,11 @@ function activeSessionRule(pathname: string): SessionRule | null {
   if (starts("/academy/dashboard") || starts("/academy/learn") || starts("/academy/enroll")) return { services: ["academy"], roles: ["student"] };
   if (starts("/academy") && !starts("/academy/auth")) return { services: ["academy"], roles: ["student", "instructor", "admin"] };
 
+  if (pathname === "/espace-client") return { services: ["client", "health", "child_growth", "teleconsultation"], roles: ["client"] };
+  if (["/espace-client/services", "/espace-client/abonnement", "/espace-client/profil", "/espace-client/securite", "/espace-client/confidentialite"].some(starts)) return { services: ["client", "health", "child_growth", "teleconsultation"], roles: ["client"] };
   if (starts("/espace-client/croissance-enfant")) return { services: ["child_growth"], roles: ["client"] };
   if (["/espace-client/consultations", "/espace-client/messages", "/espace-client/appels"].some(starts)) return { services: ["teleconsultation"], roles: ["client"] };
-  if (["/espace-client/dossier", "/espace-client/tendances", "/espace-client/analyse"].some(starts)) return { services: ["health"], roles: ["client"] };
+  if (["/espace-client/dossier", "/espace-client/tendances", "/espace-client/analyse", "/espace-client/consentements-sante", "/espace-client/ordonnances", "/espace-client/resultats-laboratoire"].some(starts)) return { services: ["health"], roles: ["client"] };
   if (starts("/espace-client")) return { services: ["client"], roles: ["client"] };
 
   if (starts("/partenaire") && pathname !== "/partenaire/connexion") return { services: ["health", "child_growth", "teleconsultation"], roles: ["nutritionist"] };

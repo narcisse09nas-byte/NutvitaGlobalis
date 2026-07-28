@@ -106,6 +106,7 @@ export async function renderHealthReport(
       { key: "crp", label: "CRP" },
       { key: "systolic_pressure", label: fr ? "Pression systolique" : "Systolic pressure", unit: "mmHg" },
       { key: "diastolic_pressure", label: fr ? "Pression diastolique" : "Diastolic pressure", unit: "mmHg" },
+      { key: "pulse_bpm", label: fr ? "Pouls" : "Pulse", unit: "bpm" },
     ]),
     ...customNumericSeries(biology),
     ...numericSeries(lifestyle, [

@@ -6,6 +6,9 @@ import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/client";
 import {ageInMonths,calculateIycf,calculateMddw,childFoodItems,mddwFoodItems} from "@/lib/dietary-diversity";
 import LabParameterEditor, { defaultLabParameters, serializeLabParameters, type LabParameter } from "@/components/health/LabParameterEditor";
+import RegionalMealPlanner from "@/components/partner/RegionalMealPlanner";
+import WellnessQuestionnaires from "@/components/health/WellnessQuestionnaires";
+import type { WellnessAssessmentBundle } from "@/lib/wellness-assessments";
 
 type Row = Record<string, any>;
 type Goal = { label: string; target: string; unit: string };
@@ -55,6 +58,8 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
   const [preAnalysis,setPreAnalysis]=useState<Row|null>(null);
   const [analysisLoading,setAnalysisLoading]=useState(false);
   const [labParameters,setLabParameters]=useState<LabParameter[]>(defaultLabParameters);
+  const [mealPlan,setMealPlan]=useState("");
+  const [wellnessAssessment,setWellnessAssessment]=useState<WellnessAssessmentBundle|null>(null);
   const client = clients.find(item => item.id === clientId);
   const children=Array.isArray(client?.children)?client.children:[];
   const selectedChild=children.find((item:Row)=>item.id===childId);
@@ -73,11 +78,11 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
     const calorieIntake=["breakfast_kcal","lunch_kcal","dinner_kcal","snacks_kcal","drinks_kcal"].reduce((sum,key)=>sum+Number(data.get(key)||0),0);
     const vigorousMinutes=(Number(data.get("vigorous_work_days")||0)*Number(data.get("vigorous_work_minutes")||0))+(Number(data.get("vigorous_leisure_days")||0)*Number(data.get("vigorous_leisure_minutes")||0));
     const moderateMinutes=(Number(data.get("moderate_work_days")||0)*Number(data.get("moderate_work_minutes")||0))+(Number(data.get("moderate_leisure_days")||0)*Number(data.get("moderate_leisure_minutes")||0))+(Number(data.get("transport_days")||0)*Number(data.get("transport_minutes")||0));
-    return {laboratory_parameters:serializeLabParameters(labParameters),dietary:{module:iycf?"MAD_6_23":"MDD_10_GROUPS_ADAPTED",age_months:childAge,foods:dietaryFoods,result:dietary},calorie:{estimated_intake_kcal:calorieIntake,estimated_need_kcal:Number(data.get("estimated_need_kcal")||0),method:"24h meal estimate"},physical_activity:{met_minutes_week:vigorousMinutes*8+moderateMinutes*4,vigorous_minutes_week:vigorousMinutes,moderate_transport_minutes_week:moderateMinutes,sitting_minutes_day:Number(data.get("sitting_minutes_day")||0),method:"WHO GPAQ domains"},lifestyle:{sleep_hours:Number(data.get("sleep_hours")||0),sleep_quality:data.get("sleep_quality"),stress_level:Number(data.get("stress_level")||0),water_liters:Number(data.get("water_liters")||0),screen_hours:Number(data.get("screen_hours")||0),tobacco:data.get("tobacco"),alcohol:data.get("alcohol")}};
+    return {laboratory_parameters:serializeLabParameters(labParameters),wellness_scores:wellnessAssessment?{nutrition:wellnessAssessment.nutrition,activity:wellnessAssessment.activity,lifestyle:wellnessAssessment.lifestyle}:null,dietary:{module:"NUTVITA_12_ITEM_SCORE",age_months:childAge,result:wellnessAssessment?.nutrition||dietary},calorie:{estimated_intake_kcal:calorieIntake,estimated_need_kcal:Number(data.get("estimated_need_kcal")||0),method:"24h meal estimate"},physical_activity:{met_minutes_week:vigorousMinutes*8+moderateMinutes*4,vigorous_minutes_week:vigorousMinutes,moderate_transport_minutes_week:moderateMinutes,sitting_minutes_day:Number(data.get("sitting_minutes_day")||0),method:"WHO GPAQ domains"},lifestyle:{sleep_hours:Number(data.get("sleep_hours")||0),sleep_quality:data.get("sleep_quality"),stress_level:Number(data.get("stress_level")||0),water_liters:Number(data.get("water_liters")||0),screen_hours:Number(data.get("screen_hours")||0),tobacco:data.get("tobacco"),alcohol:data.get("alcohol")}};
   }
 
   async function analyzeBeforePlan(form:HTMLFormElement){
-    const data=new FormData(form),missingDiet=dietaryGroups.some(group=>!data.get(`diet_${group.key}`));
+    const data=new FormData(form),missingDiet=!wellnessAssessment?.nutrition.completed||!wellnessAssessment?.activity.completed||!wellnessAssessment?.lifestyle.completed;
     if(!clientId||!String(data.get("reason")||"").trim()||missingDiet){setMessage("Selectionnez le client, renseignez le motif et terminez l'evaluation alimentaire avant l'analyse IA.");return}
     setAnalysisLoading(true);setMessage("");
     const response=await fetch("/api/consultations/pre-analysis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({client_id:clientId,partner_id:responsiblePartnerId,child_id:childId||null,pack_type:pack,profile:client,reason:data.get("reason"),complaints:data.getAll("complaints"),complaint_notes:data.get("complaint_notes"),clinical_assessments:clinicalAssessments(data)})}),result=await response.json();
@@ -127,6 +132,8 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
     setPack("general");
     setPreAnalysis(null);
     setLabParameters(defaultLabParameters);
+    setMealPlan("");
+    setWellnessAssessment(null);
     setMessage("Consultation finalisee, documents crees et prochain rendez-vous programme.");
   }
 
@@ -166,14 +173,10 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
         <div className="mt-5"><LabParameterEditor items={labParameters} onChange={setLabParameters}/></div>
       </section>
 
-      <section className="rounded-2xl border bg-white p-6">
-        <Step number="4" title="Evaluation alimentaire, energetique et mode de vie" />
-        <div className="mt-5 rounded-xl bg-mint p-4 text-sm text-forest"><b>{iycf?"MAD OMS/UNICEF 6-23 mois":"Diversite alimentaire adaptee sur 10 groupes"}</b><p className="mt-1">{iycf?"Le calcul combine diversite minimale, frequence minimale des repas et, si non allaite, frequence des apports lactes.":"Pour les femmes de 15-49 ans, le seuil 5/10 correspond au MDD-W FAO. Pour les autres personnes de plus de 2 ans, il est affiche comme repere adapte de diversite et non comme indicateur MDD-W valide."}</p></div>
-        {iycf&&<div className="mt-4 grid gap-3 md:grid-cols-5"><MiniSelect name="breastfed" label="Allaite actuellement"/><MiniNumber name="solid_meals" label="Repas solides"/><MiniNumber name="formula_feeds" label="Formule infantile"/><MiniNumber name="animal_milk_feeds" label="Lait animal"/><MiniNumber name="yogurt_feeds" label="Yaourt liquide"/></div>}
-        <div className="mt-4 grid gap-3 md:grid-cols-2">{dietaryGroups.map(group=><fieldset key={group.key} className="rounded-xl border bg-slate-50 p-4"><legend className="font-black">{group.labelFr}</legend><p className="mt-1 text-xs text-slate-500">{group.examplesFr}</p><div className="mt-3 flex gap-4">{["yes","no"].map(value=><label key={value} className="flex gap-2 text-sm font-bold"><input type="radio" name={`diet_${group.key}`} value={value} required/>{value==="yes"?"Oui":"Non"}</label>)}</div></fieldset>)}</div>
-        <h3 className="mt-7 font-black">Estimation des apports sur 24 heures</h3><p className="text-xs text-slate-500">Estimation de consultation à partir des portions rapportees ; elle ne remplace pas une analyse nutritionnelle pesee.</p><div className="mt-3 grid gap-3 md:grid-cols-3"><MiniNumber name="breakfast_kcal" label="Petit-dejeuner (kcal)"/><MiniNumber name="lunch_kcal" label="Dejeuner (kcal)"/><MiniNumber name="dinner_kcal" label="Diner (kcal)"/><MiniNumber name="snacks_kcal" label="Collations (kcal)"/><MiniNumber name="drinks_kcal" label="Boissons (kcal)"/><MiniNumber name="estimated_need_kcal" label="Besoin estime (kcal/j)"/></div>
-        <h3 className="mt-7 font-black">Activite physique - domaines GPAQ OMS</h3><div className="mt-3 grid gap-3 md:grid-cols-3"><MiniNumber name="vigorous_work_days" label="Travail intense (jours/sem.)"/><MiniNumber name="vigorous_work_minutes" label="Travail intense (min/jour)"/><MiniNumber name="moderate_work_days" label="Travail modere (jours/sem.)"/><MiniNumber name="moderate_work_minutes" label="Travail modere (min/jour)"/><MiniNumber name="transport_days" label="Marche/velo transport (jours)"/><MiniNumber name="transport_minutes" label="Transport actif (min/jour)"/><MiniNumber name="vigorous_leisure_days" label="Sport intense (jours)"/><MiniNumber name="vigorous_leisure_minutes" label="Sport intense (min/jour)"/><MiniNumber name="moderate_leisure_days" label="Loisir modere (jours)"/><MiniNumber name="moderate_leisure_minutes" label="Loisir modere (min/jour)"/><MiniNumber name="sitting_minutes_day" label="Temps assis (min/jour)"/></div>
-        <h3 className="mt-7 font-black">Style de vie</h3><div className="mt-3 grid gap-3 md:grid-cols-3"><MiniNumber name="sleep_hours" label="Sommeil (heures/nuit)" step="0.5"/><label className="grid gap-2 text-sm font-bold">Qualite du sommeil<select name="sleep_quality" className="admin-input"><option value="good">Bonne</option><option value="average">Moyenne</option><option value="poor">Faible</option></select></label><MiniNumber name="stress_level" label="Stress percu (0-10)"/><MiniNumber name="water_liters" label="Eau (litres/jour)" step="0.1"/><MiniNumber name="screen_hours" label="Ecrans hors travail (h/j)" step="0.5"/><MiniSelect name="tobacco" label="Tabac"/><MiniSelect name="alcohol" label="Alcool"/></div>
+<section className="grid gap-6">
+        <div className="rounded-2xl border bg-white p-6"><Step number="4" title="Alimentation, activite physique et mode de vie" /><p className="mt-3 text-sm text-slate-500">Questionnaires structures sur les 7 derniers jours. Les scores et signaux prioritaires alimentent l'analyse preparatoire.</p></div>
+        <WellnessQuestionnaires onChange={setWellnessAssessment}/>
+        <div className="rounded-2xl border bg-white p-6"><h3 className="font-black">Estimation energetique sur 24 heures</h3><div className="mt-3 grid gap-3 md:grid-cols-3"><MiniNumber name="breakfast_kcal" label="Petit-dejeuner (kcal)"/><MiniNumber name="lunch_kcal" label="Dejeuner (kcal)"/><MiniNumber name="dinner_kcal" label="Diner (kcal)"/><MiniNumber name="snacks_kcal" label="Collations (kcal)"/><MiniNumber name="drinks_kcal" label="Boissons (kcal)"/><MiniNumber name="estimated_need_kcal" label="Besoin estime (kcal/j)"/></div></div>
       </section>
 
       <section className="rounded-2xl border-2 border-leaf bg-white p-6">
@@ -192,7 +195,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
 
       <section className="rounded-2xl border bg-white p-6">
         <Step number="7" title="Plan pour atteindre les objectifs" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2"><Area name="actions" label="Actions prioritaires"/><Area name="meal_plan" label="Plan alimentaire"/><Area name="monitoring" label="Mesures et rythme de suivi"/><Area name="education" label="Education nutritionnelle et conseils"/></div>
+        <div className="mt-5 grid gap-4 md:grid-cols-2"><Area name="actions" label="Actions prioritaires"/><label className="grid gap-2 text-sm font-bold">Plan alimentaire<textarea name="meal_plan" rows={8} value={mealPlan} onChange={event=>setMealPlan(event.target.value)} className="admin-input"/></label><Area name="monitoring" label="Mesures et rythme de suivi"/><Area name="education" label="Education nutritionnelle et conseils"/></div><div className="mt-6"><RegionalMealPlanner onUsePlan={setMealPlan}/></div>
       </section>
 
       <section className="rounded-2xl border bg-white p-6">

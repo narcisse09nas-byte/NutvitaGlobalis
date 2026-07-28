@@ -40,6 +40,14 @@ function localAnalysis(input:any):Analysis{
     if(!unit) missingData.push(`Unite de ${name}.`);
     if(min===null&&max===null) missingData.push(`Intervalle de reference du laboratoire pour ${name}.`);
   }
+const scores=assessment.wellness_scores;
+  if(scores){
+    findings.push(`Scores sur 100 - nutrition: ${scores.nutrition?.score??"N/A"}, activite physique: ${scores.activity?.score??"N/A"}, mode de vie: ${scores.lifestyle?.score??"N/A"}.`);
+    for(const [domain,result] of Object.entries(scores) as Array<[string,any]>) {
+      if(Number(result?.score)<=40) attentionPoints.push(`${domain}: score faible (${result.score}/100), a explorer avec le client.`);
+      for(const signal of result?.keySignals||[]) findings.push(`${domain} - signal prioritaire: ${signal.question}.`);
+    }
+  }
   const dietary=assessment.dietary?.result;
   if(dietary) findings.push(`Diversite alimentaire: ${dietary.score??dietary.mddScore??"non calculee"} groupe(s); seuil ${dietary.met??dietary.mddMet?"atteint":"non atteint"}.`);
   else missingData.push("Evaluation de la diversite alimentaire.");
@@ -62,7 +70,7 @@ export async function POST(request:Request){
   const dietitian=ownDietitian||supervised;if(!dietitian)return NextResponse.json({message:"Nutritionniste non autorise."},{status:403});
   const {data:client}=await admin.from("client_profiles").select("*").eq("id",String(body.client_id)).maybeSingle();if(!client)return NextResponse.json({message:"Client introuvable."},{status:404});
   if(actorAdmin?.role!=="super_admin"&&client.assigned_partner_id!==dietitian.id&&client.created_by_partner_id!==dietitian.id)return NextResponse.json({message:"Client non affecte."},{status:403});
-  const deterministic=localAnalysis(body),generated=await generateStructured<Analysis>("consultation_pre_analysis","Analyse les informations de consultation avant la definition des objectifs. Ne pose aucun diagnostic, ne prescris rien, distingue faits, hypotheses, vigilances, donnees manquantes et limites. Propose uniquement des pistes d objectifs mesurables a valider par le nutritionniste.",{profile:body.profile,pack_type:body.pack_type,reason:body.reason,complaints:body.complaints,complaint_notes:body.complaint_notes,clinical_assessments:body.clinical_assessments,deterministic},schema),analysis=generated.data||deterministic;
+  const deterministic=localAnalysis(body),generated=await generateStructured<Analysis>("consultation_pre_analysis","Analyse les informations de consultation avant la definition des objectifs. Integre explicitement les Nutrition Score, Physical Activity Score et Lifestyle Score sur 100, leurs niveaux et signaux prioritaires. Compare ces scores sans extrapoler les reponses detaillees. Ne pose aucun diagnostic, ne prescris rien, distingue faits, hypotheses, vigilances, donnees manquantes et limites. Propose uniquement des pistes d objectifs mesurables a valider par le nutritionniste.",{profile:body.profile,pack_type:body.pack_type,reason:body.reason,complaints:body.complaints,complaint_notes:body.complaint_notes,clinical_assessments:body.clinical_assessments,deterministic},schema),analysis=generated.data||deterministic;
   const siteUrl=process.env.NEXT_PUBLIC_SITE_URL||new URL(request.url).origin,loginUrl=`${siteUrl}/connexion?identifiant=${encodeURIComponent(client.email||"")}&redirect=${encodeURIComponent("/espace-client/consultations")}`,id=crypto.randomUUID(),path=`${client.id}/consultation-analyses/${id}.pdf`;
   try{const bytes=await renderConsultationPreAnalysis(analysis,client,dietitian,loginUrl),upload=await admin.storage.from("document-vault").upload(path,bytes,{contentType:"application/pdf",upsert:false});if(upload.error)throw upload.error;await admin.from("vault_documents").insert({owner_id:client.id,client_id:client.id,document_type:"consultation_pre_analysis",title:`Analyse preparatoire - ${new Date().toLocaleDateString("fr-FR")}`,file_path:path,mime_type:"application/pdf",confidential:true,created_by:user.id});return NextResponse.json({analysis,pdf_path:path,provider:generated.provider||"local",warning:"Aide a la decision. Validation humaine obligatoire."})}catch(error){return NextResponse.json({message:error instanceof Error?error.message:"Analyse impossible."},{status:500})}
 }

@@ -241,6 +241,7 @@ export async function enrichHealthNarrative<T extends {
       'Tu ne poses jamais de diagnostic definitif, ne prescris pas et ne modifies jamais un traitement. Tu distingues faits, hypotheses, risques, incertitudes et donnees manquantes.',
       `Langue de sortie: ${locale}.`,
       'Produire un resume executif de 160 mots maximum couvrant progres, dernier changement mesure, risques et recommandations prioritaires.',
+      'Quand les scores NutVita Nutrition, activite physique et mode de vie sont disponibles, les citer sur 100, analyser leur evolution et relier uniquement leurs signaux prioritaires aux autres mesures. Ne jamais inventer les reponses detaillees.',
       'Le resume doit obligatoirement distinguer la tendance depuis le debut du suivi de la variation entre les deux mesures les plus recentes. Une inversion recente de tendance doit etre explicite et prioritaire.',
       'Reecrivez CHAQUE indicateur avec un niveau de detail comparable a une note de suivi nutritionnel de qualite.',
       'Pour CHAQUE indicateur, produire une analyse de profondeur comparable a l exemple poids: valeur actuelle, historique disponible, comparaison a la norme/reference, variation depuis la premiere mesure et la precedente si disponible, interpretation simple, limites, donnees manquantes, risque ou benefice potentiel, puis conseil pratique.',

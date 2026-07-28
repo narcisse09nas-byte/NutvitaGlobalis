@@ -150,6 +150,7 @@ export function analyzeHealthData(anthropometry: HealthRow[], biology: HealthRow
   const latestHba1c = number(latestBiology?.hba1c);
   const systolic = number(latestBiology?.systolic_pressure);
   const diastolic = number(latestBiology?.diastolic_pressure);
+  const pulse = number(latestBiology?.pulse_bpm);
 
   if (weight) {
     trends.push(locale === "en" ? `Weight changed by ${weight.delta > 0 ? "+" : ""}${weight.delta} kg over ${weight.days} days.` : `Variation ponderale de ${weight.delta > 0 ? "+" : ""}${weight.delta} kg sur ${weight.days} jours.`);
@@ -318,6 +319,21 @@ export function analyzeHealthData(anthropometry: HealthRow[], biology: HealthRow
     });
   }
 
+if (pulse !== null) {
+    const pulseRows = biologyHistory.filter(row => number(row.pulse_bpm) !== null);
+    const outside = pulse < 50 || pulse > 100;
+    if (outside) risks.push(`Pouls au repos renseigne: ${pulse} bpm, a contextualiser et recontroler.`);
+    addInsight(indicatorInsights, {
+      indicator: locale === "en" ? "Resting pulse" : "Pouls au repos",
+      latest: `${pulse} bpm`, status: outside ? "watch" : "stable",
+      publicInterpretation: `Dernier pouls renseigne: ${pulse} bpm. Une valeur isolee doit etre interpretee avec le repos, l effort recent, les symptomes et les traitements.`,
+      professionalInterpretation: `Pouls ${pulse} bpm. Verifier conditions de repos, regularite, symptomes, activite recente, stimulants et medicaments.`,
+      recommendation: outside ? "Recontroler au repos et demander un avis en cas de symptomes ou de persistance." : "Poursuivre des mesures comparables au repos.",
+      history: pulseRows.map(row => ({ date: dateLabel(row.measured_at, locale), value: `${row.pulse_bpm} bpm`, secondary: undefined })),
+      reference: "Repere indicatif adulte au repos souvent utilise: 60-100 bpm; interpretation individualisee requise.",
+      changeSummary: undefined, missingData: [], professionalRecommendations: ["Correlier avec tension, symptomes, traitements et contexte clinique."],
+    });
+  }
   const calorieValues = food.map(row => number(row.content?.calories)).filter((item): item is number => item != null && item > 0).slice(-7);
   const averageCalories = calorieValues.length ? calorieValues.reduce((sum, item) => sum + item, 0) / calorieValues.length : null;
   if ((latestBmi != null && latestBmi < 18.5) || (averageCalories != null && calorieValues.length >= 3 && averageCalories < 1200)) {
@@ -463,6 +479,34 @@ export function analyzeHealthData(anthropometry: HealthRow[], biology: HealthRow
     });
   }
 
+for (const metric of [
+    { key: "nutrition_score", label: locale === "en" ? "NutVita Nutrition Score" : "Nutrition Score NutVita" },
+    { key: "physical_activity_score", label: locale === "en" ? "Physical Activity Score" : "Score d'activite physique" },
+    { key: "lifestyle_score", label: locale === "en" ? "NutVita Lifestyle Score" : "Lifestyle Score NutVita" },
+  ]) {
+    const current = number(latestLifestyle?.[metric.key]);
+    if (current === null) continue;
+    const previous = number(previousLifestyle?.[metric.key]);
+    const delta = previous === null ? null : current - previous;
+    const signals = Array.isArray(latestLifestyle?.priority_signals)
+      ? latestLifestyle.priority_signals.filter((item: any) => item.domain === metric.key.replace("_score", "").replace("physical_", ""))
+      : [];
+    if (current <= 40) risks.push(`${metric.label}: ${current}/100, domaine prioritaire.`);
+    if (delta !== null && delta > 0) improvements.push(`${metric.label}: +${delta} point(s).`);
+    addInsight(indicatorInsights, {
+      indicator: metric.label,
+      latest: `${current}/100`,
+      status: current <= 40 ? "watch" : delta !== null && delta > 0 ? "improving" : "stable",
+      publicInterpretation: `${metric.label}: ${current}/100.${delta===null?" Premiere evaluation.":` Evolution: ${delta>0?"+":""}${delta} point(s).`}`,
+      professionalInterpretation: `Score structure sur 7 jours: ${current}/100; precedent ${previous??"N/A"}; variation ${delta??"N/A"}. Signaux prioritaires conserves: ${signals.map((item:any)=>item.question).join("; ")||"aucun"}.`,
+      recommendation: current <= 40 ? "Choisir avec le professionnel un axe d'amelioration realiste." : "Maintenir les acquis et reevaluer regulierement.",
+      history: lifestyleRows.filter(row => number(row[metric.key]) !== null).map(row => ({ date: dateLabel(row.assessment_date, locale), value: `${row[metric.key]}/100`, secondary: undefined })),
+      reference: "Score NutVita 0-100: 0-20 tres faible, 21-40 faible, 41-60 modere, 61-80 bon, 81-100 excellent.",
+      changeSummary: delta === null ? "Premiere evaluation disponible." : `${delta>0?"+":""}${delta} point(s).`,
+      missingData: [],
+      professionalRecommendations: ["Interpreter avec le contexte clinique, les objectifs et les mesures objectives.", "Travailler les signaux prioritaires sans culpabilisation."],
+    });
+  }
   const recentLimit = Date.now() - 30 * 86400000;
   const hasRecentAnthro = anthropometry.some(row => +new Date(row.measured_at) >= recentLimit);
   const hasRecentBiology = biology.some(row => +new Date(row.measured_at) >= recentLimit);

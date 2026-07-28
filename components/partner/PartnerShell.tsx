@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import { ArrowRightStartOnRectangleIcon, ChatBubbleLeftRightIcon, ClockIcon, CreditCardIcon, HomeIcon, PhoneIcon, UserGroupIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
+import { ArrowRightStartOnRectangleIcon, ChatBubbleLeftRightIcon, ClockIcon, CreditCardIcon, HomeIcon, PhoneIcon, UserGroupIcon, VideoCameraIcon, ClipboardDocumentListIcon } from "@heroicons/react/24/outline";
 
 const links = [
   ["/partenaire", "Tableau de bord", HomeIcon],
   ["/partenaire/salle-attente", "Salle d'attente", ClockIcon],
   ["/partenaire/clients", "Mes clients", UserGroupIcon],
   ["/partenaire/consultations", "Consultations", PhoneIcon],
+  ["/partenaire/planificateur-menus", "Menus regionaux", ClipboardDocumentListIcon],
   ["/partenaire/finances", "Paiements", CreditCardIcon],
   ["/partenaire/messages", "Messages", ChatBubbleLeftRightIcon],
   ["/partenaire/appels", "Appels video", VideoCameraIcon],

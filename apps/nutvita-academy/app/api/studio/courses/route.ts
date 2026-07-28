@@ -4,7 +4,6 @@ import type { StudioCourse } from "@/types/instructor-studio";
 import { isSupabaseConfigured } from "@/lib/env";
 import { apiText } from "@/lib/api-i18n";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { mergeLegacyStudioCourses } from "@/data/legacy-studio-courses";
 
 export async function GET(request: Request) {
   if (!isSupabaseConfigured())
@@ -43,6 +42,7 @@ export async function GET(request: Request) {
     .select(
       "id, status, instructor_user_id, created_at, updated_at, studio_payload",
     )
+    .neq("status", "archived")
     .order("updated_at", { ascending: false });
   if (effectiveRole === "instructor") courseQuery = courseQuery.eq("instructor_user_id", auth.user.id);
   const { data, error } = await courseQuery;
@@ -61,9 +61,32 @@ export async function GET(request: Request) {
       } as StudioCourse,
     ];
   });
-  return Response.json({ version: 4, courses: mergeLegacyStudioCourses(courses) });
+  return Response.json({ version: 4, courses });
 }
 
+export async function DELETE(request: Request) {
+  if (!isSupabaseConfigured()) return Response.json({ error: apiText(request, "Supabase non configur\u00e9.", "Supabase is not configured.") }, { status: 503 });
+  const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return Response.json({ error: apiText(request, "Authentification requise.", "Authentication required.") }, { status: 401 });
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", auth.user.id).single();
+  const selectedRole = (await cookies()).get("nutvita_active_role")?.value;
+  const effectiveRole = selectedRole === "instructor" || selectedRole === "admin" ? selectedRole : profile?.role;
+  const id = new URL(request.url).searchParams.get("id");
+  if (!id) return Response.json({ error: apiText(request, "Formation manquante.", "Course is missing.") }, { status: 400 });
+  const { data: course } = await supabase.from("courses").select("id,instructor_user_id,studio_payload").eq("id", id).maybeSingle();
+  if (!course) return Response.json({ deleted: true });
+  const administrator = ["admin", "super_admin"].includes(effectiveRole ?? "");
+  if (!administrator && !(effectiveRole === "instructor" && course.instructor_user_id === auth.user.id))
+    return Response.json({ error: apiText(request, "Suppression non autoris\u00e9e.", "Deletion is not allowed.") }, { status: 403 });
+  const admin = createSupabaseAdminClient();
+  const publicDelete = await admin.from("formations").delete().eq("academy_course_id", id);
+  if (publicDelete.error) return Response.json({ error: publicDelete.error.message }, { status: 500 });
+  const payload = (course.studio_payload ?? {}) as Record<string, unknown>;
+  const { error } = await supabase.from("courses").update({ status: "archived", studio_payload: { ...payload, status: "archived" } }).eq("id", id);
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json({ deleted: true });
+}
 export async function POST(request: Request) {
   if (!isSupabaseConfigured())
     return Response.json({ error: apiText(request, "Supabase non configuré.", "Supabase is not configured.") }, { status: 503 });

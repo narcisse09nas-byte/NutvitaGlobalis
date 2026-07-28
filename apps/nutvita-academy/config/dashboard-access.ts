@@ -8,6 +8,7 @@ export function canAccessDashboardPath(role: LocalUserRole, href: string) {
   if (common.some((path) => href === path || href.startsWith(`${path}/`))) return true;
   if (role === "admin" || role === "super_admin") return href.startsWith("/dashboard/admin");
   if (role === "instructor") return href.startsWith("/dashboard/instructor") || href === "/dashboard/ai-pro";
+  if (href === "/dashboard/exams/schedule" || href.startsWith("/dashboard/exams/schedule/")) return false;
   const learnerPrefixes = [
     "/dashboard/courses", "/dashboard/live", "/dashboard/assessments",
     "/dashboard/exams", "/dashboard/rewards", "/dashboard/certificates",

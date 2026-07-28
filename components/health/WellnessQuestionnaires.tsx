@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   assessmentQuestions,
+  assessmentGuides,
   buildAssessmentBundle,
   type AssessmentAnswer,
   type AssessmentKind,
@@ -43,12 +44,12 @@ export default function WellnessQuestionnaires({
     </div>
     <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4">
       <div><h3 className="font-black">{labels[active].title}</h3><p className="text-sm text-slate-500">{labels[active].subtitle}</p></div>
-      <div className="text-right"><b className="text-2xl text-orange">{result.score}%</b><p className="text-xs font-bold uppercase text-slate-500">{levelLabel(result.level)} · {result.rawScore}/{result.maxScore}</p></div>
+      <div className="text-right"><b className="text-2xl text-orange">{result.score}%</b><p className="text-xs font-bold uppercase text-slate-500">{result.levelLabel} · {result.rawScore}/{result.maxScore}</p></div>
     </div>
     <div className={`mt-5 grid gap-4 ${compact ? "" : "lg:grid-cols-2"}`}>
       {assessmentQuestions[active].map((question, index) => <fieldset key={question.id} className="rounded-2xl border bg-white p-4">
         <legend className="px-1 text-sm font-black">{index + 1}. {question.title}</legend>
-        {question.help && <p className="mb-3 mt-1 text-xs leading-5 text-slate-500">{question.help}</p>}
+        <p className="mb-3 mt-1 text-xs leading-5 text-slate-500">{question.help || assessmentGuides[active][question.id]}</p>
         <div className="mt-3 grid gap-2">
           {question.options.map(option => <label key={`${question.id}-${option.label}`} className="flex cursor-pointer items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm transition hover:bg-mint">
             <input type="radio" name={`${active}_${question.id}`} checked={answers[active][question.id] === option.score} onChange={() => answer(active, question.id, option.score)}/>
@@ -57,11 +58,8 @@ export default function WellnessQuestionnaires({
         </div>
       </fieldset>)}
     </div>
+    {result.completed && <p className="mt-4 rounded-xl bg-mint p-4 text-sm leading-6 text-forest"><b>{result.levelLabel} :</b> {result.interpretation}</p>}
     {!result.completed && <p className="mt-4 rounded-xl bg-orange/10 p-3 text-sm font-bold text-orange">Complétez les {assessmentQuestions[active].length} questions pour valider ce score.</p>}
     <input type="hidden" name="wellness_assessment" value={JSON.stringify(bundle)}/>
   </section>;
-}
-
-function levelLabel(level: string) {
-  return ({ very_low: "Très faible", low: "Faible", moderate: "Modéré", good: "Bon", excellent: "Excellent" } as Record<string, string>)[level] || level;
 }

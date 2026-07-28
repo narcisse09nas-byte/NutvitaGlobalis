@@ -27,6 +27,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [addChildOpen, setAddChildOpen] = useState(initialChildren.length === 0);
   const [entryMode, setEntryMode] = useState<"measurement" | "assessments">("measurement");
   const [analyses,setAnalyses]=useState(initialAnalyses),[alerts,setAlerts]=useState(initialAlerts),[reports,setReports]=useState(initialReports);
   const child = children.find(item => item.id === selected);
@@ -48,7 +49,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
     payload.premature_birth = payload.premature_birth === "true";
     const { data, error } = await createClient().from("children").insert({ ...payload, parent_id: parentId }).select().single();
     if (error) setMessage(error.message);
-    else { setChildren([...children, data]); setSelected(data.id); form.reset(); setMessage(tx("Enfant ajoute. Si votre suivi est deja active, vous pouvez commencer les mesures maintenant.","Child added. If monitoring is already active, you can start recording measurements.")); }
+    else { setChildren([...children, data]); setSelected(data.id); setAddChildOpen(false); form.reset(); setMessage(tx("Enfant ajoute. Si votre suivi est deja active, vous pouvez commencer les mesures maintenant.","Child added. If monitoring is already active, you can start recording measurements.")); }
   }
 
   async function addMeasure(event: FormEvent<HTMLFormElement>) {
@@ -140,7 +141,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
     </section>
 
     {children.length > 0 && <>
-      <section className="flex flex-wrap gap-3">{children.map(item => <button key={item.id} onClick={() => { setSelected(item.id); setProfileOpen(false); }} className={`rounded-full px-5 py-3 font-bold ${selected === item.id ? "bg-forest text-white" : "bg-white"}`}>{item.full_name}</button>)}</section>
+      <section className="rounded-2xl border bg-white p-5"><p className="mb-3 text-sm font-black text-forest">{tx("S\u00e9lectionnez l\u2019enfant \u00e0 suivre","Select the child to monitor")}</p><div className="flex flex-wrap gap-3">{children.map(item => <button key={item.id} onClick={() => { setSelected(item.id); setProfileOpen(false); }} className={`rounded-full px-5 py-3 font-bold ${selected === item.id ? "bg-forest text-white" : "bg-white"}`}>{item.full_name}</button>)}</div></section>
       {child && <section className="rounded-2xl border bg-white p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div><p className="text-xs font-bold uppercase text-leaf">{tx("Enfant selectionne","Selected child")}</p><h2 className="mt-1 text-2xl font-black">{child.full_name}</h2><p className="mt-1 text-sm text-slate-500">{new Date(child.birth_date).toLocaleDateString(locale==="en"?"en-GB":"fr-FR")} - {child.sex === "female" ? tx("Fille","Girl") : child.sex === "male" ? tx("Garcon","Boy") : tx("Sexe non precise","Sex not specified")}</p></div>

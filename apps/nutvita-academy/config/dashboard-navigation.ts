@@ -1,5 +1,5 @@
 import {
-  Award, Bell, BookOpen, Brain, Building2, CalendarClock, CircleHelp,
+  Award, Bell, BookOpen, Brain, Building2, CircleHelp,
   ClipboardCheck, CreditCard, FileCheck2, FileText, Gift, GraduationCap,
   Heart, History, LayoutDashboard, Mail, MonitorUp, NotebookPen, Radio,
   ReceiptText, Settings, ShieldCheck, ShoppingCart, Store, User, Users,
@@ -15,7 +15,6 @@ export const dashboardNavigation: NavigationSection[] = [
     { label: "Quiz", href: "/dashboard/assessments", icon: ClipboardCheck },
     { label: "Exercices d'application", href: "/dashboard/assignments", icon: NotebookPen },
     { label: "Examens finaux", href: "/dashboard/exams", icon: FileCheck2 },
-    { label: "Planifier un examen", href: "/dashboard/exams/schedule", icon: CalendarClock },
     { label: "Récompenses", href: "/dashboard/rewards", icon: Gift },
     { label: "Certificats", href: "/dashboard/certificates", icon: Award },
   ] },

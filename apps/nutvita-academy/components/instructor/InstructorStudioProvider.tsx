@@ -334,6 +334,12 @@ export function InstructorStudioProvider({
         ...store,
         courses: store.courses.filter((item) => item.id !== courseId),
       }));
+      void fetch(`/api/studio/courses?id=${encodeURIComponent(courseId)}`, { method: "DELETE" }).then(async (response) => {
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          window.alert(payload?.error ?? text("Suppression serveur impossible.", "Server deletion failed."));
+        }
+      });
       return { success: true };
     },
     [canManageCourse, data.courses, persist, text],

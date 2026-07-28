@@ -114,23 +114,36 @@ export default function NutritionRecord({
     event.preventDefault();
     const form = event.currentTarget;
     const payload = Object.fromEntries(new FormData(form));
-    const { data, error } = await createClient()
-      .from("health_lifestyle_assessments")
-      .upsert({
-        client_id: clientId,
-        assessment_date: payload.assessment_date,
-        activity_level: Number(payload.activity_level),
-        diet_level: Number(payload.diet_level),
-        notes: String(payload.notes || "") || null,
-        recorded_by: clientId,
-      }, { onConflict: "client_id,assessment_date" })
-      .select()
-      .single();
-    if (error) setMessage(error.message);
-    else {
+    let bundle: any;
+    try { bundle = JSON.parse(String(payload.wellness_assessment || "{}")); }
+    catch { setMessage(tx("Le questionnaire est invalide. Rechargez la page et recommencez.","The questionnaire is invalid. Reload the page and try again.")); return; }
+    if (!bundle.nutrition?.completed || !bundle.activity?.completed || !bundle.lifestyle?.completed) {
+      setMessage(tx("Completez toutes les questions des trois categories avant l enregistrement.","Complete every question in all three categories before saving."));
+      return;
+    }
+    const prioritySignals = [
+      ...(bundle.nutrition.keySignals || []).map((item: Row) => ({ ...item, domain: "nutrition" })),
+      ...(bundle.activity.keySignals || []).map((item: Row) => ({ ...item, domain: "activity" })),
+      ...(bundle.lifestyle.keySignals || []).map((item: Row) => ({ ...item, domain: "lifestyle" })),
+    ].slice(0, 12);
+    const scoreLevels = {
+      nutrition: { level: bundle.nutrition.level, label: bundle.nutrition.levelLabel, interpretation: bundle.nutrition.interpretation },
+      activity: { level: bundle.activity.level, label: bundle.activity.levelLabel, interpretation: bundle.activity.interpretation },
+      lifestyle: { level: bundle.lifestyle.level, label: bundle.lifestyle.levelLabel, interpretation: bundle.lifestyle.interpretation },
+    };
+    const { data, error } = await createClient().from("health_lifestyle_assessments").upsert({
+      client_id: clientId, assessment_date: payload.assessment_date,
+      activity_level: scoreToLegacyLevel(bundle.activity.score), diet_level: scoreToLegacyLevel(bundle.nutrition.score),
+      nutrition_score: bundle.nutrition.score, physical_activity_score: bundle.activity.score, lifestyle_score: bundle.lifestyle.score,
+      score_levels: scoreLevels, priority_signals: prioritySignals, notes: String(payload.notes || "") || null, recorded_by: clientId,
+    }, { onConflict: "client_id,assessment_date" }).select().single();
+    if (error) {
+      const migrationMissing = /nutrition_score|physical_activity_score|lifestyle_score|score_levels|priority_signals/i.test(error.message);
+      setMessage(migrationMissing ? tx("La migration Supabase health-questionnaires-and-vitals.sql doit etre executee avant l enregistrement.","Run the Supabase health-questionnaires-and-vitals.sql migration before saving.") : error.message);
+    } else {
       setLifestyle([data, ...lifestyleRows.filter(row => row.id !== data.id)]);
       form.reset();
-      setMessage(tx("Evaluation hebdomadaire enregistree.","Weekly assessment saved."));
+      setMessage(tx("Les trois scores ont ete enregistres.","All three scores were saved."));
     }
   }
 
@@ -207,9 +220,24 @@ function LifestyleForm({ rows, onSubmit, locale }: { rows: Row[]; onSubmit: (eve
       <label className="grid gap-2 rounded-2xl border bg-white p-5 text-sm font-bold">{locale==="en"?"Optional observations":"Observations facultatives"}<textarea name="notes" rows={3} className="admin-input"/></label>
       <button className="btn-primary justify-self-start">{locale==="en"?"Save assessment":"Enregistrer les trois scores"}</button>
     </form>
-    <div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full min-w-[720px]"><thead className="border-b bg-slate-50 text-left text-xs uppercase text-slate-400"><tr><th className="p-4">Date</th><th className="p-4">Nutrition</th><th className="p-4">Activite</th><th className="p-4">Mode de vie</th><th className="p-4">Signaux</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} className="border-b"><td className="p-4">{new Date(`${row.assessment_date}T12:00:00`).toLocaleDateString(locale==="en"?"en-GB":"fr-FR")}</td><td className="p-4 font-bold">{row.nutrition_score ?? row.diet_level*20}%</td><td className="p-4 font-bold">{row.physical_activity_score ?? row.activity_level*20}%</td><td className="p-4 font-bold">{row.lifestyle_score ?? "-"}{row.lifestyle_score!=null?"%":""}</td><td className="p-4 text-sm">{(row.priority_signals||[]).length}</td></tr>)}{!rows.length&&<tr><td colSpan={5} className="p-8 text-center text-slate-400">{locale==="en"?"No assessment.":"Aucune evaluation."}</td></tr>}</tbody></table></div>
+    <div className="grid gap-4">
+      {rows.map(row => <article key={row.id} className="rounded-2xl border bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-black">Evaluation du {new Date(`${row.assessment_date}T12:00:00`).toLocaleDateString(locale==="en"?"en-GB":"fr-FR")}</h3><span className="rounded-full bg-mint px-3 py-1 text-xs font-bold text-forest">{(row.priority_signals||[]).length} signal(s) prioritaire(s)</span></div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          <ScoreRegistryCard title="Nutrition" score={row.nutrition_score ?? row.diet_level*20} meta={row.score_levels?.nutrition}/>
+          <ScoreRegistryCard title="Activite physique" score={row.physical_activity_score ?? row.activity_level*20} meta={row.score_levels?.activity}/>
+          <ScoreRegistryCard title="Mode de vie" score={row.lifestyle_score} meta={row.score_levels?.lifestyle}/>
+        </div>
+        {row.notes&&<p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{row.notes}</p>}
+      </article>)}
+      {!rows.length&&<p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{locale==="en"?"No assessment.":"Aucune evaluation."}</p>}
+    </div>
   </div>;
 }
+function ScoreRegistryCard({title,score,meta}:{title:string;score?:number|null;meta?:{label?:string;interpretation?:string}}){
+  return <section className="rounded-2xl bg-slate-50 p-4"><div className="flex items-center justify-between gap-3"><h4 className="font-black text-forest">{title}</h4><b className="text-xl text-orange">{score==null?"-":`${score}%`}</b></div><p className="mt-2 text-sm font-black">{meta?.label||"Niveau non disponible"}</p><p className="mt-2 text-xs leading-5 text-slate-600">{meta?.interpretation||"Completez une nouvelle evaluation pour enregistrer le niveau et son interpretation."}</p></section>;
+}
+
 function Scale({ name, title, levels,locale }: { name: string; title: string; levels: typeof activityLevels;locale:"fr"|"en" }) {
   return <fieldset><legend className="mb-3 font-black">{title}</legend><div className="grid gap-3 sm:grid-cols-5">{levels.map(level => <label key={level.value} title={locale==="en"?level.descriptionEn:level.description} className="group relative cursor-pointer"><input type="radio" name={name} value={level.value} required className="peer sr-only"/><span className="grid min-h-20 place-items-center rounded-xl border bg-white p-3 text-center text-sm font-bold transition peer-checked:border-forest peer-checked:bg-forest peer-checked:text-white">{locale==="en"?level.labelEn:level.label}<small className="mt-1 block font-normal opacity-70">{level.value}/5</small></span><span className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-64 -translate-x-1/2 rounded-lg bg-slate-950 p-3 text-xs font-normal leading-5 text-white shadow-xl group-hover:block">{locale==="en"?level.descriptionEn:level.description}</span></label>)}</div></fieldset>;
 }

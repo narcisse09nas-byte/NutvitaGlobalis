@@ -13,7 +13,7 @@ import { useLanguage } from "@/hooks/use-language";
 export default function DashboardCoursesPage() {
   const { data } = useInstructorStudio();
   const { locale, text } = useLanguage();
-  const { isEnrolled, usesServerCatalog } = useMarketplace();
+  const { isEnrolled } = useMarketplace();
   const staticCourses = getAllLocalCourses();
   const studioCourses = getPublishedStudioCourses(data).map((course) =>
     studioCourseToAcademyCourse(course, locale),
@@ -23,11 +23,7 @@ export default function DashboardCoursesPage() {
     ...studioCourses.filter(
       (course) => !staticCourses.some((item) => item.slug === course.slug),
     ),
-  ].filter((course) =>
-    usesServerCatalog
-      ? isEnrolled(course.slug)
-      : course.enrolled || isEnrolled(course.slug),
-  );
+  ].filter((course) => isEnrolled(course.slug));
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

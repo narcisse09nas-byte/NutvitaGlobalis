@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   if (!account) {
     const result = await ctx.service.auth.admin.inviteUserByEmail(payload.email, {
       data: { full_name: payload.full_name, account_type: "maximus_user" },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin}/auth/callback?next=/choisir-acces`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin}/auth/callback?next=/api/access/open?service=maximus`,
     });
     if (result.error || !result.data.user) return NextResponse.json({ message: result.error?.message || "Invitation impossible." }, { status: 400 });
     account = result.data.user;

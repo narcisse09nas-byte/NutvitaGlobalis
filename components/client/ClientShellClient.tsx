@@ -62,7 +62,7 @@ export default function ClientShellClient({ children, email, access, activeServi
     {healthMode && <MedicalDisclaimer/>}
     <div className="mx-auto grid max-w-7xl gap-7 px-5 py-8 lg:grid-cols-[270px_1fr]">
       <nav className="h-fit rounded-3xl bg-forest p-4 text-white">
-        <Link href="/choisir-acces" className="mb-3 flex gap-3 rounded-xl bg-white/10 px-4 py-3 font-bold hover:bg-white/15"><SparklesIcon className="h-5"/>Changer de service</Link>
+        <Link href="/espace-client" className="mb-3 flex gap-3 rounded-xl bg-white/10 px-4 py-3 font-bold hover:bg-white/15"><SparklesIcon className="h-5"/>Changer de service</Link>
         {serviceLinks.filter(([, , , visible]) => visible).map(([href, label, Icon]) => <Link key={href} href={href} className={`flex gap-3 rounded-xl px-4 py-3 font-bold ${path === href ? "bg-white/15" : "hover:bg-white/10"}`}><Icon className="h-5"/>{label}</Link>)}
       </nav>
       <main className="min-w-0">{children}</main>

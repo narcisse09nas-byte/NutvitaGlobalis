@@ -23,7 +23,7 @@ export async function getPlatformIdentity() {
 
 export async function requirePlatformIdentity() {
   const identity = await getPlatformIdentity();
-  if (!identity) redirect("/connexion?redirect=/choisir-acces");
+  if (!identity) redirect("/connexion?redirect=/");
   return identity;
 }
 

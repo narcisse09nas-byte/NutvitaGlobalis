@@ -7,8 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import {ageInMonths,calculateIycf,calculateMddw,childFoodItems,mddwFoodItems} from "@/lib/dietary-diversity";
 import LabParameterEditor, { defaultLabParameters, serializeLabParameters, type LabParameter } from "@/components/health/LabParameterEditor";
 import RegionalMealPlanner from "@/components/partner/RegionalMealPlannerI18n";
-import WellnessQuestionnaires from "@/components/health/WellnessQuestionnaires";
-import type { WellnessAssessmentBundle } from "@/lib/wellness-assessments";
+import WellnessQuestionnaires from "@/components/health/WellnessQuestionnairesV2";
+import type { WellnessAssessmentBundle } from "@/lib/wellness-assessments-v2";
 
 type Row = Record<string, any>;
 type Goal = { label: string; target: string; unit: string };
@@ -79,7 +79,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
     const calorieIntake=["breakfast_kcal","lunch_kcal","dinner_kcal","snacks_kcal","drinks_kcal"].reduce((sum,key)=>sum+Number(data.get(key)||0),0);
     const vigorousMinutes=(Number(data.get("vigorous_work_days")||0)*Number(data.get("vigorous_work_minutes")||0))+(Number(data.get("vigorous_leisure_days")||0)*Number(data.get("vigorous_leisure_minutes")||0));
     const moderateMinutes=(Number(data.get("moderate_work_days")||0)*Number(data.get("moderate_work_minutes")||0))+(Number(data.get("moderate_leisure_days")||0)*Number(data.get("moderate_leisure_minutes")||0))+(Number(data.get("transport_days")||0)*Number(data.get("transport_minutes")||0));
-    return {laboratory_parameters:serializeLabParameters(labParameters),wellness_scores:wellnessAssessment?{nutrition:wellnessAssessment.nutrition,activity:wellnessAssessment.activity,lifestyle:wellnessAssessment.lifestyle}:null,dietary:{module:"NUTVITA_12_ITEM_SCORE",age_months:childAge,result:wellnessAssessment?.nutrition||dietary},calorie:{estimated_intake_kcal:calorieIntake,estimated_need_kcal:Number(data.get("estimated_need_kcal")||0),method:"24h meal estimate"},physical_activity:{met_minutes_week:vigorousMinutes*8+moderateMinutes*4,vigorous_minutes_week:vigorousMinutes,moderate_transport_minutes_week:moderateMinutes,sitting_minutes_day:Number(data.get("sitting_minutes_day")||0),method:"WHO GPAQ domains"},lifestyle:{sleep_hours:Number(data.get("sleep_hours")||0),sleep_quality:data.get("sleep_quality"),stress_level:Number(data.get("stress_level")||0),water_liters:Number(data.get("water_liters")||0),screen_hours:Number(data.get("screen_hours")||0),tobacco:data.get("tobacco"),alcohol:data.get("alcohol")}};
+    return {laboratory_parameters:serializeLabParameters(labParameters),wellness_scores:wellnessAssessment?{nutrition:wellnessAssessment.nutrition,activity:wellnessAssessment.activity,lifestyle:wellnessAssessment.lifestyle,answers:wellnessAssessment.answers}:null,dietary:{module:"NUTVITA_12_ITEM_SCORE",age_months:childAge,result:wellnessAssessment?.nutrition||dietary},calorie:{estimated_intake_kcal:calorieIntake,estimated_need_kcal:Number(data.get("estimated_need_kcal")||0),method:"24h meal estimate"},physical_activity:{met_minutes_week:vigorousMinutes*8+moderateMinutes*4,vigorous_minutes_week:vigorousMinutes,moderate_transport_minutes_week:moderateMinutes,sitting_minutes_day:Number(data.get("sitting_minutes_day")||0),method:"WHO GPAQ domains"},lifestyle:{sleep_hours:Number(data.get("sleep_hours")||0),sleep_quality:data.get("sleep_quality"),stress_level:Number(data.get("stress_level")||0),water_liters:Number(data.get("water_liters")||0),screen_hours:Number(data.get("screen_hours")||0),tobacco:data.get("tobacco"),alcohol:data.get("alcohol")}};
   }
 
   async function analyzeBeforePlan(form:HTMLFormElement){

@@ -271,11 +271,12 @@
     }
   }
 
-  function init() {
+  async function init() {
     try {
       bindElements();
       loadStoredData();
       ensureAdminUser();
+      await applyNutVitaPortalSession();
       loadCurrentUser();
       buildConfigs();
       migrateWorkflowStatuses();
@@ -1653,6 +1654,43 @@
     renderDashboardBody(readDashboardParams());
   }
 
+  async function applyNutVitaPortalSession() {
+    var response;
+    try {
+      response = await fetch("/api/op-management/session", { credentials: "same-origin", cache: "no-store" });
+    } catch (error) {
+      return;
+    }
+    if (!response.ok) return;
+    var session = await response.json();
+    var email = normalizeEmail(session.email);
+    if (!email) return;
+    var user = findUserByEmail(email);
+    if (!user) {
+      var name = email.split("@")[0].replace(/[._-]+/g, " ").split(" ");
+      user = {
+        id: generatedUserId(todayIsoDate(), ""),
+        lastName: name.length > 1 ? name[name.length - 1] : "",
+        firstName: name[0] || email,
+        sex: "",
+        ageCategory: "",
+        email: email,
+        password: "",
+        role: session.role === "Admin" ? "Admin" : "Editor",
+        status: "Active",
+        createdAt: new Date().toISOString(),
+        createdByEmail: email,
+        portalManaged: true
+      };
+      store.users.unshift(user);
+    } else {
+      user.status = "Active";
+      user.role = session.role === "Admin" ? "Admin" : "Editor";
+      user.portalManaged = true;
+    }
+    saveStoredData();
+    saveCurrentUser(email);
+  }
   function loadCurrentUser() {
     try {
       state.currentUserEmail = window.localStorage ? (window.localStorage.getItem(authStorageKey) || "") : "";

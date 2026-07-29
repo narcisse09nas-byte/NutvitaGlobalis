@@ -6,8 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { customIndicatorTemplates } from "@/lib/tracking-indicators";
 import HealthDietaryDiversity from "@/components/client/HealthDietaryDiversity";
 import { defaultLabParameters } from "@/components/health/LabParameterEditor";
-import WellnessQuestionnaires from "@/components/health/WellnessQuestionnaires";
-import { scoreToLegacyLevel } from "@/lib/wellness-assessments";
+import WellnessQuestionnaires from "@/components/health/WellnessQuestionnairesV2";
+import { buildAssessmentSnapshot, scoreToLegacyLevel } from "@/lib/wellness-assessments-v2";
 
 type Row = Record<string, any>;
 type CustomMeasure = {
@@ -77,6 +77,17 @@ export default function NutritionRecord({
     const standardNames = new Set(standard.map(item => item.name.toLocaleLowerCase()));
     return [...standard, ...existing.filter(item => !standardNames.has(item.name.toLocaleLowerCase()))];
   }, [bioRows]);
+  const biologyColumns = useMemo(() => {
+    const standard: string[][] = [
+      ["measured_at", "Date"], ["glucose", locale === "en" ? "Blood glucose" : "Glyc\u00e9mie"],
+      ["hba1c", "HbA1c"], ["total_cholesterol", locale === "en" ? "Total cholesterol" : "Cholest\u00e9rol total"],
+      ["ldl", "LDL"], ["hdl", "HDL"], ["Triglyc\u00e9rides", "Triglyc\u00e9rides"],
+      ["systolic_pressure", locale === "en" ? "Systolic BP" : "TA systolique"],
+      ["diastolic_pressure", locale === "en" ? "Diastolic BP" : "TA diastolique"], ["pulse_bpm", locale === "en" ? "Pulse" : "Pouls"],
+    ];
+    const names = [...new Set(bioRows.flatMap(row => Object.keys(row.custom_values || {})))];
+    return [...standard, ...names.map(name => [`custom:${name}`, name])];
+  }, [bioRows, locale]);
   const en=locale==="en";
   const tx=(fr:string,english:string)=>en?english:fr;
   const tabLabels:Record<string,string>={anthro:tx("Anthropometrie","Anthropometry"),vitals:tx("Tension arterielle","Blood pressure"),biology:tx("Biologie","Biology"),food:tx("Alimentation","Diet"),lifestyle:tx("Mode de vie","Lifestyle"),consultations:tx("Consultations","Consultations")};
@@ -135,10 +146,10 @@ export default function NutritionRecord({
       client_id: clientId, assessment_date: payload.assessment_date,
       activity_level: scoreToLegacyLevel(bundle.activity.score), diet_level: scoreToLegacyLevel(bundle.nutrition.score),
       nutrition_score: bundle.nutrition.score, physical_activity_score: bundle.activity.score, lifestyle_score: bundle.lifestyle.score,
-      score_levels: scoreLevels, priority_signals: prioritySignals, notes: String(payload.notes || "") || null, recorded_by: clientId,
+      score_levels: scoreLevels, priority_signals: prioritySignals, questionnaire_answers: bundle.answers, questionnaire_snapshot: buildAssessmentSnapshot(bundle.answers), questionnaire_version: "nutvita-wellness-v2", notes: String(payload.notes || "") || null, recorded_by: clientId,
     }, { onConflict: "client_id,assessment_date" }).select().single();
     if (error) {
-      const migrationMissing = /nutrition_score|physical_activity_score|lifestyle_score|score_levels|priority_signals/i.test(error.message);
+      const migrationMissing = /nutrition_score|physical_activity_score|lifestyle_score|score_levels|priority_signals|questionnaire_answers|questionnaire_snapshot/i.test(error.message);
       setMessage(migrationMissing ? tx("La migration Supabase health-questionnaires-and-vitals.sql doit etre executee avant l enregistrement.","Run the Supabase health-questionnaires-and-vitals.sql migration before saving.") : error.message);
     } else {
       setLifestyle([data, ...lifestyleRows.filter(row => row.id !== data.id)]);
@@ -176,7 +187,7 @@ export default function NutritionRecord({
     {tab === "anthro" && <><RecordForm locale={locale} title={tx("Ajouter des mesures anthropometriques","Add anthropometric measurements")} onSubmit={event => add("anthropometric_measurements", event, setAnthro, anthroRows)} fields={[["weight_kg", tx("Poids (kg)","Weight (kg)")], ["height_cm", tx("Taille (cm)","Height (cm)")], ["waist_cm", tx("Tour de taille (cm)","Waist circumference (cm)")], ["hip_cm", tx("Tour de hanche (cm)","Hip circumference (cm)")], ["muac_cm", "MUAC (cm)"], ["body_fat_percent", tx("Masse grasse (%)","Body fat (%)")], ["muscle_mass_kg", tx("Masse musculaire (kg)","Muscle mass (kg)")]]} templates={anthroTemplates}/><History locale={locale} rows={anthroRows} columns={[["measured_at", "Date"], ["weight_kg", tx("Poids","Weight")], ["height_cm", tx("Taille","Height")], ["bmi", "BMI"], ["waist_cm", tx("Taille abdominale","Waist")], ["muac_cm", "MUAC"], ["custom_values", tx("Autres mesures","Other measurements")]]} onEdit={(row,columns)=>edit("anthropometric_measurements",row,columns,setAnthro,anthroRows)} onDelete={id=>remove("anthropometric_measurements",id,setAnthro,anthroRows)}/></>}
 
 {tab === "vitals" && <><RecordForm locale={locale} title={tx("Enregistrer la tension arterielle et le pouls","Record blood pressure and pulse")} onSubmit={event => add("biological_measurements", event, setBio, bioRows)} fields={[["systolic_pressure", tx("TA systolique (mmHg)","Systolic BP (mmHg)")], ["diastolic_pressure", tx("TA diastolique (mmHg)","Diastolic BP (mmHg)")], ["pulse_bpm", tx("Pouls (bpm)","Pulse (bpm)")]]} templates={[]}/><History locale={locale} rows={bioRows.filter(row=>row.systolic_pressure!=null||row.diastolic_pressure!=null||row.pulse_bpm!=null)} columns={[["measured_at", "Date"], ["systolic_pressure", tx("TA systolique","Systolic BP")], ["diastolic_pressure", tx("TA diastolique","Diastolic BP")], ["pulse_bpm", tx("Pouls","Pulse")]]} onEdit={(row,columns)=>edit("biological_measurements",row,columns,setBio,bioRows)} onDelete={id=>remove("biological_measurements",id,setBio,bioRows)}/></>}
-    {tab === "biology" && <><RecordForm locale={locale} title={tx("Ajouter des parametres biologiques","Add biological parameters")} onSubmit={event => add("biological_measurements", event, setBio, bioRows)} fields={[]} templates={biologyTemplates}/><History locale={locale} rows={bioRows} columns={[["measured_at", "Date"], ["glucose", tx("Glycemie","Blood glucose")], ["hba1c", "HbA1c"], ["ldl", "LDL"], ["triglycerides", "Triglycerides"], ["systolic_pressure", tx("PA systolique","Systolic BP")], ["custom_values", tx("Autres parametres","Other parameters")]]} onEdit={(row,columns)=>edit("biological_measurements",row,columns,setBio,bioRows)} onDelete={id=>remove("biological_measurements",id,setBio,bioRows)}/></>}
+    {tab === "biology" && <><RecordForm locale={locale} title={tx("Ajouter des param\u00e8tres biologiques","Add biological parameters")} onSubmit={event => add("biological_measurements", event, setBio, bioRows)} fields={[]} templates={biologyTemplates}/><History locale={locale} rows={bioRows} columns={biologyColumns} onEdit={(row,columns)=>edit("biological_measurements",row,columns,setBio,bioRows)} onDelete={id=>remove("biological_measurements",id,setBio,bioRows)}/></>}
 
     {tab === "food" && <div className="grid gap-7"><HealthDietaryDiversity clientId={clientId} initial={dietary} locale={locale}/><form onSubmit={event => add("food_history", event, setFood, foodRows)} className="grid gap-4 rounded-2xl border bg-white p-6 md:grid-cols-2"><h2 className="text-xl font-black md:col-span-2">{locale === "en" ? "Optional food diary" : "Journal alimentaire facultatif"}</h2><label className="grid gap-2 text-sm font-bold">Date<input name="entry_date" type="date" defaultValue={today()} max={today()} required className="admin-input"/></label><label className="grid gap-2 text-sm font-bold">{locale === "en" ? "Record type" : "Type d'enregistrement"}<select name="entry_type" className="admin-input"><option value="food_diary">{locale === "en" ? "Food diary" : "Journal alimentaire"}</option><option value="habits">{locale === "en" ? "Eating habits" : "Habitudes alimentaires"}</option></select></label><textarea name="notes" required rows={5} className="admin-input md:col-span-2" placeholder={locale === "en" ? "Describe meals, quantities, times and sensations..." : "Decrivez les repas, quantites, horaires et sensations..."}/><button className="btn-primary justify-self-start md:col-span-2">{locale === "en" ? "Add to diary" : "Ajouter au journal"}</button></form><History locale={locale} rows={foodRows} columns={[["entry_date", "Date"], ["entry_type", tx("Type","Type")], ["notes", tx("Contenu","Content")]]} food onEdit={(row,columns)=>edit("food_history",row,columns,setFood,foodRows,true)} onDelete={id=>remove("food_history",id,setFood,foodRows)}/></div>}
 
@@ -216,7 +227,7 @@ function LifestyleForm({ rows, onSubmit, locale }: { rows: Row[]; onSubmit: (eve
   return <div className="grid gap-6">
     <form onSubmit={onSubmit} className="grid gap-6">
       <label className="grid max-w-sm gap-2 text-sm font-bold">{locale==="en"?"Assessment date":"Date de l'evaluation"}<input name="assessment_date" type="date" defaultValue={today()} max={today()} required className="admin-input"/></label>
-      <WellnessQuestionnaires/>
+      <WellnessQuestionnaires locale={locale}/>
       <label className="grid gap-2 rounded-2xl border bg-white p-5 text-sm font-bold">{locale==="en"?"Optional observations":"Observations facultatives"}<textarea name="notes" rows={3} className="admin-input"/></label>
       <button className="btn-primary justify-self-start">{locale==="en"?"Save assessment":"Enregistrer les trois scores"}</button>
     </form>
@@ -246,6 +257,11 @@ function History({ rows, columns, food = false, onEdit, onDelete,locale }: { row
   function display(row: Row, key: string) {
     if (key.includes("date") || key === "measured_at") return row[key] ? new Date(`${String(row[key]).slice(0, 10)}T12:00:00`).toLocaleDateString(locale==="en"?"en-GB":"fr-FR") : "-";
     if (food && key === "calories") return row.content?.calories ?? "-";
+    if (key.startsWith("custom:")) {
+      const item = row.custom_values?.[key.slice(7)];
+      if (item == null) return "-";
+      return `${typeof item === "object" ? item.value : item}${typeof item === "object" && item.unit ? ` ${item.unit}` : ""}`;
+    }
     if (key === "custom_values") {
       const entries = Object.entries(row.custom_values || {});
       return entries.length ? entries.map(([name, raw]) => {

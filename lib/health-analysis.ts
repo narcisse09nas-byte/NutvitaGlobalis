@@ -426,6 +426,31 @@ if (pulse !== null) {
   const lifestyleRows = dated(lifestyle, "assessment_date");
   const latestLifestyle = lifestyleRows.at(-1);
   const previousLifestyle = lifestyleRows.at(-2);
+  const questionnaireSnapshot = latestLifestyle?.questionnaire_snapshot;
+  if (questionnaireSnapshot && typeof questionnaireSnapshot === "object") {
+    for (const domain of ["nutrition", "activity", "lifestyle"]) {
+      const responses = Array.isArray(questionnaireSnapshot[domain]) ? questionnaireSnapshot[domain] : [];
+      if (!responses.length) continue;
+      const answered = responses.filter((item: any) => item?.answer != null && Number.isFinite(Number(item?.score)));
+      const priorities = answered.filter((item: any) => Number(item.score) <= 1);
+      const details = answered.map((item: any) => `${item.question}: ${item.answer} (${item.score}/4)`);
+      addInsight(indicatorInsights, {
+        indicator: locale === "en" ? `Detailed ${domain} questionnaire` : `Questionnaire ${domain} detaille`,
+        latest: `${answered.length}/${responses.length}`,
+        status: priorities.length ? "watch" : "stable",
+        publicInterpretation: priorities.length
+          ? (locale === "en" ? `Priority answers: ${priorities.map((item: any) => `${item.question}: ${item.answer}`).join("; ")}.` : `Reponses prioritaires : ${priorities.map((item: any) => `${item.question} : ${item.answer}`).join("; ")}.`)
+          : (locale === "en" ? "No low-scoring answer in the latest completed questionnaire." : "Aucune reponse a score faible dans le dernier questionnaire complet."),
+        professionalInterpretation: details.join("; "),
+        recommendation: locale === "en" ? "Use every answer with clinical context and objective measurements." : "Interpreter chaque reponse avec le contexte clinique et les mesures objectives.",
+        history: [],
+        reference: locale === "en" ? "Structured NutVita questionnaire; each item scored from 0 to 4." : "Questionnaire NutVita structure ; chaque item est note de 0 a 4.",
+        changeSummary: locale === "en" ? "Latest complete answer set preserved." : "Dernier jeu complet de reponses conserve.",
+        missingData: answered.length === responses.length ? [] : [locale === "en" ? "Some detailed answers are missing" : "Certaines reponses detaillees manquent"],
+        professionalRecommendations: [locale === "en" ? "Prioritize items scored 0 or 1 without inferring causality." : "Prioriser les items notes 0 ou 1 sans deduire de causalite."],
+      });
+    }
+  }
   const levelLabels = locale === "en"
     ? ["", "Very low", "Low", "Moderate", "Good", "Excellent"]
     : ["", "Tres faible", "Faible", "Moderee", "Bonne", "Excellente"];

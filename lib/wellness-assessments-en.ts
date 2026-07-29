@@ -1,4 +1,4 @@
-import type {AssessmentKind,AssessmentQuestion} from "@/lib/wellness-assessments";
+import type {AssessmentKind,AssessmentQuestion} from "@/lib/wellness-assessments-v2";
 const days=["0 days","1–2 days","3–4 days","5–6 days","7 days"],reverse=["7 days","5–6 days","3–4 days","1–2 days","No days"];
 const titles:Record<string,string>={
  regular_meals:"Days with three main meals",fruit:"Days with at least 2 servings of fruit",vegetables:"Days with at least 3 servings of vegetables",diversity:"Days including all five food groups",hydration:"Days with at least 1.5–2 litres of water",sugary_drinks:"Days with sugary drinks",ultra_processed:"Days with ultra-processed foods",fried_food:"Days with fried foods",portion_size:"Usual portion size",balanced_breakfast:"Days with a balanced breakfast",protein_sources:"Days with a quality protein source at least twice",snacking:"Days with unplanned snacking",

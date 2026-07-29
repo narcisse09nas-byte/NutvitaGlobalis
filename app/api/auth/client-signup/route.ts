@@ -8,6 +8,7 @@ export async function POST(request: Request) {
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
     const fullName = String(body.full_name || "").trim();
+    const redirectTo = typeof body.redirect_to === "string" && body.redirect_to.startsWith("/") && !body.redirect_to.startsWith("//") ? body.redirect_to : "/";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 8 || fullName.length < 2) return NextResponse.json({ message: "Nom, email ou mot de passe invalide." }, { status: 400 });
     if (body.accepted_terms !== true || body.accepted_privacy !== true) return NextResponse.json({ message: "Acceptez les conditions generales et la politique de confidentialite." }, { status: 400 });
     const acceptedAt = new Date().toISOString();
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
     await sendSystemEmail(admin, "account_welcome", email, { name: fullName, action_url: `${process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin}/connexion` }, { user_id: created.data.user.id });
     return NextResponse.json({
       message: "Compte cree et active. Vous pouvez maintenant vous connecter.",
-      login_url: `/connexion?identifiant=${encodeURIComponent(email)}`,
+      login_url: `/connexion?identifiant=${encodeURIComponent(email)}&redirect=${encodeURIComponent(redirectTo)}`,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

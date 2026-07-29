@@ -21,7 +21,7 @@ export async function requireMaximusAccess(module?: string) {
   if (!hasSupabaseConfig()) redirect("/connexion?erreur=configuration");
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/connexion?redirect=/choisir-acces");
+  if (!user) redirect("/connexion?redirect=/api/access/open?service=maximus");
 
   const [{ data: admin }, { data: access }] = await Promise.all([
     supabase.from("admin_users").select("id,email,full_name,role,active").eq("id", user.id).eq("active", true).maybeSingle(),
@@ -29,7 +29,7 @@ export async function requireMaximusAccess(module?: string) {
   ]);
   const isSuperAdmin = admin?.role === "super_admin";
   if (!isSuperAdmin && !access) {
-    redirect("/choisir-acces?erreur=maximus_non_autorise");
+    redirect("/contact?objet=acces-maximus");
   }
   const allowedModules = isSuperAdmin ? undefined : modulesForAccess(
     Array.isArray(access!.units) && access!.units.length ? access!.units : [access!.unit],

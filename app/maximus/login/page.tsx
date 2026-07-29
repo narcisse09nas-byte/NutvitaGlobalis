@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation';
 export const metadata = { title: 'Connexion Maximus | NutVitaGlobalis' };
 
 export default async function MaximusLoginPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  if (hasSupabaseConfig()) redirect('/connexion?redirect=/choisir-acces');
+  if (hasSupabaseConfig()) redirect('/connexion?redirect=/api/access/open?service=maximus');
   const params = await searchParams;
   return <main className="grid min-h-screen place-items-center bg-[#123d32] p-5">
     <section className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">

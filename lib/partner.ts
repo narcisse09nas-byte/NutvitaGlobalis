@@ -17,7 +17,7 @@ export async function requirePartner() {
   if (!hasSupabaseConfig()) redirect("/connexion?erreur=configuration");
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/connexion?redirect=/choisir-acces");
+  if (!user) redirect("/connexion?redirect=/api/access/open?service=health&role=nutritionist");
   const [{ data: existing }, { data: admin }] = await Promise.all([
     supabase.from("dietitian_profiles").select("*").eq("candidate_id", user.id).eq("status", "active").maybeSingle(),
     supabase.from("admin_users").select("role,active,full_name").eq("id", user.id).maybeSingle(),
@@ -44,6 +44,6 @@ export async function requirePartner() {
     }, { onConflict: "candidate_id" }).select("*").single() : { data: null };
     profile = data;
   }
-  if (!profile) redirect("/choisir-acces?erreur=partenaire_non_autorise");
+  if (!profile) redirect("/recrutement-dieteticiens?acces=professionnel-requis");
   return { supabase, user, profile };
 }

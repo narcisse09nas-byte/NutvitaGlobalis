@@ -6,6 +6,7 @@ import LoginForm from "@/components/admin/LoginForm";
 import {hasLocalAdminMode,hasSupabaseConfig} from "@/lib/supabase/config";
 import {createLocalClient,localAdmin} from "@/lib/supabase/local";
 import {createClient} from "@/lib/supabase/server";
+import {redirect} from "next/navigation";
 
 export default async function AdminPage({searchParams}:{searchParams:Promise<Record<string,string|undefined>>}){
   const params=await searchParams;
@@ -17,9 +18,9 @@ export default async function AdminPage({searchParams}:{searchParams:Promise<Rec
   }
   if(!hasSupabaseConfig())return <LoginScreen setup/>;
   const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();
-  if(!user)return <LoginScreen unauthorized={params.unauthorized==='1'}/>;
+  if(!user)redirect(`/connexion?redirect=${encodeURIComponent("/api/access/open?service=administration&role=super_admin")}`);
   const {data:admin}=await supabase.from('admin_users').select('full_name,email').eq('id',user.id).eq('active',true).maybeSingle();
-  if(!admin)return <LoginScreen unauthorized/>;
+  if(!admin)redirect("/contact?objet=acces-administration");
   return <Dashboard supabase={supabase} admin={admin}/>;
 }
 

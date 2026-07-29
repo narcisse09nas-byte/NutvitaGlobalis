@@ -23,7 +23,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
   const [children, setChildren] = useState(initialChildren);
   const [activeSubscriptions,setActiveSubscriptions]=useState(subscriptions);
   const [measurements, setMeasurements] = useState(initialMeasurements);
-  const [selected, setSelected] = useState(initialChildren[0]?.id || "");
+  const [selected, setSelected] = useState(initialChildren.length === 1 ? initialChildren[0].id : "");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -141,7 +141,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
     </section>
 
     {children.length > 0 && <>
-      <section className="rounded-2xl border bg-white p-5"><p className="mb-3 text-sm font-black text-forest">{tx("S\u00e9lectionnez l\u2019enfant \u00e0 suivre","Select the child to monitor")}</p><div className="flex flex-wrap gap-3">{children.map(item => <button key={item.id} onClick={() => { setSelected(item.id); setProfileOpen(false); }} className={`rounded-full px-5 py-3 font-bold ${selected === item.id ? "bg-forest text-white" : "bg-white"}`}>{item.full_name}</button>)}</div></section>
+      <section className="rounded-2xl border bg-white p-5"><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-black text-forest">{tx("S\u00e9lectionnez l\u2019enfant \u00e0 suivre","Select the child to monitor")}</p><button type="button" onClick={() => setAddChildOpen(true)} className="btn-secondary px-4 py-2">{tx("Ajouter un enfant","Add a child")}</button></div><div className="flex flex-wrap gap-3">{children.map(item => <button key={item.id} onClick={() => { setSelected(item.id); setProfileOpen(false); }} className={`rounded-full px-5 py-3 font-bold ${selected === item.id ? "bg-forest text-white" : "bg-white"}`}>{item.full_name}</button>)}</div></section>
       {child && <section className="rounded-2xl border bg-white p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div><p className="text-xs font-bold uppercase text-leaf">{tx("Enfant selectionne","Selected child")}</p><h2 className="mt-1 text-2xl font-black">{child.full_name}</h2><p className="mt-1 text-sm text-slate-500">{new Date(child.birth_date).toLocaleDateString(locale==="en"?"en-GB":"fr-FR")} - {child.sex === "female" ? tx("Fille","Girl") : child.sex === "male" ? tx("Garcon","Boy") : tx("Sexe non precise","Sex not specified")}</p></div>

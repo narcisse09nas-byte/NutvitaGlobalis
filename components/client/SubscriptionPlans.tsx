@@ -49,10 +49,16 @@ export default function SubscriptionPlans({ plans, subscriptions, packs = [], ch
           const duration = Number(plan.duration_months || 12);
           const period = periodLabel(duration);
           const childPlan = plan.service_type === "child_growth";
-          const current = subscriptions.find(item => item.plan_id === plan.id && item.status === "active" && (!childPlan || item.child_id === selectedChild));
-          const isCurrent = Boolean(current);
+          const beneficiaryMatch = (item: Row) => !childPlan || item.child_id === selectedChild;
+          const sameService = subscriptions.filter(item => item.status === "active" && item.subscription_plans?.service_type === plan.service_type && beneficiaryMatch(item));
+          const current = sameService.find(item => item.plan_id === plan.id);
+          const basicActive = sameService.some(item => (item.subscription_plans?.tier || "").toLowerCase() === "basic");
+          const premiumActive = sameService.some(item => (item.subscription_plans?.tier || "").toLowerCase() === "premium");
+          const isPremium = plan.tier === "premium";
+          const blockedByPremium = !isPremium && premiumActive;
+          const actionLabel = current ? "\u00c9tendre gratuitement" : isPremium && basicActive ? "Passer \u00e0 Premium" : "Activer gratuitement";
           return (
-            <article key={plan.id} className={`rounded-3xl border bg-white p-6 ${plan.tier === "premium" ? "border-orange shadow-soft" : ""}`}>
+            <article key={plan.id} className={`rounded-3xl border p-6 ${blockedByPremium ? "border-slate-200 bg-slate-100 opacity-60" : "bg-white"} ${plan.tier === "premium" ? "border-orange shadow-soft" : ""}`}>
               <p className="text-xs font-bold uppercase text-leaf">{plan.tier === "premium" ? "Premium" : "Basic"} - {period}</p>
               <h2 className="mt-2 text-2xl font-black">{plan.name}</h2>
               <div className="my-5 grid gap-2 rounded-2xl bg-slate-50 p-4 text-sm">
@@ -63,8 +69,8 @@ export default function SubscriptionPlans({ plans, subscriptions, packs = [], ch
               </div>
               <ul className="my-5 grid gap-2 text-sm">{(plan.features || []).map((feature: string) => <li key={feature}>+ {feature}</li>)}</ul>
               {childPlan && <label className="mb-4 grid gap-2 text-sm font-bold">Beneficiaire<select value={selectedChild} onChange={event => setSelectedChild(event.target.value)} className="admin-input"><option value="">Ajouter ou choisir un enfant</option>{children.map(child => <option key={child.id} value={child.id}>{child.full_name}</option>)}</select></label>}
-              <button disabled={loading === plan.id || (childPlan && !selectedChild)} onClick={() => checkout(plan)} className="btn-primary w-full">
-                {loading === plan.id ? "Activation..." : isCurrent ? "Etendre gratuitement" : "Activer gratuitement"}
+              <button disabled={blockedByPremium || loading === plan.id || (childPlan && !selectedChild)} onClick={() => checkout(plan)} className="btn-primary w-full disabled:cursor-not-allowed disabled:bg-slate-300">
+                {blockedByPremium ? "D\u00e9j\u00e0 inclus dans Premium" : loading === plan.id ? "Activation..." : actionLabel}
               </button>
             </article>
           );

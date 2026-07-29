@@ -134,9 +134,11 @@ export async function middleware(request: NextRequest) {
     const allowed = sessionRule.services.includes(service || "") && sessionRule.roles.includes(role || "");
     if (!allowed) {
       if (localized.pathname.startsWith("/api/")) return NextResponse.json({ message: "Le mode de session actif ne permet pas cette action." }, { status: 403 });
-      const chooser = new URL("/choisir-acces", request.url);
-      chooser.searchParams.set("erreur", "mode_session_requis");
-      return NextResponse.redirect(chooser);
+      const opener = new URL("/api/access/open", request.url);
+      opener.searchParams.set("service", sessionRule.services[0]);
+      if (sessionRule.roles.length === 1) opener.searchParams.set("role", sessionRule.roles[0]);
+      opener.searchParams.set("return", localized.pathname);
+      return NextResponse.redirect(opener);
     }
   }
 

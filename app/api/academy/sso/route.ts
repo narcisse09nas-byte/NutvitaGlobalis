@@ -11,13 +11,13 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const role = url.searchParams.get("role") || "student";
   const identity = await getPlatformIdentity();
-  if (!identity?.supabase) return NextResponse.redirect(new URL("/connexion?redirect=/choisir-acces", url.origin));
+  if (!identity?.supabase) return NextResponse.redirect(new URL(`/connexion?redirect=${encodeURIComponent(`/api/access/open?service=academy&role=${role}`)}`, url.origin));
   if (!destinations[role] || !(await validateAccessChoice("academy", role))) {
-    return NextResponse.redirect(new URL("/choisir-acces?erreur=academy_non_autorise", url.origin));
+    return NextResponse.redirect(new URL("/formations?acces=formation-requise", url.origin));
   }
 
   const { data: { session } } = await identity.supabase.auth.getSession();
-  if (!session) return NextResponse.redirect(new URL("/connexion?redirect=/choisir-acces", url.origin));
+  if (!session) return NextResponse.redirect(new URL(`/connexion?redirect=${encodeURIComponent(`/api/access/open?service=academy&role=${role}`)}`, url.origin));
 
   const target = new URL("/academy/auth/platform", url.origin);
   target.hash = new URLSearchParams({

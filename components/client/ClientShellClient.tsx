@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowRightStartOnRectangleIcon, ChartBarIcon, ChatBubbleLeftRightIcon,
   ClipboardDocumentCheckIcon, ClipboardDocumentListIcon, CreditCardIcon,
-  DocumentCheckIcon, HomeIcon, KeyIcon, ShieldCheckIcon, SparklesIcon,
+  DocumentCheckIcon, HomeIcon, KeyIcon, LockClosedIcon, ShieldCheckIcon, SparklesIcon,
   UserCircleIcon, UserGroupIcon, VideoCameraIcon,
 } from "@heroicons/react/24/outline";
 import MedicalDisclaimer from "@/components/MedicalDisclaimer";
@@ -26,6 +26,7 @@ export default function ClientShellClient({ children, email, access, activeServi
     ["/espace-client/profil", "Mon profil", UserCircleIcon, true],
     ["/espace-client/securite", "Mot de passe", KeyIcon, true],
     ["/espace-client/confidentialite", "Confidentialite", ShieldCheckIcon, true],
+    ["/espace-client/ressources-premium", "Ressources premium", LockClosedIcon, access.premiumResources],
   ];
   const health: LinkItem[] = [
     ["/espace-client/dossier", "Mes parametres", ClipboardDocumentListIcon, access.health],
@@ -43,7 +44,7 @@ export default function ClientShellClient({ children, email, access, activeServi
     ["/espace-client/messages", "Messages", ChatBubbleLeftRightIcon, access.teleconsultation],
     ["/espace-client/appels", "Appels video", VideoCameraIcon, access.teleconsultation],
   ];
-  const commonPaths = ["/espace-client", "/espace-client/services", "/espace-client/abonnement", "/espace-client/profil", "/espace-client/securite", "/espace-client/confidentialite"];
+  const commonPaths = ["/espace-client", "/espace-client/services", "/espace-client/abonnement", "/espace-client/profil", "/espace-client/securite", "/espace-client/confidentialite", "/espace-client/ressources-premium"];
   const serviceLinks = commonPaths.includes(path) ? common : activeService === "health" ? health : activeService === "child_growth" ? childGrowth : activeService === "teleconsultation" ? teleconsultation : common;
   const healthMode = activeService === "health" || activeService === "child_growth";
 

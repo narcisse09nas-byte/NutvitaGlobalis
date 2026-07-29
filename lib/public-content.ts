@@ -87,8 +87,8 @@ export async function getTeleconseils() {
 export async function getPremiumResources() {
   const locale = await getCurrentLocale();
   if (!hasSupabaseConfig()) return null;
-  const { data } = await (await createClient()).from("ressources_premium").select("*").in("publication_locale_status", locale === "en" ? ["en", "both"] : ["fr", "both"]).eq("status", "published").order("created_at", { ascending: false });
-  return data?.map(item => ({ ...item, title: pickLocalized(item, "title", locale), description: pickLocalized(item, "description", locale) }));
+  const { data } = await (await createClient()).rpc("list_premium_resource_catalog");
+  return data?.map((item:any) => ({ ...item, title: pickLocalized(item, "title", locale), description: pickLocalized(item, "description", locale) }));
 }
 
 export async function getTestimonials() {

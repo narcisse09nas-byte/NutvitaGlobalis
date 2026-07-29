@@ -19,9 +19,11 @@ const labels: Record<AssessmentKind, { title: string; subtitle: string }> = {
 export default function WellnessQuestionnaires({
   onChange,
   compact = false,
+  locale = "fr",
 }: {
   onChange?: (bundle: WellnessAssessmentBundle) => void;
   compact?: boolean;
+  locale?: "fr"|"en";
 }) {
   const [active, setActive] = useState<AssessmentKind>("nutrition");
   const [answers, setAnswers] = useState<Record<AssessmentKind, AssessmentAnswer>>({ nutrition: {}, activity: {}, lifestyle: {} });

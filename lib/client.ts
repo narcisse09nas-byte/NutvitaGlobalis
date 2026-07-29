@@ -6,7 +6,7 @@ import {createLocalClient} from "@/lib/supabase/local";
 import {localClientUser} from "@/lib/local-seed";
 import {isPrincipalEmail} from "@/lib/platform-services";
 
-export type ClientEntitlements={health:boolean;childGrowth:boolean;teleconsultation:boolean};
+export type ClientEntitlements={health:boolean;childGrowth:boolean;teleconsultation:boolean;premiumResources:boolean};
 
 export async function requireClient(){
   if(hasLocalAdminMode()&&!hasSupabaseConfig()){
@@ -25,18 +25,20 @@ export async function requireClient(){
 export async function getClientEntitlements(supabase:any,userId:string):Promise<ClientEntitlements>{
   const authResult=typeof supabase.auth?.getUser==='function'?await supabase.auth.getUser():{data:{user:null}};
   const {data:admin}=await supabase.from('admin_users').select('role,active').eq('id',userId).maybeSingle();
-  if(isPrincipalEmail(authResult.data?.user?.email)||(admin?.active&&admin.role==='super_admin'))return{health:true,childGrowth:true,teleconsultation:true};
+  if(isPrincipalEmail(authResult.data?.user?.email)||(admin?.active&&admin.role==='super_admin'))return{health:true,childGrowth:true,teleconsultation:true,premiumResources:true};
   const now=Date.now();
   const [{data:subscriptions},{data:plans},{data:bookings}]=await Promise.all([
     supabase.from('subscriptions').select('*').eq('client_id',userId).eq('status','active'),
-    supabase.from('subscription_plans').select('id,service_type'),
+    supabase.from('subscription_plans').select('id,service_type,tier'),
     supabase.from('consultation_bookings').select('*').eq('client_id',userId),
   ]);
   const planTypes=new Map((plans||[]).map((plan:any)=>[plan.id,plan.service_type]));
+  const premiumPlanIds=new Set((plans||[]).filter((plan:any)=>plan.tier==='premium').map((plan:any)=>plan.id));
   const active=(subscriptions||[]).filter((item:any)=>!item.expires_at||+new Date(item.expires_at)>now);
   return{
     health:active.some((item:any)=>!item.child_id&&(planTypes.get(item.plan_id)==='health_tracking'||String(item.plan_id).includes('health'))),
     childGrowth:active.some((item:any)=>planTypes.get(item.plan_id)==='child_growth'||String(item.plan_id).includes('child-growth')),
+    premiumResources:active.some((item:any)=>premiumPlanIds.has(item.plan_id)),
     teleconsultation:(bookings||[]).some((item:any)=>{
       if(['cancelled','refunded'].includes(item.status))return false;
       if(item.access_expires_at)return +new Date(item.access_expires_at)>now;

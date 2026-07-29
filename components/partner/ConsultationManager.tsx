@@ -6,7 +6,7 @@ import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/client";
 import {ageInMonths,calculateIycf,calculateMddw,childFoodItems,mddwFoodItems} from "@/lib/dietary-diversity";
 import LabParameterEditor, { defaultLabParameters, serializeLabParameters, type LabParameter } from "@/components/health/LabParameterEditor";
-import RegionalMealPlanner from "@/components/partner/RegionalMealPlanner";
+import RegionalMealPlanner from "@/components/partner/RegionalMealPlannerI18n";
 import WellnessQuestionnaires from "@/components/health/WellnessQuestionnaires";
 import type { WellnessAssessmentBundle } from "@/lib/wellness-assessments";
 
@@ -45,7 +45,8 @@ function parseArray(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
 
-export default function ConsultationManager({ initial, clients, partnerId, dietitians = [] }: { initial: Row[]; clients: Row[]; partnerId: string; dietitians?:Row[] }) {
+export default function ConsultationManager({ initial, clients, partnerId, dietitians = [], locale="fr" }: { initial: Row[]; clients: Row[]; partnerId: string; dietitians?:Row[]; locale?:"fr"|"en" }) {
+  const tx=(fr:string,en:string)=>locale==="en"?en:fr;
   const [rows, setRows] = useState(initial);
   const [message, setMessage] = useState("");
   const [clientId, setClientId] = useState("");
@@ -170,12 +171,12 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
       <section className="rounded-3xl border border-forest/10 bg-white p-6 shadow-soft">
         <Step number="3" title="Résultats biologiques et sanguins" />
         <p className="mt-3 text-sm leading-6 text-slate-600">Saisissez les résultats disponibles avec l’unité et les limites de référence propres au laboratoire. Ces informations seront intégrées dans l’analyse préparatoire.</p>
-        <div className="mt-5"><LabParameterEditor items={labParameters} onChange={setLabParameters}/></div>
+        <div className="mt-5"><LabParameterEditor items={labParameters} onChange={setLabParameters} locale={locale}/></div>
       </section>
 
 <section className="grid gap-6">
         <div className="rounded-2xl border bg-white p-6"><Step number="4" title="Alimentation, activite physique et mode de vie" /><p className="mt-3 text-sm text-slate-500">Questionnaires structures sur les 7 derniers jours. Les scores et signaux prioritaires alimentent l'analyse preparatoire.</p></div>
-        <WellnessQuestionnaires onChange={setWellnessAssessment}/>
+        <WellnessQuestionnaires onChange={setWellnessAssessment} locale={locale}/>
         <div className="rounded-2xl border bg-white p-6"><h3 className="font-black">Estimation energetique sur 24 heures</h3><div className="mt-3 grid gap-3 md:grid-cols-3"><MiniNumber name="breakfast_kcal" label="Petit-dejeuner (kcal)"/><MiniNumber name="lunch_kcal" label="Dejeuner (kcal)"/><MiniNumber name="dinner_kcal" label="Diner (kcal)"/><MiniNumber name="snacks_kcal" label="Collations (kcal)"/><MiniNumber name="drinks_kcal" label="Boissons (kcal)"/><MiniNumber name="estimated_need_kcal" label="Besoin estime (kcal/j)"/></div></div>
       </section>
 
@@ -195,7 +196,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
 
       <section className="rounded-2xl border bg-white p-6">
         <Step number="7" title="Plan pour atteindre les objectifs" />
-        <div className="mt-5 grid gap-4 md:grid-cols-2"><Area name="actions" label="Actions prioritaires"/><label className="grid gap-2 text-sm font-bold">Plan alimentaire<textarea name="meal_plan" rows={8} value={mealPlan} onChange={event=>setMealPlan(event.target.value)} className="admin-input"/></label><Area name="monitoring" label="Mesures et rythme de suivi"/><Area name="education" label="Education nutritionnelle et conseils"/></div><div className="mt-6"><RegionalMealPlanner onUsePlan={setMealPlan}/></div>
+        <div className="mt-5 grid gap-4 md:grid-cols-2"><Area name="actions" label="Actions prioritaires"/><label className="grid gap-2 text-sm font-bold">Plan alimentaire<textarea name="meal_plan" rows={8} value={mealPlan} onChange={event=>setMealPlan(event.target.value)} className="admin-input"/></label><Area name="monitoring" label="Mesures et rythme de suivi"/><Area name="education" label="Education nutritionnelle et conseils"/></div><div className="mt-6"><RegionalMealPlanner onUsePlan={setMealPlan} locale={locale}/></div>
       </section>
 
       <section className="rounded-2xl border bg-white p-6">
@@ -217,10 +218,10 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
 
     <section className="rounded-2xl border bg-white p-6">
       <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-black">Registre des consultations</h2><p className="text-sm text-slate-500">{registry.length} consultation(s)</p></div><button type="button" onClick={() => window.print()} className="btn-secondary px-4 py-2"><PrinterIcon className="mr-2 h-4"/>Imprimer le registre</button></div>
-      <div className="mt-5 grid gap-3">{registry.map(row => <article key={row.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-slate-50 p-4"><div><b>{row.client_profiles?.full_name || "Client"} - {row.reason || row.pack_type}</b><p className="mt-1 text-sm text-slate-500">{new Date(row.finalized_at || row.scheduled_at).toLocaleString("fr-FR")} - {row.pack_type || "general"}</p></div><button type="button" onClick={() => setSelected(row)} className="btn-secondary px-4 py-2"><EyeIcon className="mr-2 h-4"/>Voir</button></article>)}{!registry.length && <p className="text-slate-400">Aucune consultation.</p>}</div>
+      <div className="mt-5 grid gap-3">{registry.map(row => <article key={row.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-slate-50 p-4"><div><b>{row.client_profiles?.full_name || "Client"} - {row.reason || row.pack_type}</b><p className="mt-1 text-sm text-slate-500">{new Date(row.finalized_at || row.scheduled_at).toLocaleString(locale==="en"?"en-GB":"fr-FR")} - {row.pack_type || "general"}</p></div><button type="button" onClick={() => setSelected(row)} className="btn-secondary px-4 py-2"><EyeIcon className="mr-2 h-4"/>Voir</button></article>)}{!registry.length && <p className="text-slate-400">Aucune consultation.</p>}</div>
     </section>
 
-    {selected && <ConsultationDetails row={selected} close={() => setSelected(null)} openDocument={openDocument}/>}
+    {selected && <ConsultationDetails row={selected} close={() => setSelected(null)} openDocument={openDocument} locale={locale}/>}
   </div>;
 }
 
@@ -236,10 +237,10 @@ function Area({ name, label }: { name: string; label: string }) {
 function MiniNumber({name,label,step="1"}:{name:string;label:string;step?:string}){return <label className="grid gap-2 text-sm font-bold">{label}<input name={name} type="number" min="0" step={step} className="admin-input"/></label>}
 function MiniSelect({name,label}:{name:string;label:string}){return <label className="grid gap-2 text-sm font-bold">{label}<select name={name} className="admin-input"><option value="no">Non</option><option value="yes">Oui</option></select></label>}
 function AnalysisList({title,items}:{title:string;items?:string[]}){return <section className="rounded-xl bg-slate-50 p-4"><h3 className="font-black">{title}</h3><ul className="mt-2 grid gap-2 text-sm text-slate-600">{(items||[]).map((item,index)=><li key={`${item}-${index}`}>- {item}</li>)}{!items?.length&&<li>-</li>}</ul></section>}
-function ConsultationDetails({ row, close, openDocument }: { row: Row; close: () => void; openDocument: (path?: string) => void }) {
+function ConsultationDetails({ row, close, openDocument, locale }: { row: Row; close: () => void; openDocument: (path?: string) => void; locale:"fr"|"en" }) {
   const goals = parseArray(row.goals);
-  return <div className="nvg-modal-backdrop fixed inset-0 z-[100] overflow-y-auto p-4"><article className="nvg-modal-panel mx-auto my-8 max-w-4xl bg-white p-7 print:my-0 print:max-w-none"><div className="flex justify-between gap-4"><div><p className="text-xs font-bold uppercase text-leaf">Consultation finalisee</p><h2 className="text-2xl font-black">{row.client_profiles?.full_name || "Client"}</h2><p className="text-sm text-slate-500">{new Date(row.finalized_at || row.scheduled_at).toLocaleString("fr-FR")}</p></div><button type="button" onClick={close} aria-label="Fermer"><XMarkIcon className="h-7"/></button></div>
-    <div className="mt-7 grid gap-5 md:grid-cols-2"><Detail title="Plaintes" text={`${parseArray(row.complaints).join(", ")} ${row.complaint_notes || ""}`}/><Detail title="Objectifs" text={goals.map((item: any) => `${item.label}: ${item.target || "-"} ${item.unit || ""}`).join("\n")}/><Detail title="Evaluations" text={row.clinical_assessments?JSON.stringify(row.clinical_assessments,null,2):"-"}/><Detail title="Plan" text={Object.values(row.care_plan || {}).filter(Boolean).join("\n")}/><Detail title="Prochain rendez-vous" text={row.next_appointment_at ? new Date(row.next_appointment_at).toLocaleString("fr-FR") : "Non programme"}/><Detail title="Examens" text={parseArray(row.prescription_items).join("\n")}/></div>
+  return <div className="nvg-modal-backdrop fixed inset-0 z-[100] overflow-y-auto p-4"><article className="nvg-modal-panel mx-auto my-8 max-w-4xl bg-white p-7 print:my-0 print:max-w-none"><div className="flex justify-between gap-4"><div><p className="text-xs font-bold uppercase text-leaf">Consultation finalisee</p><h2 className="text-2xl font-black">{row.client_profiles?.full_name || "Client"}</h2><p className="text-sm text-slate-500">{new Date(row.finalized_at || row.scheduled_at).toLocaleString(locale==="en"?"en-GB":"fr-FR")}</p></div><button type="button" onClick={close} aria-label="Fermer"><XMarkIcon className="h-7"/></button></div>
+    <div className="mt-7 grid gap-5 md:grid-cols-2"><Detail title="Plaintes" text={`${parseArray(row.complaints).join(", ")} ${row.complaint_notes || ""}`}/><Detail title="Objectifs" text={goals.map((item: any) => `${item.label}: ${item.target || "-"} ${item.unit || ""}`).join("\n")}/><Detail title="Evaluations" text={row.clinical_assessments?JSON.stringify(row.clinical_assessments,null,2):"-"}/><Detail title="Plan" text={Object.values(row.care_plan || {}).filter(Boolean).join("\n")}/><Detail title="Prochain rendez-vous" text={row.next_appointment_at ? new Date(row.next_appointment_at).toLocaleString(locale==="en"?"en-GB":"fr-FR") : "Non programme"}/><Detail title="Examens" text={parseArray(row.prescription_items).join("\n")}/></div>
     <PrintableAccessQr email={row.client_profiles?.email}/>
     <div className="mt-7 flex flex-wrap gap-3 print:hidden"><button type="button" onClick={() => window.print()} className="btn-secondary"><PrinterIcon className="mr-2 h-4"/>Imprimer la fiche</button><button type="button" onClick={() => openDocument(row.consultation_pdf_path)} className="btn-primary">Compte rendu PDF</button>{row.prescription_pdf_path && <button type="button" onClick={() => openDocument(row.prescription_pdf_path)} className="btn-secondary">Ordonnance PDF</button>}</div>
   </article></div>;

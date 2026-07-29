@@ -31,7 +31,7 @@ export default function ServiceCatalog({ plans, packs, courses, children, subscr
       <p className="text-xs font-bold uppercase text-leaf">{item.premium ? "Premium" : "Standard"}</p>
       <h2 className="mt-2 text-2xl font-black">{item.title}</h2>
       <p className="mt-3 rounded-full bg-mint px-4 py-2 text-xs font-black text-forest">{item.billingLabel}</p>
-      <div className="my-5 grid gap-2 rounded-xl bg-slate-50 p-4 text-sm"><Line label="Prix actuel" value="Gratuit temporairement" strong/><p className="text-xs text-slate-500">Paiements en stand-by pendant la finalisation juridique de l'entreprise.</p></div>
+      <div className="my-5 grid gap-2 rounded-xl bg-slate-50 p-4 text-sm"><Line label="Prix actuel" value="Prix administrable" strong/><p className="text-xs text-slate-500">Paiements en stand-by pendant la finalisation juridique de l'entreprise.</p></div>
       {active&&<p className="mb-4 rounded-xl bg-mint p-3 text-sm font-bold text-forest">Abonnement actif jusqu'au {active.expires_at?new Date(active.expires_at).toLocaleDateString("fr-FR"):"renouvellement manuel"}. Un nouveau paiement prolongera automatiquement cette date.</p>}
       <ul className="my-5 grid gap-2 text-sm">{item.features.map((feature:string)=><li key={feature}>+ {feature}</li>)}</ul>
       {item.group === "child_growth" && <div className="mb-4">
@@ -41,7 +41,7 @@ export default function ServiceCatalog({ plans, packs, courses, children, subscr
           </select>
         </label> : <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Ajoutez d abord l enfant dans l espace Croissance enfant. Chaque abonnement doit être associé à un enfant précis.</p>}
       </div>}
-      <button onClick={()=>checkout(item)} disabled={item.group==="child_growth"&&!selectedChild} className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50">{item.group==="child_growth"&&!selectedChild?"Ajouter un enfant avant activation":active?"Etendre gratuitement":"Activer gratuitement"}</button>
+      <button onClick={()=>checkout(item)} disabled={item.group==="child_growth"&&!selectedChild} className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50">{item.group==="child_growth"&&!selectedChild?"Ajouter un enfant avant activation":active?"Etendre le service":"Acheter"}</button>
     </article>})}</div>
     {!rows.length && <p className="rounded-2xl bg-white p-8 text-slate-500">Aucun service disponible dans cette categorie.</p>}
   </div>;

@@ -57,6 +57,10 @@ import CashDepositsManagement from './specialized/CashDepositsManagement';
 import CommunicationCenter from '@/components/communications/CommunicationCenter';
 import MaximusUserManagement from './specialized/MaximusUserManagement';
 import MaximusMeetingCenter from './specialized/MaximusMeetingCenter';
+import CateringManagement from './specialized/CateringManagement';
+import TreasuryManagement from './specialized/TreasuryManagement';
+import TreasuryFinancialReports from './specialized/TreasuryFinancialReports';
+import InternalTransfers from './specialized/InternalTransfers';
 
 const FinancialDashboard = dynamic(() => import('./specialized/FinancialDashboard'), {
   loading: () => <div className="grid h-72 place-items-center text-sm text-slate-500">Loading financial dashboard...</div>,
@@ -78,7 +82,7 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
   const groups = useMemo(() => {
     const result = new Map<string, MaximusModule[]>();
     maximusModules.filter(item => item.group !== 'Restauration' && (!allowedModules || allowedModules.includes(item.slug))).forEach(item => result.set(item.group, [...(result.get(item.group) || []), item]));
-    const financeOrder = ['finance/dashboard','finance/reports','finance/budget-lines','finance/requests','finance/payment-initiation','finance/my-payments','finance/cash-supply-requests','finance/cost-estimations','finance/payments','finance/payment-register','finance/operational-advances','finance/petty-cash','finance/bank-transfers','finance/cash-deposits'];
+    const financeOrder = ['finance/dashboard','finance/reports','finance/treasury-accounts','finance/internal-transfers','finance/settlements','finance/budget-lines','finance/requests','finance/payment-initiation','finance/my-payments','finance/cash-supply-requests','finance/cost-estimations','finance/payments','finance/payment-register','finance/operational-advances','finance/petty-cash','finance/bank-transfers','finance/cash-deposits'];
     return Array.from(result).map(([group, items]) => [group, group === 'Finance' ? [...items].sort((a, b) => financeOrder.indexOf(a.slug) - financeOrder.indexOf(b.slug)) : items] as const);
   }, [allowedModules]);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
@@ -99,6 +103,7 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
       <nav className="p-3">
         <Link href="/maximus" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${!module && !workflowView ? 'bg-[#ef7f3b] text-white' : 'text-white/75 hover:bg-white/10'}`}><LayoutDashboard className="h-5" />Tableau de bord</Link>
         {isSuperAdmin && <Link href="/maximus/workflows" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${workflowView ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><GitBranch className="h-5" />Flux centralisés</Link>}
+        <Link href="/maximus/finance/internal-transfers" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'finance/internal-transfers' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><Wallet className="h-5" />Transferts internes</Link>
         {(!allowedModules || allowedModules.includes('communications/messages')) && <Link href="/maximus/communications/messages" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/messages' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />Messagerie Maximus</Link>}
         {(!allowedModules || allowedModules.includes('communications/meetings')) && <Link href="/maximus/communications/meetings" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/meetings' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />Réunions Maximus</Link>}
         <Link href="/signatures" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white/75 hover:bg-white/10"><FileSignature className="h-5" />Signatures électroniques</Link>
@@ -125,6 +130,13 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
 }
 
 function ModuleRenderer({ module }: { module: MaximusModule }) {
+  if (module.slug === 'finance/reports') return <TreasuryFinancialReports />;
+  if (module.slug === 'finance/internal-transfers') return <InternalTransfers />;
+  if (module.slug === 'finance/treasury-accounts') return <TreasuryManagement mode="accounts" />;
+  if (module.slug === 'finance/settlements') return <TreasuryManagement mode="settlements" />;
+  if (module.slug === 'sales/public-menus') return <CateringManagement mode="menus" />;
+  if (module.slug === 'sales/catering-locations') return <CateringManagement mode="locations" />;
+  if (module.slug === 'sales/customer-orders') return <CateringManagement mode="orders" />;
   if (module.slug === 'administration/users') return <MaximusUserManagement />;
   if (module.slug === 'communications/messages') return <CommunicationCenter scope="maximus" />;
   if (module.slug === 'communications/meetings') return <MaximusMeetingCenter />;

@@ -100,25 +100,20 @@ export async function getTestimonials() {
 export async function getHomepage() {
   const locale = await getCurrentLocale();
   const marketingServices = locale === "en" ? [
-    { title: "Certified training", text: "Build practical skills through certification pathways designed by nutrition and health experts." },
-    { title: "Nutrition tele-counselling", text: "Connect remotely with qualified professionals for confidential guidance tailored to your daily needs." },
-    { title: "Acute malnutrition care support application (Nutritrack)", text: "Digitize screening, admission, clinical follow-up, stock management and reporting for acute malnutrition programmes." },
-    { title: "Food security and nutrition survey support application.", text: "Design questionnaires, collect reliable data and rapidly turn findings into decision-ready analysis." },
-    { title: "Project, programme and portfolio management support application", text: "Plan, coordinate and manage projects, programmes and portfolios with clear visibility over activities, resources and results." },
-    { title: "Personalized health monitoring application for children (growth monitoring) and adults.", text: "Monitor child growth and adult health indicators through secure, accessible tools tailored to each care journey." },
+    { title: "Health services", text: "In-person or online dietetic and nutrition consultations, autonomous health monitoring and child growth monitoring." },
+    { title: "Support applications", text: "Applications for acute malnutrition care, food security and nutrition surveys, and project, programme and portfolio management." },
+    { title: "Certified training", text: "Practical, assessed certification pathways designed by nutrition, health and management experts." },
+    { title: "Catering service", text: "Browse menus available in your city and order healthy meals for delivery." },
   ] : [
-    { title: "Formations certifiantes", text: "Renforcez vos competences avec des parcours pratiques, certifiants et concus par des experts de la nutrition et de la sante." },
-    { title: "Teleconseils nutritionnels", text: "Accedez a distance a des professionnels qualifies pour obtenir une orientation personnalisee, confidentielle et adaptee a votre quotidien." },
-    { title: "Application de support a la prise en charge de la malnutrition aigue (Nutritrack)", text: "Digitalisez le depistage, l admission, le suivi clinique, les stocks et le reporting des programmes de prise en charge de la malnutrition aigue." },
-    { title: "Application de Support aux enquetes de securite alimentaire et nutrition.", text: "Concevez vos questionnaires, collectez des donnees fiables et transformez rapidement les resultats en analyses utiles a la decision." },
-    { title: "Application de support a la gestion des projets, programmes et portefeuilles", text: "Planifiez, coordonnez et pilotez vos projets, programmes et portefeuilles avec une vision claire des activites, ressources et resultats." },
-    { title: "Application de Suivi sante personnalise Pour enfants (suivi de la croissance) et adultes.", text: "Suivez la croissance des enfants et les indicateurs de sante des adultes grace a des outils simples, securises et adaptes a chaque parcours." },
-  ];
-  if (!hasSupabaseConfig()) return { services: marketingServices };
+    { title: "Suivi santé", text: "Consultations diététiques et nutritionnelles en présentiel ou en ligne, suivi santé autonome et suivi de la croissance de l’enfant." },
+    { title: "Applications de support", text: "Applications dédiées à la malnutrition aiguë, aux enquêtes et à la gestion de projets, programmes et portefeuilles." },
+    { title: "Formations certifiantes", text: "Parcours pratiques, évalués et certifiants conçus par des experts." },
+    { title: "Service de restauration", text: "Consultez les menus disponibles dans votre ville et commandez des repas sains avec livraison." },
+  ];  if (!hasSupabaseConfig()) return { services: marketingServices };
   const { data } = await (await createClient()).from("homepage_settings").select("*").eq("id", 1).maybeSingle();
   if (!data) return { services: marketingServices };
   const storedServices = locale === "en" && Array.isArray(data.services_en) ? data.services_en : locale === "fr" && Array.isArray(data.services) ? data.services : [];
-  return repairContent({ ...data, hero_title: pickLocalized(data, "hero_title", locale), slogan: pickLocalized(data, "slogan", locale), presentation: pickLocalized(data, "presentation", locale), primary_button_label: pickLocalized(data, "primary_button_label", locale), secondary_button_label: pickLocalized(data, "secondary_button_label", locale), newsletter_title: pickLocalized(data, "newsletter_title", locale), newsletter_text: pickLocalized(data, "newsletter_text", locale), services: storedServices.length >= 6 ? storedServices : marketingServices });
+  return repairContent({ ...data, hero_title: pickLocalized(data, "hero_title", locale), slogan: pickLocalized(data, "slogan", locale), presentation: pickLocalized(data, "presentation", locale), primary_button_label: pickLocalized(data, "primary_button_label", locale), secondary_button_label: pickLocalized(data, "secondary_button_label", locale), newsletter_title: pickLocalized(data, "newsletter_title", locale), newsletter_text: pickLocalized(data, "newsletter_text", locale), services: storedServices.length >= 4 ? storedServices : marketingServices });
 }
 export async function getHomepageCommunity() {
   const locale = await getCurrentLocale();

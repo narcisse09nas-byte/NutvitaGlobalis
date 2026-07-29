@@ -14,9 +14,9 @@ const en = {
   lifestyle:["NutVita™ Lifestyle Score","Sleep, stress, behaviours and well-being"],
 } satisfies Record<AssessmentKind,[string,string]>;
 
-export default function WellnessQuestionnairesV2({onChange,compact=false,locale="fr"}:{onChange?:(bundle:WellnessAssessmentBundle)=>void;compact?:boolean;locale?:"fr"|"en"}) {
+export default function WellnessQuestionnairesV2({onChange,compact=false,locale="fr",initialAnswers}:{onChange?:(bundle:WellnessAssessmentBundle)=>void;compact?:boolean;locale?:"fr"|"en";initialAnswers?:Record<AssessmentKind,AssessmentAnswer>}) {
   const [active,setActive]=useState<AssessmentKind>("nutrition");
-  const [answers,setAnswers]=useState<Record<AssessmentKind,AssessmentAnswer>>({nutrition:{},activity:{},lifestyle:{}});
+  const [answers,setAnswers]=useState<Record<AssessmentKind,AssessmentAnswer>>(()=>initialAnswers||{nutrition:{},activity:{},lifestyle:{}});
   const bundle=useMemo(()=>buildAssessmentBundle(answers),[answers]);
   const labels=locale==="en"?en:fr;
   const tx=(a:string,b:string)=>locale==="en"?b:a;

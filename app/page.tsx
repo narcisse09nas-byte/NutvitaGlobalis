@@ -100,7 +100,7 @@ export default async function Home() {
         <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {settings.services.map((service: { title: string; text: string }, index: number) => <article key={`${service.title}-${index}`} className="card border-t-4 border-t-leaf p-7">
             <span className="text-xs font-black uppercase tracking-[.18em] text-orange">{String(index + 1).padStart(2, "0")}</span>
-            <h3 className="mt-4 text-2xl font-black text-forest">{service.title}</h3><p className="mt-3 leading-7 text-slate-600">{service.text}</p><Link href={localizedPath(community.locale, ["/formations","/teleconseils","/nutritrack","/surveys","/op-management","/suivi-sante"][index] || "/services")} className="mt-5 inline-flex font-black text-leaf">{english ? "Discover the solution" : "Decouvrir la solution"} &rarr;</Link>
+            <h3 className="mt-4 text-2xl font-black text-forest">{service.title}</h3><p className="mt-3 leading-7 text-slate-600">{service.text}</p><Link href={localizedPath(community.locale, ["/suivi-sante","/services","/formations","/restauration"][index] || "/services")} className="mt-5 inline-flex font-black text-leaf">{english ? "Discover the solution" : "Decouvrir la solution"} &rarr;</Link>
           </article>)}
         </div>
       </div>

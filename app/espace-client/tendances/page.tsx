@@ -1,5 +1,5 @@
 import ClientShell from "@/components/client/ClientShell";
-import HealthTrendsDashboard from "@/components/client/HealthTrendsDashboard";
+import HealthTrendsDashboard from "@/components/client/HealthTrendsDashboardV2";
 import { requireHealthAccess } from "@/lib/client";
 import {getCurrentLocale} from "@/lib/i18n-server";
 export default async function TrendsPage(){

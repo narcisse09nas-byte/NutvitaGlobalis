@@ -2,9 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import CheckoutForm from "@/components/checkout/CheckoutForm";
 import TeleconsultationConsent from "@/components/client/TeleconsultationConsent";
-import { formatUsd } from "@/lib/currency";
+
 import { createClient } from "@/lib/supabase/server";
-import { priceBreakdown } from "@/lib/taxes";
+import { getApplicableTax, priceBreakdown } from "@/lib/taxes";
 import {getCurrentLocale} from "@/lib/i18n-server";
 
 export const metadata = { title: "Paiement securise" };
@@ -22,8 +22,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
   const returnUrl = `/checkout?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}${childId ? `&child_id=${encodeURIComponent(childId)}` : ""}`;
   if (!user) redirect(`/connexion?redirect=${encodeURIComponent(returnUrl)}`);
 
-  const { data: profile } = await supabase.from("client_profiles").select("*").eq("id", user.id).maybeSingle();
-  if (!profile) redirect(`/inscription?redirect=${encodeURIComponent(returnUrl)}`);
+  const { data: storedProfile } = await supabase.from("client_profiles").select("*").eq("id", user.id).maybeSingle();
+  const profile = storedProfile || { full_name: String(user.user_metadata?.full_name || user.email || ""), country_code: null, whatsapp_phone: null, phone: null, city: null, country: null };
 
   let product: { name: string; priceXof: number } | null = null;
   let teleconsultationConsent = false;
@@ -50,7 +50,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
 
   if (!product) notFound();
 
-  const totals = priceBreakdown(0, 0);
+  const tax = await getApplicableTax(supabase as any, profile.country_code, type as "subscription"|"formation"|"consultation");
+  const totals = priceBreakdown(product.priceXof, Number(tax.rate || 0));
 
   return <main className="min-h-screen bg-slate-100 py-12">
     <div className="container-site max-w-4xl">
@@ -60,9 +61,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
           <p className="text-xs font-bold uppercase tracking-widest text-leaf">{tx("Commande","Order")}</p>
           <h1 className="mt-3 text-3xl font-black">{product.name}</h1>
           <div className="mt-7 grid gap-3 border-y py-6">
-            <Line label={tx("Prix temporaire","Temporary price")} value={tx("Gratuit","Free")} />
-            <Line label={tx("Taxe","Tax")} value={formatUsd(totals.taxAmount)} />
-            <Line label={tx("Total actuel","Current total")} value={formatUsd(totals.totalIncludingTax)} strong />
+            <Line label={tx("Prix hors taxe","Price excluding tax")} value={`${totals.priceExcludingTax.toLocaleString("fr-FR")} FCFA`} />
+            <Line label={`${tx("Taxe","Tax")} (${totals.taxRate}%)`} value={`${totals.taxAmount.toLocaleString("fr-FR")} FCFA`} />
+            <Line label={tx("Total","Total")} value={`${totals.totalIncludingTax.toLocaleString("fr-FR")} FCFA`} strong />
           </div>
           {type === "consultation" && <>
             <p className="mt-5 rounded-xl bg-mint p-4 text-sm text-forest"><b>{tx("Validite : 1 an renouvelable.","Validity: renewable for 1 year.")}</b> {tx("Chat securise, suivi personnalise et teleconsultations video avec un expert inclus selon le pack choisi.","Secure chat, personalized follow-up and expert video consultations are included according to the selected pack.")}</p>
@@ -76,7 +77,6 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
         </section>
         <aside className="h-fit rounded-3xl bg-white p-7">
           <CheckoutForm type={type as any} id={id} childId={childId} disabled={type === "consultation" && !teleconsultationConsent} locale={locale}/>
-           <p className="mt-5 text-xs leading-5 text-slate-400">{tx("Activation gratuite temporaire pendant la mise en place des documents juridiques et des services de paiement. Les conditions commerciales definitives seront publiees avant toute facturation.","Temporary free activation while legal documents and payment services are being set up. Final commercial terms will be published before any billing.")}</p>
         </aside>
       </div>
     </div>

@@ -44,8 +44,11 @@ export default function ClientShellClient({ children, email, access, activeServi
     ["/espace-client/messages", "Messages", ChatBubbleLeftRightIcon, access.teleconsultation],
     ["/espace-client/appels", "Appels video", VideoCameraIcon, access.teleconsultation],
   ];
+  const catering: LinkItem[] = [
+    ["/restauration/commander", "Commander un repas", CreditCardIcon, true],
+  ];
   const commonPaths = ["/espace-client", "/espace-client/services", "/espace-client/abonnement", "/espace-client/profil", "/espace-client/securite", "/espace-client/confidentialite", "/espace-client/ressources-premium"];
-  const serviceLinks = commonPaths.includes(path) ? common : activeService === "health" ? health : activeService === "child_growth" ? childGrowth : activeService === "teleconsultation" ? teleconsultation : common;
+  const serviceLinks = commonPaths.includes(path) ? common : activeService === "health" ? health : activeService === "child_growth" ? childGrowth : activeService === "teleconsultation" ? teleconsultation : activeService === "catering" ? catering : common;
   const healthMode = activeService === "health" || activeService === "child_growth";
 
   async function logout() {
@@ -56,8 +59,8 @@ export default function ClientShellClient({ children, email, access, activeServi
 
   return <div className="min-h-screen bg-slate-100">
     <header className="border-b bg-white"><div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5">
-      <Link href="/espace-client" className="text-xl font-black text-forest">NutVita<span className="text-orange">{activeService === "health" ? "Sante" : activeService === "child_growth" ? "Croissance" : activeService === "teleconsultation" ? "Teleconseils" : "Client"}</span></Link>
-      <div className="flex items-center gap-4"><LanguageSwitcher compact/><span className="hidden text-sm text-slate-500 sm:block">{email}</span><button onClick={logout} className="flex gap-2 text-sm font-bold"><ArrowRightStartOnRectangleIcon className="h-5"/>Deconnexion</button></div>
+      <Link href="/espace-client" className="text-xl font-black text-forest">NutVita<span className="text-orange">{activeService === "health" ? "Sante" : activeService === "child_growth" ? "Croissance" : activeService === "teleconsultation" ? "Consultations" : activeService === "catering" ? "Restauration" : "Client"}</span></Link>
+      <div className="flex items-center gap-3"><Link href="/" className="rounded-xl border px-3 py-2 text-sm font-black text-forest hover:bg-mint">Page principale</Link><LanguageSwitcher compact/><span className="hidden text-sm text-slate-500 sm:block">{email}</span><button onClick={logout} className="flex gap-2 text-sm font-bold"><ArrowRightStartOnRectangleIcon className="h-5"/>Deconnexion</button></div>
     </div></header>
     {healthMode && <MedicalDisclaimer/>}
     <div className="mx-auto grid max-w-7xl gap-7 px-5 py-8 lg:grid-cols-[270px_1fr]">

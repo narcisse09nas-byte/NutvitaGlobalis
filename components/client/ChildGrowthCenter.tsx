@@ -120,7 +120,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
   const savedAnalysis=analyses.find(item=>item.child_id===selected),childAlerts=alerts.filter(item=>item.child_id===selected),childReports=reports.filter(item=>item.child_id===selected);
   return <div className="grid gap-7">
     {message && <p className="rounded-xl bg-mint p-4 font-bold text-forest">{message}</p>}
-    <section className="rounded-2xl border bg-white p-6">
+    {addChildOpen && <section className="rounded-2xl border bg-white p-6">
       <h2 className="text-xl font-black">{tx("Ajouter un enfant","Add a child")}</h2>
       <form onSubmit={addChild} className="mt-5 grid gap-4 md:grid-cols-3">
         <Field name="full_name" label={tx("Nom de l'enfant","Child's full name")} required />
@@ -138,7 +138,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
         <Area name="allergies" label={tx("Allergies","Allergies")} />
         <button className="btn-primary self-end md:col-span-3 md:justify-self-start">{tx("Ajouter l'enfant","Add child")}</button>
       </form>
-    </section>
+    </section>}
 
     {children.length > 0 && <>
       <section className="rounded-2xl border bg-white p-5"><div className="mb-3 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-black text-forest">{tx("S\u00e9lectionnez l\u2019enfant \u00e0 suivre","Select the child to monitor")}</p><button type="button" onClick={() => setAddChildOpen(true)} className="btn-secondary px-4 py-2">{tx("Ajouter un enfant","Add a child")}</button></div><div className="flex flex-wrap gap-3">{children.map(item => <button key={item.id} onClick={() => { setSelected(item.id); setProfileOpen(false); }} className={`rounded-full px-5 py-3 font-bold ${selected === item.id ? "bg-forest text-white" : "bg-white"}`}>{item.full_name}</button>)}</div></section>
@@ -162,8 +162,8 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
       </section>}
       {child && !subscription && <section className="rounded-2xl border-2 border-orange bg-white p-6">
         <h2 className="text-2xl font-black">{tx(`Activer le suivi de ${child.full_name}`,`Activate monitoring for ${child.full_name}`)}</h2>
-        <div className="mt-4 grid gap-2 text-sm sm:max-w-md"><Line label={tx("Prix actuel","Current price")} value={tx("Gratuit temporairement","Temporarily free")} strong/><Line label={tx("Duree","Duration")} value={tx("12 mois","12 months")}/><Line label={tx("Renouvellement","Renewal")} value={tx("Annuel","Annual")}/><p className="text-xs text-slate-500">{tx("Les paiements sont en stand-by pendant la finalisation juridique de l'entreprise.","Payments are paused while the company's legal setup is finalized.")}</p></div>
-        <button onClick={checkout} disabled={loading} className="btn-primary mt-5">{loading ? tx("Activation...","Activating...") : tx("Activer gratuitement pour cet enfant","Activate free access for this child")}</button>
+        <div className="mt-4 grid gap-2 text-sm sm:max-w-md"><Line label={tx("Prix actuel","Current price")} value={tx("Prix administrable","Administrator-defined price")} strong/><Line label={tx("Duree","Duration")} value={tx("12 mois","12 months")}/><Line label={tx("Renouvellement","Renewal")} value={tx("Annuel","Annual")}/><p className="text-xs text-slate-500">{tx("Le paiement n est pas encore disponible pour le moment.","Payment is not available yet.")}</p></div>
+        <button onClick={checkout} disabled={loading} className="btn-primary mt-5">{loading ? tx("Activation...","Activating...") : tx("Acheter pour cet enfant","Purchase access for this child")}</button>
       </section>}
       {child && subscription && <>
         <section className="rounded-2xl bg-mint p-5"><b>{tx("Suivi actif pour","Monitoring active for")} {child.full_name}</b><p className="mt-1 text-sm">{tx("Du","From")} {new Date(subscription.started_at).toLocaleDateString(locale==="en"?"en-GB":"fr-FR")} {tx("au","to")} {new Date(subscription.expires_at).toLocaleDateString(locale==="en"?"en-GB":"fr-FR")}</p></section>

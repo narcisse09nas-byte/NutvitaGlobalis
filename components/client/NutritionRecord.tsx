@@ -7,6 +7,7 @@ import { customIndicatorTemplates } from "@/lib/tracking-indicators";
 import HealthDietaryDiversity from "@/components/client/HealthDietaryDiversity";
 import { defaultLabParameters } from "@/components/health/LabParameterEditor";
 import WellnessQuestionnaires from "@/components/health/WellnessQuestionnairesV2";
+import LifestyleAssessmentRegistry from "@/components/client/LifestyleAssessmentRegistry";
 import { buildAssessmentSnapshot, scoreToLegacyLevel } from "@/lib/wellness-assessments-v2";
 
 type Row = Record<string, any>;
@@ -81,12 +82,15 @@ export default function NutritionRecord({
     const standard: string[][] = [
       ["measured_at", "Date"], ["glucose", locale === "en" ? "Blood glucose" : "Glyc\u00e9mie"],
       ["hba1c", "HbA1c"], ["total_cholesterol", locale === "en" ? "Total cholesterol" : "Cholest\u00e9rol total"],
-      ["ldl", "LDL"], ["hdl", "HDL"], ["Triglyc\u00e9rides", "Triglyc\u00e9rides"],
+      ["ldl", "LDL"], ["hdl", "HDL"], ["triglycerides", "Triglyc\u00e9rides"],
       ["systolic_pressure", locale === "en" ? "Systolic BP" : "TA systolique"],
       ["diastolic_pressure", locale === "en" ? "Diastolic BP" : "TA diastolique"], ["pulse_bpm", locale === "en" ? "Pulse" : "Pouls"],
     ];
-    const names = [...new Set(bioRows.flatMap(row => Object.keys(row.custom_values || {})))];
-    return [...standard, ...names.map(name => [`custom:${name}`, name])];
+    const normalized = (value:string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+    const existingLabels = new Set(standard.map(([,label])=>normalized(label)));
+    const names = [...new Set(bioRows.flatMap(row => Object.keys(row.custom_values || {})))].filter(name=>!existingLabels.has(normalized(name)));
+    const usedStandard = standard.filter(([key])=>key==="measured_at"||bioRows.some(row=>row[key]!=null));
+    return [...usedStandard, ...names.map(name => [`custom:${name}`, name])];
   }, [bioRows, locale]);
   const en=locale==="en";
   const tx=(fr:string,english:string)=>en?english:fr;
@@ -191,7 +195,7 @@ export default function NutritionRecord({
 
     {tab === "food" && <div className="grid gap-7"><HealthDietaryDiversity clientId={clientId} initial={dietary} locale={locale}/><form onSubmit={event => add("food_history", event, setFood, foodRows)} className="grid gap-4 rounded-2xl border bg-white p-6 md:grid-cols-2"><h2 className="text-xl font-black md:col-span-2">{locale === "en" ? "Optional food diary" : "Journal alimentaire facultatif"}</h2><label className="grid gap-2 text-sm font-bold">Date<input name="entry_date" type="date" defaultValue={today()} max={today()} required className="admin-input"/></label><label className="grid gap-2 text-sm font-bold">{locale === "en" ? "Record type" : "Type d'enregistrement"}<select name="entry_type" className="admin-input"><option value="food_diary">{locale === "en" ? "Food diary" : "Journal alimentaire"}</option><option value="habits">{locale === "en" ? "Eating habits" : "Habitudes alimentaires"}</option></select></label><textarea name="notes" required rows={5} className="admin-input md:col-span-2" placeholder={locale === "en" ? "Describe meals, quantities, times and sensations..." : "Decrivez les repas, quantites, horaires et sensations..."}/><button className="btn-primary justify-self-start md:col-span-2">{locale === "en" ? "Add to diary" : "Ajouter au journal"}</button></form><History locale={locale} rows={foodRows} columns={[["entry_date", "Date"], ["entry_type", tx("Type","Type")], ["notes", tx("Contenu","Content")]]} food onEdit={(row,columns)=>edit("food_history",row,columns,setFood,foodRows,true)} onDelete={id=>remove("food_history",id,setFood,foodRows)}/></div>}
 
-    {tab === "lifestyle" && <LifestyleForm locale={locale} rows={lifestyleRows} onSubmit={addLifestyle}/>}
+    {tab === "lifestyle" && <LifestyleAssessmentRegistry clientId={clientId} initialRows={lifestyleRows} locale={locale}/>}
 
     {tab === "consultations" && <div className="grid gap-4">{consultations.map(item => <article key={item.id} className="rounded-2xl border bg-white p-6"><p className="text-xs font-bold uppercase text-leaf">{new Date(item.consultation_date).toLocaleString(en?"en-GB":"fr-FR")}</p><h2 className="mt-2 text-xl font-black">{item.summary || tx("Consultation nutritionnelle","Nutrition consultation")}</h2><div className="mt-4 grid gap-3 text-sm"><p><b>{tx("Objectifs","Objectives")}:</b> {item.objectives || "-"}</p><p><b>{tx("Recommandations","Recommendations")}:</b> {item.recommendations || "-"}</p><p><b>{tx("Plan alimentaire","Meal plan")}:</b> {item.meal_plan || "-"}</p></div></article>)}{!consultations.length && <p className="rounded-2xl bg-white p-8 text-center text-slate-400">{tx("Aucune consultation enregistree.","No consultation recorded.")}</p>}</div>}
   </div>;

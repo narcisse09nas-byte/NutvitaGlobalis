@@ -5,6 +5,8 @@ import MedicalDisclaimer from "@/components/MedicalDisclaimer";
 import { getTeleconseils } from "@/lib/public-content";
 import { getSitePage } from "@/lib/site-pages";
 import {getCurrentLocale} from "@/lib/i18n-server";
+import {createClient} from "@/lib/supabase/server";
+import {getClientEntitlements} from "@/lib/client";
 
 const fallback = [
   { id: "perte-poids", name: "Perte de poids", description: "Un plan realiste pour retrouver votre equilibre.", duration: "45 minutes", price: 15000 },
@@ -31,12 +33,14 @@ const differentiators = [
   "Suivi depuis ordinateur ou smartphone",
 ];
 
-export const metadata = { title: "Teleconseils nutritionnels" };
+export const metadata = { title: "Consultations diététiques et nutritionnelles" };
 export const revalidate = 60;
 
 export default async function Teleconseils() {
   const [loaded, page,locale] = await Promise.all([getTeleconseils(), getSitePage("teleconseils"),getCurrentLocale()]);
   const en=locale==="en",tx=(fr:string,english:string)=>en?english:fr;
+  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();
+  const hasAccess=user?(await getClientEntitlements(supabase,user.id)).teleconsultation:false;
   const packs = loaded?.length ? loaded : fallback;
   const localizedBenefits=en?["Personalized nutrition assessment","Individual action plan","Personalized follow-up","Secure chat with your expert","Video consultations","Monitoring dashboard","Reports and recommendations"]:benefits;
   const localizedDifferentiators=en?["Intelligent analysis of your health data","Automatic progress visualization","Support from qualified specialists","Available in French and English","Access from computer or smartphone"]:differentiators;
@@ -71,8 +75,8 @@ export default async function Teleconseils() {
                 {includedService&&<span className="flex gap-2 rounded-xl bg-orange/15 p-3 font-bold text-orange"><CheckIcon className="h-5 shrink-0" />{includedService}</span>}
                 {localizedBenefits.map(item => <span key={item} className="flex gap-2"><CheckIcon className="h-5 shrink-0 text-orange" />{item}</span>)}
               </div>
-              <p className="mb-5 rounded-2xl bg-white/10 p-4 text-sm font-bold text-white">{tx("Acces gratuit temporaire pendant la mise en stand-by des paiements.","Temporary free access while payments are paused.")}</p>
-              <Link href={`/inscription?redirect=${encodeURIComponent(`/checkout?type=consultation&id=${checkoutId}`)}`} className="btn-primary mt-auto">{tx("Creer mon compte","Create my account")} <ArrowRightIcon className="ml-2 h-4" /></Link>
+              <p className="mb-3 text-2xl font-black text-orange">{Number(p.price||0).toLocaleString("fr-FR")} FCFA</p><p className="mb-5 rounded-2xl bg-white/10 p-4 text-sm font-bold text-white">{tx("Service payant. Paiement pas encore disponible pour le moment.","Paid service. Payment is not available yet.")}</p>
+              <Link href={hasAccess?"/api/access/open?service=teleconsultation&role=client":user?`/checkout?type=consultation&id=${checkoutId}`:`/connexion?redirect=${encodeURIComponent(`/checkout?type=consultation&id=${checkoutId}`)}`} className="btn-primary mt-auto">{hasAccess?tx("Accéder à mon service","Open my service"):user?tx("Acheter ce pack","Buy this package"):tx("Se connecter pour acheter","Sign in to purchase")} <ArrowRightIcon className="ml-2 h-4" /></Link>
             </article>;
           })}
         </div>

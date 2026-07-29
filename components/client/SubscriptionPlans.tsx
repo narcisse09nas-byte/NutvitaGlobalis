@@ -8,7 +8,7 @@ type Row = Record<string, any>;
 
 const periodLabel = (months: number) => months === 1 ? "Mensuel" : months === 3 ? "Trimestriel" : "Annuel";
 
-export default function SubscriptionPlans({ plans, subscriptions, packs = [], children = [], invoices = [] }: { plans: Row[]; subscriptions: Row[]; packs?: Row[]; children?: Row[]; taxRate: number; invoices?: Row[] }) {
+export default function SubscriptionPlans({ plans, subscriptions, packs = [], children = [], invoices = [], taxRate }: { plans: Row[]; subscriptions: Row[]; packs?: Row[]; children?: Row[]; taxRate: number; invoices?: Row[] }) {
   const [loading, setLoading] = useState("");
   const [message, setMessage] = useState("");
   const [selectedChild, setSelectedChild] = useState(children[0]?.id || "");
@@ -39,7 +39,7 @@ export default function SubscriptionPlans({ plans, subscriptions, packs = [], ch
       </section>
 
       <p className="rounded-2xl bg-mint p-4 text-sm font-bold text-forest">
-        Les paiements sont temporairement suspendus pendant la finalisation juridique de l'entreprise. Tous les services peuvent etre actives gratuitement pour l'instant, apres creation du compte.
+        Les services sont payants. Les prix sont administrables par NutVitaGlobalis, mais les paiements ne sont pas encore disponibles pour le moment.
       </p>
 
       {message && <p className="rounded-xl bg-amber-50 p-4 text-amber-900">{message}</p>}
@@ -56,16 +56,16 @@ export default function SubscriptionPlans({ plans, subscriptions, packs = [], ch
           const premiumActive = sameService.some(item => (item.subscription_plans?.tier || "").toLowerCase() === "premium");
           const isPremium = plan.tier === "premium";
           const blockedByPremium = !isPremium && premiumActive;
-          const actionLabel = current ? "\u00c9tendre gratuitement" : isPremium && basicActive ? "Passer \u00e0 Premium" : "Activer gratuitement";
+          const actionLabel = current ? "\u00c9tendre le service" : isPremium && basicActive ? "Passer \u00e0 Premium" : "Acheter ce service";
           return (
             <article key={plan.id} className={`rounded-3xl border p-6 ${blockedByPremium ? "border-slate-200 bg-slate-100 opacity-60" : "bg-white"} ${plan.tier === "premium" ? "border-orange shadow-soft" : ""}`}>
               <p className="text-xs font-bold uppercase text-leaf">{plan.tier === "premium" ? "Premium" : "Basic"} - {period}</p>
               <h2 className="mt-2 text-2xl font-black">{plan.name}</h2>
               <div className="my-5 grid gap-2 rounded-2xl bg-slate-50 p-4 text-sm">
-                <Line label="Prix actuel" value="Gratuit temporairement" strong />
+                <Line label="Prix TTC" value={`${Math.round(Number(plan.price_excluding_tax ?? plan.amount ?? 0) * (1 + taxRate / 100)).toLocaleString("fr-FR")} FCFA`} strong />
                 <Line label="Duree" value={`${duration} mois`} />
                 <Line label="Renouvellement" value={period} />
-                <p className="text-xs text-slate-500">Les conditions commerciales definitives seront publiees avant toute facturation.</p>
+                <p className="text-xs text-slate-500">Paiement pas encore disponible pour le moment.</p>
               </div>
               <ul className="my-5 grid gap-2 text-sm">{(plan.features || []).map((feature: string) => <li key={feature}>+ {feature}</li>)}</ul>
               {childPlan && <label className="mb-4 grid gap-2 text-sm font-bold">Beneficiaire<select value={selectedChild} onChange={event => setSelectedChild(event.target.value)} className="admin-input"><option value="">Ajouter ou choisir un enfant</option>{children.map(child => <option key={child.id} value={child.id}>{child.full_name}</option>)}</select></label>}

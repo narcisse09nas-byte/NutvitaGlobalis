@@ -10,6 +10,7 @@ const publicCanonicalRoutes = new Set([
   "/services",
   "/formations",
   "/teleconseils",
+  "/restauration",
   "/ressources",
   "/suivi-sante",
   "/recrutement-dieteticiens",

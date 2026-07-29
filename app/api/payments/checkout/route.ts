@@ -40,6 +40,7 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return NextResponse.json({ message: "Non authentifie." }, { status: 401 });
+  if (process.env.PAYMENTS_ENABLED !== "true") return NextResponse.json({ message: "Ce service payant n'est pas encore disponible a l'achat." }, { status: 503 });
   const body = await request.json();
   const provider = (body.provider || "manual_mobile_money") as Provider;
   if (!["cinetpay", "paypal", "manual_mobile_money", "manual_bank_transfer"].includes(provider)) return NextResponse.json({ message: "Fournisseur invalide." }, { status: 400 });

@@ -23,7 +23,8 @@ export default function Header() {
   const links = [
     ["/", t.home],
     ["/services", locale === "en" ? "Our services" : "Nos services"],
-    ["/teleconseils", locale === "en" ? "Teleconsultations" : "Téléconseils"],
+    ["/teleconseils", locale === "en" ? "Dietetic/nutrition consultations" : "Consultations diététiques/nutritionnelles"],
+    ["/restauration", locale === "en" ? "Catering" : "Restauration"],
     ["/teleconseils#packs", locale === "en" ? "Packages" : "Packs"],
     ["/ressources", t.resources],
     ["/a-propos", t.about],

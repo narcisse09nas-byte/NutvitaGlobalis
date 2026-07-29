@@ -3,7 +3,7 @@ export type MaximusField = {
   label: string;
   type?: 'text' | 'number' | 'date' | 'email' | 'tel' | 'textarea' | 'select';
   options?: string[];
-  optionSource?: 'countries' | 'states' | 'centralKitchens' | 'salePoints' | 'ingredients' | 'budgetLines' | 'staff' | 'vendors' | 'assets' | 'menus';
+  optionSource?: 'countries' | 'states' | 'centralKitchens' | 'salePoints' | 'ingredients' | 'budgetLines' | 'staff' | 'vendors' | 'assets' | 'menus' | 'financialAccounts';
   dependsOn?: string;
   required?: boolean;
   readOnly?: boolean;
@@ -46,6 +46,9 @@ const baseMaximusModules: MaximusModule[] = [
     { key: 'meal_type', label: 'Repas', type: 'select', options: ['Petit-déjeuner', 'Déjeuner', 'Dîner', 'Collation'] }, { key: 'servings', label: 'Nombre de portions', type: 'number' },
     { key: 'description', label: 'Description', type: 'textarea' }, { key: 'ingredients', label: 'Ingrédients et quantités', type: 'textarea' }, { key: 'cooking_process', label: 'Processus de cuisson', type: 'textarea' },
   ] },
+  { slug: 'sales/public-menus', title: 'Publication des menus', group: 'Ventes', description: 'Album public bilingue des plats disponibles par date et par ville.', fields: [] },
+  { slug: 'sales/catering-locations', title: 'Sites de restauration', group: 'Ventes', description: 'Cuisines centrales, points de vente et hôpitaux partenaires avec leurs contacts.', fields: [] },
+  { slug: 'sales/customer-orders', title: 'Commandes clients', group: 'Ventes', description: 'Salle d’attente, devis, confirmation client, livraison et transfert des recettes à la finance.', fields: [] },
   { slug: 'sales/sale-points', title: 'Points de vente', group: 'Ventes', description: 'Restaurants, kiosques et autres points de distribution.', fields: [
     { key: 'name', label: 'Nom du point de vente', required: true }, { key: 'manager_name', label: 'Responsable', required: true }, { key: 'type', label: 'Type', type: 'select', options: ['Restaurant', 'Kiosque', 'Cantine', 'Partenaire', 'Autre'] },
     { key: 'staff_count', label: 'Nombre de personnes', type: 'number' }, { key: 'central_kitchen', label: 'Cuisine centrale rattachée' }, { key: 'address', label: 'Adresse' },
@@ -63,7 +66,7 @@ const baseMaximusModules: MaximusModule[] = [
     { key: 'items', label: 'Articles et quantités', type: 'textarea' }, { key: 'delivered_by', label: 'Livreur' }, { key: 'received_by', label: 'Réceptionnaire' }, { key: 'discrepancies', label: 'Écarts constatés', type: 'textarea' },
   ] },
   { slug: 'sales/reports', title: 'Rapports de vente', group: 'Ventes', description: 'Ventes, invendus, retours et recettes journalières.', fields: [
-    { key: 'sale_point', label: 'Point de vente', required: true }, { key: 'report_date', label: 'Date du rapport', type: 'date', required: true }, { key: 'gross_sales', label: 'Ventes brutes', type: 'number' },
+    { key: 'sale_point', label: 'Point de vente', required: true }, { key: 'responsible_name', label: 'Responsable du point de vente', required: true }, { key: 'report_date', label: 'Date du rapport', type: 'date', required: true }, { key: 'gross_sales', label: 'Ventes brutes', type: 'number', required: true },
     { key: 'cash_sales', label: 'Ventes espèces', type: 'number' }, { key: 'digital_sales', label: 'Ventes digitales', type: 'number' }, { key: 'unsold_items', label: 'Invendus / retours', type: 'textarea' }, { key: 'comment', label: 'Commentaire', type: 'textarea' },
   ] },
   { slug: 'supply/ingredients', title: 'Ingrédients', group: 'Approvisionnement et stock', description: 'Catalogue des matières premières et prix de référence.', fields: [
@@ -184,7 +187,8 @@ const baseMaximusModules: MaximusModule[] = [
     { key: 'usefulLife', label: 'Useful Life', hidden: true },
     { key: 'amortizationMethod', label: 'Amortization Method', hidden: true },
   ] },
-  { slug: 'finance/dashboard', title: 'Dashboard financier', group: 'Finance', description: 'Synthèse des budgets, engagements, paiements, caisse et trésorerie.', fields: [
+  { slug: 'finance/treasury-accounts', title: 'Comptes de versement', group: 'Finance', description: 'Banques, comptes Mobile Money et petites caisses.', fields: [] },
+  { slug: 'finance/settlements', title: 'Versements en attente', group: 'Finance', description: 'Tickets de versement des livraisons et clôtures des points de vente.', fields: [] },  { slug: 'finance/dashboard', title: 'Dashboard financier', group: 'Finance', description: 'Synthèse des budgets, engagements, paiements, caisse et trésorerie.', fields: [
     { key: 'period', label: 'Période', required: true }, { key: 'opening_balance', label: 'Solde initial', type: 'number' }, { key: 'income', label: 'Recettes', type: 'number' },
     { key: 'expenses', label: 'Dépenses', type: 'number' }, { key: 'commitments', label: 'Engagements', type: 'number' }, { key: 'closing_balance', label: 'Solde final', type: 'number' }, { key: 'comment', label: 'Commentaire', type: 'textarea' },
   ] },
@@ -221,7 +225,7 @@ const baseMaximusModules: MaximusModule[] = [
   ] },
   { slug: 'finance/payments', title: 'Exécution des paiements', group: 'Finance', description: 'Paiements exécutés, preuves et validations.', fields: [
     { key: 'payment_reference', label: 'Référence paiement', required: true }, { key: 'beneficiary', label: 'Bénéficiaire', required: true }, { key: 'amount', label: 'Montant', type: 'number', required: true },
-    { key: 'payment_method', label: 'Moyen', type: 'select', options: ['Espèces', 'Virement bancaire', 'Mobile Money', 'Chèque'] }, { key: 'payment_date', label: 'Date', type: 'date' }, { key: 'proof_reference', label: 'Référence de preuve' },
+    { key: 'payment_method', label: 'Rubrique de trésorerie', type: 'select', options: ['Banque', 'Mobile Money', 'Petite caisse'], required: true }, { key: 'financial_account_id', label: 'Compte utilisé', type: 'select', optionSource: 'financialAccounts', required: true }, { key: 'payment_date', label: 'Date', type: 'date' }, { key: 'proof_reference', label: 'Référence de preuve' },
   ] },
   { slug: 'finance/payment-register', title: 'Registre des paiements', group: 'Finance', description: 'Journal central de tous les paiements.', fields: [
     { key: 'reference', label: 'Référence', required: true }, { key: 'date', label: 'Date', type: 'date' }, { key: 'beneficiary', label: 'Bénéficiaire' }, { key: 'purpose', label: 'Objet' },

@@ -80,5 +80,14 @@ export async function GET() {
     return acc;
   }, {} as Record<SourceKey, Option[]>);
 
+  if (ctx.local) {
+    (payload as Record<string, Option[]>).financialAccounts = [];
+  } else {
+    const { data: accounts } = await ctx.supabase.from('maximus_financial_accounts').select('id,channel,name,institution,account_number').eq('active', true).order('channel').order('name');
+    (payload as Record<string, Option[]>).financialAccounts = (accounts || []).map((account: any) => ({
+      value: account.id,
+      label: `${account.channel === 'bank' ? 'Banque' : account.channel === 'mobile_money' ? 'Mobile Money' : 'Petite caisse'} - ${account.name}${account.account_number ? ` (${account.account_number})` : ''}`,
+    }));
+  }
   return NextResponse.json(payload);
 }

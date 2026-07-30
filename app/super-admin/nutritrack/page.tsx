@@ -20,9 +20,9 @@ export default async function NutriTrackAdminPage() {
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-cyan-700">NutriTrack</p>
             <h1 className="mt-2 text-3xl font-black">Acces des organisations</h1>
-            <p className="mt-2 text-slate-500">Approuvez, rejetez ou supprimez les espaces NutriTrack.</p>
+            <p className="mt-2 text-slate-500">Approuvez ou rejetez les nouvelles demandes. Une organisation deja approuvee peut etre renvoyee pour corrections.</p>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex w-full flex-wrap gap-3 xl:w-auto">
             <Link href="/super-admin/nutritrack/feedback" className="btn-secondary">
               <ChatBubbleLeftRightIcon className="mr-2 h-5" />
               Consulter les feedbacks

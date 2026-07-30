@@ -9,10 +9,10 @@ export default function NutriTrackRequestManager({ initial }: { initial: Row[] }
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState('');
 
-  async function action(row: Row, type: 'approve' | 'reject' | 'delete') {
+  async function action(row: Row, type: 'approve' | 'reject' | 'send_back' | 'delete') {
     let reason = '';
     if (type !== 'approve') {
-      reason = prompt(type === 'delete' ? 'Raison de la suppression :' : 'Raison du rejet :')?.trim() || '';
+      reason = prompt(type === 'delete' ? 'Raison de la suppression :' : type === 'send_back' ? 'Corrections demandees a l organisation :' : 'Raison du rejet :')?.trim() || '';
       if (!reason) return;
     } else {
       reason = prompt('Note interne facultative :')?.trim() || '';
@@ -31,7 +31,7 @@ export default function NutriTrackRequestManager({ initial }: { initial: Row[] }
       return;
     }
     if (type === 'delete') setRows(current => current.filter(item => item.id !== row.id));
-    else setRows(current => current.map(item => item.id === row.id ? { ...item, status: type === 'approve' ? 'approved' : 'rejected', admin_notes: reason } : item));
+    else setRows(current => current.map(item => item.id === row.id ? { ...item, status: type === 'approve' ? 'approved' : type === 'send_back' ? 'pending' : 'rejected', admin_notes: reason } : item));
     setMessage('Action NutriTrack enregistree.');
   }
 
@@ -48,9 +48,15 @@ export default function NutriTrackRequestManager({ initial }: { initial: Row[] }
               <p className="mt-4">{row.requested_facility_count} formation(s) sanitaire(s) et {row.requested_staff_count} compte(s) staff demandes.</p>
               {row.admin_notes && <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">{row.admin_notes}</p>}
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button disabled={busy === row.id} onClick={() => action(row, 'approve')} className="btn-primary">Approuver</button>
-              <button disabled={busy === row.id} onClick={() => action(row, 'reject')} className="btn-secondary">Rejeter</button>
+            <div className="flex max-w-full flex-wrap gap-2">
+              {row.status === 'approved' ? (
+                <button disabled={busy === row.id} onClick={() => action(row, 'send_back')} className="btn-secondary">Renvoyer / Send back</button>
+              ) : (
+                <>
+                  <button disabled={busy === row.id} onClick={() => action(row, 'approve')} className="btn-primary">Approuver</button>
+                  {row.status !== 'rejected' && <button disabled={busy === row.id} onClick={() => action(row, 'reject')} className="btn-secondary">Rejeter</button>}
+                </>
+              )}
               <button disabled={busy === row.id} onClick={() => action(row, 'delete')} className="rounded-lg bg-red-50 px-4 py-3 text-sm font-bold text-red-700">Supprimer</button>
             </div>
           </div>

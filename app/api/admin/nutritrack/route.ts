@@ -88,6 +88,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  if (action === 'send_back') {
+    const reason = String(body.reason || '').trim();
+    if (!reason) return NextResponse.json({ message: 'Les corrections demandees sont obligatoires.' }, { status: 400 });
+    const now = new Date().toISOString();
+    const { error } = await service
+      .from('nutritrack_organizations')
+      .update({ status: 'pending', reviewed_by: user.id, reviewed_at: now, admin_notes: reason })
+      .eq('id', organizationId);
+    if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+    await service.from('nutritrack_members').update({ status: 'suspended' }).eq('organization_id', organizationId);
+    await service.from('nutritrack_access_logs').insert({
+      organization_id: organizationId,
+      actor_id: user.id,
+      action: 'organization_sent_back',
+      target_type: 'organization',
+      target_id: organizationId,
+      details: { reason },
+    });
+    return NextResponse.json({ ok: true });
+  }
   if (action === 'delete') {
     const reason = String(body.reason || '').trim();
     if (!reason) return NextResponse.json({ message: 'La raison est obligatoire.' }, { status: 400 });

@@ -104,16 +104,21 @@ export async function getHomepage() {
     { title: "Support applications", text: "Applications for acute malnutrition care, food security and nutrition surveys, and project, programme and portfolio management." },
     { title: "Certified training", text: "Practical, assessed certification pathways designed by nutrition, health and management experts." },
     { title: "Catering service", text: "Browse menus available in your city and order healthy meals for delivery." },
+    { title: "Scientific Research, Innovation & Technical Expertise", text: "We support institutions, NGOs, businesses and individuals in scientific research and in the design, implementation, monitoring and evaluation of public health, nutrition and food security projects.", ctaLabel: "Contact us", href: "/contact" },
   ] : [
     { title: "Suivi santé", text: "Consultations diététiques et nutritionnelles en présentiel ou en ligne, suivi santé autonome et suivi de la croissance de l’enfant." },
     { title: "Applications de support", text: "Applications dédiées à la malnutrition aiguë, aux enquêtes et à la gestion de projets, programmes et portefeuilles." },
     { title: "Formations certifiantes", text: "Parcours pratiques, évalués et certifiants conçus par des experts." },
     { title: "Service de restauration", text: "Consultez les menus disponibles dans votre ville et commandez des repas sains avec livraison." },
+    { title: "Recherche scientifique, innovation et expertise technique", text: "Nous accompagnons les institutions, ONG, entreprises et particuliers dans la recherche scientifique, la conception, la mise en oeuvre et le suivi-evaluation de projets en sante publique, nutrition et securite alimentaire.", ctaLabel: "Nous contacter", href: "/contact" },
   ];  if (!hasSupabaseConfig()) return { services: marketingServices };
   const { data } = await (await createClient()).from("homepage_settings").select("*").eq("id", 1).maybeSingle();
   if (!data) return { services: marketingServices };
   const storedServices = locale === "en" && Array.isArray(data.services_en) ? data.services_en : locale === "fr" && Array.isArray(data.services) ? data.services : [];
-  return repairContent({ ...data, hero_title: pickLocalized(data, "hero_title", locale), slogan: pickLocalized(data, "slogan", locale), presentation: pickLocalized(data, "presentation", locale), primary_button_label: pickLocalized(data, "primary_button_label", locale), secondary_button_label: pickLocalized(data, "secondary_button_label", locale), newsletter_title: pickLocalized(data, "newsletter_title", locale), newsletter_text: pickLocalized(data, "newsletter_text", locale), services: storedServices.length >= 4 ? storedServices : marketingServices });
+  const services = storedServices.length >= 4 ? [...storedServices] : [...marketingServices];
+  const research = marketingServices[4];
+  if (!services.some((item: any) => /scientific|scientifique/i.test(String(item?.title || "")))) services.push(research);
+  return repairContent({ ...data, hero_title: pickLocalized(data, "hero_title", locale), slogan: pickLocalized(data, "slogan", locale), presentation: pickLocalized(data, "presentation", locale), primary_button_label: pickLocalized(data, "primary_button_label", locale), secondary_button_label: pickLocalized(data, "secondary_button_label", locale), newsletter_title: pickLocalized(data, "newsletter_title", locale), newsletter_text: pickLocalized(data, "newsletter_text", locale), services });
 }
 export async function getHomepageCommunity() {
   const locale = await getCurrentLocale();

@@ -1,10 +1,10 @@
 import ClientShell from "@/components/client/ClientShell";
 import ConsultationRequestPanel from "@/components/client/ConsultationRequestPanel";
 import ClientConsultationRegistry from "@/components/client/ClientConsultationRegistry";
-import {requireClient} from "@/lib/client";
+import {requireTeleconsultationAccess} from "@/lib/client";
 
 export default async function ClientConsultationsPage(){
-  const {supabase,user,profile}=await requireClient();
+  const {supabase,user,profile}=await requireTeleconsultationAccess();
   const now=new Date().toISOString();
   let bookingResult=await supabase.from("consultation_bookings").select("*, teleconseils(name)").eq("client_id",user.id).gt("access_expires_at",now).not("status","in",'("cancelled","refunded")').order("created_at",{ascending:false});
   if(bookingResult.error?.code==="PGRST204"||bookingResult.error?.message?.includes("schema cache")){

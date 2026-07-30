@@ -21,8 +21,13 @@ export async function GET(request:Request){
   }
 
   const access=await getAccessChoices();
-  const choices=access.choices.filter(choice=>choice.service===service&&(!requestedRole||choice.role===requestedRole));
-  const choice=choices[0];
+  const serviceChoices=access.choices.filter(choice=>choice.service===service);
+  if(!requestedRole&&serviceChoices.length>1){
+    const params=new URLSearchParams({service});
+    if(returnTo)params.set("return",returnTo);
+    return NextResponse.redirect(new URL(`/choisir-role?${params.toString()}`,url.origin));
+  }
+  const choice=serviceChoices.find(choice=>!requestedRole||choice.role===requestedRole);
   if(!choice){
     const purchase=purchaseDestination(service);
     return NextResponse.redirect(new URL(purchase,url.origin));

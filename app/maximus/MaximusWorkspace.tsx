@@ -93,7 +93,7 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
   });
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  return <main className="min-h-screen bg-[#f4f7f6] text-slate-900">
+  return <main className="maximus-workspace min-h-screen min-w-0 bg-[#f4f7f6] text-slate-900">
     <button onClick={() => setMobileOpen(true)} className="fixed left-4 top-4 z-40 grid h-11 w-11 place-items-center rounded-md bg-[#123d32] text-white shadow-lg lg:hidden"><Menu className="h-5" /></button>
     <aside className={`fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-[#123d32] text-white transition-transform lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
@@ -119,12 +119,12 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
       </nav>
     </aside>
 
-    <section className="min-h-screen lg:pl-72">
-      <header className="flex min-h-20 items-center justify-between border-b bg-white px-6 pl-20 lg:pl-8">
-        <div><p className="text-xs font-black uppercase tracking-widest text-[#ef7f3b]">Gestion interne</p><h1 className="text-2xl font-black">{workflowView ? 'Flux centralisés' : module?.title || 'Tableau de bord'}</h1></div>
+    <section className="min-h-screen min-w-0 lg:pl-72">
+      <header className="flex min-h-20 min-w-0 flex-wrap items-center justify-between gap-3 border-b bg-white px-4 py-3 pl-20 sm:px-6 sm:pl-20 lg:pl-8">
+        <div className="min-w-0"><p className="text-xs font-black uppercase tracking-widest text-[#ef7f3b]">Gestion interne</p><h1 className="break-words text-xl font-black sm:text-2xl">{workflowView ? 'Flux centralisés' : module?.title || 'Tableau de bord'}</h1></div>
         <div className="flex items-center gap-3"><div className="hidden text-right sm:block"><p className="text-sm font-black">{adminName}</p><p className="text-xs text-slate-500">{isSuperAdmin ? 'Super administrateur' : 'Utilisateur Maximus'}</p></div><span className="grid h-11 w-11 place-items-center rounded-full bg-[#123d32] font-black text-white">{adminName.slice(0, 2).toUpperCase()}</span></div>
       </header>
-      <div className="p-5 lg:p-8">{workflowView ? <MaximusWorkflowOverview /> : module ? <ModuleRenderer module={module} /> : <Dashboard />}</div>
+      <div className="min-w-0 overflow-x-hidden p-3 sm:p-5 lg:p-8">{workflowView ? <MaximusWorkflowOverview /> : module ? <ModuleRenderer module={module} /> : <Dashboard />}</div>
     </section>
   </main>;
 }

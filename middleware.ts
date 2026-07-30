@@ -98,6 +98,7 @@ function activeSessionRule(pathname: string): SessionRule | null {
   if (starts("/espace-client")) return { services: ["client"], roles: ["client"] };
 
   if (starts("/partenaire") && pathname !== "/partenaire/connexion") return { services: ["health", "child_growth", "teleconsultation"], roles: ["nutritionist"] };
+  if (starts("/restauration/commander")) return { services: ["catering"], roles: ["client"] };
   if (starts("/candidat")) return { services: ["recruitment"], roles: ["candidate"] };
   if (starts("/surveys")) return { services: ["survey"], roles: ["client", "admin"] };
   if (starts("/op-management")) return { services: ["project_management"], roles: ["client", "admin"] };
@@ -134,9 +135,10 @@ export async function middleware(request: NextRequest) {
     const allowed = sessionRule.services.includes(service || "") && sessionRule.roles.includes(role || "");
     if (!allowed) {
       if (localized.pathname.startsWith("/api/")) return NextResponse.json({ message: "Le mode de session actif ne permet pas cette action." }, { status: 403 });
-      const opener = new URL("/api/access/open", request.url);
-      opener.searchParams.set("service", sessionRule.services[0]);
-      if (sessionRule.roles.length === 1) opener.searchParams.set("role", sessionRule.roles[0]);
+      const targetService = sessionRule.services[0];
+      const mustChooseRole = service === targetService && !sessionRule.roles.includes(role || "");
+      const opener = new URL(mustChooseRole ? "/choisir-role" : "/api/access/open", request.url);
+      opener.searchParams.set("service", targetService);
       opener.searchParams.set("return", localized.pathname);
       return NextResponse.redirect(opener);
     }

@@ -2915,3 +2915,25 @@ dialog::backdrop {
   font-weight: 800;
   margin: 0 0 10px;
 }
+
+/* Tablet and fluid desktop navigation/layout overrides. */
+.mobile-nav-toggle,.mobile-nav-backdrop{display:none}
+@media (max-width:1024px){
+  .app-shell{grid-template-columns:1fr!important}
+  .sidebar{position:fixed!important;inset:0 auto 0 0!important;z-index:60!important;display:flex!important;width:min(320px,86vw)!important;max-height:100dvh!important;padding:18px!important;transform:translateX(-105%);transition:transform 220ms ease;box-shadow:20px 0 50px rgba(0,38,63,.28)}
+  body.nav-open{overflow:hidden}
+  body.nav-open .sidebar{transform:translateX(0)}
+  .mobile-nav-toggle{position:fixed;top:12px;left:12px;z-index:55;display:inline-flex;min-height:44px;align-items:center;gap:8px;border:0;border-radius:9px;padding:0 14px;background:var(--accent-dark);color:#fff;font-weight:800;box-shadow:0 8px 24px rgba(0,38,63,.24)}
+  .mobile-nav-backdrop{position:fixed;inset:0;z-index:58;border:0;background:rgba(0,38,63,.55)}
+  body.nav-open .mobile-nav-backdrop{display:block}
+  .brand{margin-bottom:10px}.brand div{display:block!important;font-size:1rem!important}
+  .nav-list{grid-template-columns:1fr!important;gap:10px}.nav-group-title{height:auto!important;background:transparent!important;font-size:.62rem!important}
+  .nav-item{min-height:40px;justify-content:flex-start!important;padding:0 10px!important;font-size:.86rem!important}
+  .workspace{width:100%;min-width:0;padding:74px 18px 18px!important;overflow-x:hidden}
+  .topbar,.topbar-actions,.context-controls{align-items:stretch;flex-direction:column}.context-controls select,.search-box{width:100%}
+  .content-area,.config-layout{grid-template-columns:minmax(0,1fr)!important}
+  .panel,.form-panel,.register-panel,.content-area,.config-layout{min-width:0;max-width:100%}
+  .table-wrap,.matrix-scroll,.dashboard-table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .record-form,.check-list,.dashboard-grid,.invoice-grid,.horizontal-chart-row,.horizontal-bar-line{grid-template-columns:minmax(0,1fr)!important}
+}
+@media (max-width:640px){.metrics-grid,.form-grid,.detail-grid{grid-template-columns:minmax(0,1fr)!important}.workspace{padding:70px 10px 12px!important}.topbar h1{overflow-wrap:anywhere;font-size:1.55rem}}

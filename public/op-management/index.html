@@ -7,8 +7,10 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <button class="mobile-nav-toggle" id="mobile-nav-toggle" type="button" aria-controls="main-sidebar" aria-expanded="false"><span aria-hidden="true">&#9776;</span><span>Menu</span></button>
+    <button class="mobile-nav-backdrop" id="mobile-nav-backdrop" type="button" aria-label="Fermer le menu"></button>
     <div class="app-shell">
-      <aside class="sidebar" aria-label="Navigation principale">
+      <aside class="sidebar" id="main-sidebar" aria-label="Navigation principale">
         <div class="brand">
           <span class="brand-mark">PM</span>
           <div>
@@ -163,7 +165,18 @@
         box.textContent = "Erreur JavaScript: " + event.message + (event.filename ? " | " + event.filename + ":" + event.lineno : "");
       });
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+      (function () {
+        var toggle = document.getElementById("mobile-nav-toggle");
+        var backdrop = document.getElementById("mobile-nav-backdrop");
+        var sidebar = document.getElementById("main-sidebar");
+        function closeNav() { document.body.classList.remove("nav-open"); toggle.setAttribute("aria-expanded", "false"); }
+        toggle.addEventListener("click", function () { var open = document.body.classList.toggle("nav-open"); toggle.setAttribute("aria-expanded", String(open)); });
+        backdrop.addEventListener("click", closeNav);
+        sidebar.addEventListener("click", function (event) { if (event.target.closest(".nav-item") && window.innerWidth <= 1024) closeNav(); });
+        window.addEventListener("resize", function () { if (window.innerWidth > 1024) closeNav(); });
+      })();
+    </script>    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

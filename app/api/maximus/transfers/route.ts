@@ -1,10 +1,12 @@
 import {NextResponse} from "next/server";
 import {createClient} from "@/lib/supabase/server";
 import {createAdminClient} from "@/lib/supabase/admin";
+import {activePlatformSession} from "@/lib/active-platform-session";
 
 async function identity(){
  const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();
  if(!user)return {error:NextResponse.json({message:"Authentification requise."},{status:401})};
+ const active=await activePlatformSession();if(active.service!=="maximus"||!["staff","admin"].includes(active.role))return{error:NextResponse.json({message:"Ouvrez Maximus avec un role autorise."},{status:403})};
  const [{data:admin},{data:access}]=await Promise.all([supabase.from("admin_users").select("role,active,full_name").eq("id",user.id).eq("active",true).maybeSingle(),supabase.from("maximus_user_access").select("*").eq("user_id",user.id).eq("active",true).maybeSingle()]);
  const isAdmin=admin?.role==="super_admin";if(!isAdmin&&!access)return {error:NextResponse.json({message:"Compte Maximus requis."},{status:403})};
  const units=Array.isArray(access?.units)&&access.units.length?access.units:[access?.unit].filter(Boolean);

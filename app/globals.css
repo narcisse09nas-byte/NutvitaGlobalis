@@ -76,3 +76,25 @@
   .nvg-modal-panel { @apply overflow-hidden rounded-[2rem] border border-white/40 shadow-2xl shadow-slate-950/30; }
   .nvg-modal-panel::before { content: ""; display: block; height: .4rem; margin: -1.75rem -1.75rem 1.5rem; background: linear-gradient(90deg, #0f5132, #3a9d6f, #e77b3b); }
 }
+
+/* Responsive safeguards for dense workspaces and service portals. */
+@layer base {
+  img, svg, canvas, video { max-width: 100%; }
+  main, section, article, header, footer, nav, aside, form, fieldset, div { min-width: 0; }
+  input, select, textarea, button { max-width: 100%; }
+}
+.maximus-workspace table { white-space: normal; }
+.maximus-workspace [class*="overflow-x-auto"] { max-width: 100%; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
+.maximus-workspace [class*="fixed"][class*="inset-0"] > section,
+.maximus-workspace [class*="fixed"][class*="inset-0"] > article,
+.maximus-workspace [class*="fixed"][class*="inset-0"] > form { max-height: calc(100dvh - 2rem); overflow-y: auto; }
+@media (max-width: 1279px) { .maximus-workspace [class*="xl:grid-cols-"] { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1023px) {
+  .maximus-workspace [class*="md:grid-cols-"], .maximus-workspace [class*="lg:grid-cols-"] { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 767px) {
+  .maximus-workspace section, .maximus-workspace article { max-width: 100%; }
+  .maximus-workspace form [class*="grid-cols-"], .maximus-workspace [role="dialog"] [class*="grid-cols-"] { grid-template-columns: minmax(0, 1fr); }
+  .maximus-workspace [class*="rounded-lg"][class*="p-6"], .maximus-workspace [class*="rounded-3xl"][class*="p-6"] { padding: 1rem; }
+  .maximus-workspace [class*="justify-end"][class*="gap-"] { flex-wrap: wrap; }
+}

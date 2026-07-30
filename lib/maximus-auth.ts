@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasLocalAdminMode, hasSupabaseConfig } from "@/lib/supabase/config";
 import { createLocalClient, localAdmin } from "@/lib/supabase/local";
 import { modulesForAccess } from "@/lib/maximus-access";
+import { requireActivePlatformSession } from "@/lib/active-platform-session";
 
 export async function requireMaximusAccess(module?: string) {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
@@ -22,6 +23,7 @@ export async function requireMaximusAccess(module?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion?redirect=/api/access/open?service=maximus");
+  await requireActivePlatformSession("maximus",["staff","admin"]);
 
   const [{ data: admin }, { data: access }] = await Promise.all([
     supabase.from("admin_users").select("id,email,full_name,role,active").eq("id", user.id).eq("active", true).maybeSingle(),

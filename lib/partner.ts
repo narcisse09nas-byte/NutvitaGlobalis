@@ -6,6 +6,7 @@ import { localPartnerUser } from "@/lib/local-seed";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isPrincipalEmail } from "@/lib/platform-services";
+import { requireActivePlatformSession } from "@/lib/active-platform-session";
 
 export async function requirePartner() {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
@@ -18,6 +19,7 @@ export async function requirePartner() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion?redirect=/api/access/open?service=health&role=nutritionist");
+  await requireActivePlatformSession(["health","child_growth","teleconsultation"],"nutritionist");
   const [{ data: existing }, { data: admin }] = await Promise.all([
     supabase.from("dietitian_profiles").select("*").eq("candidate_id", user.id).eq("status", "active").maybeSingle(),
     supabase.from("admin_users").select("role,active,full_name").eq("id", user.id).maybeSingle(),

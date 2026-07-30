@@ -1,3 +1,4 @@
+import { requireActivePlatformSession } from "@/lib/active-platform-session";
 import ClientShell from "@/components/client/ClientShell";
 import ChildGrowthCenter from "@/components/client/ChildGrowthCenter";
 import {requireClient} from "@/lib/client";
@@ -5,6 +6,7 @@ import {getApplicableTax} from "@/lib/taxes";
 import {getCurrentLocale} from "@/lib/i18n-server";
 
 export default async function ChildGrowthPage(){
+  await requireActivePlatformSession("child_growth","client");
   const {supabase,user,profile}=await requireClient();
   const locale=await getCurrentLocale(), now=new Date().toISOString();
   const {data:children}=await supabase.from("children").select("*").eq("parent_id",user.id).eq("active",true).order("created_at");

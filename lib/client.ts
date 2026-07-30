@@ -5,6 +5,7 @@ import {hasLocalAdminMode,hasSupabaseConfig} from "@/lib/supabase/config";
 import {createLocalClient} from "@/lib/supabase/local";
 import {localClientUser} from "@/lib/local-seed";
 import {isPrincipalEmail} from "@/lib/platform-services";
+import {requireActivePlatformSession} from "@/lib/active-platform-session";
 
 export type ClientEntitlements={health:boolean;childGrowth:boolean;teleconsultation:boolean;premiumResources:boolean};
 
@@ -48,5 +49,5 @@ export async function getClientEntitlements(supabase:any,userId:string):Promise<
   };
 }
 
-export async function requireHealthAccess(){const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.health)redirect('/espace-client/abonnement?acces=suivi-sante-requis');return{...context,access}}
-export async function requireTeleconsultationAccess(){const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.teleconsultation)redirect('/teleconseils?acces=pack-requis');return{...context,access}}
+export async function requireHealthAccess(){await requireActivePlatformSession("health","client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.health)redirect('/espace-client/abonnement?acces=suivi-sante-requis');return{...context,access}}
+export async function requireTeleconsultationAccess(){await requireActivePlatformSession("teleconsultation","client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.teleconsultation)redirect('/teleconseils?acces=pack-requis');return{...context,access}}

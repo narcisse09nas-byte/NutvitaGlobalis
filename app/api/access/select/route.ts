@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformIdentity, validateAccessChoice } from "@/lib/platform-access";
+import { safeInternalPath } from "@/lib/service-entry";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
   if (!identity) return NextResponse.json({ message: "Authentification requise." }, { status: 401 });
   const destination = await validateAccessChoice(service, role);
   if (!destination) return NextResponse.json({ message: "Ce service ou ce rôle ne vous est pas autorisé." }, { status: 403 });
-  const response = NextResponse.json({ ok: true, href: destination.href });
+  const response = NextResponse.json({ ok: true, href: safeInternalPath(body.returnTo, destination.href) || destination.href });
   const options = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 12 };
   response.cookies.set("nutvita_active_service", service, options);
   response.cookies.set("nutvita_active_role", role, options);

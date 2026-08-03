@@ -1,11 +1,11 @@
-﻿-- Six public service cards and complete Standard/Premium autonomous health catalogue.
+-- Six public service cards and complete Standard/Premium autonomous health catalogue.
 -- Apply after accounts-growth-admin.sql and public-content-i18n-and-legal.sql.
 alter table public.subscription_plans add column if not exists name_en text;
 insert into public.subscription_plans(id,name,name_en,tier,billing_period,amount,currency,features,active,service_type,duration_months,price_excluding_tax)
 values
-('health-autonomous-yearly','Suivi santé autonome Standard','Standard Autonomous Health Monitoring','standard','yearly',10000,'XOF','["Tableau de bord","Graphiques de tendances","Questionnaires santé","Rapports personnalisés"]',true,'health_tracking',12,10000),
+('health-autonomous-yearly','Suivi santé autonome Standard','Standard Autonomous Health Monitoring','basic','yearly',10000,'XOF','["Tableau de bord","Graphiques de tendances","Questionnaires santé","Rapports personnalisés"]',true,'health_tracking',12,10000),
 ('health-autonomous-premium-yearly','Suivi santé autonome Premium','Premium Autonomous Health Monitoring','premium','yearly',20000,'XOF','["Toutes les fonctions Standard","Analyses IA avancées","Rapports enrichis","Ressources Premium"]',true,'health_tracking',12,20000),
-('child-growth-yearly','Suivi de la croissance de l enfant Standard','Standard Child Growth Monitoring','standard','yearly',10000,'XOF','["Dossier privé par enfant","Courbes de croissance","Historique des mesures","Conseils adaptés"]',true,'child_growth',12,10000),
+('child-growth-yearly','Suivi de la croissance de l enfant Standard','Standard Child Growth Monitoring','basic','yearly',10000,'XOF','["Dossier privé par enfant","Courbes de croissance","Historique des mesures","Conseils adaptés"]',true,'child_growth',12,10000),
 ('child-growth-premium-yearly','Suivi de la croissance de l enfant Premium','Premium Child Growth Monitoring','premium','yearly',20000,'XOF','["Toutes les fonctions Standard","Analyses avancées","Rapports enrichis","Ressources Premium"]',true,'child_growth',12,20000)
 on conflict(id) do update set name=excluded.name,name_en=excluded.name_en,tier=excluded.tier,amount=excluded.amount,currency=excluded.currency,features=excluded.features,active=true,service_type=excluded.service_type,duration_months=excluded.duration_months,price_excluding_tax=excluded.price_excluding_tax;
 update public.homepage_settings set

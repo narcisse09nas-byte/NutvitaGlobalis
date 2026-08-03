@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getApplicableTax, priceBreakdown } from "@/lib/taxes";
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   } else if (body.purchase_type === "consultation") {
     const { data } = await supabase.from("teleconseils").select("id,name,price").eq("id", String(body.product_id)).eq("status", "active").single();
     const {data:previous}=await supabase.from('consultation_bookings').select('id').eq('client_id',user.id).eq('teleconseil_id',String(body.product_id)).limit(1).maybeSingle();
-    if (data) purchase = { type: "consultation", id: data.id, name: `${previous?'Renouvellement ':''}Pack ${data.name} - 3 mois`, price: previous?Number(data.price || 15000):Number(data.price || 15000), currency: "XOF", duration: 3 };
+    if (data) purchase = { type: "consultation", id: data.id, name: `${previous?'Renouvellement ':''}Programme ${data.name} - 3 mois`, price: previous?Number(data.price || 15000):Number(data.price || 15000), currency: "XOF", duration: 3 };
   }
   if (!purchase) return NextResponse.json({ message: "Produit ou service introuvable." }, { status: 404 });
 

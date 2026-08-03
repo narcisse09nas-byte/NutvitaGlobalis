@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -52,7 +52,7 @@ export default function PartnerClientManager({ initial, partnerId }: { initial: 
       }
       if (hasLocalAdminMode()) await createClient().from("client_profiles").insert({ ...result.client, created_by_partner_id: partnerId, assigned_partner_id: partnerId });
       setRows([{ ...result.client, latest_payment: result.payment }, ...rows]);
-      setCredentials({ username: result.client.username, password: result.password, client_number: result.client.client_number, id: result.client.id, full_name: result.client.full_name });
+      setCredentials({ username: result.client.username, password: result.password, client_number: result.client.client_number, id: result.client.id, full_name: result.client.full_name, email: result.client.email });
       form.reset();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Recu impossible a joindre.");
@@ -104,7 +104,7 @@ export default function PartnerClientManager({ initial, partnerId }: { initial: 
         {message && <p className="text-sm font-bold text-leaf md:col-span-2">{message}</p>}
       </form>
 
-      {credentials && <section className="rounded-2xl bg-forest p-6 text-white"><h2 className="text-xl font-black text-white">Acces a remettre au client</h2><div className="mt-4 grid gap-2 text-sm"><p>Numero client : <b>{credentials.client_number}</b></p><p>Nom d'utilisateur : <b>{credentials.username}</b></p><p>Mot de passe temporaire : <b>{credentials.password}</b></p></div><p className="mt-4 text-sm text-white/70">Le client devra modifier son mot de passe apres sa premiere connexion.</p><Link href={`/partenaire/clients/${credentials.id}/carte?name=${encodeURIComponent(credentials.full_name)}&username=${encodeURIComponent(credentials.username)}&number=${encodeURIComponent(credentials.client_number)}`} className="btn-primary mt-5" target="_blank">Afficher la carte QR</Link></section>}
+      {credentials && <section className="rounded-2xl bg-forest p-6 text-white"><h2 className="text-xl font-black text-white">Acces a remettre au client</h2><div className="mt-4 grid gap-2 text-sm"><p>Numero client : <b>{credentials.client_number}</b></p><p>Nom d'utilisateur : <b>{credentials.username}</b></p><p>Mot de passe temporaire : <b>{credentials.password}</b></p></div><p className="mt-4 text-sm text-white/70">Le client devra modifier son mot de passe apres sa premiere connexion.</p><Link href={`/partenaire/clients/${credentials.id}/carte?name=${encodeURIComponent(credentials.full_name)}&username=${encodeURIComponent(credentials.email || credentials.username)}&number=${encodeURIComponent(credentials.client_number)}`} className="btn-primary mt-5" target="_blank">Afficher la carte QR</Link></section>}
 
       <section className="rounded-2xl border bg-white p-6">
         <h2 className="text-xl font-black">Mes clients</h2>
@@ -118,7 +118,7 @@ export default function PartnerClientManager({ initial, partnerId }: { initial: 
               </div>
               <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold">
                 <Link href={`/partenaire/clients/${row.id}/suivi`} className="text-leaf">Dossier Premium</Link>
-                <Link href={`/partenaire/clients/${row.id}/carte?name=${encodeURIComponent(row.full_name)}&username=${encodeURIComponent(row.username || "client.demo")}&number=${encodeURIComponent(row.client_number || "NVG-C-0001")}`} className="text-leaf">Carte QR</Link>
+                <Link href={`/partenaire/clients/${row.id}/carte?name=${encodeURIComponent(row.full_name)}&username=${encodeURIComponent(row.email || row.username || "client.demo")}&number=${encodeURIComponent(row.client_number || "NVG-C-0001")}`} className="text-leaf">Carte QR</Link>
                 <button onClick={() => setExtensionFor(row)} className="text-orange">Prolonger l'acces</button>
               </div>
             </div>;

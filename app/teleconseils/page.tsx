@@ -1,86 +1,17 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { ArrowRightIcon, CheckIcon } from "@heroicons/react/24/outline";
 import ManagedPageHero from "@/components/ManagedPageHero";
 import MedicalDisclaimer from "@/components/MedicalDisclaimer";
+import { getClientEntitlements } from "@/lib/client";
+import { getCurrentLocale } from "@/lib/i18n-server";
 import { getTeleconseils } from "@/lib/public-content";
 import { getSitePage } from "@/lib/site-pages";
-import {getCurrentLocale} from "@/lib/i18n-server";
-import {createClient} from "@/lib/supabase/server";
-import {getClientEntitlements} from "@/lib/client";
+import { createClient } from "@/lib/supabase/server";
 
-const fallback = [
-  { id: "perte-poids", name: "Perte de poids", description: "Un plan realiste pour retrouver votre equilibre.", duration: "45 minutes", price: 15000 },
-  { id: "diabete", name: "Diabete", description: "Adaptez votre alimentation a votre traitement.", duration: "45 minutes", price: 15000 },
-  { id: "femme-enceinte", name: "Femme enceinte", description: "Un accompagnement a chaque trimestre.", duration: "45 minutes", price: 15000 },
-  { id: "nutrition-infantile", name: "Nutrition infantile", description: "Des reperes personnalises pour votre enfant.", duration: "45 minutes", price: 15000 },
-];
-
-const benefits = [
-  "Bilan nutritionnel personnalise",
-  "Plan d'action individualise",
-  "Suivi personnalise",
-  "Chat securise avec votre expert",
-  "Teleconsultations video",
-  "Tableau de bord de suivi",
-  "Rapports et recommandations",
-];
-
-const differentiators = [
-  "Analyse intelligente de vos donnees de sante",
-  "Visualisation automatique de votre progression",
-  "Accompagnement par des specialistes qualifies",
-  "Acces en francais et en anglais",
-  "Suivi depuis ordinateur ou smartphone",
-];
-
-export const metadata = { title: "Consultations diététiques et nutritionnelles" };
-export const revalidate = 60;
-
-export default async function Teleconseils() {
-  const [loaded, page,locale] = await Promise.all([getTeleconseils(), getSitePage("teleconseils"),getCurrentLocale()]);
-  const en=locale==="en",tx=(fr:string,english:string)=>en?english:fr;
-  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();
-  const hasAccess=user?(await getClientEntitlements(supabase,user.id)).teleconsultation:false;
-  const packs = loaded?.length ? loaded : fallback;
-  const localizedBenefits=en?["Personalized nutrition assessment","Individual action plan","Personalized follow-up","Secure chat with your expert","Video consultations","Monitoring dashboard","Reports and recommendations"]:benefits;
-  const localizedDifferentiators=en?["Intelligent analysis of your health data","Automatic progress visualization","Support from qualified specialists","Available in French and English","Access from computer or smartphone"]:differentiators;
-
-  return <>
-    {page && <ManagedPageHero initial={page} />}
-    <MedicalDisclaimer />
-    <section id="packs" className="section scroll-mt-24">
-      <div className="container-site">
-        <div className="mb-8 rounded-3xl bg-mint p-7">
-          <p className="text-xs font-bold uppercase tracking-widest text-leaf">{tx("Ce qui differencie NutVitaGlobalis","What makes NutVitaGlobalis different")}</p>
-          <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-            {localizedDifferentiators.map(item => <div key={item} className="rounded-2xl bg-white p-4 text-sm font-bold text-forest">{item}</div>)}
-          </div>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {packs.map((p: any) => {
-            const checkoutId = p.id || p.slug || encodeURIComponent(String(p.name).toLowerCase().replace(/\s+/g, "-"));
-            const normalized=`${p.id||""} ${p.name||""}`.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-            const includesHealth=normalized.includes("diabete")||normalized.includes("perte de poids");
-            const includesGrowth=normalized.includes("femme enceinte")||normalized.includes("nutrition infantile");
-            const includedService=includesHealth
-              ? tx("Suivi Sante Autonome Premium inclus pendant les 3 mois du pack","Premium Autonomous Health Monitoring included for the pack's full 3 months")
-              : normalized.includes("femme enceinte")
-                ? tx("Suivi Croissance Premium inclus 3 mois + Suivi Sante Autonome Premium inclus 4 mois","Premium Growth Monitoring included for 3 months + Premium Autonomous Health Monitoring included for 4 months")
-                : includesGrowth ? tx("Suivi Croissance Enfant Premium inclus pendant les 3 mois du pack","Premium Child Growth Monitoring included for the pack's full 3 months") : null;
-            return <article key={p.id || p.name} className="flex min-h-full flex-col rounded-2xl bg-forest p-7 text-white shadow-soft">
-              <span className="mb-5 text-xs font-bold uppercase tracking-widest text-orange">{tx("Suivi de 3 mois","3-month follow-up")}</span>
-              <h2 className="text-2xl font-black text-white">Pack {p.name}</h2>
-              <p className="mt-4 flex-1 leading-7 text-white/70">{p.description}</p>
-              <div className="my-6 grid gap-3 text-sm">
-                {includedService&&<span className="flex gap-2 rounded-xl bg-orange/15 p-3 font-bold text-orange"><CheckIcon className="h-5 shrink-0" />{includedService}</span>}
-                {localizedBenefits.map(item => <span key={item} className="flex gap-2"><CheckIcon className="h-5 shrink-0 text-orange" />{item}</span>)}
-              </div>
-              <p className="mb-3 text-2xl font-black text-orange">{Number(p.price||0).toLocaleString("fr-FR")} FCFA</p><p className="mb-5 rounded-2xl bg-white/10 p-4 text-sm font-bold text-white">{tx("Service payant. Paiement pas encore disponible pour le moment.","Paid service. Payment is not available yet.")}</p>
-              <Link href={hasAccess?"/api/access/open?service=teleconsultation&role=client":user?`/checkout?type=consultation&id=${checkoutId}`:`/connexion?redirect=${encodeURIComponent(`/checkout?type=consultation&id=${checkoutId}`)}`} className="btn-primary mt-auto">{hasAccess?tx("Accéder à mon service","Open my service"):user?tx("Acheter ce pack","Buy this package"):tx("Se connecter pour acheter","Sign in to purchase")} <ArrowRightIcon className="ml-2 h-4" /></Link>
-            </article>;
-          })}
-        </div>
-      </div>
-    </section>
-  </>;
-}
+const fallback=[{id:"weight",name:"Perte de poids",nameEn:"Weight management",description:"Un accompagnement progressif et réaliste.",descriptionEn:"Progressive, realistic support.",price:15000},{id:"diabetes",name:"Diabète",nameEn:"Diabetes",description:"Une alimentation adaptée à votre situation clinique.",descriptionEn:"Nutrition tailored to your clinical situation.",price:15000},{id:"maternal",name:"Nutrition maternelle",nameEn:"Maternal nutrition",description:"Grossesse et allaitement accompagnés avec attention.",descriptionEn:"Careful support through pregnancy and breastfeeding.",price:15000},{id:"clinical",name:"Nutrition clinique",nameEn:"Clinical nutrition",description:"Un parcours coordonné selon vos besoins.",descriptionEn:"A coordinated pathway tailored to your needs.",price:15000}];
+export const metadata={title:"Consultations diététiques et nutritionnelles"};
+export default async function Teleconseils(){const[loaded,page,locale]=await Promise.all([getTeleconseils(),getSitePage("teleconseils"),getCurrentLocale()]),en=locale==="en",t=(fr:string,english:string)=>en?english:fr,supabase=await createClient(),{data:{user}}=await supabase.auth.getUser(),hasAccess=user?(await getClientEntitlements(supabase,user.id)).teleconsultation:false,programs=loaded?.length?loaded:fallback.map(p=>en?{...p,name:p.nameEn,description:p.descriptionEn}:p);
+const types=en?["Nutrition consultation","Dietetic consultation","Follow-up consultation","Teleconsultation","Home consultation, where available"]:["Consultation nutritionnelle","Consultation diététique","Consultation de suivi","Téléconsultation","Consultation à domicile, si disponible"];
+const goals=en?["Weight loss or gain","Child, maternal and breastfeeding nutrition","Diabetes and hypertension","Malnutrition and clinical nutrition","Sport and seniors","Kidney disease, cancer or another need"]:["Perte ou prise de poids","Nutrition infantile, grossesse et allaitement","Diabète et hypertension","Malnutrition et nutrition clinique","Sport et personnes âgées","Maladie rénale, cancer ou autre besoin"];
+const tiers=[{n:"Essential",fr:["Bilan nutritionnel","1 consultation"],en:["Nutrition assessment","1 consultation"]},{n:"Plus",fr:["Bilan nutritionnel","4 consultations","Plan alimentaire","Suivi des progrès"],en:["Nutrition assessment","4 consultations","Meal plan","Progress monitoring"]},{n:"Premium",fr:["Accompagnement renforcé","IA Nutrition Coach","Chat avec le nutritionniste","Analyse des repas et rapports"],en:["Enhanced support","AI Nutrition Coach","Dietitian chat","Meal analysis and reports"]}];
+return <>{page&&<ManagedPageHero initial={page}/>}<MedicalDisclaimer/><section className="section"><div className="container-site grid gap-7 lg:grid-cols-2"><article className="rounded-3xl bg-mint p-8"><p className="eyebrow">{t("Porte d'entrée","Starting point")}</p><h2 className="text-3xl font-black">{t("Choisissez votre type de consultation","Choose your consultation type")}</h2><div className="mt-6 grid gap-3">{types.map(x=><p key={x} className="rounded-2xl bg-white p-4 font-bold"><CheckIcon className="mr-2 inline h-5 text-leaf"/>{x}</p>)}</div><Link href={hasAccess?"/api/access/open?service=teleconsultation&role=client":user?"/rendez-vous":`/connexion?redirect=${encodeURIComponent("/rendez-vous")}`} className="btn-primary mt-7">{hasAccess?t("Accéder à mes consultations","Open my consultations"):t("Prendre rendez-vous","Book an appointment")}</Link></article><article className="rounded-3xl bg-forest p-8 text-white"><p className="eyebrow bg-white/10 text-orange">{t("Votre objectif","Your goal")}</p><h2 className="text-3xl font-black text-white">{t("Une orientation fondée sur votre besoin","Guidance based on your needs")}</h2><div className="mt-6 grid gap-3 sm:grid-cols-2">{goals.map(x=><p key={x} className="rounded-2xl bg-white/10 p-4 text-sm font-bold">{x}</p>)}</div></article></div></section><section className="section bg-mint"><div className="container-site"><p className="eyebrow">{t("Programmes spécialisés","Specialized programmes")}</p><h2 className="text-4xl font-black">{t("Un parcours complet, au-delà d'une consultation","A complete pathway beyond one appointment")}</h2><div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">{programs.map((p:any)=>{const id=p.id||p.slug;const href=hasAccess?"/api/access/open?service=teleconsultation&role=client":user?`/checkout?type=consultation&id=${id}`:`/connexion?redirect=${encodeURIComponent(`/checkout?type=consultation&id=${id}`)}`;return <article className="card flex flex-col p-7" key={id||p.name}><p className="text-xs font-black uppercase tracking-widest text-orange">{t("Programme NutVita","NutVita programme")}</p><h3 className="mt-3 text-2xl font-black">{p.name}</h3><p className="mt-4 flex-1 leading-7 text-slate-600">{p.description}</p><p className="mt-5 text-xl font-black text-forest">{Number(p.price||0).toLocaleString("fr-FR")} FCFA</p><Link className="btn-primary mt-5" href={href}>{hasAccess?t("Accéder au service","Open the service"):user?t("Choisir ce programme","Choose this programme"):t("Se connecter et continuer","Sign in and continue")}<ArrowRightIcon className="ml-2 h-4"/></Link></article>})}</div></div></section><section className="section"><div className="container-site"><h2 className="text-center text-4xl font-black">{t("Trois niveaux d'accompagnement","Three levels of support")}</h2><div className="mt-9 grid gap-6 md:grid-cols-3">{tiers.map(tier=><article key={tier.n} className="card p-8"><h3 className="text-3xl font-black text-leaf">{tier.n}</h3><div className="mt-5 grid gap-3">{(en?tier.en:tier.fr).map(x=><p key={x} className="flex gap-2"><CheckIcon className="h-5 shrink-0 text-orange"/>{x}</p>)}</div></article>)}</div></div></section></>}

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { hasLocalAdminMode, hasSupabaseConfig } from "@/lib/supabase/config";
@@ -98,6 +98,7 @@ export async function POST(request: Request) {
     created_by: user.id,
   }).select().maybeSingle();
 
+  await admin.from("platform_service_access").upsert({ user_id: client.id, service_key: "teleconsultation", roles: ["client"], active: true, granted_by: user.id, expires_at: expiresAt.toISOString() }, { onConflict: "user_id,service_key" });
   if (amount > 0 && ["paid", "partial"].includes(paymentStatus)) {
     await admin.from("partner_ledger").insert({
       partner_id: partner.id,

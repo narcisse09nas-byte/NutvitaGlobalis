@@ -1,4 +1,4 @@
-import {redirect} from "next/navigation";
+﻿import {redirect} from "next/navigation";
 import {cookies} from "next/headers";
 import {createClient} from "@/lib/supabase/server";
 import {hasLocalAdminMode,hasSupabaseConfig} from "@/lib/supabase/config";
@@ -28,19 +28,21 @@ export async function getClientEntitlements(supabase:any,userId:string):Promise<
   const {data:admin}=await supabase.from('admin_users').select('role,active').eq('id',userId).maybeSingle();
   if(isPrincipalEmail(authResult.data?.user?.email)||(admin?.active&&admin.role==='super_admin'))return{health:true,childGrowth:true,teleconsultation:true,premiumResources:true};
   const now=Date.now();
-  const [{data:subscriptions},{data:plans},{data:bookings}]=await Promise.all([
+  const [{data:subscriptions},{data:plans},{data:bookings},{data:grants}]=await Promise.all([
     supabase.from('subscriptions').select('*').eq('client_id',userId).eq('status','active'),
     supabase.from('subscription_plans').select('id,service_type,tier'),
     supabase.from('consultation_bookings').select('*').eq('client_id',userId),
+    supabase.from('platform_service_access').select('service_key,active,expires_at').eq('user_id',userId).eq('active',true),
   ]);
   const planTypes=new Map((plans||[]).map((plan:any)=>[plan.id,plan.service_type]));
   const premiumPlanIds=new Set((plans||[]).filter((plan:any)=>plan.tier==='premium').map((plan:any)=>plan.id));
   const active=(subscriptions||[]).filter((item:any)=>!item.expires_at||+new Date(item.expires_at)>now);
+  const granted=(service:string)=>(grants||[]).some((item:any)=>item.service_key===service&&(!item.expires_at||+new Date(item.expires_at)>now));
   return{
-    health:active.some((item:any)=>!item.child_id&&(planTypes.get(item.plan_id)==='health_tracking'||String(item.plan_id).includes('health'))),
-    childGrowth:active.some((item:any)=>planTypes.get(item.plan_id)==='child_growth'||String(item.plan_id).includes('child-growth')),
+    health:granted("health")||active.some((item:any)=>!item.child_id&&(planTypes.get(item.plan_id)==='health_tracking'||String(item.plan_id).includes('health'))),
+    childGrowth:granted("child_growth")||active.some((item:any)=>planTypes.get(item.plan_id)==='child_growth'||String(item.plan_id).includes('child-growth')),
     premiumResources:active.some((item:any)=>premiumPlanIds.has(item.plan_id)),
-    teleconsultation:(bookings||[]).some((item:any)=>{
+    teleconsultation:granted("teleconsultation")||(bookings||[]).some((item:any)=>{
       if(['cancelled','refunded'].includes(item.status))return false;
       if(item.access_expires_at)return +new Date(item.access_expires_at)>now;
       const legacyEnd=new Date(item.created_at);legacyEnd.setUTCMonth(legacyEnd.getUTCMonth()+3);

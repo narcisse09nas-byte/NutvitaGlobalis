@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+﻿import type { SupabaseClient } from "@supabase/supabase-js";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
 import { sendSystemEmail } from "@/lib/system-email";
 
@@ -123,7 +123,7 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
   } else if (payment.purchase_type === "consultation") {
     let existingResult=await admin.from('consultation_bookings').select('*').eq('client_id',payment.client_id).eq('teleconseil_id',payment.product_id).order('access_expires_at',{ascending:false}).limit(1).maybeSingle();
     if(isMissingBookingEntitlementColumn(existingResult.error))existingResult=await admin.from('consultation_bookings').select('*').eq('client_id',payment.client_id).eq('teleconseil_id',payment.product_id).order('created_at',{ascending:false}).limit(1).maybeSingle();
-    failIfError("Lecture du pack existant",existingResult.error);
+    failIfError("Lecture du programme existant",existingResult.error);
     const existing=existingResult.data;
     const accessStart=existing?.access_expires_at&&+new Date(existing.access_expires_at)>+start?new Date(existing.access_expires_at):start;
     const accessEnd=new Date(accessStart);accessEnd.setUTCMonth(accessEnd.getUTCMonth()+3);end=accessEnd;
@@ -132,18 +132,27 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
       const status=['slot_required','scheduled','completed'].includes(existing.status)?existing.status:'slot_required';
       let result=await admin.from('consultation_bookings').update({payment_id:payment.id,status,access_starts_at:existing.access_starts_at||start.toISOString(),access_expires_at:accessEnd.toISOString(),renewal_price_xof:Number(payment.source_amount_xof||payment.price_excluding_tax||0)}).eq('id',existing.id).select().single();
       if(isMissingBookingEntitlementColumn(result.error))result=await admin.from('consultation_bookings').update({payment_id:payment.id,status}).eq('id',existing.id).select().single();
-      failIfError("Renouvellement du pack",result.error);booking=result.data;
+      failIfError("Renouvellement du programme",result.error);booking=result.data;
     }else{
       const base={client_id:payment.client_id,teleconseil_id:payment.product_id,payment_id:payment.id,status:'slot_required'};
       let result=await admin.from('consultation_bookings').insert({...base,access_starts_at:start.toISOString(),access_expires_at:accessEnd.toISOString(),renewal_price_xof:Number(payment.source_amount_xof||payment.price_excluding_tax||0)}).select().single();
       if(isMissingBookingEntitlementColumn(result.error))result=await admin.from('consultation_bookings').insert(base).select().single();
-      failIfError("Activation du pack",result.error);booking=result.data;
+      failIfError("Activation du programme",result.error);booking=result.data;
     }
     await activateIncludedPremiumTracking(admin, payment, start, accessEnd);
     if(booking&&!existing){const {data:conversation}=await admin.from('collaboration_conversations').insert({title:`Suivi expert - ${payment.product_name}`,conversation_type:'consultation',consultation_id:booking.id,created_by:payment.client_id}).select().single();if(conversation)await admin.from('collaboration_members').insert({conversation_id:conversation.id,user_id:payment.client_id,member_role:'client'});await admin.from("consultation_waiting_room").insert({client_id:payment.client_id,teleconseil_id:payment.product_id,payment_id:payment.id,reason:payment.product_name,status:"waiting",country:client.country||null,city:client.city||null,ai_recommendation:{signals:["Nouveau paiement confirme","Client en attente d attribution"],score:50}})}
-    await admin.from("client_notifications").insert({ client_id: payment.client_id, title: existing?"Pack téléconseil renouvelé":"Consultation à planifier", message: `Votre accès est actif jusqu’au ${accessEnd.toLocaleDateString('fr-FR')}. Chat et appels vidéo avec votre expert inclus.`, link_url: "/espace-client/messages" });
+    await admin.from("client_notifications").insert({ client_id: payment.client_id, title: existing?"Pack tÃ©lÃ©conseil renouvelÃ©":"Consultation Ã  planifier", message: `Votre accÃ¨s est actif jusquâ€™au ${accessEnd.toLocaleDateString('fr-FR')}. Chat et appels vidÃ©o avec votre expert inclus.`, link_url: "/espace-client/messages" });
   }
 
+  const platformGrant = payment.purchase_type === "formation"
+    ? { service_key: "academy", roles: ["student"] }
+    : payment.purchase_type === "consultation"
+      ? { service_key: "teleconsultation", roles: ["client"] }
+      : plan.service_type === "child_growth"
+        ? { service_key: "child_growth", roles: ["parent"] }
+        : { service_key: "health", roles: ["client"] };
+  const grantResult = await admin.from("platform_service_access").upsert({ user_id: payment.client_id, ...platformGrant, active: true, expires_at: end?.toISOString() || null }, { onConflict: "user_id,service_key" });
+  failIfError("Activation de l'accès au service", grantResult.error);
   failIfError("Validation du paiement", (await admin.from("payments").update({ status: "succeeded", provider_payment_id: providerPaymentId, paid_at: start.toISOString(), raw_event: rawEvent }).eq("id", payment.id)).error);
 
   let invoice: any = null;

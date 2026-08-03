@@ -1,36 +1,9 @@
-"use client";
+﻿"use client";
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { ManagedSection, SitePageContent } from "@/data/site-pages";
-
-export default function SitePageEditor({ initial }: { initial: SitePageContent }) {
-  const [data, setData] = useState(initial);
-  const [message, setMessage] = useState("");
-  const updateSection = (index: number, patch: Partial<ManagedSection>) => setData({ ...data, sections: data.sections.map((section, i) => i === index ? { ...section, ...patch } : section) });
-  async function save(event: FormEvent) {
-    event.preventDefault(); setMessage("Enregistrement...");
-    const { label, path, ...payload } = data;
-    const { error } = await createClient().from("site_pages").upsert(payload);
-    setMessage(error ? error.message : "Page enregistrée. Les modifications sont visibles sur le site.");
-  }
-  return <form onSubmit={save} className="grid gap-6">
-    <section className="grid gap-5 rounded-2xl border bg-white p-6 md:grid-cols-2">
-      <Field label="Petit titre" value={data.eyebrow} onChange={value => setData({ ...data, eyebrow: value })}/>
-      <Field label="Titre principal" value={data.title} onChange={value => setData({ ...data, title: value })}/>
-      <label className="grid gap-2 text-sm font-bold md:col-span-2">Texte de présentation<textarea rows={4} className="admin-input" value={data.description} onChange={event => setData({ ...data, description: event.target.value })}/></label>
-      <Field label="Texte du bouton" value={data.cta_label || ""} onChange={value => setData({ ...data, cta_label: value })}/>
-      <Field label="Lien du bouton" value={data.cta_url || ""} onChange={value => setData({ ...data, cta_url: value })}/>
-    </section>
-    {data.sections.map((section, index) => <section key={index} className="grid gap-4 rounded-2xl border bg-white p-6">
-      <div className="flex items-center justify-between"><h2 className="font-black">Bloc {index + 1}</h2><button type="button" className="text-sm font-bold text-red-600" onClick={() => setData({ ...data, sections: data.sections.filter((_, i) => i !== index) })}>Supprimer</button></div>
-      <Field label="Titre du bloc" value={section.title} onChange={value => updateSection(index, { title: value })}/>
-      <label className="grid gap-2 text-sm font-bold">Texte<textarea rows={3} className="admin-input" value={section.text || ""} onChange={event => updateSection(index, { text: event.target.value })}/></label>
-      <label className="grid gap-2 text-sm font-bold">Liste, une ligne par élément<textarea rows={5} className="admin-input" value={(section.items || []).join("\n")} onChange={event => updateSection(index, { items: event.target.value.split("\n").map(item => item.trim()).filter(Boolean) })}/></label>
-    </section>)}
-    <div className="flex flex-wrap gap-3"><button type="button" className="btn-secondary" onClick={() => setData({ ...data, sections: [...data.sections, { title: "Nouveau bloc", text: "", items: [] }] })}>Ajouter un bloc</button><button className="btn-primary">Enregistrer la page</button><Link href={data.path} target="_blank" className="btn-secondary">Prévisualiser</Link></div>
-    {message && <p className="font-semibold text-leaf">{message}</p>}
-  </form>;
-}
-
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) { return <label className="grid gap-2 text-sm font-bold">{label}<input className="admin-input" value={value} onChange={event => onChange(event.target.value)}/></label>; }
+type Editable=SitePageContent&{eyebrow_en?:string;title_en?:string;description_en?:string;sections_en?:ManagedSection[];cta_label_en?:string};
+export default function SitePageEditor({initial}:{initial:Editable}){const[data,setData]=useState<Editable>({...initial,sections_en:initial.sections_en||initial.sections.map(section=>({...section}))}),[message,setMessage]=useState("");const update=(key:"sections"|"sections_en",index:number,patch:Partial<ManagedSection>)=>setData({...data,[key]:(data[key]||[]).map((section,i)=>i===index?{...section,...patch}:section)});async function save(event:FormEvent){event.preventDefault();setMessage("Enregistrement...");const{label,path,...payload}=data;const{error}=await createClient().from("site_pages").upsert(payload);setMessage(error?error.message:"Page enregistrée. Les versions française et anglaise sont disponibles.")}return <form onSubmit={save} className="grid gap-6"><div className="grid gap-6 xl:grid-cols-2">{(["fr","en"] as const).map(lang=>{const suffix=lang==="en"?"_en":"",sectionsKey=lang==="en"?"sections_en":"sections",sections=data[sectionsKey]||[];return <section key={lang} className="grid content-start gap-5 rounded-2xl border bg-white p-6"><h2 className="text-xl font-black text-forest">{lang==="fr"?"Français":"English"}</h2><Field label="Petit titre" value={String(data[`eyebrow${suffix}` as keyof Editable]||"")} onChange={value=>setData({...data,[`eyebrow${suffix}`]:value})}/><Field label="Titre principal" value={String(data[`title${suffix}` as keyof Editable]||"")} onChange={value=>setData({...data,[`title${suffix}`]:value})}/><Area label="Présentation" value={String(data[`description${suffix}` as keyof Editable]||"")} onChange={value=>setData({...data,[`description${suffix}`]:value})}/><Field label="Texte du bouton" value={String(data[`cta_label${suffix}` as keyof Editable]||"")} onChange={value=>setData({...data,[`cta_label${suffix}`]:value})}/>{sections.map((section,index)=><div key={index} className="grid gap-3 rounded-xl bg-slate-50 p-4"><div className="flex justify-between"><b>Bloc {index+1}</b><button type="button" className="text-xs font-bold text-red-600" onClick={()=>setData({...data,[sectionsKey]:sections.filter((_,i)=>i!==index)})}>Supprimer</button></div><Field label="Titre" value={section.title} onChange={value=>update(sectionsKey,index,{title:value})}/><Area label="Texte" value={section.text||""} onChange={value=>update(sectionsKey,index,{text:value})}/><Area label="Liste (une ligne par élément)" value={(section.items||[]).join("\n")} onChange={value=>update(sectionsKey,index,{items:value.split("\n").map(x=>x.trim()).filter(Boolean)})}/></div>)}<button type="button" className="btn-secondary" onClick={()=>setData({...data,[sectionsKey]:[...sections,{title:lang==="fr"?"Nouveau bloc":"New section",text:"",items:[]}]})}>Ajouter un bloc</button></section>})}</div><Field label="Lien commun du bouton" value={data.cta_url||""} onChange={value=>setData({...data,cta_url:value})}/><div className="flex flex-wrap gap-3"><button className="btn-primary">Enregistrer les deux langues</button><Link href={data.path} target="_blank" className="btn-secondary">Prévisualiser</Link></div>{message&&<p className="font-semibold text-leaf">{message}</p>}</form>}
+function Field({label,value,onChange}:{label:string;value:string;onChange:(value:string)=>void}){return <label className="grid gap-2 text-sm font-bold">{label}<input className="admin-input" value={value} onChange={e=>onChange(e.target.value)}/></label>}
+function Area({label,value,onChange}:{label:string;value:string;onChange:(value:string)=>void}){return <label className="grid gap-2 text-sm font-bold">{label}<textarea rows={4} className="admin-input" value={value} onChange={e=>onChange(e.target.value)}/></label>}

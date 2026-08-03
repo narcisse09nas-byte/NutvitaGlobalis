@@ -1,4 +1,4 @@
-import { defaultSitePage, type SitePageContent } from "@/data/site-pages";
+﻿import { defaultSitePage, type SitePageContent } from "@/data/site-pages";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { pickLocalized } from "@/lib/i18n";
 import { hasSupabaseConfig } from "@/lib/supabase/config";
@@ -15,7 +15,14 @@ const englishFallbacks: Record<string, Partial<SitePageContent>> = {
   ] },
   contact: { eyebrow: "Let's talk", title: "Have a question? Our team is here to help", description: "Courses, support or partnerships: write to us and we will get back to you promptly.", sections: [{ title: "Stay in touch", text: "We generally reply within one business day." }] },
   "suivi-sante": { eyebrow: "Annual self-monitoring", title: "Understand your health indicators day after day", description: "Record your data, visualize trends and receive cautious analyses without a mandatory consultation.", sections: [{ title: "Autonomous Health Monitoring", text: "Annual access with history, trends and cautious guidance." }, { title: "Child Growth", text: "Annual monitoring per child with history and growth charts." }] },
-  recrutement: { eyebrow: "Join us", title: "Join the NutVitaGlobalis dietitian-nutritionist network", description: "Use your expertise to support patients and accessible, rigorous nutrition programmes adapted to local realities.", cta_label: "Submit my application", sections: [
+  "recherche-innovation": { eyebrow: "Research · Innovation · Consulting", title: "Turn data into decisions and ideas into impact", description: "We support institutions, organizations, companies and researchers worldwide, from design through impact measurement.", cta_label: "Discuss your project", sections: [
+    { title: "Scientific research", text: "Rigorous protocols and actionable findings.", items: ["Quantitative, qualitative and mixed-method studies", "SMART, SENS, KAP, DHS, MICS, HEA and IPC surveys", "Systematic reviews, meta-analyses and operational research"] },
+    { title: "Innovation", text: "Digital and methodological solutions tailored to each context.", items: ["Digital health and data collection tools", "Data analysis, GIS and artificial intelligence", "Solution design and experimentation"] },
+    { title: "Strategic consulting", text: "End-to-end support aligned with international standards.", items: ["Project and programme design", "Monitoring, evaluation, learning and knowledge management", "Capacity strengthening and technical assistance"] },
+    { title: "Our fields", items: ["Public health and nutrition", "Food security", "Data and information systems", "Project, programme and portfolio management"] },
+    { title: "Our approach", items: ["Understand", "Design", "Implement", "Measure", "Learn and scale"] },
+    { title: "Why NutVitaGlobalis", items: ["Evidence-informed decisions", "International multidisciplinary expertise", "Context-sensitive solutions", "WHO, UNICEF, FAO and Sphere standards"] },
+  ] },  recrutement: { eyebrow: "Join us", title: "Join the NutVitaGlobalis dietitian-nutritionist network", description: "Use your expertise to support patients and accessible, rigorous nutrition programmes adapted to local realities.", cta_label: "Submit my application", sections: [
     { title: "An engaged professional community", text: "Join qualified professionals working in counselling, personalized monitoring, clinical nutrition and online programmes." },
     { title: "Selection process", items: ["Application", "Administrative review", "Online written test", "Video interview", "Final validation", "Network onboarding"] },
   ] },

@@ -1,7 +1,8 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import { CheckCheck, Edit, Eye, Plus, ShieldCheck, ShieldX, X, XCircle } from 'lucide-react';
+import { CheckCheck, Edit, Eye, IdCard, Plus, ShieldCheck, ShieldX, X, XCircle } from 'lucide-react';
+import StaffBusinessCard from '@/components/admin/StaffBusinessCard';
 
 type Row = {
   id: string;
@@ -41,6 +42,7 @@ export default function StaffDirectory() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
   const [viewing, setViewing] = useState<Row | null>(null);
+  const [carding, setCarding] = useState<Row | null>(null);
   const [countries, setCountries] = useState<Option[]>([]);
   const [states, setStates] = useState<Option[]>([]);
   const [country, setCountry] = useState('');
@@ -137,6 +139,7 @@ export default function StaffDirectory() {
             <td className="p-3">{row.data.linked_user_uid || row.data.create_user_account ? <CheckCheck className="h-5 w-5 text-emerald-600" /> : <XCircle className="h-5 w-5 text-slate-400" />}</td>
             <td className="p-3"><div className="flex justify-end gap-2">
               <button onClick={() => setViewing(row)} title="View Profile" className="rounded-md border p-2"><Eye className="h-4 w-4" /></button>
+              {row.status === 'validated' && <button onClick={() => setCarding(row)} title="Carte de visite / Business card" className="rounded-md border border-emerald-200 p-2 text-emerald-700"><IdCard className="h-4 w-4" /></button>}
               {['draft', 'submitted'].includes(row.status) && <button onClick={() => changeStatus(row, 'endorsed')} className="flex items-center gap-1 rounded-md bg-[#24945f] px-3 py-2 text-xs font-bold text-white"><ShieldCheck className="h-4 w-4" />Endorse</button>}
               {row.status === 'endorsed' && <button onClick={() => changeStatus(row, 'validated')} className="flex items-center gap-1 rounded-md bg-[#24945f] px-3 py-2 text-xs font-bold text-white"><CheckCheck className="h-4 w-4" />Validate</button>}
               {['draft', 'submitted', 'endorsed'].includes(row.status) && <button onClick={() => changeStatus(row, 'rejected')} className="flex items-center gap-1 rounded-md border px-3 py-2 text-xs font-bold"><ShieldX className="h-4 w-4" />Reject</button>}
@@ -194,5 +197,6 @@ export default function StaffDirectory() {
     </div>}
 
     {viewing && <div className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/55 p-4" onMouseDown={() => setViewing(null)}><section className="w-full max-w-2xl rounded-lg bg-white p-7" onMouseDown={event => event.stopPropagation()}><div className="flex justify-between"><div><h3 className="text-2xl font-black">{fullName(viewing)}</h3><p className="mt-1 text-sm text-slate-500">{viewing.reference}</p></div><button onClick={() => setViewing(null)}><X className="h-5 w-5" /></button></div><dl className="mt-7 grid gap-5 text-sm sm:grid-cols-2">{[['Position', viewing.data.position], ['Unit', viewing.data.unit], ['Contract', viewing.data.contract_type], ['Grade', viewing.data.grade], ['Email', viewing.data.email], ['Phone', `${text(viewing.data.phone_code)} ${text(viewing.data.phone)}`], ['Country', viewing.data.country], ['Status', statusLabel(viewing)]].map(([label, value]) => <div key={String(label)}><dt className="text-slate-500">{String(label)}</dt><dd className="mt-1 font-bold">{String(value || 'N/A')}</dd></div>)}</dl></section></div>}
+    {carding && <StaffBusinessCard staff={{fullName:fullName(carding),position:text(carding.data.position),unit:text(carding.data.unit),email:text(carding.data.email),phone:`${text(carding.data.phone_code)} ${text(carding.data.phone)}`.trim(),city:text(carding.data.city),country:text(carding.data.country),reference:carding.reference}} onClose={() => setCarding(null)} />}
   </div>;
 }

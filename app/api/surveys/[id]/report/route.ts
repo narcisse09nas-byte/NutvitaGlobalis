@@ -186,7 +186,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         const samResult = prevalence(sam, valid.length);
         return [label, valid.length, `${gamResult.percentage.toFixed(1)} %`, `${samResult.percentage.toFixed(1)} %`];
       });
-      text('Tableau 3.5. Malnutrition aiguë selon le PB/MUAC et/ou œdèmes', 10, bold);
+      text('Tableau 3.5. Malnutrition aiguë selon le PB/MUAC et/ou Å“dèmes', 10, bold);
       table(['Groupe', 'n valide', 'GAM MUAC', 'SAM MUAC'], muacRows, [110, 95, 145, 149]);
     }
     text('Tableau 3.6. Insuffisance pondérale, retard de croissance et surpoids', 10, bold);
@@ -229,7 +229,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     bins.filter((_, index) => index % 2 === 0).forEach((bin, index) => page.drawText(String(bin), { x: chartX + index * 2 * chartWidth / (bins.length - 1) - 4, y: chartY - 12, size: 6, font: regular }));
     y = chartY - 28;
     const oedema = prevalence(observations.filter(item => item.oedema === true).length, observations.length);
-    text(`Prévalence des œdèmes bilatéraux : ${oedema.count}/${oedema.total}, soit ${oedema.percentage.toFixed(1)} % (IC 95 % ${oedema.low.toFixed(1)}–${oedema.high.toFixed(1)} %).`, 8);
+    text(`Prévalence des Å“dèmes bilatéraux : ${oedema.count}/${oedema.total}, soit ${oedema.percentage.toFixed(1)} % (IC 95 % ${oedema.low.toFixed(1)}–${oedema.high.toFixed(1)} %).`, 8);
   } else {
     text('Aucun résultat anthropométrique sauvegardé. Exécutez puis conservez le contrôle ENA/SMART depuis la page Analyse anthropométrique.', 9, bold, rgb(.65, .25, .1));
   }

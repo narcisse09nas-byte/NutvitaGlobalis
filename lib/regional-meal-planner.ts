@@ -26,7 +26,7 @@ export const WORLD_REGIONS = {
     foods: [
       ["Ugali", "starch", 35, 100, "1 petite part"], ["Injera", "starch", 45, 60, "1/2 galette"],
       ["Patate douce bouillie", "starch", 55, 90, "1 petite"], ["Haricots rouges cuits", "protein", 35, 90, "1/2 bol"],
-      ["Tilapia grillé", "protein", 45, 35, "1 petit morceau"], ["Œuf", "protein", 50, 50, "1 unité"],
+      ["Tilapia grillé", "protein", 45, 35, "1 petit morceau"], ["Å’uf", "protein", 50, 50, "1 unité"],
       ["Banane", "fruit", 100, 100, "1 petite"], ["Fruit de la passion", "fruit", 120, 90, "3 unités"],
       ["Lait fermenté non sucré", "dairy", 200, 200, "1 verre"], ["Huile de sésame", "fat", 5, 5, "1 c. à café"],
       ["Sukuma wiki cuit", "vegetable", 120, 100, "1 bol"],
@@ -81,7 +81,7 @@ export const WORLD_REGIONS = {
     foods: [
       ["Pain complet", "starch", 30, 30, "1 tranche"], ["Pâtes complètes cuites", "starch", 35, 100, "1/2 bol"],
       ["Pomme de terre", "starch", 90, 75, "1 petite"], ["Lentilles cuites", "protein", 35, 90, "1/2 bol"],
-      ["Poisson blanc", "protein", 45, 35, "1 petit morceau"], ["Œuf", "protein", 50, 50, "1 unité"],
+      ["Poisson blanc", "protein", 45, 35, "1 petit morceau"], ["Å’uf", "protein", 50, 50, "1 unité"],
       ["Pomme", "fruit", 130, 130, "1 petite"], ["Poire", "fruit", 130, 130, "1 petite"],
       ["Yaourt nature", "dairy", 125, 125, "1 pot"], ["Huile d'olive", "fat", 5, 5, "1 c. à café"],
       ["Légumes méditerranéens", "vegetable", 150, 120, "1 bol"],

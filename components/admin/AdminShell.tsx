@@ -78,6 +78,7 @@ const navGroups = [
     ["/admin/articles", "Articles", NewspaperIcon, [...all, "content_admin"]],
     ["/admin/formations", "Formations", AcademicCapIcon, [...all, "content_admin"]],
     ["/admin/accueil", "Pages du site", HomeIcon, [...all, "content_admin"]],
+    ["/admin/recherche-innovation", "Recherche & Innovation", StarIcon, [...all, "content_admin"]],
     ["/admin/ressources-premium", "Ressources premium", LockClosedIcon, [...all, "content_admin"]],
     ["/admin/temoignages", "Temoignages", StarIcon, [...all, "content_admin"]],
     ["/admin/newsletter", "Newsletter", EnvelopeIcon, [...all, "content_admin"]],
@@ -138,4 +139,3 @@ export default function AdminShell({ children, name }: { children: ReactNode; na
     </div>
   </div>;
 }
-

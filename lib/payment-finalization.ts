@@ -141,7 +141,7 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
     }
     await activateIncludedPremiumTracking(admin, payment, start, accessEnd);
     if(booking&&!existing){const {data:conversation}=await admin.from('collaboration_conversations').insert({title:`Suivi expert - ${payment.product_name}`,conversation_type:'consultation',consultation_id:booking.id,created_by:payment.client_id}).select().single();if(conversation)await admin.from('collaboration_members').insert({conversation_id:conversation.id,user_id:payment.client_id,member_role:'client'});await admin.from("consultation_waiting_room").insert({client_id:payment.client_id,teleconseil_id:payment.product_id,payment_id:payment.id,reason:payment.product_name,status:"waiting",country:client.country||null,city:client.city||null,ai_recommendation:{signals:["Nouveau paiement confirme","Client en attente d attribution"],score:50}})}
-    await admin.from("client_notifications").insert({ client_id: payment.client_id, title: existing?"Pack tÃ©lÃ©conseil renouvelÃ©":"Consultation Ã  planifier", message: `Votre accÃ¨s est actif jusquâ€™au ${accessEnd.toLocaleDateString('fr-FR')}. Chat et appels vidÃ©o avec votre expert inclus.`, link_url: "/espace-client/messages" });
+    await admin.from("client_notifications").insert({ client_id: payment.client_id, title: existing?"Pack téléconseil renouvelé":"Consultation à planifier", message: `Votre accès est actif jusqu’au ${accessEnd.toLocaleDateString('fr-FR')}. Chat et appels vidéo avec votre expert inclus.`, link_url: "/espace-client/messages" });
   }
 
   const platformGrant = payment.purchase_type === "formation"

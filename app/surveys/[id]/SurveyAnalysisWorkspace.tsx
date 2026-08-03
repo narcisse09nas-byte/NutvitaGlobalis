@@ -49,7 +49,7 @@ const moduleSchemas = {
       ['weight', 'Poids en kg', true, ['weight', 'poids', 'weight_kg']],
       ['height', 'Taille/longueur en cm', true, ['height', 'taille', 'length', 'height_cm']],
       ['muac', 'PB/MUAC', false, ['muac', 'pb', 'muac_cm']],
-      ['oedema', 'Œdèmes bilatéraux', false, ['oedema', 'edema', 'oedeme']],
+      ['oedema', 'Å’dèmes bilatéraux', false, ['oedema', 'edema', 'oedeme']],
       ['cluster', 'Grappe', false, ['cluster', 'grappe', 'cluster_id']],
       ['village', 'Village/ZD', false, ['village', 'zd', 'enumeration_area']],
       ['enumerator', 'Enquêteur/équipe', false, ['enumerator', 'enqueteur', 'team']],
@@ -79,7 +79,7 @@ const moduleSchemas = {
       ['FCSStap', 'Céréales et tubercules (jours/7)', true, ['fcsstap', 'staples', 'cereales']],
       ['FCSPulse', 'Légumineuses (jours/7)', true, ['fcspulse', 'pulses', 'legumineuses']],
       ['FCSDairy', 'Produits laitiers (jours/7)', true, ['fcsdairy', 'dairy', 'lait']],
-      ['FCSPr', 'Viandes/poissons/œufs (jours/7)', true, ['fcspr', 'protein', 'proteines']],
+      ['FCSPr', 'Viandes/poissons/Å“ufs (jours/7)', true, ['fcspr', 'protein', 'proteines']],
       ['FCSVeg', 'Légumes (jours/7)', true, ['fcsveg', 'vegetables', 'legumes']],
       ['FCSFruit', 'Fruits (jours/7)', true, ['fcsfruit', 'fruits']],
       ['FCSFat', 'Huiles et matières grasses (jours/7)', true, ['fcsfat', 'fat', 'huile']],
@@ -94,7 +94,7 @@ const moduleSchemas = {
       ['FCSNPrMeatO', 'Abats riches en vitamine A', true, ['fcsnprmeato']],
       ['FCSNPrMeatF', 'Viandes', true, ['fcsnprmeatf']],
       ['FCSNPrFish', 'Poissons', true, ['fcsnprfish']],
-      ['FCSNPrEggs', 'Œufs', true, ['fcsnpreggs']],
+      ['FCSNPrEggs', 'Å’ufs', true, ['fcsnpreggs']],
       ['FCSNVegOrg', 'Légumes orange', true, ['fcsnvegorg']],
       ['FCSNVegGre', 'Légumes verts à feuilles', true, ['fcsnveggre']],
       ['FCSNFruiOrg', 'Fruits orange', true, ['fcsnfruiorg']],
@@ -1087,7 +1087,7 @@ export default function SurveyAnalysisWorkspace({
           ['weight', 'Poids'],
           ['height', 'Taille / longueur'],
           ['muac', 'PB / MUAC'],
-          ['oedema', 'Œdèmes bilatéraux'],
+          ['oedema', 'Å’dèmes bilatéraux'],
           ['order', 'Ordre de passage'],
         ] as const).map(([key, label]) => <Field key={key} label={label}><select value={mapping[key] || ''} onChange={event => setMapping(current => ({ ...current, [key]: event.target.value }))} className="admin-input"><option value="">Non défini</option>{columns.map(column => <option key={column}>{column}</option>)}</select></Field>)}
       </div>
@@ -1098,7 +1098,7 @@ export default function SurveyAnalysisWorkspace({
       {plausibility && <div className="mt-6 grid gap-6">
         {showAnthropometryData && <div className="overflow-x-auto border">
           <table className="min-w-[1100px] text-sm">
-            <thead className="bg-slate-100 text-left"><tr>{['Ligne', 'ID', 'Grappe', 'Sexe', 'ge', 'Source âge', 'Poids', 'Taille', 'Œdème', 'MUAC', 'P/A Z', 'T/A Z', 'P/T Z', 'Signalements'].map(label => <th key={label} className="p-3">{label}</th>)}</tr></thead>
+            <thead className="bg-slate-100 text-left"><tr>{['Ligne', 'ID', 'Grappe', 'Sexe', 'ge', 'Source âge', 'Poids', 'Taille', 'Å’dème', 'MUAC', 'P/A Z', 'T/A Z', 'P/T Z', 'Signalements'].map(label => <th key={label} className="p-3">{label}</th>)}</tr></thead>
             <tbody>{(plausibility.observations || []).map((item: Row) => <tr key={item.row} className="border-t">
               <td className="p-3">{item.row}</td><td className="p-3">{item.id ?? '-'}</td><td className="p-3">{item.cluster ?? '-'}</td><td className="p-3">{item.sex ?? '-'}</td>
               <td className="p-3">{item.age ?? '-'}</td><td className="p-3 text-xs">{item.ageSource === 'reported_months' ? 'ge en mois' : item.ageSource === 'birth_date' ? 'Date de naissance' : '-'}</td><td className="p-3">{item.weight ?? '-'}</td><td className="p-3">{item.height ?? '-'}</td><td className="p-3">{item.oedema ?? '-'}</td><td className="p-3">{item.muac ?? '-'}</td>
@@ -1179,7 +1179,7 @@ export default function SurveyAnalysisWorkspace({
           <div className="grid gap-5 xl:grid-cols-2">
             <div className="h-72 border p-3"><h4 className="font-black">Histogramme de {qualityDiagnostic.variable}</h4><ResponsiveContainer width="100%" height="90%"><BarChart data={qualityDiagnostic.histogram}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="interval" /><YAxis /><Tooltip /><Bar dataKey="count" fill="#0f766e" /></BarChart></ResponsiveContainer></div>
             <div className="h-72 border p-3"><h4 className="font-black">Carte de contrôle Shewhart</h4><ResponsiveContainer width="100%" height="90%"><LineChart data={qualityDiagnostic.controlChart}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="row" /><YAxis /><Tooltip /><Legend /><Line dataKey="value" stroke="#0f766e" dot={false} /><Line dataKey="mean" stroke="#2563eb" dot={false} /><Line dataKey="ucl" stroke="#dc2626" dot={false} /><Line dataKey="lcl" stroke="#dc2626" dot={false} /></LineChart></ResponsiveContainer></div>
-            <div className="h-72 border p-3 xl:col-span-2"><h4 className="font-black">Pareto des problèmes sur la variable</h4>{qualityDiagnostic.problemPareto.length ? <ResponsiveContainer width="100%" height="90%"><ComposedChart data={qualityDiagnostic.problemPareto}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis yAxisId="left" /><YAxis yAxisId="right" orientation="right" domain={[0, 100]} /><Tooltip /><Bar yAxisId="left" dataKey="count" fill="#0f766e" /><Line yAxisId="right" type="monotone" dataKey="cumulativePercentage" stroke="#ea580c" strokeWidth={2} /></ComposedChart></ResponsiveContainer> : <p className="mt-8 text-sm text-slate-500">Aucun manquant, outlier IQR ou point hors limite ±3σ.</p>}</div>
+            <div className="h-72 border p-3 xl:col-span-2"><h4 className="font-black">Pareto des problèmes sur la variable</h4>{qualityDiagnostic.problemPareto.length ? <ResponsiveContainer width="100%" height="90%"><ComposedChart data={qualityDiagnostic.problemPareto}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="label" /><YAxis yAxisId="left" /><YAxis yAxisId="right" orientation="right" domain={[0, 100]} /><Tooltip /><Bar yAxisId="left" dataKey="count" fill="#0f766e" /><Line yAxisId="right" type="monotone" dataKey="cumulativePercentage" stroke="#ea580c" strokeWidth={2} /></ComposedChart></ResponsiveContainer> : <p className="mt-8 text-sm text-slate-500">Aucun manquant, outlier IQR ou point hors limite ±3Ïƒ.</p>}</div>
           </div>
           {qualityDiagnostic.controlAlerts.length > 0 && <div className="border-l-4 border-red-600 bg-red-50 p-4 text-sm text-red-800"><b>Points hors contrôle</b><p className="mt-1">{qualityDiagnostic.controlAlerts.length} observation(s) dépassent les limites moyenne ± 3 écarts-types. Vérifiez saisie, unité, protocole de mesure et valeurs extrêmes.</p></div>}
         </>}

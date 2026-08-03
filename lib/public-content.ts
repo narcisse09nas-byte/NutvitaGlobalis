@@ -1,4 +1,4 @@
-﻿import { articles as fallbackArticles, formations as fallbackFormations, type Article } from "@/data/content";
+import { articles as fallbackArticles, formations as fallbackFormations, type Article } from "@/data/content";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { pickLocalized, type Locale } from "@/lib/i18n";
 import { hasSupabaseConfig } from "@/lib/supabase/config";
@@ -99,29 +99,29 @@ export async function getTestimonials() {
 
 export async function getHomepage() {
   const locale = await getCurrentLocale();
-  const marketingServices = locale === "en" ? [
-    { title: "Health services", text: "In-person or online dietetic and nutrition consultations, autonomous health monitoring and child growth monitoring." },
-    { title: "Support applications", text: "Applications for acute malnutrition care, food security and nutrition surveys, and project, programme and portfolio management.", href: "/applications-support" },
-    { title: "Certified training", text: "Practical, assessed certification pathways designed by nutrition, health and management experts." },
-    { title: "Catering service", text: "Browse menus available in your city and order healthy meals for delivery." },
-    { title: "Scientific Research, Innovation & Strategic Consulting", text: "We support institutions, NGOs, businesses and individuals in scientific research and in the design, implementation, monitoring and evaluation of public health, nutrition and food security projects.", ctaLabel: "Discover the solution", href: "/recherche-innovation" },
+  const canonical = locale === "en" ? [
+    { title: "Dietetic and nutrition consultations", text: "In-person or online consultations, personalized assessment, follow-up and professional nutrition guidance.", ctaLabel: "Access consultations", href: "/teleconseils" },
+    { title: "Autonomous Health Monitoring", text: "Record your indicators, visualize trends and receive careful analyses in your secure space.", ctaLabel: "Discover the solution", href: "/suivi-sante" },
+    { title: "Support applications", text: "Applications for acute malnutrition care, surveys and project, programme and portfolio management.", ctaLabel: "Explore applications", href: "/applications-support" },
+    { title: "Certified training", text: "Practical, assessed certification pathways designed by nutrition, health and management experts.", ctaLabel: "Explore courses", href: "/formations" },
+    { title: "Catering service", text: "Browse menus available in your city and order healthy meals for delivery.", ctaLabel: "Browse menus", href: "/restauration" },
+    { title: "Scientific Research, Innovation & Strategic Consulting", text: "Research, data, AI and strategic support for institutions, organizations and businesses worldwide.", ctaLabel: "Discover the solution", href: "/recherche-innovation" },
   ] : [
-    { title: "Suivi santÃ©", text: "Consultations diÃ©tÃ©tiques et nutritionnelles en prÃ©sentiel ou en ligne, suivi santÃ© autonome et suivi de la croissance de lâ€™enfant." },
-    { title: "Applications de support", text: "Applications dédiées à la malnutrition aiguë, aux enquêtes et à la gestion de projets, programmes et portefeuilles.", href: "/applications-support" },
-    { title: "Formations certifiantes", text: "Parcours pratiques, Ã©valuÃ©s et certifiants conÃ§us par des experts." },
-    { title: "Service de restauration", text: "Consultez les menus disponibles dans votre ville et commandez des repas sains avec livraison." },
-    { title: "Recherche scientifique, innovation et conseil stratégique", text: "Nous accompagnons les institutions, ONG, entreprises et particuliers dans la recherche scientifique, la conception, la mise en œuvre et le suivi-évaluation de projets en santé publique, nutrition et sécurité alimentaire.", ctaLabel: "Découvrir la solution", href: "/recherche-innovation" },
-  ];  if (!hasSupabaseConfig()) return { services: marketingServices };
+    { title: "Consultations diététiques et nutritionnelles", text: "Consultations en présentiel ou en ligne, bilan personnalisé, suivi et orientation nutritionnelle professionnelle.", ctaLabel: "Accéder aux consultations", href: "/teleconseils" },
+    { title: "Suivi Santé Autonome", text: "Enregistrez vos indicateurs, visualisez vos tendances et recevez des analyses prudentes dans votre espace sécurisé.", ctaLabel: "Découvrir la solution", href: "/suivi-sante" },
+    { title: "Applications de support", text: "Applications dédiées à la malnutrition aiguë, aux enquêtes et à la gestion de projets, programmes et portefeuilles.", ctaLabel: "Explorer les applications", href: "/applications-support" },
+    { title: "Formations certifiantes", text: "Parcours pratiques, évalués et certifiants conçus par des experts.", ctaLabel: "Explorer les formations", href: "/formations" },
+    { title: "Service de restauration", text: "Consultez les menus disponibles dans votre ville et commandez des repas sains avec livraison.", ctaLabel: "Voir les menus", href: "/restauration" },
+    { title: "Recherche scientifique, innovation et conseil stratégique", text: "Recherche, données, IA et conseil stratégique pour les institutions, organisations et entreprises partout dans le monde.", ctaLabel: "Découvrir la solution", href: "/recherche-innovation" },
+  ];
+  if (!hasSupabaseConfig()) return { services: canonical };
   const { data } = await (await createClient()).from("homepage_settings").select("*").eq("id", 1).maybeSingle();
-  if (!data) return { services: marketingServices };
-  const storedServices = locale === "en" && Array.isArray(data.services_en) ? data.services_en : locale === "fr" && Array.isArray(data.services) ? data.services : [];
-  const services = storedServices.length >= 4 ? [...storedServices] : [...marketingServices];
-  const research = marketingServices[4];
-  if (!services.some((item: any) => /scientific|scientifique/i.test(String(item?.title || "")))) services.push(research);
-  services.forEach((item: any) => {
-    if (/support applications|applications de support/i.test(String(item?.title || ""))) item.href = "/applications-support";
-    if (/scientific|scientifique/i.test(String(item?.title || ""))) Object.assign(item, { ctaLabel: research.ctaLabel, href: research.href });
-  });
+  if (!data) return { services: canonical };
+  const stored = locale === "en" && Array.isArray(data.services_en) ? repairContent(data.services_en) : locale === "fr" && Array.isArray(data.services) ? repairContent(data.services) : [];
+  const patterns = [/consult|tele/i,/autonomous health|suivi sant[eé] autonome/i,/support application|applications de support/i,/certified training|formations certifiantes/i,/catering|restauration/i,/scientific|scientifique/i];
+  const services = canonical.map((fallback,index) => ({...fallback,...(stored.find((item:any)=>patterns[index].test(String(item?.title||"")))||{})}));
+  services[0].href="/teleconseils"; services[1].href="/suivi-sante"; services[2].href="/applications-support"; services[3].href="/formations"; services[4].href="/restauration"; services[5].href="/recherche-innovation";
+  services[5].ctaLabel=locale==="en"?"Discover the solution":"Découvrir la solution";
   return repairContent({ ...data, hero_title: pickLocalized(data, "hero_title", locale), slogan: pickLocalized(data, "slogan", locale), presentation: pickLocalized(data, "presentation", locale), primary_button_label: pickLocalized(data, "primary_button_label", locale), secondary_button_label: pickLocalized(data, "secondary_button_label", locale), newsletter_title: pickLocalized(data, "newsletter_title", locale), newsletter_text: pickLocalized(data, "newsletter_text", locale), services });
 }
 export async function getHomepageCommunity() {

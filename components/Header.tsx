@@ -25,14 +25,13 @@ export default function Header() {
     ["/services", locale === "en" ? "Our services" : "Nos services"],
     ["/teleconseils", locale === "en" ? "Dietetic/nutrition consultations" : "Consultations diététiques/nutritionnelles"],
     ["/restauration", locale === "en" ? "Catering" : "Restauration"],
-    ["/teleconseils#packs", locale === "en" ? "Packages" : "Packs"],
     ["/ressources", t.resources],
     ["/a-propos", t.about],
     ["/contact", t.contact],
   ] as const;
   const opportunities = [
-    ["/carrieres", locale === "en" ? "Job opportunities" : "Offres d'emploi", locale === "en" ? "Join the NutVitaGlobalis staff team." : "Rejoignez l'equipe Staff NutVitaGlobalis.", BriefcaseIcon],
-    ["/recrutement-dieteticiens", locale === "en" ? "Dietitian network" : "Reseau de nutritionnistes", locale === "en" ? "Apply to the professional partner network." : "Candidatez au reseau professionnel partenaire.", UserGroupIcon],
+    ["/carrieres", locale === "en" ? "Job opportunities" : "Offres d'emploi", locale === "en" ? "Join the NutVitaGlobalis staff team." : "Rejoignez l'équipe Staff NutVitaGlobalis.", BriefcaseIcon],
+    ["/recrutement-dieteticiens", locale === "en" ? "Dietitian network" : "Réseau de nutritionnistes", locale === "en" ? "Apply to the professional partner network." : "Candidatez au réseau professionnel partenaire.", UserGroupIcon],
   ] as const;
   const opportunityActive = opportunities.some(([href]) => canonical === href);
   const initials = (user?.name || user?.email || "U").split(/\s+/).map(part => part[0]).join("").slice(0, 2).toUpperCase();

@@ -5,14 +5,14 @@ export type IndicatorSeries = { key: string; label: string; unit?: string; point
 
 export function numericSeries(
   rows: Record<string, any>[],
-  definitions: Array<{ key: string; label: string; unit?: string; dateKey?: string }>,
+  definitions: Array<{ key: string; label: string; unit?: string; dateKey?: string; allowZero?: boolean }>,
 ) {
   return definitions.flatMap(definition => {
     const points = rows
       .map(row => ({ date: row[definition.dateKey || "measured_at"], value: Number(row[definition.key]) }))
       .filter(point => point.date && Number.isFinite(point.value))
       .sort((a, b) => +new Date(a.date) - +new Date(b.date));
-    return points.length ? [{ ...definition, points }] : [];
+    return points.length >= 2 ? [{ ...definition, points }] : [];
   });
 }
 
@@ -22,13 +22,13 @@ export function customNumericSeries(rows: Record<string, any>[], dateKey = "meas
     for (const [key, raw] of Object.entries(row.custom_values || {})) {
       const item = raw && typeof raw === "object" ? raw as Record<string, any> : { value: raw };
       const value = Number(item.value);
-      if (!row[dateKey] || !Number.isFinite(value)) continue;
+      if (!row[dateKey] || !Number.isFinite(value) || value === 0) continue;
       const current = definitions.get(key) || { label: key, unit: String(item.unit || ""), points: [] };
       current.points.push({ date: row[dateKey], value });
       definitions.set(key, current);
     }
   }
-  return [...definitions.entries()].map(([key, value]) => ({
+  return [...definitions.entries()].filter(([, value]) => value.points.length >= 2).map(([key, value]) => ({
     key: `custom_${key}`,
     label: value.label,
     unit: value.unit,
@@ -183,7 +183,12 @@ export function drawIndicatorReportCard(
   if (insight?.reference) wrapFn(`${fr ? "Reference" : "Reference"} : ${insight.reference}`, wrapChars).forEach(text => lines.push({ text }));
   if (previous !== null) lines.push({ text: `${fr ? "Vs derniere mesure" : "Vs last measurement"} : ${deltaText(previous, latest)}` });
   if (points.length > 2) lines.push({ text: `${fr ? "Depuis le debut du suivi" : "Since monitoring began"} : ${deltaText(first, latest)}` });
-  const recommendation = insight?.recommendation || insight?.professionalRecommendations?.[0] || insight?.publicInterpretation;
+  const interpretation = insight?.professionalInterpretation || insight?.publicInterpretation;
+  if (interpretation) {
+    lines.push({ text: fr ? "Observation clinique" : "Clinical observation", bold: true, color: toneColor(insight?.status) });
+    wrapFn(interpretation, wrapChars).slice(0, 4).forEach(text => lines.push({ text }));
+  }
+  const recommendation = insight?.recommendation || insight?.professionalRecommendations?.[0];
   if (recommendation) {
     lines.push({ text: fr ? "Recommandation" : "Recommendation", bold: true, color: toneColor(insight?.status) });
     wrapFn(recommendation, wrapChars).slice(0, 3).forEach(text => lines.push({ text }));

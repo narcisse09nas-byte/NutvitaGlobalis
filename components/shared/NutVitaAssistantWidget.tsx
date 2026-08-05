@@ -5,8 +5,8 @@ import { SparklesIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 type Message = { role: "user" | "assistant"; content: string };
 
-export default function NutVitaAssistantWidget({ title = "NutVita AI", subtitle, suggestions = [] }: { title?: string; subtitle?: string; suggestions?: string[] }) {
-  const [open, setOpen] = useState(false);
+export default function NutVitaAssistantWidget({ title = "NutVita AI", subtitle, suggestions = [], standalone = false }: { title?: string; subtitle?: string; suggestions?: string[]; standalone?: boolean }) {
+  const [open, setOpen] = useState(standalone);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -60,10 +60,10 @@ export default function NutVitaAssistantWidget({ title = "NutVita AI", subtitle,
     </div>;
   }
 
-  return <div className="flex h-[480px] flex-col rounded-2xl border bg-white shadow-xl">
+  return <div className={`flex flex-col rounded-3xl border bg-white shadow-xl ${standalone ? "h-[min(72vh,760px)] min-h-[560px]" : "h-[480px]"}`}>
     <div className="flex items-center justify-between rounded-t-2xl bg-forest p-4 text-white">
       <span className="flex items-center gap-2 font-black"><SparklesIcon className="h-5 w-5 text-orange" />{title}</span>
-      <button onClick={() => setOpen(false)} aria-label="Fermer"><XMarkIcon className="h-5 w-5" /></button>
+      {!standalone && <button onClick={() => setOpen(false)} aria-label="Fermer"><XMarkIcon className="h-5 w-5" /></button>}
     </div>
     <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto p-4">
       {!messages.length && !loading && <p className="text-sm text-slate-400">Posez une question sur votre suivi, vos mesures ou vos progrès.</p>}

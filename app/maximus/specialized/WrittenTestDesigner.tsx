@@ -22,6 +22,7 @@ type Test = {
   questions: Question[]; assignments: Assignment[]; maximus_job_offers?: { id: string; reference: string; title: string };
 };
 type Offer = { id: string; reference: string; title: string; status: string };
+type BankQuestion = { id: string; category: string; question_type: Question['question_type']; prompt: string; options: string[]; correct_answers: string[]; points: number };
 
 const labels = { draft: 'Brouillon', submitted: 'Soumise', endorsed: 'Endossee', validated: 'Validee', rejected: 'Rejetee', archived: 'Archivee' };
 const blankQuestion = (): Question => ({ question_type: 'single_choice', prompt: '', options: ['', ''], correct_answers: [], required: true, points: 1 });
@@ -29,6 +30,8 @@ const blankQuestion = (): Question => ({ question_type: 'single_choice', prompt:
 export default function WrittenTestDesigner() {
   const [tests, setTests] = useState<Test[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [bank, setBank] = useState<BankQuestion[]>([]);
+  const [bankCategory, setBankCategory] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Test | null>(null);
   const [questions, setQuestions] = useState<Question[]>([blankQuestion()]);
@@ -45,6 +48,7 @@ export default function WrittenTestDesigner() {
     if (!response.ok) throw new Error(payload.message || 'Impossible de charger les epreuves.');
     setTests(payload.items || []);
     setOffers(payload.offers || []);
+    setBank(payload.bank || []);
   }
   useEffect(() => { load().catch(reason => setError(reason instanceof Error ? reason.message : 'Chargement impossible.')); }, []);
 
@@ -159,6 +163,7 @@ export default function WrittenTestDesigner() {
         </div>}
         {proctorMode !== 'none' && <Field label="Texte de consentement"><textarea className="admin-input min-h-24" name="proctoring_consent_text" defaultValue={editing?.proctoring_consent_text || 'Je consens a la surveillance de cette epreuve, a la collecte des evenements de connexion et de navigation, et, si requis, a la transmission temporaire de ma camera, de mon microphone et de mon ecran au surveillant autorise.'} required /></Field>}
       </section>
+      {bank.length > 0 && <section className="grid gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-5"><div><h4 className="font-black text-forest">Composer depuis la banque Maximus</h4><p className="text-sm text-slate-600">La catégorie choisie limite les questions aux compétences du poste.</p></div><div className="flex flex-wrap gap-3"><select className="admin-input min-w-64" value={bankCategory} onChange={event => setBankCategory(event.target.value)}><option value="">Choisir une catégorie</option>{[...new Set(bank.map(item => item.category))].map(category => <option key={category}>{category}</option>)}</select><button type="button" disabled={!bankCategory} onClick={() => { const selected = bank.filter(item => item.category === bankCategory).sort(() => Math.random() - .5).map(item => ({ question_type: item.question_type, prompt: item.prompt, options: item.options || [], correct_answers: item.correct_answers || [], required: true, points: item.points || 1 })); setQuestions(selected.length ? selected : questions); }} className="rounded-md bg-forest px-4 py-2 font-bold text-white disabled:opacity-40">Utiliser cette banque</button></div></section>}
       <div className="grid gap-4"><div className="flex items-center justify-between"><h4 className="text-lg font-black">Questions</h4><button type="button" onClick={() => setQuestions(current => [...current, blankQuestion()])} className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-bold"><Plus className="h-4 w-4" />Ajouter</button></div>{questions.map((question, index) => <QuestionEditor key={index} question={question} index={index} update={changes => updateQuestion(index, changes)} remove={() => setQuestions(current => current.filter((_, itemIndex) => itemIndex !== index))} />)}</div>
       <div className="flex justify-end gap-3 border-t pt-5"><button type="button" onClick={() => setFormOpen(false)} className="rounded-md border px-5 py-3 font-bold">Annuler</button><button disabled={busy === 'save' || !questions.length} className="rounded-md bg-[#24945f] px-5 py-3 font-bold text-white disabled:opacity-40">{busy === 'save' ? 'Enregistrement...' : 'Enregistrer le brouillon'}</button></div></form></section></div>}
 

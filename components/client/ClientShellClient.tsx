@@ -25,12 +25,14 @@ export default function ClientShellClient({ children, email, access, activeServi
     ["/espace-client/services", english ? "Our services" : "Nos services", CreditCardIcon, true],
     ["/espace-client/abonnement", english ? "My subscriptions" : "Mes abonnements", CreditCardIcon, true],
     ["/espace-client/profil", english ? "My profile" : "Mon profil", UserCircleIcon, true],
+    ["/espace-client/nutvita-ia", "NutVita IA", SparklesIcon, true],
     ["/espace-client/carte", english ? "My access card" : "Ma carte d'accès", QrCodeIcon, true],
     ["/espace-client/securite", english ? "Password" : "Mot de passe", KeyIcon, true],
     ["/espace-client/confidentialite", english ? "Privacy" : "Confidentialité", ShieldCheckIcon, true],
     ["/espace-client/ressources-premium", english ? "Premium resources" : "Ressources premium", LockClosedIcon, access.premiumResources],
   ];
   const health: LinkItem[] = [
+    ["/espace-client/nutvita-ia", "NutVita IA", SparklesIcon, true],
     ["/espace-client/dossier", "Mes parametres", ClipboardDocumentListIcon, access.health],
     ["/espace-client/tendances", "Tendances", ChartBarIcon, access.health],
     ["/espace-client/analyse", "Analyse et rapports", SparklesIcon, access.health],
@@ -40,11 +42,13 @@ export default function ClientShellClient({ children, email, access, activeServi
   ];
   const childGrowth: LinkItem[] = [
     ["/espace-client/croissance-enfant", "Croissance enfant", UserGroupIcon, access.childGrowth],
+    ["/espace-client/nutvita-ia", "NutVita IA", SparklesIcon, true],
   ];
   const teleconsultation: LinkItem[] = [
     ["/espace-client/consultations", english ? "Dashboard" : "Tableau de bord", HomeIcon, access.teleconsultation],
     ["/rendez-vous", english ? "Appointments" : "Rendez-vous", ClipboardDocumentCheckIcon, access.teleconsultation],
     ["/espace-client/messages", "Messages", ChatBubbleLeftRightIcon, access.teleconsultation],
+    ["/espace-client/nutvita-ia", "NutVita IA", SparklesIcon, true],
     ["/espace-client/appels", english ? "Teleconsultations" : "Téléconsultations", VideoCameraIcon, access.teleconsultation],
     ["/espace-client/dossier", english ? "My follow-up" : "Mon suivi", ClipboardDocumentListIcon, access.health],
     ["/espace-client/tendances", english ? "My progress" : "Mes progrès", ChartBarIcon, access.health],

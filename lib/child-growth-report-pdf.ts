@@ -32,7 +32,7 @@ export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRo
     const lineWidth = page === firstPage && y > 585 ? (size >= 15 ? 42 : 68) : (size >= 15 ? 60 : 92);
     for (const line of wrap(value, lineWidth)) { if (y < 85) addPage(); page.drawText(line, { x: 50, y, size, font, color }); y -= size + 4; }
   };
-  const heading = (value: string) => { if (y < 140) addPage(); y -= 7; text(value, 14, bold, rgb(.12, .49, .33)); };
+  const heading = (value: string) => { if (y < 140) addPage(); y -= 7; page.drawRectangle({ x: 45, y: y - 22, width: 505, height: 30, color: rgb(.94, .98, .96), borderColor: rgb(.82, .88, .85), borderWidth: .6 }); page.drawText(value, { x: 58, y: y - 13, size: 13, font: bold, color: rgb(.07, .24, .19) }); y -= 35; };
   const bullets = (values: string[] | undefined, limit = 5) => (values || []).filter(Boolean).slice(0, limit).forEach(value => text(`- ${value}`, 8.5));
   const unique = (values: string[] | undefined) => [...new Map((values || []).filter(Boolean).map(value => [value.trim().toLowerCase(), value.trim()])).values()];
   const twoColumnCards = (items: Array<{ title: string; body: string; lines?: string[]; tone?: "urgent" | "watch" | "usual" }>) => {

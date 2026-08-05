@@ -49,7 +49,7 @@ export async function renderHealthReport(
       page.drawText(line, { x: 50, y, size, font, color }); y -= size + 4;
     }
   };
-  const heading = (value: string) => { if (y < 140) addPage(); y -= 7; text(value, 14, bold, rgb(.12, .49, .33)); };
+  const heading = (value: string) => { if (y < 140) addPage(); y -= 7; page.drawRectangle({ x: 45, y: y - 22, width: 505, height: 30, color: rgb(.94, .98, .96), borderColor: rgb(.82, .88, .85), borderWidth: .6 }); page.drawText(value, { x: 58, y: y - 13, size: 13, font: bold, color: rgb(.07, .24, .19) }); y -= 35; };
   const bullets = (values: string[] | undefined, limit = 5) => (values || []).filter(Boolean).slice(0, limit).forEach(value => text(`- ${value}`, 8.5));
 
   text(fr ? "Rapport de suivi sante" : "Health monitoring report", 20, bold, rgb(.07, .24, .19));

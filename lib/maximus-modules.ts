@@ -131,6 +131,7 @@ const baseMaximusModules: MaximusModule[] = [
     { key: 'score', label: 'Score', type: 'number' }, { key: 'interview_date', label: 'Date entretien', type: 'date' }, { key: 'decision', label: 'Decision', type: 'select', options: ['En attente', 'Retenu', 'Reserve', 'Rejete'] },
     { key: 'notes', label: 'Notes RH', type: 'textarea' },
   ] },
+  { slug: 'hr/recruitment/question-bank', title: 'Banque de questions', group: 'Ressources humaines', description: 'Importation des questions de recrutement par categorie de poste.', registryColumns: ['category','question_type','prompt','active'], fields: [] },
   { slug: 'hr/recruitment/tests', title: 'Tests ecrits', group: 'Ressources humaines', description: 'Conception, validation, attribution et correction multiple des epreuves.', registryColumns: ['test_title','position','duration','status','assigned_candidates'], fields: [
     { key: 'test_title', label: 'Titre de l epreuve', required: true }, { key: 'position', label: 'Offre / poste', required: true },
     { key: 'duration', label: 'Duree en minutes', type: 'number' }, { key: 'pass_score', label: 'Note de passage', type: 'number' }, { key: 'instructions', label: 'Instructions', type: 'textarea' },

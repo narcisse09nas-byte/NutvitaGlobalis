@@ -61,6 +61,7 @@ import CateringManagement from './specialized/CateringManagement';
 import TreasuryManagement from './specialized/TreasuryManagement';
 import TreasuryFinancialReports from './specialized/TreasuryFinancialReports';
 import InternalTransfers from './specialized/InternalTransfers';
+import RecruitmentQuestionImporter from '@/components/admin/RecruitmentQuestionImporter';
 
 const FinancialDashboard = dynamic(() => import('./specialized/FinancialDashboard'), {
   loading: () => <div className="grid h-72 place-items-center text-sm text-slate-500">Loading financial dashboard...</div>,
@@ -131,6 +132,7 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
 }
 
 function ModuleRenderer({ module }: { module: MaximusModule }) {
+  if (module.slug === 'hr/recruitment/question-bank') return <RecruitmentQuestionImporter scope="maximus" categories={['Nutrition','Diététique','Finance','Ressources humaines','Commercial','Production','Logistique','Administration','Informatique']} />;
   if (module.slug === 'finance/reports') return <TreasuryFinancialReports />;
   if (module.slug === 'finance/internal-transfers') return <InternalTransfers />;
   if (module.slug === 'finance/treasury-accounts') return <TreasuryManagement mode="accounts" />;

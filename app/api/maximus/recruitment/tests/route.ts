@@ -83,11 +83,12 @@ export async function GET() {
     }));
     return NextResponse.json({ items: tests, offers });
   }
-  const [{ data, error }, { data: offers }] = await Promise.all([
+  const [{ data, error }, { data: offers }, { data: bank }] = await Promise.all([
     ctx.supabase.from('maximus_written_tests')
       .select('*,maximus_job_offers(id,reference,title,status),maximus_test_questions(*),maximus_test_assignments(id,status,automatic_score,final_score,submitted_at,maximus_staff_applications(id,full_name,email),maximus_test_reviews(id,reviewer_email,status,score,comments,submitted_at))')
       .order('created_at', { ascending: false }),
     ctx.supabase.from('maximus_job_offers').select('id,reference,title,status').in('status', ['draft','submitted','endorsed','validated','published','closed']).order('created_at', { ascending: false }),
+    ctx.supabase.from('maximus_recruitment_question_bank').select('*').eq('active', true).order('category').order('created_at'),
   ]);
   if (error) return NextResponse.json({ message: error.message }, { status: 400 });
   const items = (data || []).map(test => ({
@@ -95,7 +96,7 @@ export async function GET() {
     questions: [...(test.maximus_test_questions || [])].sort((a, b) => a.position - b.position),
     assignments: test.maximus_test_assignments || [],
   }));
-  return NextResponse.json({ items, offers: offers || [] });
+  return NextResponse.json({ items, offers: offers || [], bank: bank || [] });
 }
 
 export async function POST(request: Request) {

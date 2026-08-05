@@ -59,14 +59,18 @@ const navGroups = [
     ["/admin/factures", "Factures", DocumentTextIcon, [...all, "finance_admin"]],
     ["/admin/taxes", "Taxes", CalculatorIcon, [...all, "finance_admin"]],
   ]},
-  {title:"Recrutement", tone:"bg-sky-500/15", links:[
-    ["/admin/recrutement", "Recrutement", UserPlusIcon, [...all, "recruitment_admin"]],
-    ["/admin/recrutement/apparence", "Interface recrutement", ChartBarIcon, [...all, "recruitment_admin", "content_admin"]],
-    ["/admin/recrutement/entretiens", "Entretiens", VideoCameraIcon, [...all, "recruitment_admin"]],
+  {title:"Recrutement des nutritionnistes", tone:"bg-sky-500/15", links:[
+    ["/admin/recrutement", "Tableau de recrutement", UserPlusIcon, [...all, "recruitment_admin"]],
+    ["/admin/recrutement/candidatures", "Candidatures spontanées", DocumentTextIcon, [...all, "recruitment_admin"]],
+    ["/admin/recrutement/tests-ecrits", "Tests écrits", DocumentCheckIcon, [...all, "recruitment_admin"]],
+    ["/admin/recrutement/banque-questions", "Banque de questions", AcademicCapIcon, [...all, "recruitment_admin"]],
+    ["/admin/recrutement/surveillance", "Surveillance des tests", ShieldCheckIcon, [...all, "recruitment_admin"]],
+    ["/admin/recrutement/entretiens", "Entretiens de recrutement", VideoCameraIcon, [...all, "recruitment_admin"]],
+    ["/admin/recrutement/rapports", "Rapports de recrutement", ChartBarIcon, [...all, "recruitment_admin"]],
     ["/admin/recrutement/messages", "Messages candidats", ChatBubbleOvalLeftEllipsisIcon, [...all, "recruitment_admin"]],
-    ["/admin/dieteticiens", "Partenaires", UserGroupIcon, [...all, "recruitment_admin"]],
-  ]},
-  {title:"Collaboration", tone:"bg-violet-500/15", links:[
+    ["/admin/recrutement/apparence", "Contenus candidats FR/EN", NewspaperIcon, [...all, "recruitment_admin", "content_admin"]],
+    ["/admin/dieteticiens", "Nutritionnistes recrutés", UserGroupIcon, [...all, "recruitment_admin"]],
+  ]},  {title:"Collaboration", tone:"bg-violet-500/15", links:[
     ["/admin/collaboration", "Collaboration", ChatBubbleOvalLeftEllipsisIcon, [...all, "health_admin", "recruitment_admin"]],
     ["/admin/appels", "Appels video", VideoCameraIcon, [...all, "health_admin", "recruitment_admin"]],
   ]},

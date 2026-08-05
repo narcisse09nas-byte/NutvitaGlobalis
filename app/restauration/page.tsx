@@ -24,7 +24,7 @@ export default async function CateringPage(){
  ]);
  const page=pageResult,menus=menusResult.data||[],locations=locationsResult.data||[],user=userResult.data.user;
  const sections=(page?.sections||[]) as ManagedSection[];
- const heroImage=page?.hero_image_url||"/images/catering-hero-v1.png";
+ const configuredHero=page?.hero_image_url; const heroImage=!configuredHero||configuredHero==="/images/catering-hero-v1.png"?"/images/catering-hero-african-v2.png":configuredHero;
  const ctaImage=page?.cta_image_url||"/images/catering-kitchen-v1.png";
  const benefits=sections.slice(0,4).length===4?sections.slice(0,4):[
   {title:t("Ingrédients frais et de qualité","Fresh quality ingredients")},{title:t("Recettes équilibrées et validées","Balanced validated recipes")},{title:t("Préparés avec soin, livrés avec rapidité","Prepared with care, delivered promptly")},{title:t("Hygiène et sécurité alimentaire garanties","Food hygiene and safety guaranteed")}

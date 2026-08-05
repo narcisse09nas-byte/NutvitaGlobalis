@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRightOnRectangleIcon, Bars3Icon, BriefcaseIcon, ChevronDownIcon, UserCircleIcon, UserGroupIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { ArrowRightOnRectangleIcon, Bars3Icon, BriefcaseIcon, MegaphoneIcon, ChevronDownIcon, UserCircleIcon, UserGroupIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useEffect, useRef, useState } from "react";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { localizedPath, normalizeLocale, stripLocale, ui } from "@/lib/i18n";
@@ -31,7 +31,8 @@ export default function Header() {
   ] as const;
   const opportunities = [
     ["/carrieres", locale === "en" ? "Job opportunities" : "Offres d'emploi", locale === "en" ? "Join the NutVitaGlobalis staff team." : "Rejoignez l'équipe Staff NutVitaGlobalis.", BriefcaseIcon],
-    ["/recrutement-dieteticiens", locale === "en" ? "Dietitian network" : "Réseau de nutritionnistes", locale === "en" ? "Apply to the professional partner network." : "Candidatez au réseau professionnel partenaire.", UserGroupIcon],
+    ["/recrutement-dieteticiens", locale === "en" ? "Spontaneous dietitian application" : "Candidature spontanée nutritionniste", locale === "en" ? "Submit and track your spontaneous application." : "Déposez et suivez votre candidature spontanée en continu.", UserGroupIcon],
+    ["/devenir-promoteur", locale === "en" ? "Promoter network" : "Espace promoteurs", locale === "en" ? "Join the NutVitaGlobalis promoter network." : "Rejoignez le reseau des promoteurs NutVitaGlobalis.", MegaphoneIcon],
   ] as const;
   const opportunityActive = opportunities.some(([href]) => canonical === href);
   const initials = (user?.name || user?.email || "U").split(/\s+/).map(part => part[0]).join("").slice(0, 2).toUpperCase();
@@ -81,6 +82,7 @@ export default function Header() {
               <Link href={localizedPath(locale, "/espace-client/profil")} className="rounded-lg bg-slate-50 px-3 py-2 text-sm font-bold text-forest">
                 {locale === "en" ? "Client profile" : "Profil client"}
               </Link>
+              <Link href={localizedPath(locale, "/espace-client")} className="rounded-lg bg-mint px-3 py-2 text-sm font-bold text-forest">{locale === "en" ? "Applications and access levels" : "Applications et niveaux d acces"}</Link>
               <Link href={localizedPath(locale, "/acces-nutritrack")} className="rounded-lg bg-cyan-50 px-3 py-2 text-sm font-bold text-cyan-800">
                 NutriTrack
               </Link>
@@ -127,6 +129,7 @@ export default function Header() {
             <p className="truncate text-sm text-slate-500">{user.email}</p>
           </div>
           <Link onClick={() => setOpen(false)} href={localizedPath(locale, "/espace-client/profil")} className="rounded-lg px-4 py-3 font-semibold hover:bg-mint">{locale === "en" ? "My profile" : "Mon profil"}</Link>
+          <Link onClick={() => setOpen(false)} href={localizedPath(locale, "/espace-client")} className="rounded-lg px-4 py-3 font-semibold hover:bg-mint">{locale === "en" ? "Applications and access levels" : "Applications et niveaux d acces"}</Link>
           <Link onClick={() => setOpen(false)} href={localizedPath(locale, "/acces-nutritrack")} className="rounded-lg px-4 py-3 font-semibold hover:bg-cyan-50">NutriTrack</Link>
           <button type="button" onClick={logout} className="btn-primary mt-2"><ArrowRightOnRectangleIcon className="mr-2 h-5" />{locale === "en" ? "Sign out" : "Se deconnecter"}</button>
         </>

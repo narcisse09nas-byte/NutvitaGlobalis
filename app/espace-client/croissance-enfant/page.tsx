@@ -1,14 +1,16 @@
 import { requireActivePlatformSession } from "@/lib/active-platform-session";
 import ClientShell from "@/components/client/ClientShell";
-import ChildGrowthCenter from "@/components/client/ChildGrowthCenter";
+import ChildGrowthWorkspace from "@/components/client/ChildGrowthWorkspace";
 import {requireClient} from "@/lib/client";
 import {getApplicableTax} from "@/lib/taxes";
 import {getCurrentLocale} from "@/lib/i18n-server";
+import {getChildGrowthPageSettings} from "@/lib/child-growth-page";
 
 export default async function ChildGrowthPage(){
   await requireActivePlatformSession("child_growth","client");
   const {supabase,user,profile}=await requireClient();
   const locale=await getCurrentLocale(), now=new Date().toISOString();
+  const settings=await getChildGrowthPageSettings();
   const {data:children}=await supabase.from("children").select("*").eq("parent_id",user.id).eq("active",true).order("created_at");
   const childIds=(children||[]).map((child:any)=>child.id);
   const childQuery=(table:string,order:string)=>childIds.length
@@ -24,5 +26,5 @@ export default async function ChildGrowthPage(){
   ]);
   const sexes=[...new Set((children||[]).map((child:any)=>child.sex).filter((sex:any)=>sex==="female"||sex==="male"))];
   const {data:growthStandards}=sexes.length?await supabase.from("who_growth_standards").select("indicator,sex,age_months,length_height_cm,measurement_method,l,m,s").in("sex",sexes).in("indicator",["weight_for_age","height_for_age","weight_for_height"]).order("age_months"):{data:[]};
-  return <ClientShell email={user.email||""}><div className="mb-7"><h1 className="text-3xl font-black">{locale==="en"?"Child Growth Promotion Monitoring":"Suivi Promotion Croissance Enfant"}</h1><p className="mt-2 text-slate-500">{locale==="en"?"Add or select a child to open their strictly separated monitoring record.":"Ajoutez ou s\u00e9lectionnez un enfant pour ouvrir son dossier de suivi strictement cloisonn\u00e9."}</p></div><ChildGrowthCenter parentId={user.id} initialChildren={children||[]} initialMeasurements={measurements||[]} subscriptions={subscriptions||[]} plan={plan} taxRate={Number(tax.rate)} initialAnalyses={analyses||[]} initialAlerts={alerts||[]} initialReports={reports||[]} initialFeeding={feeding||[]} initialVaccinations={vaccinations||[]} growthStandards={growthStandards||[]} locale={locale}/></ClientShell>
+  return <ClientShell email={user.email||""} service="child_growth"><ChildGrowthWorkspace settings={settings} parentId={user.id} initialChildren={children||[]} initialMeasurements={measurements||[]} subscriptions={subscriptions||[]} plan={plan} taxRate={Number(tax.rate)} initialAnalyses={analyses||[]} initialAlerts={alerts||[]} initialReports={reports||[]} initialFeeding={feeding||[]} initialVaccinations={vaccinations||[]} growthStandards={growthStandards||[]} locale={locale}/></ClientShell>
 }

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -44,7 +44,10 @@ const navGroups = [
     ["/admin/sante", "Administration sante", UserGroupIcon, [...all, "health_admin"]],
     ["/admin/salle-attente", "Salle d'attente", ExclamationTriangleIcon, [...all, "health_admin"]],
     ["/admin/croissance-enfant", "Croissance enfant", ExclamationTriangleIcon, [...all, "health_admin"]],
+    ["/admin/page-croissance-enfant", "Page croissance enfant", ChartBarIcon, [...all, "health_admin", "content_admin"]],
     ["/admin/teleconseils", "Teleconseils", ChatBubbleLeftRightIcon, [...all, "health_admin"]],
+    ["/admin/tableau-consultations", "Tableau consultations", ChartBarIcon, [...all, "health_admin", "content_admin"]],
+    ["/admin/page-suivi-sante", "Page suivi santé", ChartBarIcon, [...all, "health_admin", "content_admin"]],
   ]},
   {title:"Finance", tone:"bg-orange/15", links:[
     ["/admin/offres", "Offres et prix", CreditCardIcon, [...all, "finance_admin"]],
@@ -57,6 +60,7 @@ const navGroups = [
   ]},
   {title:"Recrutement", tone:"bg-sky-500/15", links:[
     ["/admin/recrutement", "Recrutement", UserPlusIcon, [...all, "recruitment_admin"]],
+    ["/admin/recrutement/apparence", "Interface recrutement", ChartBarIcon, [...all, "recruitment_admin", "content_admin"]],
     ["/admin/recrutement/entretiens", "Entretiens", VideoCameraIcon, [...all, "recruitment_admin"]],
     ["/admin/recrutement/messages", "Messages candidats", ChatBubbleOvalLeftEllipsisIcon, [...all, "recruitment_admin"]],
     ["/admin/dieteticiens", "Partenaires", UserGroupIcon, [...all, "recruitment_admin"]],
@@ -78,6 +82,7 @@ const navGroups = [
     ["/admin/articles", "Articles", NewspaperIcon, [...all, "content_admin"]],
     ["/admin/formations", "Formations", AcademicCapIcon, [...all, "content_admin"]],
     ["/admin/accueil", "Pages du site", HomeIcon, [...all, "content_admin"]],
+    ["/admin/catalogue-services", "Catalogue des services", CreditCardIcon, [...all, "content_admin"]],
     ["/admin/recherche-innovation", "Recherche & Innovation", StarIcon, [...all, "content_admin"]],
     ["/admin/ressources-premium", "Ressources premium", LockClosedIcon, [...all, "content_admin"]],
     ["/admin/temoignages", "Temoignages", StarIcon, [...all, "content_admin"]],

@@ -1,51 +1,54 @@
 import Image from "next/image";
 import Link from "next/link";
-import { BuildingStorefrontIcon, BuildingOffice2Icon, HeartIcon, MapPinIcon, PhoneIcon } from "@heroicons/react/24/outline";
-import { createClient } from "@/lib/supabase/server";
+import { ArrowRight, Building2, CheckCircle2, ChefHat, Clock3, Heart, Leaf, MapPin, ShieldCheck, ShoppingBag, Store, UtensilsCrossed } from "lucide-react";
+import type { ManagedSection } from "@/data/site-pages";
 import { getCurrentLocale } from "@/lib/i18n-server";
+import { getSitePage } from "@/lib/site-pages";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Restauration NutVitaGlobalis" };
 export const revalidate = 60;
 
-export default async function CateringPage() {
-  const locale = await getCurrentLocale();
-  const en = locale === "en";
-  const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
-  const [{ data: menus }, { data: locations }, { data: { user } }] = await Promise.all([
-    supabase.from("catering_menus").select("*").eq("published", true).gte("available_date", today).order("available_date").order("city"),
-    supabase.from("catering_locations").select("*").eq("active", true).order("city").order("name_fr"),
-    supabase.auth.getUser(),
-  ]);
-  const groups = [
-    { key: "central_kitchen", fr: "Cuisines centrales", en: "Central kitchens", icon: BuildingOffice2Icon },
-    { key: "sale_point", fr: "Points de vente", en: "Sales outlets", icon: BuildingStorefrontIcon },
-    { key: "partner_hospital", fr: "Hôpitaux partenaires", en: "Partner hospitals", icon: HeartIcon },
-  ] as const;
+const benefitIcons=[Leaf,ChefHat,UtensilsCrossed,ShieldCheck];
+const locationIcons=[Building2,Store,Heart];
+const whyIcons=[Leaf,UtensilsCrossed,ShieldCheck,Clock3,Heart];
 
-  return <main>
-    <section className="bg-forest py-16 text-white"><div className="container-site">
-      <p className="text-sm font-black uppercase tracking-[.2em] text-orange">{en ? "Healthy catering" : "Restauration saine"}</p>
-      <h1 className="mt-4 max-w-4xl text-5xl font-black text-white">{en ? "Today’s menus, prepared with care" : "Les menus du jour, préparés avec soin"}</h1>
-      <p className="mt-5 max-w-3xl text-lg leading-8 text-white/75">{en ? "Browse menus available in your city, then sign in to request delivery." : "Découvrez les menus disponibles dans votre ville, puis connectez-vous pour demander une livraison."}</p>
-    </div></section>
+export default async function CateringPage(){
+ const locale=await getCurrentLocale(),en=locale==="en",t=(fr:string,eng:string)=>en?eng:fr;
+ const supabase=await createClient(),today=new Date().toISOString().slice(0,10);
+ const [pageResult,menusResult,locationsResult,userResult]=await Promise.all([
+  getSitePage("restauration"),
+  supabase.from("catering_menus").select("*").eq("published",true).gte("available_date",today).order("available_date").order("city"),
+  supabase.from("catering_locations").select("*").eq("active",true).order("city").order("name_fr"),
+  supabase.auth.getUser(),
+ ]);
+ const page=pageResult,menus=menusResult.data||[],locations=locationsResult.data||[],user=userResult.data.user;
+ const sections=(page?.sections||[]) as ManagedSection[];
+ const heroImage=page?.hero_image_url||"/images/catering-hero-v1.png";
+ const ctaImage=page?.cta_image_url||"/images/catering-kitchen-v1.png";
+ const benefits=sections.slice(0,4).length===4?sections.slice(0,4):[
+  {title:t("Ingrédients frais et de qualité","Fresh quality ingredients")},{title:t("Recettes équilibrées et validées","Balanced validated recipes")},{title:t("Préparés avec soin, livrés avec rapidité","Prepared with care, delivered promptly")},{title:t("Hygiène et sécurité alimentaire garanties","Food hygiene and safety guaranteed")}
+ ];
+ const locationDefaults=[
+  {key:"central_kitchen",title:t("Cuisines centrales","Central kitchens"),text:t("Repas préparés dans nos cuisines centralisées selon des standards d’hygiène stricts.","Meals prepared in our central kitchens under strict hygiene standards."),image:"/images/catering-kitchen-v1.png"},
+  {key:"sale_point",title:t("Points de vente","Sales outlets"),text:t("Retrouvez nos menus dans nos points de vente partenaires près de chez vous.","Find our menus at partner outlets near you."),image:"/images/catering-outlet-v1.png"},
+  {key:"partner_hospital",title:t("Hôpitaux partenaires","Partner hospitals"),text:t("Nos menus sont également disponibles dans les hôpitaux et structures de santé partenaires.","Our menus are also available in partner hospitals and health facilities."),image:"/images/catering-hospital-v1.png"},
+ ];
+ const locationsMeta=locationDefaults.map((fallback,index)=>{const managed=sections[index+4];return {...fallback,title:managed?.title||fallback.title,text:managed?.text||fallback.text,image:managed?.image_url||fallback.image,cta_label:managed?.cta_label,cta_url:managed?.cta_url};});
+ const reasons=sections.slice(7,12).length===5?sections.slice(7,12):[
+  {title:t("Ingrédients frais et locaux","Fresh local ingredients")},{title:t("Repas équilibrés et nutritifs","Balanced nutritious meals")},{title:t("Normes d’hygiène respectées","Hygiene standards respected")},{title:t("Livraison rapide et fiable","Fast reliable delivery")},{title:t("Soutien à votre bien-être","Supporting your wellbeing")}
+ ];
+ const orderHref=user?"/restauration/commander":"/connexion?redirect=%2Frestauration%2Fcommander";
+ return <main className="bg-[#fbfaf7] text-forest">
+  <section className="relative min-h-[650px] overflow-hidden bg-forest text-white"><Image src={heroImage} alt={t("Repas sain NutVitaGlobalis","NutVitaGlobalis healthy meal")} fill priority className="object-cover object-center"/><div className="absolute inset-0 bg-gradient-to-r from-forest via-forest/80 to-transparent"/><div className="container-site relative z-10 flex min-h-[650px] items-center py-16"><div className="max-w-2xl"><p className="text-xs font-black uppercase tracking-[.24em] text-orange">{page?.eyebrow||t("Restauration saine","Healthy catering")}</p><h1 className="mt-5 whitespace-pre-line text-5xl font-black leading-[1.05] text-white md:text-7xl">{page?.title||t("Les menus du jour,\npréparés avec soin","Today’s menus,\nprepared with care")}</h1><p className="mt-6 max-w-xl text-lg leading-8 text-white/80">{page?.description||t("Découvrez des repas sains, équilibrés et savoureux disponibles dans votre ville.","Discover healthy, balanced and delicious meals available in your city.")}</p><div className="mt-10 grid gap-5 sm:grid-cols-2">{benefits.map((item,index)=>{const Icon=benefitIcons[index];return <div key={item.title} className="flex items-center gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/10 text-emerald-300"><Icon className="h-6"/></span><span className="text-sm font-bold text-white/90">{item.title}</span></div>})}</div></div></div></section>
 
-    <section className="section"><div className="container-site">
-      <div className="flex flex-wrap items-end justify-between gap-4"><div><span className="eyebrow">{en ? "Photo menu" : "Album des plats"}</span><h2 className="mt-3 text-4xl font-black">{en ? "Available menus" : "Menus disponibles"}</h2></div>
-        <Link href={user ? "/restauration/commander" : "/connexion?redirect=%2Frestauration%2Fcommander"} className="btn-primary">{en ? "Place an order" : "Passer une commande"}</Link>
-      </div>
-      {menus?.length ? <div className="mt-9 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">{menus.map((menu:any) => <article key={menu.id} className="card overflow-hidden">
-        <div className="relative aspect-[4/3] bg-mint">{menu.image_url ? <Image src={menu.image_url} alt={en ? menu.name_en || menu.name_fr : menu.name_fr} fill className="object-cover"/> : <div className="grid h-full place-items-center text-6xl">🍲</div>}</div>
-        <div className="p-6"><div className="flex items-center justify-between gap-3"><h3 className="text-2xl font-black">{en ? menu.name_en || menu.name_fr : menu.name_fr}</h3><span className="rounded-full bg-mint px-3 py-1 text-xs font-black text-forest">{menu.city}</span></div>
-          <p className="mt-3 leading-7 text-slate-600">{en ? menu.description_en || menu.description_fr : menu.description_fr}</p>
-          <p className="mt-4 flex items-center gap-2 text-sm font-bold text-leaf"><MapPinIcon className="h-5"/>{menu.city} · {new Date(`${menu.available_date}T12:00:00`).toLocaleDateString(en ? "en-GB" : "fr-FR")}</p>
-        </div></article>)}</div> : <div className="mt-8 rounded-3xl border border-dashed bg-white p-10 text-center text-slate-500">{en ? "No menu has been published for today yet." : "Aucun menu n’a encore été publié pour aujourd’hui."}</div>}
-    </div></section>
+  <section id="menus" className="section"><div className="container-site"><div className="flex flex-wrap items-end justify-between gap-5"><div><span className="eyebrow">{t("Album des plats","Menu gallery")}</span><h2 className="mt-4 text-4xl font-black">{t("Menus disponibles","Available menus")}</h2></div><Link href={orderHref} className="btn-primary">{page?.cta_label||t("Passer une commande","Place an order")}<ShoppingBag className="ml-2 h-5"/></Link></div>
+  {menus.length?<div className="mt-10 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">{menus.map((menu:any)=><article key={menu.id} className="overflow-hidden rounded-[1.75rem] border bg-white shadow-soft"><div className="relative aspect-[4/3] bg-mint">{menu.image_url?<Image src={menu.image_url} alt={en?menu.name_en||menu.name_fr:menu.name_fr} fill className="object-cover"/>:<div className="grid h-full place-items-center"><UtensilsCrossed className="h-16 text-leaf"/></div>}</div><div className="p-5"><div className="flex items-start justify-between gap-3"><h3 className="text-xl font-black">{en?menu.name_en||menu.name_fr:menu.name_fr}</h3><span className="rounded-full bg-mint px-3 py-1 text-[10px] font-black">{menu.city}</span></div><p className="mt-3 min-h-14 text-sm leading-6 text-slate-600">{en?menu.description_en||menu.description_fr:menu.description_fr}</p><p className="mt-4 text-lg font-black">{Number(menu.base_price||0).toLocaleString(en?"en-US":"fr-FR")} {menu.currency||"XAF"}</p><Link href={orderHref} className="mt-5 flex items-center justify-between rounded-xl border border-orange px-4 py-3 text-sm font-black text-orange">{t("Voir le menu","View menu")}<ArrowRight className="h-4"/></Link></div></article>)}</div>:<div className="mt-10 rounded-3xl border border-dashed bg-white p-10 text-center text-slate-500">{t("Aucun menu n’a encore été publié pour aujourd’hui.","No menu has been published for today yet.")}</div>}</div></section>
 
-    <section className="section bg-[#f3eee5]"><div className="container-site grid gap-8">
-      {groups.map(group => { const Icon=group.icon; const rows=(locations||[]).filter((item:any)=>item.kind===group.key); return <div key={group.key}><h2 className="flex items-center gap-3 text-3xl font-black"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-leaf"><Icon className="h-6"/></span>{en ? group.en : group.fr}</h2>
-        <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">{rows.length ? rows.map((item:any)=><article key={item.id} className="rounded-3xl bg-white p-6 shadow-soft"><h3 className="text-xl font-black">{en ? item.name_en || item.name_fr : item.name_fr}</h3><p className="mt-3 flex gap-2 text-sm text-slate-600"><MapPinIcon className="h-5 shrink-0 text-orange"/>{[item.city,item.address].filter(Boolean).join(" · ")}</p>{item.phone&&<a href={`tel:${item.phone}`} className="mt-3 flex gap-2 text-sm font-black text-leaf"><PhoneIcon className="h-5"/>{item.phone}</a>}</article>) : <p className="text-slate-500">{en ? "Information coming soon." : "Informations bientôt disponibles."}</p>}</div>
-      </div>})}
-    </div></section>
-  </main>;
+  <section className="pb-10"><div className="container-site rounded-[2rem] bg-[#f3f6f3] p-6 md:p-10"><h2 className="text-center text-3xl font-black">{t("Où trouver nos menus ?","Where can you find our menus?")}</h2><p className="mt-2 text-center text-slate-500">{t("Nos menus sont disponibles dans plusieurs points stratégiques.","Our menus are available at several strategic locations.")}</p><div className="mt-8 grid gap-6 md:grid-cols-3">{locationsMeta.map((meta,index)=>{const Icon=locationIcons[index],rows=locations.filter((x:any)=>x.kind===meta.key);return <article key={meta.key} className="overflow-hidden rounded-3xl bg-white shadow-soft"><div className="p-6"><div className="flex gap-4"><span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-mint text-leaf"><Icon className="h-7"/></span><div><h3 className="text-xl font-black">{meta.title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{meta.text}</p></div></div></div><div className="relative aspect-[16/8]"><Image src={meta.image} alt={meta.title} fill className="object-cover"/></div><div className="space-y-2 p-5">{rows.length?rows.slice(0,3).map((row:any)=><div key={row.id} className="flex items-start gap-2 text-sm"><MapPin className="mt-0.5 h-4 shrink-0 text-orange"/><span><b>{en?row.name_en||row.name_fr:row.name_fr}</b><br/>{[row.city,row.address].filter(Boolean).join(" · ")}</span></div>):<p className="text-sm text-slate-500">{t("Informations bientôt disponibles.","Information coming soon.")}</p>}</div>{meta.cta_url&&<Link href={meta.cta_url} className="mx-5 mb-5 flex items-center justify-between rounded-xl bg-mint px-4 py-3 text-sm font-black text-leaf">{meta.cta_label||t("En savoir plus","Learn more")}<ArrowRight className="h-4"/></Link>}</article>})}</div></div></section>
+
+  <section className="pb-10"><div className="container-site"><div className="rounded-[2rem] border bg-white p-7"><h2 className="text-center text-2xl font-black">{t("Pourquoi choisir nos menus ?","Why choose our menus?")}</h2><div className="mt-7 grid gap-6 md:grid-cols-5">{reasons.map((item,index)=>{const Icon=whyIcons[index];return <div key={item.title} className="flex items-center gap-3 md:border-r md:last:border-0"><Icon className="h-9 shrink-0 text-leaf"/><span className="text-sm font-black">{item.title}</span></div>})}</div></div></div></section>
+
+  <section className="pb-16"><div className="container-site"><div className="relative overflow-hidden rounded-[2rem] bg-forest p-8 text-white md:p-12"><Image src={ctaImage} alt="" fill className="object-cover opacity-25"/><div className="absolute inset-0 bg-gradient-to-r from-forest via-forest/90 to-forest/60"/><div className="relative z-10 flex flex-col justify-between gap-8 md:flex-row md:items-center"><div><h2 className="text-3xl font-black text-white">{t("Savourez des repas sains où que vous soyez","Enjoy healthy meals wherever you are")}</h2><p className="mt-3 text-white/75">{t("Commandez en quelques clics et faites-vous livrer vos menus préférés.","Order in a few clicks and have your favourite meals delivered.")}</p></div><div className="grid gap-3"><Link href={orderHref} className="btn-primary">{t("Passer une commande","Place an order")}<ArrowRight className="ml-2 h-5"/></Link>{!user&&<Link href="/connexion?redirect=%2Frestauration" className="rounded-full border border-white px-7 py-3 text-center font-black text-white">{t("Se connecter","Sign in")}</Link>}</div></div></div></div></section>
+ </main>;
 }

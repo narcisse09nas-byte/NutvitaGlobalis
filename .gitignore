@@ -12,3 +12,6 @@ node_modules/
 /output/video/
 /scripts/recreate-academy-intro.ps1
 /scripts/render-academy-intro-v2.mjs
+
+# Local one-off maintenance scripts
+/tmp/*.ps1

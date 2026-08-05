@@ -9,6 +9,17 @@ create table if not exists public.site_pages (
   updated_at timestamptz not null default now()
 );
 
+alter table public.site_pages add column if not exists eyebrow_en text;
+alter table public.site_pages add column if not exists title_en text;
+alter table public.site_pages add column if not exists description_en text;
+alter table public.site_pages add column if not exists sections_en jsonb not null default '[]'::jsonb;
+alter table public.site_pages add column if not exists cta_label_en text;
+alter table public.site_pages add column if not exists hero_image_url text;
+alter table public.site_pages add column if not exists cta_image_url text;
+alter table public.site_pages add column if not exists secondary_cta_label text;
+alter table public.site_pages add column if not exists secondary_cta_label_en text;
+alter table public.site_pages add column if not exists secondary_cta_url text;
+
 alter table public.site_pages enable row level security;
 drop policy if exists "Site pages public" on public.site_pages;
 create policy "Site pages public" on public.site_pages for select to anon, authenticated using (true);

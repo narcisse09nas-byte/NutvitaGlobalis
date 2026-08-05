@@ -1,0 +1,2 @@
+import{createClient}from"@/lib/supabase/server";import{defaultRecruitmentUiSettings,type RecruitmentUiSettings}from"@/data/recruitment-ui";
+export async function getRecruitmentUiSettings():Promise<RecruitmentUiSettings>{try{const db=await createClient();const{data}=await db.from("recruitment_ui_settings").select("*").eq("id",1).maybeSingle();return data?{...defaultRecruitmentUiSettings,...data}:defaultRecruitmentUiSettings}catch{return defaultRecruitmentUiSettings}}

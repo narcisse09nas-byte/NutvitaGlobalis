@@ -1,0 +1,3 @@
+import {createClient} from "@/lib/supabase/server";
+import {defaultChildGrowthPageSettings,type ChildGrowthPageSettings} from "@/data/child-growth-page";
+export async function getChildGrowthPageSettings():Promise<ChildGrowthPageSettings>{try{const supabase=await createClient();const{data}=await supabase.from("child_growth_page_settings").select("*").eq("id",1).maybeSingle();if(!data)return defaultChildGrowthPageSettings;return{...defaultChildGrowthPageSettings,...data,advice:Array.isArray(data.advice)?data.advice:defaultChildGrowthPageSettings.advice}}catch{return defaultChildGrowthPageSettings}}

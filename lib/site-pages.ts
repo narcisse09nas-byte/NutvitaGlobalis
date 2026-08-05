@@ -1,10 +1,16 @@
-﻿import { defaultSitePage, type SitePageContent } from "@/data/site-pages";
+import { defaultSitePage, type SitePageContent } from "@/data/site-pages";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { pickLocalized } from "@/lib/i18n";
 import { hasSupabaseConfig } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 const englishFallbacks: Record<string, Partial<SitePageContent>> = {
-  ressources: { eyebrow: "Learn", title: "Resources for better decisions", description: "Practical articles, professional guides and tools based on reliable, contextualized information.", sections: [] },
+  "applications-support": { eyebrow: "Professional solutions", title: "Support applications\nbuilt for action", description: "Explore NutVitaGlobalis operational applications. Your permissions are verified when a solution opens.", cta_label: "View all applications", secondary_cta_label: "Request a demo", sections: [
+    { title: "Secure access", text: "Verified authentication and permissions" }, { title: "Reliable data", text: "Rigorous collection and validated analysis" }, { title: "Informed decisions", text: "Relevant information at the right time" }, { title: "Measurable impact", text: "Continuous monitoring and tangible results" },
+    { title: "Acute malnutrition care (NutriTrack)", text: "Screening, admission, clinical monitoring, stock management and reporting for authorized facilities.", items: ["MAM & SAM case monitoring", "Admission and discharge management", "Stock and supply monitoring", "Standard and custom reports"] },
+    { title: "Food security and nutrition survey support", text: "Design questionnaires, collect data and produce reliable decision-ready analyses.", items: ["Questionnaire design (ODK/Kobo)", "Mobile and offline collection", "Data cleaning and validation", "Statistical analysis and dashboards"] },
+    { title: "Project, programme and portfolio management", text: "Plan activities, resources, results, risks and performance in one structured workspace.", items: ["Activity planning and monitoring", "Budget and resource management", "Indicator and results monitoring", "Dashboards and reports"] },
+    { title: "Security and compliance", text: "Protected data and respected international standards." }, { title: "Interoperability", text: "Seamless integration with your existing tools and systems." }, { title: "Available everywhere", text: "Access your data online or offline, on every device." }, { title: "Responsive support", text: "Technical assistance and personalized support." }
+  ] },  ressources: { eyebrow: "Learn", title: "Resources for better decisions", description: "Practical articles, professional guides and tools based on reliable, contextualized information.", sections: [] },
   formations: { eyebrow: "Learn", title: "Skills that transform practice", description: "Flexible, practical learning paths designed by nutrition and public health professionals.", sections: [] },
   teleconseils: { eyebrow: "By your side", title: "Your nutritionist, wherever you are", description: "A confidential video or WhatsApp consultation followed by recommendations adapted to your health and daily life.", sections: [] },
   "a-propos": { eyebrow: "Who we are", title: "Science serving healthier lives", description: "NutVitaGlobalis was founded on one conviction: clear, relevant and human guidance can sustainably improve health.", sections: [
@@ -32,7 +38,21 @@ const englishFallbacks: Record<string, Partial<SitePageContent>> = {
 export async function getSitePage(pageKey: string): Promise<SitePageContent | undefined> {
   const locale = await getCurrentLocale();
   const defaultFallback = defaultSitePage(pageKey);
-  const fallback = locale === "en" && defaultFallback ? { ...defaultFallback, ...englishFallbacks[pageKey] } as SitePageContent : defaultFallback;
+  const localizedDefault = locale === "en" && defaultFallback ? {
+    ...defaultFallback,
+    eyebrow: defaultFallback.eyebrow_en || defaultFallback.eyebrow,
+    title: defaultFallback.title_en || defaultFallback.title,
+    description: defaultFallback.description_en || defaultFallback.description,
+    sections: defaultFallback.sections_en?.length ? defaultFallback.sections_en : defaultFallback.sections,
+    cta_label: defaultFallback.cta_label_en || defaultFallback.cta_label,
+    secondary_cta_label: defaultFallback.secondary_cta_label_en || defaultFallback.secondary_cta_label,
+  } as SitePageContent : defaultFallback;
+  const englishOverride = englishFallbacks[pageKey];
+  const fallback = locale === "en" && localizedDefault && englishOverride ? {
+    ...localizedDefault,
+    ...englishOverride,
+    sections: englishOverride.sections?.length ? englishOverride.sections : localizedDefault.sections,
+  } as SitePageContent : localizedDefault;
   if (!hasSupabaseConfig()) return fallback;
   const { data } = await (await createClient()).from("site_pages").select("*").eq("page_key", pageKey).maybeSingle();
   if (!data || !fallback) return fallback;
@@ -44,7 +64,8 @@ export async function getSitePage(pageKey: string): Promise<SitePageContent | un
     description: pickLocalized(data, "description", locale) || fallback.description,
     seo_title: pickLocalized(data, "seo_title", locale),
     seo_description: pickLocalized(data, "seo_description", locale),
-    sections: Array.isArray(data.sections_en) && locale === "en" ? data.sections_en : Array.isArray(data.sections) ? data.sections : fallback.sections,
+    sections: Array.isArray(data.sections_en) && locale === "en" && data.sections_en.length ? data.sections_en : Array.isArray(data.sections) && data.sections.length ? data.sections : fallback.sections,
     cta_label: pickLocalized(data, "cta_label", locale) || fallback.cta_label,
+    secondary_cta_label: pickLocalized(data, "secondary_cta_label", locale) || fallback.secondary_cta_label,
   } as SitePageContent;
 }

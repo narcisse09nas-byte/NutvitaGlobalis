@@ -1,35 +1,19 @@
 import ClientShell from "@/components/client/ClientShell";
-import ConsultationRequestPanel from "@/components/client/ConsultationRequestPanel";
-import ClientConsultationRegistry from "@/components/client/ClientConsultationRegistry";
+import NutritionConsultationDashboard from "@/components/client/NutritionConsultationDashboard";
 import {requireTeleconsultationAccess} from "@/lib/client";
-
+import {getCurrentLocale} from "@/lib/i18n-server";
+import {getConsultationDashboardSettings} from "@/lib/consultation-dashboard";
 export default async function ClientConsultationsPage(){
-  const {supabase,user,profile}=await requireTeleconsultationAccess();
-  const now=new Date().toISOString();
-  let bookingResult=await supabase.from("consultation_bookings").select("*, teleconseils(name)").eq("client_id",user.id).gt("access_expires_at",now).not("status","in",'("cancelled","refunded")').order("created_at",{ascending:false});
-  if(bookingResult.error?.code==="PGRST204"||bookingResult.error?.message?.includes("schema cache")){
-    bookingResult=await supabase.from("consultation_bookings").select("*, teleconseils(name)").eq("client_id",user.id).not("status","eq","cancelled").order("created_at",{ascending:false});
-  }
-  const [{data:subscriptions},{data:plans},{data:requests},{data:consultations}]=await Promise.all([
-    supabase.from("subscriptions").select("*").eq("client_id",user.id).eq("status","active").gt("expires_at",now),
-    supabase.from("subscription_plans").select("id,tier,name,service_type").eq("tier","premium"),
-    supabase.from("consultation_waiting_room").select("*").eq("client_id",user.id).order("created_at",{ascending:false}),
-    supabase.from("partner_consultations").select("*").eq("client_id",user.id).eq("status","completed").order("finalized_at",{ascending:false}),
-  ]);
-  const bookings=(bookingResult.data||[]).filter((item:any)=>{
-    if(item.access_expires_at)return +new Date(item.access_expires_at)>Date.now();
-    const legacyEnd=new Date(item.created_at);legacyEnd.setUTCMonth(legacyEnd.getUTCMonth()+3);
-    return +legacyEnd>Date.now();
-  });
-  const premiumPlanIds=new Set((plans||[]).map((plan:any)=>plan.id));
-  const premiumSubscriptions=(subscriptions||[]).filter((item:any)=>premiumPlanIds.has(item.plan_id));
-
-  return <ClientShell email={user.email||""}>
-    <div className="mb-7">
-      <h1 className="text-3xl font-black">Mes consultations</h1>
-      <p className="mt-2 text-slate-500">Sollicitez un teleconseiller depuis votre espace client, sans quitter votre session.</p>
-    </div>
-    <ConsultationRequestPanel clientId={user.id} profile={profile} bookings={bookings||[]} premiumSubscriptions={premiumSubscriptions} requests={requests||[]}/>
-    <div className="mt-7"><ClientConsultationRegistry consultations={consultations||[]} userEmail={user.email||""}/></div>
-  </ClientShell>;
+ const{supabase,user,profile}=await requireTeleconsultationAccess();
+ const partnerId=profile?.assigned_partner_id||profile?.created_by_partner_id||null;
+ const[locale,settings,{data:appointments},{data:consultations},{data:anthropometry},{data:biology},{data:food},partnerResult]=await Promise.all([
+  getCurrentLocale(),getConsultationDashboardSettings(),
+  supabase.from("appointments").select("*").eq("client_id",user.id).order("scheduled_at",{ascending:false}).limit(20),
+  supabase.from("partner_consultations").select("*").eq("client_id",user.id).eq("status","completed").order("finalized_at",{ascending:false}).limit(20),
+  supabase.from("anthropometric_measurements").select("*").eq("client_id",user.id).order("measured_at",{ascending:false}).limit(20),
+  supabase.from("biological_measurements").select("*").eq("client_id",user.id).order("measured_at",{ascending:false}).limit(20),
+  supabase.from("food_history").select("*").eq("client_id",user.id).order("entry_date",{ascending:false}).limit(12),
+  partnerId?supabase.from("dietitian_profiles").select("*").eq("id",partnerId).maybeSingle():Promise.resolve({data:null}),
+ ]);
+ return <ClientShell email={user.email||""} service="teleconsultation"><NutritionConsultationDashboard settings={settings} profile={profile||{email:user.email}} partner={partnerResult.data} appointments={appointments||[]} consultations={consultations||[]} anthropometry={anthropometry||[]} biology={biology||[]} food={food||[]} english={locale==="en"}/></ClientShell>;
 }

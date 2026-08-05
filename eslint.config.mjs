@@ -7,11 +7,14 @@ const config = [
   {
     ignores: [
       '.next/**',
+      '**/.next/**',
       'node_modules/**',
+      '**/node_modules/**',
       'out/**',
       'build/**',
       'public/**',
       'next-env.d.ts',
+      'apps/**',
     ],
   },
   {

@@ -26,6 +26,7 @@ const questionTypes=[
 const emptyQuestion={
   category:"nutrition",
   question_type:"open",
+  job_offer_id:"",
   prompt:"",
   options:"",
   correct_answer:"",
@@ -37,15 +38,40 @@ const emptyQuestion={
   active:true,
 };
 
-export default function TestConfigManager({initialSettings,initialQuestions,candidates}:{initialSettings:Settings|null;initialQuestions:Row[];candidates:Row[]}){
+const emptyExamRequest={job_offer_id:"",title:"",qcm_count:5,multi_qcm_count:0,case_study_count:1,open_count:0,file_upload_count:0};
+
+export default function TestConfigManager({initialSettings,initialQuestions,candidates,jobOffers,initialExams}:{initialSettings:Settings|null;initialQuestions:Row[];candidates:Row[];jobOffers:Row[];initialExams:Row[]}){
   const [settings,setSettings]=useState<Settings>(initialSettings||{id:1,title:"Test ecrit NutVitaGlobalis",instructions:"Lisez attentivement chaque question avant de repondre.",available_from:null,available_until:null,duration_minutes:60,camera_required:false,active:true});
   const [questions,setQuestions]=useState<Row[]>(initialQuestions);
   const [draft,setDraft]=useState<Row>(emptyQuestion);
   const [selectedCandidates,setSelectedCandidates]=useState<string[]>([]);
   const [message,setMessage]=useState("");
+  const [examRequest,setExamRequest]=useState(emptyExamRequest);
+  const [exams,setExams]=useState<Row[]>(initialExams);
+  const [generating,setGenerating]=useState(false);
   const supabase=useMemo(()=>createClient(),[]);
   const isChoiceQuestion=draft.question_type==="qcm"||draft.question_type==="multi_qcm";
   const isFileQuestion=draft.question_type==="file_upload";
+  const jobOfferLabel=(id:string)=>jobOffers.find(offer=>offer.id===id)?.title||"Poste inconnu";
+
+  async function generateExam(){
+    if(!examRequest.job_offer_id){setMessage("Selectionnez un poste avant de generer l'epreuve.");return}
+    setGenerating(true);setMessage("Generation de l'epreuve...");
+    const {data,error}=await supabase.rpc("generate_recruitment_exam",{
+      p_job_offer_id:examRequest.job_offer_id,
+      p_title:examRequest.title,
+      p_qcm_count:Number(examRequest.qcm_count||0),
+      p_multi_qcm_count:Number(examRequest.multi_qcm_count||0),
+      p_case_study_count:Number(examRequest.case_study_count||0),
+      p_open_count:Number(examRequest.open_count||0),
+      p_file_upload_count:Number(examRequest.file_upload_count||0),
+    });
+    setGenerating(false);
+    if(error){setMessage(error.message);return}
+    const {data:exam}=await supabase.from("recruitment_generated_exams").select("*").eq("id",data).single();
+    if(exam)setExams([exam,...exams.map(item=>item.job_offer_id===exam.job_offer_id?{...item,active:false}:item)]);
+    setMessage("Epreuve generee et activee pour ce poste.");
+  }
 
   async function saveSettings(){
     setMessage("Enregistrement...");
@@ -73,6 +99,7 @@ export default function TestConfigManager({initialSettings,initialQuestions,cand
     const {data,error}=await supabase.from("recruitment_test_questions").insert({
       category:draft.category||"nutrition",
       question_type:draft.question_type,
+      job_offer_id:draft.job_offer_id||null,
       prompt:draft.prompt,
       options:options.length?options:null,
       correct_answer:draft.correct_answer||null,
@@ -199,6 +226,12 @@ export default function TestConfigManager({initialSettings,initialQuestions,cand
         <label className="grid gap-2 text-sm font-bold">Categorie
           <input className="admin-input" value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}/>
         </label>
+        <label className="grid gap-2 text-sm font-bold">Poste (offre d'emploi)
+          <select className="admin-input" value={draft.job_offer_id} onChange={e=>setDraft({...draft,job_offer_id:e.target.value})}>
+            <option value="">Generique (tous postes)</option>
+            {jobOffers.map(offer=><option key={offer.id} value={offer.id}>{offer.title}</option>)}
+          </select>
+        </label>
         <label className="grid gap-2 text-sm font-bold">Type
           <select className="admin-input" value={draft.question_type} onChange={e=>setDraft({...draft,question_type:e.target.value,options:"",correct_answer:"",file_instructions:"",allow_external_window:false,max_files:1})}>
             {questionTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}
@@ -241,12 +274,55 @@ export default function TestConfigManager({initialSettings,initialQuestions,cand
       <button onClick={addQuestion} className="btn-secondary mt-5">Ajouter la question</button>
     </div>
 
+    <div className="mt-8 border-t pt-6">
+      <h3 className="text-xl font-black">Generer une epreuve pour un poste</h3>
+      <p className="mt-2 max-w-3xl text-sm text-slate-500">Selectionnez le poste et le nombre de questions souhaite par type. L'epreuve pioche aleatoirement dans la banque de questions taguee pour ce poste, puis devient l'epreuve active envoyee aux candidats de ce poste.</p>
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <label className="grid gap-2 text-sm font-bold">Poste
+          <select className="admin-input" value={examRequest.job_offer_id} onChange={e=>setExamRequest({...examRequest,job_offer_id:e.target.value})}>
+            <option value="">Selectionner un poste</option>
+            {jobOffers.map(offer=><option key={offer.id} value={offer.id}>{offer.title}</option>)}
+          </select>
+        </label>
+        <label className="grid gap-2 text-sm font-bold lg:col-span-2">Titre de l'epreuve
+          <input className="admin-input" value={examRequest.title} onChange={e=>setExamRequest({...examRequest,title:e.target.value})} placeholder="Ex: Epreuve Nutritionniste Senior - session 1"/>
+        </label>
+        <label className="grid gap-2 text-sm font-bold">Nombre de QCU (une reponse)
+          <input className="admin-input" type="number" min={0} value={examRequest.qcm_count} onChange={e=>setExamRequest({...examRequest,qcm_count:Number(e.target.value)})}/>
+        </label>
+        <label className="grid gap-2 text-sm font-bold">Nombre de QCM (plusieurs reponses)
+          <input className="admin-input" type="number" min={0} value={examRequest.multi_qcm_count} onChange={e=>setExamRequest({...examRequest,multi_qcm_count:Number(e.target.value)})}/>
+        </label>
+        <label className="grid gap-2 text-sm font-bold">Nombre de cas pratiques
+          <input className="admin-input" type="number" min={0} value={examRequest.case_study_count} onChange={e=>setExamRequest({...examRequest,case_study_count:Number(e.target.value)})}/>
+        </label>
+        <label className="grid gap-2 text-sm font-bold">Nombre de questions ouvertes
+          <input className="admin-input" type="number" min={0} value={examRequest.open_count} onChange={e=>setExamRequest({...examRequest,open_count:Number(e.target.value)})}/>
+        </label>
+        <label className="grid gap-2 text-sm font-bold">Nombre de travaux avec fichier
+          <input className="admin-input" type="number" min={0} value={examRequest.file_upload_count} onChange={e=>setExamRequest({...examRequest,file_upload_count:Number(e.target.value)})}/>
+        </label>
+      </div>
+      <button onClick={generateExam} disabled={generating} className="btn-primary mt-5">{generating?"Generation...":"Generer l'epreuve"}</button>
+
+      <div className="mt-6 grid gap-3">
+        {exams.map(exam=><div key={exam.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4">
+          <div>
+            <b>{exam.title}</b>
+            <p className="mt-1 text-xs uppercase tracking-widest text-slate-400">{jobOfferLabel(exam.job_offer_id)} · {(exam.question_ids||[]).length} question(s) · {new Date(exam.created_at).toLocaleDateString("fr-FR")}</p>
+          </div>
+          <span className={exam.active?"rounded-full bg-leaf px-3 py-1 text-xs font-bold text-white":"rounded-full bg-slate-300 px-3 py-1 text-xs font-bold text-slate-700"}>{exam.active?"Active":"Remplacee"}</span>
+        </div>)}
+        {!exams.length&&<p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">Aucune epreuve generee pour le moment.</p>}
+      </div>
+    </div>
+
     <div className="mt-8 grid gap-3">
       {questions.map(question=><div key={question.id} className="rounded-2xl bg-slate-50 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <b>{question.prompt}</b>
-            <p className="mt-1 text-xs uppercase tracking-widest text-slate-400">{question.question_type} · {question.points} points · position {question.position}</p>
+            <p className="mt-1 text-xs uppercase tracking-widest text-slate-400">{question.question_type} · {jobOfferLabel(question.job_offer_id)} · {question.points} points · position {question.position}</p>
           </div>
           <button onClick={()=>toggleQuestion(question)} className={question.active?"rounded-full bg-leaf px-4 py-2 text-xs font-bold text-white":"rounded-full bg-slate-300 px-4 py-2 text-xs font-bold text-slate-700"}>{question.active?"Active":"Inactive"}</button>
         </div>

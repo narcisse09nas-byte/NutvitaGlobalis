@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useMemo, useState } from 'react';
 import {
   Archive, Boxes, Building2, Car, ChevronDown, ChevronRight, ClipboardList,
-  FileSignature, GitBranch, Handshake, LayoutDashboard, Menu, ShoppingCart, Users, Utensils, Wallet, X,
+  FileSignature, GitBranch, Handshake, IdCard, LayoutDashboard, Menu, ShoppingCart, Users, Utensils, Wallet, X,
 } from 'lucide-react';
 import type { MaximusModule } from '@/lib/maximus-modules';
 import { maximusModules } from '@/lib/maximus-modules';
@@ -107,6 +107,7 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
         {(!allowedModules || allowedModules.includes('communications/messages')) && <Link href="/maximus/communications/messages" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/messages' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />Messagerie Maximus</Link>}
         {(!allowedModules || allowedModules.includes('communications/meetings')) && <Link href="/maximus/communications/meetings" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/meetings' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />Réunions Maximus</Link>}
         <Link href="/signatures" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white/75 hover:bg-white/10"><FileSignature className="h-5" />Signatures électroniques</Link>
+        <Link href="/maximus/carte" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white/75 hover:bg-white/10"><IdCard className="h-5" />Ma carte d'accès</Link>
         {(!allowedModules || allowedModules.includes('menus')) && <Link href="/maximus/menus" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'menus' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><Utensils className="h-5" />Menus</Link>}
         {groups.map(([group, items]) => {
           const Icon = groupIcons[group as keyof typeof groupIcons] || ClipboardList;

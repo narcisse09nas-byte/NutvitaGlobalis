@@ -48,6 +48,14 @@ export async function POST(request: Request) {
   const manualMethod = provider === "manual_mobile_money" ? "mobile_money" : provider === "manual_bank_transfer" ? "bank_transfer" : null;
   const { data: profile } = await supabase.from("client_profiles").select("*").eq("id", user.id).single();
   if (!profile) return NextResponse.json({ message: "Profil client introuvable." }, { status: 404 });
+  if (!profile.referred_by_promoter_id && body.promo_code) {
+    const code = String(body.promo_code).trim().toUpperCase();
+    const { data: promoter } = await supabase.from("promoter_profiles").select("id").eq("matricule", code).eq("status", "active").maybeSingle();
+    if (promoter) {
+      await supabase.from("client_profiles").update({ referred_by_promoter_id: promoter.id }).eq("id", user.id);
+      profile.referred_by_promoter_id = promoter.id;
+    }
+  }
 
   let purchase: Purchase | null = null;
   if (body.plan_id) {

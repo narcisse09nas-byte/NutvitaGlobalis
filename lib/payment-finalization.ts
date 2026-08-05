@@ -155,6 +155,23 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
   failIfError("Activation de l'accès au service", grantResult.error);
   failIfError("Validation du paiement", (await admin.from("payments").update({ status: "succeeded", provider_payment_id: providerPaymentId, paid_at: start.toISOString(), raw_event: rawEvent }).eq("id", payment.id)).error);
 
+  if (client.referred_by_promoter_id) {
+    const commission = Number((Number(payment.total_including_tax || 0) * 0.03).toFixed(2));
+    if (commission > 0) {
+      const commissionResult = await admin.from("promoter_ledger").insert({
+        promoter_id: client.referred_by_promoter_id,
+        payment_id: payment.id,
+        client_id: payment.client_id,
+        entry_type: "commission",
+        source: "main",
+        description: `Commission 3% - ${service.name}`,
+        amount: commission,
+        currency: payment.currency,
+      });
+      if (commissionResult.error) console.error("Promoter commission accrual failed", commissionResult.error);
+    }
+  }
+
   let invoice: any = null;
   try {
     const { data: createdInvoice, error } = await admin.from("invoices").insert({ invoice_number: `NVG-${start.getUTCFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, client_id: payment.client_id, payment_id: payment.id, subscription_id: payment.subscription_id || null, product_name: service.name, purchase_type: payment.purchase_type, payment_provider: payment.provider, payment_status: "paid", client_name: client.full_name || client.email, client_email: client.email, price_excluding_tax: payment.price_excluding_tax, tax_rate: payment.tax_rate, tax_amount: payment.tax_amount, total_including_tax: payment.total_including_tax, currency: payment.currency }).select().single();

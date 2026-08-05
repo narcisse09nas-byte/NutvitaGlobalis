@@ -35,7 +35,13 @@ export async function POST(request: Request) {
         code: duplicate ? "ACCOUNT_EXISTS" : mailFailure ? "AUTH_EMAIL_CONFIGURATION" : "AUTH_CREATE_FAILED",
       }, { status: 400 });
     }
-    const { error } = await admin.from("client_profiles").upsert({ id: created.data.user.id, email, ...profile });
+    let referredByPromoterId: string | null = null;
+    const promoCode = String(body.promo_code || "").trim().toUpperCase();
+    if (promoCode) {
+      const { data: promoter } = await admin.from("promoter_profiles").select("id").eq("matricule", promoCode).eq("status", "active").maybeSingle();
+      referredByPromoterId = promoter?.id || null;
+    }
+    const { error } = await admin.from("client_profiles").upsert({ id: created.data.user.id, email, ...profile, referred_by_promoter_id: referredByPromoterId });
     if (error) {
       await admin.auth.admin.deleteUser(created.data.user.id);
       return NextResponse.json({ message: `Le compte n a pas ete finalise: ${error.message}`, code: "PROFILE_CREATE_FAILED" }, { status: 400 });

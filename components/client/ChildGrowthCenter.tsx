@@ -1,7 +1,8 @@
 // @ts-nocheck -- Dynamic Supabase rows are normalized before writes.
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import GeoFields from "@/components/accounts/GeoFields";
 import { createClient } from "@/lib/supabase/client";
@@ -116,6 +117,16 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
   async function createReport(){if(!selected)return;setLoading(true);const response=await fetch('/api/child-growth/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({child_id:selected})}),result=await response.json();if(response.ok){setReports([result,...reports]);setMessage(tx("Rapport PDF genere.","PDF report generated."))}else setMessage(result.message||tx("Rapport impossible.","Report unavailable."));setLoading(false)}
   async function openReport(path:string){const {data,error}=await createClient().storage.from('document-vault').createSignedUrl(path,180);if(error)setMessage(error.message);else window.open(data.signedUrl,'_blank')}
 
+  const searchParams = useSearchParams();
+  const highlightedReportId = searchParams.get("report");
+  useEffect(() => {
+    if (!highlightedReportId) return;
+    const target = reports.find(item => item.id === highlightedReportId);
+    if (!target) return;
+    if (target.child_id && target.child_id !== selected) setSelected(target.child_id);
+    openReport(target.file_path);
+  }, [highlightedReportId]);
+
   const analysis = analyze(rows);
   const savedAnalysis=analyses.find(item=>item.child_id===selected),childAlerts=alerts.filter(item=>item.child_id===selected),childReports=reports.filter(item=>item.child_id===selected);
   return <div className="grid gap-7">
@@ -167,6 +178,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
       </section>}
       {child && subscription && <>
         <section className="rounded-2xl bg-mint p-5"><b>{tx("Suivi actif pour","Monitoring active for")} {child.full_name}</b><p className="mt-1 text-sm">{tx("Du","From")} {new Date(subscription.started_at).toLocaleDateString(locale==="en"?"en-GB":"fr-FR")} {tx("au","to")} {new Date(subscription.expires_at).toLocaleDateString(locale==="en"?"en-GB":"fr-FR")}</p></section>
+        <QuickOverview rows={rows} birthDate={child.birth_date} locale={locale}/>
         <section className="grid gap-7 rounded-2xl border bg-white p-6">
         <div className="flex flex-wrap gap-2 border-b pb-5">
           <button type="button" onClick={() => setEntryMode("measurement")} className={entryMode === "measurement" ? "btn-primary" : "btn-secondary"}>{locale === "en" ? "Measurements" : "Mesures anthropometriques"}</button>
@@ -287,6 +299,33 @@ function GrowthCharts({rows,child,standards,locale}:{rows:Row[];child:Row;standa
     </svg></div>
     <p className={`mt-4 rounded-xl p-4 text-sm ${latest?.risk_category==="high"?"bg-red-50 text-red-800":latest?.risk_category==="moderate"?"bg-amber-50 text-amber-900":"bg-mint text-forest"}`}>{reference.length?latest?.interpretation||(en?"The pink trajectory is compared with WHO curves.":"La trajectoire rose est comparee aux courbes OMS."):(en?"WHO reference unavailable for this indicator; only the personal trajectory is displayed.":"Reference OMS non disponible pour cet indicateur; seule la trajectoire personnelle est affichee.")}</p>
   </section>
+}
+function QuickOverview({rows,birthDate,locale}:{rows:Row[];birthDate:string;locale:"fr"|"en"}){
+  const en=locale==="en";
+  const latest=rows.at(-1),previous=rows.at(-2);
+  if(!latest)return null;
+  const ageMonths=completedAgeMonths(birthDate,latest.measured_at);
+  const metrics=[
+    [en?"Age":"Age", ageMonths==null?null:`${Math.floor(ageMonths/12)} ${en?"y":"an(s)"} ${ageMonths%12} ${en?"mo":"mois"}`, null, ""],
+    [en?"Height":"Taille", latest.height_cm, previous?.height_cm, " cm"],
+    [en?"Weight":"Poids", latest.weight_kg, previous?.weight_kg, " kg"],
+    ["IMC", latest.bmi, previous?.bmi, ""],
+    [en?"Head circumference":"Périmètre crânien", latest.head_circumference_cm, previous?.head_circumference_cm, " cm"],
+    [en?"MUAC":"Périmètre brachial", latest.muac_cm, previous?.muac_cm, " cm"],
+  ] as const;
+  return <section className="rounded-2xl border bg-white p-6">
+    <div className="flex items-center justify-between"><h2 className="text-lg font-black text-forest">{en?"Quick overview":"Aperçu rapide"}</h2><p className="text-xs text-slate-400">{en?"Last update":"Dernière mise à jour"} : {new Date(latest.measured_at).toLocaleDateString(en?"en-GB":"fr-FR")}</p></div>
+    <div className="mt-4 grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      {metrics.map(([label,value,oldValue,unit])=>{
+        const delta=oldValue!=null&&value!=null?Number(value)-Number(oldValue):null;
+        return <div key={label} className="rounded-xl bg-slate-50 p-3">
+          <p className="text-xs font-bold uppercase text-slate-400">{label}</p>
+          <p className="mt-1 text-lg font-black text-forest">{value==null?"—":typeof value==="string"?value:`${Number(value).toFixed(1)}${unit}`}</p>
+          {delta!=null&&<p className={`text-xs font-bold ${delta<0?"text-orange":"text-leaf"}`}>{delta>0?"+":""}{delta.toFixed(1)}{unit}</p>}
+        </div>;
+      })}
+    </div>
+  </section>;
 }
 function AlertPanel({alerts,locale}:{alerts:Row[];locale:"fr"|"en"}){const en=locale==="en";return <section><h2 className="mb-4 text-2xl font-black">{en?"Child alerts":"Alertes enfant"}</h2><div className="grid gap-3">{alerts.map(alert=><article key={alert.id} className={`rounded-2xl border-l-4 bg-white p-5 ${alert.severity==='critical'?'border-red-500':alert.severity==='warning'?'border-orange':'border-sky-500'}`}><div className="flex justify-between gap-4"><b>{alert.title}</b><span className="text-xs font-bold uppercase text-slate-400">{alert.severity}</span></div><p className="mt-2 text-sm text-slate-600">{alert.message}</p>{alert.email_sent_at&&<p className="mt-2 text-xs text-slate-400">{en?"Email notification sent.":"Notification email envoyee."}</p>}</article>)}{!alerts.length&&<p className="rounded-2xl bg-white p-6 text-slate-400">{en?"No recorded alert.":"Aucune alerte enregistree."}</p>}</div></section>}
 function AdvicePanel({items,locale}:{items:Row[];locale:"fr"|"en"}){const en=locale==="en";return <section><h2 className="mb-4 text-2xl font-black">{en?"Personalized advice for parents":"Conseils personnalises aux parents"}</h2><div className="grid gap-4 md:grid-cols-2">{items.map((item,index)=><article key={`${item.category}-${index}`} className="rounded-2xl border bg-white p-5"><p className="text-xs font-bold uppercase text-leaf">{item.category}</p><h3 className="mt-2 font-black">{item.title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{item.text}</p></article>)}{!items.length&&<p className="rounded-2xl bg-white p-6 text-slate-400 md:col-span-2">{en?"Update the analysis to receive tailored advice.":"Actualisez l'analyse pour obtenir des conseils adaptes."}</p>}</div></section>}

@@ -26,10 +26,15 @@ export async function POST(request:Request){
     try{await resend('/emails',{from:process.env.MAIL_FROM??'NutVitaGlobalis <contact@nutvitaglobalis.com>',to:[app.email],subject:email.subject,text:email.text})}catch(error){console.error('Recruitment status email',error)}
   }
   if(status==='selected'||status==='integrated'){
-    await supabase.rpc('create_dietitian_from_application',{p_application_id:id});
-    await supabase.from('dietitian_profiles').update({status:status==='integrated'?'active':'inactive'}).eq('application_id',id);
-    const {data:contractId}=await supabase.rpc('create_partner_contract',{p_application_id:id,p_created_by:user.id});
-    if(contractId)await generateAndStoreContract(supabase,contractId);
+    if(app.recruitment_type==='promoter'){
+      await supabase.rpc('create_promoter_from_application',{p_application_id:id});
+      await supabase.from('promoter_profiles').update({status:status==='integrated'?'active':'inactive'}).eq('application_id',id);
+    } else {
+      await supabase.rpc('create_dietitian_from_application',{p_application_id:id});
+      await supabase.from('dietitian_profiles').update({status:status==='integrated'?'active':'inactive'}).eq('application_id',id);
+      const {data:contractId}=await supabase.rpc('create_partner_contract',{p_application_id:id,p_created_by:user.id});
+      if(contractId)await generateAndStoreContract(supabase,contractId);
+    }
   }
   return NextResponse.json({ok:true});
 }

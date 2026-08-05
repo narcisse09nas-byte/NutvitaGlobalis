@@ -9,6 +9,6 @@ export async function POST(request: Request) {
   const validPassword = process.env.LOCAL_CLIENT_PASSWORD;
   if (!validPassword) return NextResponse.json({ message: "LOCAL_CLIENT_PASSWORD manque dans .env.local." }, { status: 500 });
   if (![validEmail.toLowerCase(),"client.demo"].includes(String(email).trim().toLowerCase()) || password !== validPassword) return NextResponse.json({ message: "Identifiant ou mot de passe incorrect." }, { status: 401 });
-  (await cookies()).set("nutvita_local_client", "1", { httpOnly: true, sameSite: "lax", secure: false, path: "/", maxAge: 60 * 60 * 12 });
+  (await cookies()).set("nutvita_local_client", "1", { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 12 });
   return NextResponse.json({ ok: true, email: validEmail });
 }

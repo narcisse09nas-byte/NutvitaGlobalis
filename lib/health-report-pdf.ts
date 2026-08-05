@@ -1,8 +1,8 @@
 import "server-only";
-import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { InsightResult, HealthRow } from "@/lib/health-analysis";
 import { createNutvitaDocumentBranding, createReportQrCode } from "@/lib/pdf-branding";
-import { customNumericSeries, drawCompactIndicatorChart, numericSeries } from "@/lib/pdf-indicator-charts";
+import { customNumericSeries, drawIndicatorReportCard, matchInsightForSeries, numericSeries } from "@/lib/pdf-indicator-charts";
 
 const wrap = (value: string, max = 92) => {
   const words = String(value || "").replace(/\s+/g, " ").trim().split(" "), lines: string[] = [];
@@ -15,26 +15,7 @@ const wrap = (value: string, max = 92) => {
   return lines;
 };
 const formatDate = (value: string | Date, locale: "fr" | "en") => new Date(value).toLocaleDateString(locale === "en" ? "en-GB" : "fr-FR");
-
-function drawWeightChart(page: PDFPage, regular: PDFFont, bold: PDFFont, rows: HealthRow[], y: number, locale: "fr" | "en") {
-  const points = [...rows].filter(row => Number.isFinite(Number(row.weight_kg))).sort((a, b) => +new Date(a.measured_at) - +new Date(b.measured_at)).slice(-8);
-  if (points.length < 2) return y;
-  const left = 70, bottom = y - 145, width = 455, height = 105;
-  const values = points.map(row => Number(row.weight_kg)), min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
-  page.drawText(locale === "en" ? "Recent weight trajectory" : "Trajectoire recente du poids", { x: 50, y, size: 13, font: bold, color: rgb(.12, .49, .33) });
-  page.drawLine({ start: { x: left, y: bottom }, end: { x: left + width, y: bottom }, thickness: 1, color: rgb(.7, .75, .73) });
-  points.forEach((row, index) => {
-    const x = left + index * width / (points.length - 1), pointY = bottom + (values[index] - min) / span * height;
-    if (index) {
-      const previousX = left + (index - 1) * width / (points.length - 1), previousY = bottom + (values[index - 1] - min) / span * height;
-      page.drawLine({ start: { x: previousX, y: previousY }, end: { x, y: pointY }, thickness: 2.5, color: rgb(.1, .47, .31) });
-    }
-    page.drawCircle({ x, y: pointY, size: 3.5, color: rgb(.94, .42, .14) });
-    page.drawText(`${values[index]}`, { x: x - 8, y: pointY + 7, size: 6, font: bold });
-    page.drawText(formatDate(row.measured_at, locale).slice(0, 10), { x: x - 15, y: bottom - 13, size: 5.5, font: regular });
-  });
-  return bottom - 32;
-}
+const statusRank: Record<string, number> = { urgent: 0, watch: 1, incomplete: 2, stable: 3, improving: 4 };
 
 export async function renderHealthReport(
   profile: Record<string, any>,
@@ -81,7 +62,6 @@ export async function renderHealthReport(
   if (insight.risks?.length) { text(fr ? "Points de vigilance" : "Points requiring attention", 10, bold, rgb(.72, .25, .12)); bullets(insight.risks, 4); }
   if (insight.improvements?.length) { text(fr ? "Evolutions favorables" : "Favorable changes", 10, bold, rgb(.12, .49, .33)); bullets(insight.improvements, 3); }
   y -= 8;
-  heading(fr ? "Graphiques de tous les indicateurs renseignes" : "Charts for all recorded indicators");
   const chartSeries = [
     ...numericSeries(anthropometry, [
       { key: "weight_kg", label: fr ? "Poids" : "Weight", unit: "kg" },
@@ -125,19 +105,16 @@ export async function renderHealthReport(
       { key: "diversity_score", label: fr ? "Diversite alimentaire MDD-W" : "MDD-W dietary diversity", unit: "/10", dateKey: "assessed_at" },
     ]),
   ];
-  for (let index = 0; index < chartSeries.length; index += 2) {
+  heading(fr ? "Analyse par indicateur" : "Analysis by indicator");
+  text(fr
+    ? "Pour chaque indicateur : evolution recente, comparaison a la reference, a la derniere mesure et depuis le debut du suivi."
+    : "For each indicator: recent trend, comparison to the reference, to the last measurement and since monitoring began.", 8, regular, rgb(.4, .45, .44));
+  const rankedSeries = [...chartSeries]
+    .map(series => ({ series, insight: matchInsightForSeries(series, insight.indicatorInsights) }))
+    .sort((a, b) => (statusRank[a.insight?.status || ""] ?? 5) - (statusRank[b.insight?.status || ""] ?? 5));
+  for (const { series, insight: matched } of rankedSeries) {
     if (y < 175) addPage();
-    drawCompactIndicatorChart(page, regular, bold, chartSeries[index], 50, y, locale);
-    if (chartSeries[index + 1]) drawCompactIndicatorChart(page, regular, bold, chartSeries[index + 1], 315, y, locale);
-    y -= 112;
-  }
-
-  heading(fr ? "Indicateurs prioritaires" : "Priority indicators");
-  text(fr ? "Indicateur | Valeur actuelle | Dernier changement | Interpretation" : "Indicator | Current value | Latest change | Interpretation", 8, bold);
-  const prioritized = [...insight.indicatorInsights].sort((a, b) => ({ urgent: 0, watch: 1, incomplete: 2, stable: 3, improving: 4 }[a.status] - ({ urgent: 0, watch: 1, incomplete: 2, stable: 3, improving: 4 }[b.status]))).slice(0, 10);
-  for (const item of prioritized) {
-    text(`${item.indicator} | ${item.latest || "N/A"} | ${item.comparisonPrevious || item.changeSummary || "N/A"}`, 8, bold);
-    text(item.publicInterpretation || item.professionalInterpretation, 8);
+    y = drawIndicatorReportCard(page, regular, bold, series, matched, 50, y, wrap, locale);
   }
 
   heading(fr ? "Plan d action prioritaire" : "Priority action plan");
@@ -158,10 +135,22 @@ export async function renderHealthReport(
   heading(fr ? "Qualite des donnees et limites" : "Data quality and limitations");
   bullets(insight.limitations, 6);
   text(`${fr ? "Donnees exploitees" : "Data used"}: ${anthropometry.length} ${fr ? "mesures anthropometriques" : "anthropometric measurements"}, ${biology.length} ${fr ? "biologiques" : "biological"}, ${food.length} ${fr ? "alimentaires" : "food records"}, ${lifestyle.length} ${fr ? "evaluations du mode de vie" : "lifestyle assessments"}.`, 8);
+
+  if (y < 220) addPage();
+  y -= 6;
+  page.drawRectangle({ x: 50, y: y - 4, width: 495, height: 4, color: rgb(.12, .49, .33) });
+  y -= 20;
+  heading(fr ? "Conclusion" : "Conclusion");
+  text(insight.publicConclusion, 10);
+  if (insight.recommendations?.length) {
+    text(fr ? "Recommandations retenues" : "Key recommendations", 9, bold, rgb(.12, .49, .33));
+    bullets(insight.recommendations, 4);
+  }
+
   y -= 8;
   text(fr
     ? "Ce rapport automatise constitue une aide au suivi et ne remplace pas une consultation, un diagnostic ou une decision clinique. Toute alerte doit etre confirmee par un professionnel qualifie."
     : "This automated report supports monitoring and does not replace consultation, diagnosis or clinical decision-making. Any alert must be confirmed by a qualified professional.", 8, regular, rgb(.58, .3, .13));
-  for (const [index, current] of pdf.getPages().entries()) current.drawText(`NutVitaGlobalis - ${fr ? "page" : "page"} ${index + 1}/${pdf.getPageCount()} - ${formatDate(generatedAt, locale)}`, { x: 50, y: 60, size: 7, font: regular, color: rgb(.45, .45, .45) });
+  for (const [index, current] of pdf.getPages().entries()) current.drawText(`NutVitaGlobalis - ${fr ? "page" : "page"} ${index + 1}/${pdf.getPageCount()} - ${formatDate(generatedAt, locale)}`, { x: 50, y: 76, size: 7, font: regular, color: rgb(.45, .45, .45) });
   return pdf.save();
 }

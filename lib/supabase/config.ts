@@ -3,6 +3,7 @@ export function hasSupabaseConfig() {
 }
 
 export function hasLocalAdminMode() {
+  if (process.env.NODE_ENV === "production") return false;
   return process.env.NEXT_PUBLIC_LOCAL_ADMIN_MODE === "true";
 }
 

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { hasLocalAdminMode } from "@/lib/supabase/config";
 
 const access: Record<string, string[]> = {
   "/admin/utilisateurs-admin": ["super_admin"],
@@ -123,7 +124,7 @@ export async function middleware(request: NextRequest) {
   const response = localized.rewrite ? NextResponse.rewrite(localized.rewrite) : NextResponse.next({ request });
   response.cookies.set("nutvita_locale", localized.locale, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
 
-  if (process.env.NEXT_PUBLIC_LOCAL_ADMIN_MODE === "true") {
+  if (hasLocalAdminMode()) {
     if (localized.pathname.startsWith("/admin") && localized.pathname !== "/admin" && request.cookies.get("nutvita_local_admin")?.value !== "1") return NextResponse.redirect(new URL("/admin", request.url));
     return response;
   }

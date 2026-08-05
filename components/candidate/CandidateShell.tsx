@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AcademicCapIcon, ArrowRightStartOnRectangleIcon, ChatBubbleLeftRightIcon, ClipboardDocumentCheckIcon, DocumentTextIcon, HomeIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import HelpBox from "@/components/shared/HelpBox";
 import { createClient } from "@/lib/supabase/client";
 
 const links = [
@@ -31,7 +32,10 @@ export default function CandidateShell({ children, email }: { children: React.Re
       </div>
     </header>
     <div className="mx-auto grid max-w-7xl gap-7 px-5 py-8 lg:grid-cols-[240px_1fr]">
-      <nav className="h-fit rounded-2xl bg-forest p-4 text-white">{links.map(([href, label, Icon]) => <Link key={href} href={href} className="flex gap-3 rounded-xl px-4 py-3 font-bold hover:bg-white/10"><Icon className="h-5" />{label}</Link>)}</nav>
+      <nav className="flex flex-col self-stretch rounded-2xl bg-forest p-4 text-white">
+        {links.map(([href, label, Icon]) => <Link key={href} href={href} className="flex gap-3 rounded-xl px-4 py-3 font-bold hover:bg-white/10"><Icon className="h-5" />{label}</Link>)}
+        <div className="mt-auto pt-4"><HelpBox text="Notre équipe RH est disponible pour toute question concernant votre candidature." href="/candidat/messages" label="Contacter le support" /></div>
+      </nav>
       <main className="min-w-0">{children}</main>
     </div>
   </div>;

@@ -10,7 +10,7 @@ async function superAdmin() {
   if (!user) return { error: NextResponse.json({ message: "Authentification requise." }, { status: 401 }) };
   const { data: admin } = await supabase.from("admin_users").select("role,active").eq("id", user.id).maybeSingle();
   if (!admin?.active || admin.role !== "super_admin") return { error: NextResponse.json({ message: "Super administrateur requis." }, { status: 403 }) };
-  return { user, service: createAdminClient() };
+  return { user, service: createAdminClient(), session: supabase };
 }
 
 function validPayload(body: Record<string, any>) {
@@ -76,9 +76,16 @@ export async function POST(request: Request) {
     account = result.data.user;
     invited = true;
   }
+  const { data: existingAccess } = await ctx.service.from("maximus_user_access").select("matricule").eq("user_id", account.id).maybeSingle();
+  let matricule = existingAccess?.matricule;
+  if (!matricule) {
+    const generated = await ctx.session.rpc("generate_matricule", { p_category: "M" });
+    matricule = generated.data || undefined;
+  }
   const { data, error } = await ctx.service.from("maximus_user_access").upsert({
     user_id: account.id,
     ...payload,
+    matricule,
     invited_by: ctx.user.id,
     updated_at: new Date().toISOString(),
   }).select("*").single();

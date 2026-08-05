@@ -2,7 +2,7 @@ import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import type { ChildGrowthAnalysis, GrowthRow } from "@/lib/child-growth-analysis";
 import { createNutvitaDocumentBranding, createReportQrCode } from "@/lib/pdf-branding";
-import { customNumericSeries, drawCompactIndicatorChart, numericSeries } from "@/lib/pdf-indicator-charts";
+import { customNumericSeries, drawIndicatorReportCard, matchInsightForSeries, numericSeries } from "@/lib/pdf-indicator-charts";
 import { buildWhoGrowthCurve, whoCurveDefinitions, type WhoCurveKey, type WhoGrowthReference } from "@/lib/who-growth-curves";
 
 const wrap = (value: string, max = 92) => {
@@ -14,25 +14,7 @@ const wrap = (value: string, max = 92) => {
   if (line) lines.push(line); return lines;
 };
 const date = (value: string | Date) => new Date(value).toLocaleDateString("fr-FR");
-
-function chart(page: PDFPage, regular: PDFFont, bold: PDFFont, rows: GrowthRow[], key: "weight_kg" | "height_cm", y: number, label: string) {
-  const points = rows.filter(row => Number.isFinite(Number(row[key]))).slice(-8);
-  if (points.length < 2) return y;
-  const left = 70, bottom = y - 140, width = 455, height = 100, values = points.map(row => Number(row[key])), min = Math.min(...values), span = Math.max(...values) - min || 1;
-  page.drawText(label, { x: 50, y, size: 12, font: bold, color: rgb(.12, .49, .33) });
-  page.drawLine({ start: { x: left, y: bottom }, end: { x: left + width, y: bottom }, thickness: 1, color: rgb(.7, .75, .73) });
-  points.forEach((row, index) => {
-    const x = left + index * width / (points.length - 1), py = bottom + (values[index] - min) / span * height;
-    if (index) {
-      const px = left + (index - 1) * width / (points.length - 1), previousY = bottom + (values[index - 1] - min) / span * height;
-      page.drawLine({ start: { x: px, y: previousY }, end: { x, y: py }, thickness: 2.5, color: rgb(.1, .47, .31) });
-    }
-    page.drawCircle({ x, y: py, size: 3.5, color: rgb(.94, .42, .14) });
-    page.drawText(`${values[index]}`, { x: x - 8, y: py + 7, size: 6, font: bold });
-    page.drawText(date(row.measured_at).slice(0, 10), { x: x - 15, y: bottom - 13, size: 5.5, font: regular });
-  });
-  return bottom - 30;
-}
+const statusRank: Record<string, number> = { urgent: 0, watch: 1, incomplete: 2, usual: 3 };
 
 export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRow[], analysis: ChildGrowthAnalysis, period: { start: string; end: string }, metadata?: { reportId?: string; generatedAt?: string; userEmail?: string; feeding?: Record<string, any> | null; vaccination?: Record<string, any> | null; growthStandards?: WhoGrowthReference[] }) {
   const generatedAt = metadata?.generatedAt || new Date().toISOString(), rows = [...source].sort((a, b) => +new Date(a.measured_at) - +new Date(b.measured_at));
@@ -164,20 +146,16 @@ export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRo
       { key: "due_count", label: "Vaccins attendus", dateKey: "assessed_at" },
     ]),
   ];
-  for (let index = 0; index < chartSeries.length; index += 2) {
+  heading("Analyse par indicateur");
+  text("Pour chaque indicateur : evolution recente, comparaison a la reference, a la derniere mesure et depuis le debut du suivi.", 8, regular, rgb(.4, .45, .44));
+  const rankedSeries = [...chartSeries]
+    .map(series => ({ series, insight: matchInsightForSeries(series, analysis.indicatorInsights) }))
+    .sort((a, b) => (statusRank[a.insight?.status || ""] ?? 5) - (statusRank[b.insight?.status || ""] ?? 5));
+  for (const { series, insight: matched } of rankedSeries) {
     if (y < 175) addPage();
-    drawCompactIndicatorChart(page, regular, bold, chartSeries[index], 50, y);
-    if (chartSeries[index + 1]) drawCompactIndicatorChart(page, regular, bold, chartSeries[index + 1], 315, y);
-    y -= 112;
+    y = drawIndicatorReportCard(page, regular, bold, series, matched, 50, y, wrap, "fr");
   }
 
-  heading("Indicateurs prioritaires");
-  const prioritized = [...analysis.indicatorInsights].sort((a, b) => ({ urgent: 0, watch: 1, incomplete: 2, usual: 3 }[a.status] - ({ urgent: 0, watch: 1, incomplete: 2, usual: 3 }[b.status]))).slice(0, 10);
-  twoColumnCards(prioritized.map(item => ({
-    title: `${item.indicator} | ${item.latest || "N/A"}`,
-    body: `${item.previousComparison || item.changeSummary || "N/A"}. ${item.parentInterpretation}`,
-    tone: item.status === "urgent" ? "urgent" : item.status === "watch" ? "watch" : "usual",
-  })));
   heading("Conseils pratiques prioritaires");
   const practicalAdvice = unique(analysis.practicalAdvice).slice(0, 6);
   bullets(practicalAdvice, 6);
@@ -201,7 +179,21 @@ export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRo
   })));
   heading("Qualite des donnees et limites");
   bullets(analysis.limitations, 6);
+
+  if (y < 220) addPage();
+  y -= 6;
+  page.drawRectangle({ x: 50, y: y - 4, width: 495, height: 4, color: rgb(.12, .49, .33) });
+  y -= 20;
+  heading("Conclusion");
+  text(analysis.parentConclusion, 10);
+  const conclusionAdvice = unique(analysis.practicalAdvice).slice(0, 4);
+  if (conclusionAdvice.length) {
+    text("Recommandations retenues", 9, bold, rgb(.12, .49, .33));
+    bullets(conclusionAdvice, 4);
+  }
+
+  y -= 8;
   text("Ce rapport automatise accompagne le suivi de croissance. Il ne remplace pas l examen clinique, le diagnostic pediatrique ni l interpretation des courbes OMS par un professionnel qualifie.", 8, regular, rgb(.58, .3, .13));
-  for (const [index, current] of pdf.getPages().entries()) current.drawText(`NutVitaGlobalis - page ${index + 1}/${pdf.getPageCount()} - ${date(generatedAt)}`, { x: 50, y: 60, size: 7, font: regular, color: rgb(.45, .45, .45) });
+  for (const [index, current] of pdf.getPages().entries()) current.drawText(`NutVitaGlobalis - page ${index + 1}/${pdf.getPageCount()} - ${date(generatedAt)}`, { x: 50, y: 76, size: 7, font: regular, color: rgb(.45, .45, .45) });
   return pdf.save();
 }

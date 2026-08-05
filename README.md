@@ -30,7 +30,9 @@ paiement et des mesures de demonstration pour tester les graphiques.
 Lors de la connexion a Supabase, renseigner ses variables dans `.env.local`,
 executer les migrations documentees, puis definir
 `NEXT_PUBLIC_LOCAL_ADMIN_MODE=false`. Changer ou supprimer ensuite le mot de
-passe local.
+passe local. Par securite, le mode admin local est de toute facon force a
+desactive des que `NODE_ENV=production` (voir `lib/supabase/config.ts`),
+meme si la variable d'environnement reste a `true` par erreur.
 
 ## Administration Supabase
 

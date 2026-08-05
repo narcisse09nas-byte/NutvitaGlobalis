@@ -129,26 +129,28 @@ export default function RecruitmentManager({initial,questions}:{initial:Row[];qu
         {!testsToReview.length&&<p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500 md:col-span-2">Aucun test soumis a corriger pour le moment.</p>}
       </div>
     </section>
-    <div className="mb-6 grid gap-3 md:grid-cols-[1fr_240px]">
-      <input className="admin-input" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Rechercher nom, pays, ville, specialite..."/>
-      <select className="admin-input" value={status} onChange={e=>setStatus(e.target.value)}>
+    <div className="mb-6 flex flex-wrap items-center gap-3">
+      <input className="admin-input flex-1" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Rechercher nom, pays, ville, specialite..."/>
+      <select className="admin-input w-[240px]" value={status} onChange={e=>setStatus(e.target.value)}>
         <option value="">Tous les statuts</option>
         {Object.entries(applicationStatuses).map(([value,label])=><option key={value} value={value}>{label}</option>)}
       </select>
+      <button onClick={()=>exportCsv(filtered)} className="btn-secondary shrink-0">Exporter CSV</button>
     </div>
     {message&&<p className="mb-4 rounded-xl bg-mint p-4 text-sm font-bold text-forest">{message}</p>}
     <div className="overflow-x-auto rounded-2xl border bg-white">
-      <table className="w-full min-w-[850px] text-left">
-        <thead className="border-b bg-slate-50 text-xs uppercase text-slate-400"><tr><th className="p-4">Candidat</th><th className="p-4">Localisation</th><th className="p-4">Specialite</th><th className="p-4">Statut</th><th/></tr></thead>
+      <table className="w-full min-w-[900px] text-left">
+        <thead className="border-b bg-slate-50 text-xs uppercase text-slate-400"><tr><th className="p-4">Candidat</th><th className="p-4">Localisation</th><th className="p-4">Specialite</th><th className="p-4">Statut</th><th className="p-4">Date de candidature</th><th/></tr></thead>
         <tbody>
           {filtered.map(row=><tr key={row.id} className="border-b">
             <td className="p-4"><b className="text-forest">{row.full_name||"Sans nom"}</b><p className="text-xs text-slate-400">{row.email}</p></td>
             <td className="p-4">{row.city}, {row.country}</td>
             <td className="p-4">{row.specialization}</td>
             <td className="p-4"><span className="rounded-full bg-mint px-3 py-1 text-xs font-bold text-leaf">{applicationStatuses[row.status as ApplicationStatus]}</span></td>
+            <td className="p-4 text-sm text-slate-500">{row.created_at?new Date(row.created_at).toLocaleDateString('fr-FR'):'—'}</td>
             <td className="p-4 text-right"><button onClick={()=>open(row)} className="font-bold text-leaf">Examiner</button></td>
           </tr>)}
-          {!filtered.length&&<tr><td colSpan={5} className="p-8 text-center text-slate-400">Aucune candidature.</td></tr>}
+          {!filtered.length&&<tr><td colSpan={6} className="p-8 text-center text-slate-400">Aucune candidature.</td></tr>}
         </tbody>
       </table>
     </div>
@@ -257,6 +259,18 @@ function Info({title,values}:{title:string;values:Array<[string,unknown]>}){
     <h3 className="text-xl font-black">{title}</h3>
     <dl className="mt-4 grid gap-3">{values.map(([key,value])=><div key={key}><dt className="text-xs font-bold uppercase text-slate-400">{key}</dt><dd>{String(value||"-")}</dd></div>)}</dl>
   </section>;
+}
+
+function exportCsv(rows:Row[]){
+  const escape=(value:unknown)=>`"${String(value??"").replace(/"/g,'""')}"`;
+  const csv=[
+    "Nom,Email,Ville,Pays,Specialite,Statut,Date de candidature",
+    ...rows.map(row=>[row.full_name,row.email,row.city,row.country,row.specialization,applicationStatuses[row.status as ApplicationStatus]||row.status,row.created_at?new Date(row.created_at).toISOString():""].map(escape).join(",")),
+  ].join("\n");
+  const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  const link=document.createElement("a");
+  link.href=url;link.download="candidatures-nutvita.csv";link.click();
+  URL.revokeObjectURL(url);
 }
 
 function formatScore(value:any){

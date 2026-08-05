@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { requireActivePlatformSession } from "@/lib/active-platform-session";
 import ClientShell from "@/components/client/ClientShell";
 import ChildGrowthWorkspace from "@/components/client/ChildGrowthWorkspace";
@@ -26,5 +27,5 @@ export default async function ChildGrowthPage(){
   ]);
   const sexes=[...new Set((children||[]).map((child:any)=>child.sex).filter((sex:any)=>sex==="female"||sex==="male"))];
   const {data:growthStandards}=sexes.length?await supabase.from("who_growth_standards").select("indicator,sex,age_months,length_height_cm,measurement_method,l,m,s").in("sex",sexes).in("indicator",["weight_for_age","height_for_age","weight_for_height"]).order("age_months"):{data:[]};
-  return <ClientShell email={user.email||""} service="child_growth"><ChildGrowthWorkspace settings={settings} parentId={user.id} initialChildren={children||[]} initialMeasurements={measurements||[]} subscriptions={subscriptions||[]} plan={plan} taxRate={Number(tax.rate)} initialAnalyses={analyses||[]} initialAlerts={alerts||[]} initialReports={reports||[]} initialFeeding={feeding||[]} initialVaccinations={vaccinations||[]} growthStandards={growthStandards||[]} locale={locale}/></ClientShell>
+  return <ClientShell email={user.email||""} service="child_growth"><Suspense fallback={null}><ChildGrowthWorkspace settings={settings} parentId={user.id} initialChildren={children||[]} initialMeasurements={measurements||[]} subscriptions={subscriptions||[]} plan={plan} taxRate={Number(tax.rate)} initialAnalyses={analyses||[]} initialAlerts={alerts||[]} initialReports={reports||[]} initialFeeding={feeding||[]} initialVaccinations={vaccinations||[]} growthStandards={growthStandards||[]} locale={locale}/></Suspense></ClientShell>
 }

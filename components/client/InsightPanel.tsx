@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import NutVitaAssistantWidget from "@/components/shared/NutVitaAssistantWidget";
 
 type Insight = Record<string, any>;
 
@@ -11,6 +13,8 @@ export default function InsightPanel({ initial, alerts, reports }: { initial: In
   const [reportItems, setReports] = useState(reports);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const highlightedReportId = searchParams.get("report");
 
   async function analyze() {
     setLoading(true);
@@ -53,6 +57,13 @@ export default function InsightPanel({ initial, alerts, reports }: { initial: In
     if (error) setMessage(error.message);
     else window.open(data.signedUrl, "_blank");
   }
+
+  useEffect(() => {
+    if (!highlightedReportId) return;
+    const target = reportItems.find(item => item.id === highlightedReportId);
+    if (target) open(target.file_path);
+    document.getElementById(`report-${highlightedReportId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightedReportId]);
 
   const indicatorInsights = insight?.indicatorInsights || insight?.indicator_insights || [];
   const publicConclusion = insight?.publicConclusion || insight?.public_conclusion;
@@ -149,7 +160,7 @@ export default function InsightPanel({ initial, alerts, reports }: { initial: In
         <h2 className="mb-4 text-2xl font-black">Mes rapports</h2>
         <div className="grid gap-3">
           {reportItems.map(item => (
-            <button key={item.id} onClick={() => open(item.file_path)} className="flex justify-between rounded-2xl border bg-white p-5 text-left">
+            <button key={item.id} id={`report-${item.id}`} onClick={() => open(item.file_path)} className={`flex justify-between rounded-2xl border bg-white p-5 text-left ${item.id === highlightedReportId ? "ring-2 ring-leaf" : ""}`}>
               <span className="font-bold">{item.title}</span>
               <span className="text-leaf">Telecharger</span>
             </button>
@@ -157,6 +168,7 @@ export default function InsightPanel({ initial, alerts, reports }: { initial: In
           {!reportItems.length && <p className="rounded-2xl bg-white p-6 text-slate-400">Aucun rapport genere.</p>}
         </div>
       </section>
+      <NutVitaAssistantWidget subtitle="Posez une question sur votre analyse ou vos progrès." suggestions={["Comment analyser ma perte de poids ?", "Pourquoi mon IMC diminue-t-il lentement ?", "Que dois-je améliorer cette semaine ?"]} />
       <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Ces analyses sont informatives et ne remplacent ni un diagnostic, ni une consultation, ni une prescription.</p>
     </div>
   );

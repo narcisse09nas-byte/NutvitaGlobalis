@@ -6,11 +6,12 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowRightStartOnRectangleIcon, ChartBarIcon, ChatBubbleLeftRightIcon,
   ClipboardDocumentCheckIcon, ClipboardDocumentListIcon, CreditCardIcon,
-  DocumentCheckIcon, HomeIcon, KeyIcon, LockClosedIcon, ShieldCheckIcon, SparklesIcon,
+  DocumentCheckIcon, HomeIcon, KeyIcon, LockClosedIcon, QrCodeIcon, ShieldCheckIcon, SparklesIcon,
   UserCircleIcon, UserGroupIcon, VideoCameraIcon,
 } from "@heroicons/react/24/outline";
 import MedicalDisclaimer from "@/components/MedicalDisclaimer";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import HelpBox from "@/components/shared/HelpBox";
 import type { ClientEntitlements } from "@/lib/client";
 import { createClient } from "@/lib/supabase/client";
 
@@ -24,6 +25,7 @@ export default function ClientShellClient({ children, email, access, activeServi
     ["/espace-client/services", english ? "Our services" : "Nos services", CreditCardIcon, true],
     ["/espace-client/abonnement", english ? "My subscriptions" : "Mes abonnements", CreditCardIcon, true],
     ["/espace-client/profil", english ? "My profile" : "Mon profil", UserCircleIcon, true],
+    ["/espace-client/carte", english ? "My access card" : "Ma carte d'accès", QrCodeIcon, true],
     ["/espace-client/securite", english ? "Password" : "Mot de passe", KeyIcon, true],
     ["/espace-client/confidentialite", english ? "Privacy" : "Confidentialité", ShieldCheckIcon, true],
     ["/espace-client/ressources-premium", english ? "Premium resources" : "Ressources premium", LockClosedIcon, access.premiumResources],
@@ -55,7 +57,7 @@ export default function ClientShellClient({ children, email, access, activeServi
   const catering: LinkItem[] = [
     ["/restauration/commander", "Commander un repas", CreditCardIcon, true],
   ];
-  const commonPaths = ["/espace-client", "/espace-client/services", "/espace-client/abonnement", "/espace-client/profil", "/espace-client/securite", "/espace-client/confidentialite", "/espace-client/ressources-premium"];
+  const commonPaths = ["/espace-client", "/espace-client/services", "/espace-client/abonnement", "/espace-client/profil", "/espace-client/carte", "/espace-client/securite", "/espace-client/confidentialite", "/espace-client/ressources-premium"];
   const serviceLinks = commonPaths.includes(path) ? common : activeService === "health" ? health : activeService === "child_growth" ? childGrowth : activeService === "teleconsultation" ? teleconsultation : activeService === "catering" ? catering : common;
   const healthMode = activeService === "health" || activeService === "child_growth";
 
@@ -72,9 +74,10 @@ export default function ClientShellClient({ children, email, access, activeServi
     </div></header>
     {healthMode && <MedicalDisclaimer/>}
     <div className="mx-auto grid max-w-7xl gap-7 px-5 py-8 lg:grid-cols-[270px_1fr]">
-      <nav className="h-fit rounded-3xl bg-forest p-4 text-white">
+      <nav className="flex flex-col self-stretch rounded-3xl bg-forest p-4 text-white">
         <Link href="/espace-client" className="mb-3 flex gap-3 rounded-xl bg-white/10 px-4 py-3 font-bold hover:bg-white/15"><SparklesIcon className="h-5"/>{english ? "Change service" : "Changer de service"}</Link>
         {serviceLinks.filter(([, , , visible]) => visible).map(([href, label, Icon]) => <Link key={href} href={href} className={`flex gap-3 rounded-xl px-4 py-3 font-bold ${path === href ? "bg-white/15" : "hover:bg-white/10"}`}><Icon className="h-5"/>{label}</Link>)}
+        <div className="mt-auto pt-4"><HelpBox text={english ? "Our team is here to support you." : "Notre équipe est là pour vous accompagner."} label={english ? "Contact us" : "Contactez-nous"} /></div>
       </nav>
       <main className="min-w-0">{children}</main>
     </div>

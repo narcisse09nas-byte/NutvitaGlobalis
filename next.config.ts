@@ -1,8 +1,5 @@
 import type { NextConfig } from "next";
-const jitsiDomain = (process.env.NEXT_PUBLIC_JITSI_DOMAIN || "meet.jit.si")
-  .replace(/^https?:\/\//, "")
-  .replace(/\/.*$/, "");
-const jitsiOrigin = `https://${jitsiDomain}`;
+const jaasOrigin = "https://8x8.vc";
 const academyOrigin = process.env.ACADEMY_ORIGIN?.replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
@@ -15,7 +12,7 @@ const nextConfig: NextConfig = {
       { key: "X-Frame-Options", value: "SAMEORIGIN" },
       {
         key: "Permissions-Policy",
-        value: `camera=(self "${jitsiOrigin}"), microphone=(self "${jitsiOrigin}"), display-capture=(self "${jitsiOrigin}"), geolocation=()`,
+        value: `camera=(self "${jaasOrigin}"), microphone=(self "${jaasOrigin}"), display-capture=(self "${jaasOrigin}"), geolocation=()`,
       },
     ] }];
   },

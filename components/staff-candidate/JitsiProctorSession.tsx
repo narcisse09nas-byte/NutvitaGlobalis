@@ -85,20 +85,27 @@ export default function JitsiProctorSession({
 
   useEffect(() => {
     let disposed = false;
-    const domain = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.jit.si';
     async function mount() {
+      const sessionResponse = await fetch('/api/video/session', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+        body: JSON.stringify({ room_name: roomName }),
+      });
+      const session = await sessionResponse.json();
+      if (!sessionResponse.ok) throw new Error(session.message || 'Acces video refuse.');
+      const domain = String(session.domain);
+      const scriptUrl = `https://${domain}/${String(session.roomName).split('/')[0]}/external_api.js`;
       if (!window.JitsiMeetExternalAPI) {
         await new Promise<void>((resolve, reject) => {
-          const existing = document.querySelector(`script[data-jitsi-domain="${domain}"]`) as HTMLScriptElement | null;
+          const existing = document.querySelector(`script[data-jitsi-domain="${scriptUrl}"]`) as HTMLScriptElement | null;
           if (existing) {
             existing.addEventListener('load', () => resolve(), { once: true });
             existing.addEventListener('error', () => reject(new Error('Chargement Jitsi impossible.')), { once: true });
             return;
           }
           const script = document.createElement('script');
-          script.src = `https://${domain}/external_api.js`;
+          script.src = scriptUrl;
           script.async = true;
-          script.dataset.jitsiDomain = domain;
+          script.dataset.jitsiDomain = scriptUrl;
           script.onload = () => resolve();
           script.onerror = () => reject(new Error('Chargement Jitsi impossible.'));
           document.head.appendChild(script);
@@ -106,7 +113,8 @@ export default function JitsiProctorSession({
       }
       if (disposed || !hostRef.current || !window.JitsiMeetExternalAPI) return;
       const api = new window.JitsiMeetExternalAPI(domain, {
-        roomName,
+        roomName: session.roomName,
+        jwt: session.jwt,
         parentNode: hostRef.current,
         width: '100%',
         height: 390,

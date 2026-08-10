@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Camera, MonitorUp, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import VideoRoom from '@/components/recruitment/VideoRoom';
 
 type Assignment = {
   id: string;
@@ -28,7 +29,6 @@ type Assignment = {
 export default function TestProctoringCockpit() {
   const [items, setItems] = useState<Assignment[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
-  const [domain, setDomain] = useState('meet.jit.si');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -39,7 +39,6 @@ export default function TestProctoringCockpit() {
     setLoading(false);
     if (!response.ok) return setError(payload.message || 'Chargement impossible.');
     setItems(payload.items || []);
-    setDomain(payload.jitsi_domain || 'meet.jit.si');
   }
 
   useEffect(() => {
@@ -86,10 +85,10 @@ export default function TestProctoringCockpit() {
     </section>
 
     {monitored.length > 0 && <section>
-      <h3 className="mb-4 text-xl font-black">Mosaïque en direct</h3>
+      <h3 className="mb-4 text-xl font-black">MosaÃ¯que en direct</h3>
       <div className="grid gap-4 xl:grid-cols-2">{monitored.map(item => <article key={item.id} className="overflow-hidden rounded-lg border bg-white shadow-sm">
         <header className="flex items-center justify-between gap-3 border-b p-4"><div><h4 className="font-black">{item.maximus_staff_applications?.full_name}</h4><p className="text-xs text-slate-500">{item.maximus_written_tests?.title}</p></div><span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">LIVE</span></header>
-        <iframe title={`Surveillance ${item.maximus_staff_applications?.full_name}`} src={`https://${domain}/${encodeURIComponent(item.proctor_room || '')}#config.prejoinConfig.enabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true&config.disableDeepLinking=true&interfaceConfig.TILE_VIEW_MAX_COLUMNS=2`} allow="camera; microphone; fullscreen; display-capture; autoplay" className="h-[430px] w-full border-0" />
+        <VideoRoom roomName={item.proctor_room || ''} displayName="Surveillant NutVitaGlobalis" heightClassName="h-[430px]" />
       </article>)}</div>
     </section>}
 

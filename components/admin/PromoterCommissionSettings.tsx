@@ -1,0 +1,7 @@
+"use client";
+import { FormEvent, useState } from "react";
+export default function PromoterCommissionSettings({ initialRate }: { initialRate: number }) {
+  const [rate, setRate] = useState(initialRate); const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
+  async function save(event: FormEvent) { event.preventDefault(); setBusy(true); const response = await fetch("/api/admin/promoter-settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ commission_rate: rate }) }); const payload = await response.json(); setBusy(false); setMessage(response.ok ? "Taux de commission enregistré." : payload.message || "Enregistrement impossible."); }
+  return <form onSubmit={save} className="mb-7 grid gap-4 border bg-white p-6 shadow-sm md:grid-cols-[1fr_220px_auto]"><div><h2 className="text-xl font-black text-forest">Commission du programme promoteurs</h2><p className="mt-1 text-sm text-slate-500">Ce taux est appliqué aux paiements NutVitaGlobalis et Academy attribués à un promoteur.</p></div><label className="grid gap-2 text-sm font-bold">Taux (%)<input className="admin-input" type="number" min="0" max="100" step="0.01" value={rate} onChange={event => setRate(Number(event.target.value))} /></label><button disabled={busy} className="self-end rounded-lg bg-forest px-5 py-3 font-black text-white disabled:opacity-50">{busy ? "Enregistrement…" : "Enregistrer"}</button>{message && <p className="text-sm font-bold text-leaf md:col-span-3">{message}</p>}</form>;
+}

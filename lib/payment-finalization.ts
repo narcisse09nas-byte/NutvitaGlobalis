@@ -1,4 +1,4 @@
-﻿import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
 import { sendSystemEmail } from "@/lib/system-email";
 
@@ -156,7 +156,9 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
   failIfError("Validation du paiement", (await admin.from("payments").update({ status: "succeeded", provider_payment_id: providerPaymentId, paid_at: start.toISOString(), raw_event: rawEvent }).eq("id", payment.id)).error);
 
   if (client.referred_by_promoter_id) {
-    const commission = Number((Number(payment.total_including_tax || 0) * 0.03).toFixed(2));
+    const { data: promoterSettings } = await admin.from("promoter_program_settings").select("commission_rate").eq("id", 1).maybeSingle();
+    const commissionRate = Number(promoterSettings?.commission_rate ?? 3);
+    const commission = Number((Number(payment.total_including_tax || 0) * commissionRate / 100).toFixed(2));
     if (commission > 0) {
       const commissionResult = await admin.from("promoter_ledger").insert({
         promoter_id: client.referred_by_promoter_id,
@@ -164,7 +166,7 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
         client_id: payment.client_id,
         entry_type: "commission",
         source: "main",
-        description: `Commission 3% - ${service.name}`,
+        description: `Commission ${commissionRate}% - ${service.name}`,
         amount: commission,
         currency: payment.currency,
       });

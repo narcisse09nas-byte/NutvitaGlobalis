@@ -7,7 +7,7 @@ const steps = [
   { icon: UserPlus, title: "Manifestez votre intérêt", text: "Créez votre compte candidat et déposez votre dossier de promoteur." },
   { icon: Video, title: "Passez un entretien", text: "Notre équipe échange avec vous pour valider votre motivation et votre réseau." },
   { icon: Gift, title: "Recevez votre code promoteur", text: "Une fois retenu, un code personnel vous est attribué (ex. NVG001P)." },
-  { icon: Users, title: "Partagez et gagnez", text: "Vos filleuls indiquent votre code à l'achat. Vous recevez 3% de chacun de leurs paiements dans votre cagnote." },
+  { icon: Users, title: "Partagez et gagnez", text: "Vos filleuls indiquent votre code à l'achat. Vous recevez le taux de commission en vigueur sur chacun de leurs paiements dans votre cagnote." },
 ];
 
 export default function BecomePromoterPage() {
@@ -37,7 +37,7 @@ export default function BecomePromoterPage() {
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {[
             "Le code promoteur est communiqué manuellement par vos filleuls lors de leur achat.",
-            "Votre commission de 3% est créditée automatiquement dans votre cagnote après chaque paiement réussi.",
+            "La commission au taux en vigueur est créditée automatiquement dans votre cagnote après chaque paiement réussi.",
             "Le processus de recrutement (entretien, validation) est identique pour tous les promoteurs.",
             "Les versements de votre cagnote sont enregistrés par l'équipe NutVitaGlobalis avec preuve de paiement.",
           ].map(text => <p key={text} className="flex items-start gap-2 text-sm font-bold text-forest"><CheckCircle2 className="mt-0.5 h-5 shrink-0 text-leaf" />{text}</p>)}

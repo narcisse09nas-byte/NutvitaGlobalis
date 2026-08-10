@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { renderConsultationDocument } from "@/lib/consultation-record-pdf";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -72,14 +72,20 @@ export async function POST(request: Request) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
   const loginUrl = `${siteUrl}/connexion?identifiant=${encodeURIComponent(client.email || "")}&redirect=${encodeURIComponent("/espace-client/consultations")}`;
   const basePath = `${client.id}/consultations/${consultation.id}`;
-  const consultationBytes = await renderConsultationDocument(consultation, client, dietitian, loginUrl);
+  const { data: signatureProfile } = await adminClient.from("signature_profiles").select("display_name,signature_path").eq("user_id", dietitian.candidate_id || user.id).maybeSingle();
+  let signature: { displayName?: string; bytes?: Uint8Array; mimeType?: string } | undefined;
+  if (signatureProfile?.signature_path) {
+    const downloaded = await adminClient.storage.from("electronic-signatures").download(signatureProfile.signature_path);
+    if (downloaded.data) signature = { displayName: signatureProfile.display_name || dietitian.full_name, bytes: new Uint8Array(await downloaded.data.arrayBuffer()), mimeType: downloaded.data.type };
+  }
+  const consultationBytes = await renderConsultationDocument(consultation, client, dietitian, loginUrl, false, signature);
   const consultationPath = `${basePath}/compte-rendu.pdf`;
   const consultationUpload = await adminClient.storage.from("document-vault").upload(consultationPath, consultationBytes, { contentType: "application/pdf", upsert: true });
   if (consultationUpload.error) return NextResponse.json({ message: consultationUpload.error.message }, { status: 500 });
 
   let prescriptionPath: string | null = null;
   if (Array.isArray(body.prescription_items) && body.prescription_items.length) {
-    const prescriptionBytes = await renderConsultationDocument(consultation, client, dietitian, loginUrl, true);
+    const prescriptionBytes = await renderConsultationDocument(consultation, client, dietitian, loginUrl, true, signature);
     prescriptionPath = `${basePath}/ordonnance-examens.pdf`;
     const upload = await adminClient.storage.from("document-vault").upload(prescriptionPath, prescriptionBytes, { contentType: "application/pdf", upsert: true });
     if (upload.error) return NextResponse.json({ message: upload.error.message }, { status: 500 });
@@ -123,3 +129,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ...consultation, consultation_pdf_path: consultationPath, prescription_pdf_path: prescriptionPath });
 }
+

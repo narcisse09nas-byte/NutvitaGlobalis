@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+﻿import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { createReportQrCode, drawNutvitaDocumentBranding } from "@/lib/pdf-branding";
 
 type Row = Record<string, any>;
@@ -27,6 +27,7 @@ export async function renderConsultationDocument(
   dietitian: Row,
   loginUrl: string,
   prescriptionOnly = false,
+  signature?: { displayName?: string; bytes?: Uint8Array; mimeType?: string },
 ) {
   const pdf = await PDFDocument.create();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
@@ -34,7 +35,7 @@ export async function renderConsultationDocument(
   const drawQr = await createReportQrCode(pdf, loginUrl);
   let page = pdf.addPage([595, 842]);
   await drawNutvitaDocumentBranding(pdf, page);
-  let y = 690;
+  let y = 620;
 
   const newPage = async () => {
     page = pdf.addPage([595, 842]);
@@ -56,9 +57,9 @@ export async function renderConsultationDocument(
   };
 
   page.drawText(prescriptionOnly ? "ORDONNANCE D'EXAMENS" : consultation.document_title || "COMPTE RENDU DE CONSULTATION NUTRITIONNELLE", {
-    x: 48, y: 735, size: prescriptionOnly ? 20 : 16, font: bold, color: rgb(.04, .24, .18),
+    x: 48, y: 665, size: prescriptionOnly ? 20 : 16, font: bold, color: rgb(.04, .24, .18),
   });
-  page.drawText(`Date : ${new Date(consultation.finalized_at || consultation.scheduled_at || Date.now()).toLocaleDateString("fr-FR")}`, { x: 48, y: 712, size: 9, font: regular });
+  page.drawText(`Date : ${new Date(consultation.finalized_at || consultation.scheduled_at || Date.now()).toLocaleDateString("fr-FR")}`, { x: 48, y: 642, size: 9, font: regular });
   page.drawText(`Client : ${client.full_name || client.email || consultation.client_id}`, { x: 48, y, size: 10, font: bold }); y -= 17;
   page.drawText(`Nutritionniste : ${dietitian.full_name || "Professionnel NutVitaGlobalis"}`, { x: 48, y, size: 10, font: regular }); y -= 24;
 
@@ -68,6 +69,17 @@ export async function renderConsultationDocument(
     for (const item of items) await paragraph(`- ${typeof item === "string" ? item : item.label || item.name}`);
     if (consultation.prescription_notes) { await heading("Indications"); await paragraph(consultation.prescription_notes); }
     await paragraph("Les resultats doivent etre interpretes par un professionnel habilite dans leur contexte clinique.");
+    y -= 12;
+    await heading("Validation du nutritionniste traitant");
+    await paragraph(signature?.displayName || dietitian.full_name || "Professionnel NutVitaGlobalis");
+    if (signature?.bytes?.length) {
+      try {
+        const image = signature.mimeType === "image/jpeg" ? await pdf.embedJpg(signature.bytes) : await pdf.embedPng(signature.bytes);
+        const scale = Math.min(130 / image.width, 55 / image.height);
+        page.drawImage(image, { x: 48, y: Math.max(92, y - image.height * scale), width: image.width * scale, height: image.height * scale });
+        y -= image.height * scale + 12;
+      } catch {}
+    }
   } else {
     await heading("Profil du client");
     await paragraph(Object.entries(consultation.profile_snapshot || {}).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`).join(" | "));
@@ -118,3 +130,4 @@ export async function renderConsultationPreAnalysis(
   };
   return renderConsultationDocument(consultation, client, dietitian, loginUrl);
 }
+

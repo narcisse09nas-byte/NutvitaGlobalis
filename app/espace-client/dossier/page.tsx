@@ -13,7 +13,7 @@ export default async function NutritionRecordPage() {
     supabase.from("biological_measurements").select("*").eq("client_id", user.id).order("measured_at", { ascending: false }),
     supabase.from("food_history").select("*").eq("client_id", user.id).order("entry_date", { ascending: false }),
     supabase.from("health_lifestyle_assessments").select("*").eq("client_id", user.id).order("assessment_date", { ascending: false }),
-    supabase.from("nutrition_consultations").select("*").eq("client_id", user.id).order("consultation_date", { ascending: false }),
+    supabase.from("partner_consultations").select("*").eq("client_id", user.id).eq("status", "completed").order("finalized_at", { ascending: false }),
     supabase.from("health_dietary_diversity_assessments").select("*").eq("client_id", user.id).order("assessed_at", { ascending: false }),
     getHealthRecordPageSettings(),
   ]);

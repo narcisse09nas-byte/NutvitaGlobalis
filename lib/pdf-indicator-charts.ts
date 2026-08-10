@@ -10,9 +10,9 @@ export function numericSeries(
   return definitions.flatMap(definition => {
     const points = rows
       .map(row => ({ date: row[definition.dateKey || "measured_at"], value: Number(row[definition.key]) }))
-      .filter(point => point.date && Number.isFinite(point.value))
+      .filter(point => point.date && Number.isFinite(point.value) && (definition.allowZero === true || point.value !== 0))
       .sort((a, b) => +new Date(a.date) - +new Date(b.date));
-    return points.length >= 2 ? [{ ...definition, points }] : [];
+    return points.length >= 2 && points.some(point => point.value !== 0) ? [{ ...definition, points }] : [];
   });
 }
 

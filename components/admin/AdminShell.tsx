@@ -47,30 +47,38 @@ const navGroups = [
     ["/admin/page-croissance-enfant", "Page croissance enfant", ChartBarIcon, [...all, "health_admin", "content_admin"]],
     ["/admin/teleconseils", "Teleconseils", ChatBubbleLeftRightIcon, [...all, "health_admin"]],
     ["/admin/tableau-consultations", "Tableau consultations", ChartBarIcon, [...all, "health_admin", "content_admin"]],
-    ["/admin/page-suivi-sante", "Page suivi santé", ChartBarIcon, [...all, "health_admin", "content_admin"]],
+    ["/admin/page-suivi-sante", "Page suivi santÃ©", ChartBarIcon, [...all, "health_admin", "content_admin"]],
   ]},
   {title:"Finance", tone:"bg-orange/15", links:[
     ["/admin/offres", "Offres et prix", CreditCardIcon, [...all, "finance_admin"]],
     ["/admin/paiements", "Paiements", CreditCardIcon, [...all, "finance_admin"]],
     ["/admin/prestataires-paiements", "Paiements prestataires", CreditCardIcon, [...all, "finance_admin"]],
     ["/admin/paiements-partenaires", "PayPal partenaires", CreditCardIcon, [...all, "finance_admin"]],
-    ["/admin/promoteurs", "Promoteurs", UserPlusIcon, [...all, "finance_admin"]],
     ["/admin/depenses", "Depenses", CalculatorIcon, [...all, "finance_admin"]],
     ["/admin/factures", "Factures", DocumentTextIcon, [...all, "finance_admin"]],
     ["/admin/taxes", "Taxes", CalculatorIcon, [...all, "finance_admin"]],
   ]},
   {title:"Recrutement des nutritionnistes", tone:"bg-sky-500/15", links:[
     ["/admin/recrutement", "Tableau de recrutement", UserPlusIcon, [...all, "recruitment_admin"]],
-    ["/admin/recrutement/candidatures", "Candidatures spontanées", DocumentTextIcon, [...all, "recruitment_admin"]],
-    ["/admin/recrutement/tests-ecrits", "Tests écrits", DocumentCheckIcon, [...all, "recruitment_admin"]],
+    ["/admin/recrutement/candidatures", "Candidatures spontanÃ©es", DocumentTextIcon, [...all, "recruitment_admin"]],
+    ["/admin/recrutement/tests-ecrits", "Tests Ã©crits", DocumentCheckIcon, [...all, "recruitment_admin"]],
     ["/admin/recrutement/banque-questions", "Banque de questions", AcademicCapIcon, [...all, "recruitment_admin"]],
     ["/admin/recrutement/surveillance", "Surveillance des tests", ShieldCheckIcon, [...all, "recruitment_admin"]],
     ["/admin/recrutement/entretiens", "Entretiens de recrutement", VideoCameraIcon, [...all, "recruitment_admin"]],
     ["/admin/recrutement/rapports", "Rapports de recrutement", ChartBarIcon, [...all, "recruitment_admin"]],
     ["/admin/recrutement/messages", "Messages candidats", ChatBubbleOvalLeftEllipsisIcon, [...all, "recruitment_admin"]],
     ["/admin/recrutement/apparence", "Contenus candidats FR/EN", NewspaperIcon, [...all, "recruitment_admin", "content_admin"]],
-    ["/admin/dieteticiens", "Nutritionnistes recrutés", UserGroupIcon, [...all, "recruitment_admin"]],
-  ]},  {title:"Collaboration", tone:"bg-violet-500/15", links:[
+    ["/admin/dieteticiens", "Nutritionnistes recrutÃ©s", UserGroupIcon, [...all, "recruitment_admin"]],
+  ]},
+  {title:"Administration des promoteurs", tone:"bg-orange/15", links:[
+    ["/admin/promoteurs", "Pilotage promoteurs", UserPlusIcon, [...all, "recruitment_admin", "finance_admin"]],
+    ["/admin/promoteurs/salle-attente", "Salle d'attente", ExclamationTriangleIcon, [...all, "recruitment_admin"]],
+    ["/admin/promoteurs/entretiens", "Entretiens", VideoCameraIcon, [...all, "recruitment_admin"]],
+    ["/admin/promoteurs/decisions", "DÃ©cisions et codes", DocumentCheckIcon, [...all, "recruitment_admin"]],
+    ["/admin/promoteurs/registre", "Registre et cagnotes", UserGroupIcon, [...all, "recruitment_admin", "finance_admin"]],
+    ["/admin/promoteurs/paiements", "Paiements promoteurs", CreditCardIcon, [...all, "finance_admin"]],
+  ]},
+  {title:"Collaboration", tone:"bg-violet-500/15", links:[
     ["/admin/collaboration", "Collaboration", ChatBubbleOvalLeftEllipsisIcon, [...all, "health_admin", "recruitment_admin"]],
     ["/admin/appels", "Appels video", VideoCameraIcon, [...all, "health_admin", "recruitment_admin"]],
   ]},
@@ -124,7 +132,7 @@ export default function AdminShell({ children, name }: { children: ReactNode; na
     links:group.links.filter(([, , , roles]) => !roles || roles.includes(role as never)),
   })).filter(group=>group.links.length);
 
-  return <div className="min-h-screen bg-slate-100">
+  return <div className={`min-h-screen bg-slate-100 ${path.startsWith("/admin/recrutement") || path.startsWith("/admin/promoteurs") ? "admin-recruitment-workspace" : ""}`}>
     <aside className={`fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-forest p-6 pb-24 text-white transition lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="mb-9 flex items-center justify-between">
         <Link href="/admin" className="text-xl font-black">NutVita<span className="text-orange">Admin</span></Link>

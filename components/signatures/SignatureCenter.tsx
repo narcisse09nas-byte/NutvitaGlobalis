@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -80,7 +80,13 @@ export default function SignatureCenter() {
     let signaturePath = profile?.signature_path || null;
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (savedSignature && user) {
+    const uploadedSignature = form.get("signature_file") as File;
+    if (uploadedSignature?.size && user) {
+      const extension = uploadedSignature.type === "image/jpeg" ? "jpg" : "png";
+      signaturePath = `${user.id}/profile/signature.${extension}`;
+      const upload = await supabase.storage.from("electronic-signatures").upload(signaturePath, uploadedSignature, { contentType: uploadedSignature.type, upsert: true });
+      if (upload.error) { setMessage(upload.error.message); setBusy(false); return; }
+    } else if (savedSignature && user) {
       signaturePath = `${user.id}/profile/signature.png`;
       const upload = await supabase.storage.from("electronic-signatures").upload(signaturePath, savedSignature, { contentType: "image/png", upsert: true });
       if (upload.error) {
@@ -122,7 +128,7 @@ export default function SignatureCenter() {
       <button disabled={busy} className="w-fit rounded-md bg-[#24945f] px-5 py-3 font-bold text-white">{busy ? "Envoi..." : "Envoyer pour signature"}</button>
     </form>}
 
-    {tab === "profile" && <form onSubmit={saveProfile} className="grid max-w-2xl gap-5 rounded-lg border bg-white p-6"><h2 className="text-xl font-black">Parametres de signature</h2><label className="grid gap-2 text-sm font-bold">Nom affiche<input name="display_name" defaultValue={profile?.display_name || ""} required className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Initiales<input name="initials" defaultValue={profile?.initials || ""} required maxLength={8} className="admin-input uppercase" /></label><div><p className="mb-2 text-sm font-bold">Signature enregistree</p><SignaturePad onChange={setSavedSignature} /></div><button disabled={busy} className="w-fit rounded-md bg-[#24945f] px-5 py-3 font-bold text-white">Enregistrer</button></form>}
+    {tab === "profile" && <form onSubmit={saveProfile} className="grid max-w-2xl gap-5 rounded-lg border bg-white p-6"><h2 className="text-xl font-black">Parametres de signature</h2><label className="grid gap-2 text-sm font-bold">Nom affiche<input name="display_name" defaultValue={profile?.display_name || ""} required className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Initiales<input name="initials" defaultValue={profile?.initials || ""} required maxLength={8} className="admin-input uppercase" /></label><div><p className="mb-2 text-sm font-bold">Dessiner votre signature</p><SignaturePad onChange={setSavedSignature} /></div><label className="grid gap-2 text-sm font-bold">Ou televerser une signature (PNG/JPG)<input name="signature_file" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" className="admin-input" /></label><button disabled={busy} className="w-fit rounded-md bg-[#24945f] px-5 py-3 font-bold text-white">Enregistrer</button></form>}
 
     {tab === "sent" && <EnvelopeList items={sent} sent openFile={openFile} />}
     {tab === "received" && <EnvelopeList items={received.map(item => ({ ...item.signature_envelopes, recipient_status: item.status, signing_url: item.signing_url, final_url: item.final_url }))} openFile={openFile} />}
@@ -132,3 +138,4 @@ export default function SignatureCenter() {
 function EnvelopeList({ items, sent = false, openFile }: { items: Row[]; sent?: boolean; openFile: (path: string) => void }) {
   return <div className="grid gap-3">{items.map(item => <article key={item.id} className="rounded-lg border bg-white p-5"><div className="flex flex-wrap justify-between gap-3"><div><p className="font-mono text-xs text-slate-400">{item.reference}</p><h2 className="mt-1 text-lg font-black">{item.title}</h2><p className="mt-1 text-sm text-slate-500">{sent ? `${item.signature_recipients?.length || 0} destinataire(s)` : "Recu pour signature"}</p></div><span className="h-fit rounded-full bg-[#e7f5ee] px-3 py-1 text-xs font-bold text-[#123d32]">{item.recipient_status || item.status}</span></div><div className="mt-4 flex gap-2">{item.signing_url && !["signed","approved"].includes(item.recipient_status) && <a href={item.signing_url} className="rounded-md bg-[#24945f] px-3 py-2 text-sm font-bold text-white">Lire et signer</a>}{item.final_url ? <a href={item.final_url} target="_blank" rel="noreferrer" className="rounded-md border px-3 py-2 text-sm font-bold">Copie signee</a> : item.final_file_path && <button onClick={() => openFile(item.final_file_path)} className="rounded-md border px-3 py-2 text-sm font-bold">Copie signee</button>}</div></article>)}{!items.length && <p className="rounded-lg border bg-white p-10 text-center text-slate-400">Aucun document dans cette section.</p>}</div>;
 }
+

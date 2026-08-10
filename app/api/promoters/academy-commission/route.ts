@@ -17,7 +17,9 @@ export async function POST(request: Request) {
   const { data: client } = await admin.from("client_profiles").select("id,referred_by_promoter_id").ilike("email", email).maybeSingle();
   if (!client?.referred_by_promoter_id) return NextResponse.json({ ok: true, skipped: "no_referral" });
 
-  const commission = Number((amount * 0.03).toFixed(2));
+  const { data: promoterSettings } = await admin.from("promoter_program_settings").select("commission_rate").eq("id", 1).maybeSingle();
+  const commissionRate = Number(promoterSettings?.commission_rate ?? 3);
+  const commission = Number((amount * commissionRate / 100).toFixed(2));
   if (commission <= 0) return NextResponse.json({ ok: true, skipped: "zero_amount" });
 
   const { error } = await admin.from("promoter_ledger").insert({
@@ -26,7 +28,7 @@ export async function POST(request: Request) {
     entry_type: "commission",
     source: "academy",
     external_reference: reference,
-    description: "Commission 3% - Formation NutVitaGlobalis Academy",
+    description: `Commission ${commissionRate}% - Formation NutVitaGlobalis Academy`,
     amount: commission,
     currency,
   });

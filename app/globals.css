@@ -98,3 +98,18 @@
   .maximus-workspace [class*="rounded-lg"][class*="p-6"], .maximus-workspace [class*="rounded-3xl"][class*="p-6"] { padding: 1rem; }
   .maximus-workspace [class*="justify-end"][class*="gap-"] { flex-wrap: wrap; }
 }
+/* Maximus-aligned visual language, scoped to NutVitaAdmin recruitment. */
+.admin-recruitment-workspace main { background: #f4f7f6; }
+.admin-recruitment-workspace main > div > h1,
+.admin-recruitment-workspace main h1,
+.admin-recruitment-workspace main h2,
+.admin-recruitment-workspace main h3 { color: #073f33; letter-spacing: -.025em; }
+.admin-recruitment-workspace main section,
+.admin-recruitment-workspace main article { border-radius: .55rem; }
+.admin-recruitment-workspace main table { white-space: normal; }
+.admin-recruitment-workspace main thead { color: #64748b; }
+.admin-recruitment-workspace main th { font-weight: 800; }
+.admin-recruitment-workspace main [class*="shadow-soft"],
+.admin-recruitment-workspace main [class*="shadow-sm"] { box-shadow: 0 1px 2px rgb(15 23 42 / .04); }
+.admin-recruitment-workspace main [class*="overflow-x-auto"] { max-width: 100%; overscroll-behavior-inline: contain; }
+@media (max-width: 1023px) { .admin-recruitment-workspace main [class*="lg:grid-cols-"] { grid-template-columns: minmax(0,1fr); } }

@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import ClinicalAssessmentSummary from "@/components/consultations/ClinicalAssessmentSummary";
 import { EyeIcon, PlusIcon, PrinterIcon, SparklesIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import QRCode from "qrcode";
 import { createClient } from "@/lib/supabase/client";
@@ -169,8 +170,8 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
       </section>
 
       <section className="rounded-3xl border border-forest/10 bg-white p-6 shadow-soft">
-        <Step number="3" title="Résultats biologiques et sanguins" />
-        <p className="mt-3 text-sm leading-6 text-slate-600">Saisissez les résultats disponibles avec l’unité et les limites de référence propres au laboratoire. Ces informations seront intégrées dans l’analyse préparatoire.</p>
+        <Step number="3" title="RÃ©sultats biologiques et sanguins" />
+        <p className="mt-3 text-sm leading-6 text-slate-600">Saisissez les rÃ©sultats disponibles avec lâ€™unitÃ© et les limites de rÃ©fÃ©rence propres au laboratoire. Ces informations seront intÃ©grÃ©es dans lâ€™analyse prÃ©paratoire.</p>
         <div className="mt-5"><LabParameterEditor items={labParameters} onChange={setLabParameters} locale={locale}/></div>
       </section>
 
@@ -240,7 +241,7 @@ function AnalysisList({title,items}:{title:string;items?:string[]}){return <sect
 function ConsultationDetails({ row, close, openDocument, locale }: { row: Row; close: () => void; openDocument: (path?: string) => void; locale:"fr"|"en" }) {
   const goals = parseArray(row.goals);
   return <div className="nvg-modal-backdrop fixed inset-0 z-[100] overflow-y-auto p-4"><article className="nvg-modal-panel mx-auto my-8 max-w-4xl bg-white p-7 print:my-0 print:max-w-none"><div className="flex justify-between gap-4"><div><p className="text-xs font-bold uppercase text-leaf">Consultation finalisee</p><h2 className="text-2xl font-black">{row.client_profiles?.full_name || "Client"}</h2><p className="text-sm text-slate-500">{new Date(row.finalized_at || row.scheduled_at).toLocaleString(locale==="en"?"en-GB":"fr-FR")}</p></div><button type="button" onClick={close} aria-label="Fermer"><XMarkIcon className="h-7"/></button></div>
-    <div className="mt-7 grid gap-5 md:grid-cols-2"><Detail title="Plaintes" text={`${parseArray(row.complaints).join(", ")} ${row.complaint_notes || ""}`}/><Detail title="Objectifs" text={goals.map((item: any) => `${item.label}: ${item.target || "-"} ${item.unit || ""}`).join("\n")}/><Detail title="Evaluations" text={row.clinical_assessments?JSON.stringify(row.clinical_assessments,null,2):"-"}/><Detail title="Plan" text={Object.values(row.care_plan || {}).filter(Boolean).join("\n")}/><Detail title="Prochain rendez-vous" text={row.next_appointment_at ? new Date(row.next_appointment_at).toLocaleString(locale==="en"?"en-GB":"fr-FR") : "Non programme"}/><Detail title="Examens" text={parseArray(row.prescription_items).join("\n")}/></div>
+    <div className="mt-7 grid gap-5 md:grid-cols-2"><Detail title="Plaintes" text={`${parseArray(row.complaints).join(", ")} ${row.complaint_notes || ""}`}/><Detail title="Objectifs" text={goals.map((item: any) => `${item.label}: ${item.target || "-"} ${item.unit || ""}`).join("\n")}/><section className="rounded-xl bg-slate-50 p-4 md:col-span-2"><h3 className="mb-3 font-black">Evaluations</h3><ClinicalAssessmentSummary data={row.clinical_assessments}/></section><Detail title="Plan" text={Object.values(row.care_plan || {}).filter(Boolean).join("\n")}/><Detail title="Prochain rendez-vous" text={row.next_appointment_at ? new Date(row.next_appointment_at).toLocaleString(locale==="en"?"en-GB":"fr-FR") : "Non programme"}/><Detail title="Examens" text={parseArray(row.prescription_items).join("\n")}/></div>
     <PrintableAccessQr email={row.client_profiles?.email}/>
     <div className="mt-7 flex flex-wrap gap-3 print:hidden"><button type="button" onClick={() => window.print()} className="btn-secondary"><PrinterIcon className="mr-2 h-4"/>Imprimer la fiche</button><button type="button" onClick={() => openDocument(row.consultation_pdf_path)} className="btn-primary">Compte rendu PDF</button>{row.prescription_pdf_path && <button type="button" onClick={() => openDocument(row.prescription_pdf_path)} className="btn-secondary">Ordonnance PDF</button>}</div>
   </article></div>;
@@ -253,3 +254,4 @@ function PrintableAccessQr({ email }: { email?: string }) {
   useEffect(()=>{QRCode.toDataURL(`${location.origin}/connexion?identifiant=${encodeURIComponent(email||"")}&redirect=${encodeURIComponent("/espace-client/consultations")}`,{width:220,margin:1}).then(setSrc)},[email]);
   return src?<div className="mt-7 flex items-center gap-3 border-t pt-5"><img src={src} alt="QR acces securise" className="h-20 w-20"/><p className="max-w-xs text-xs text-slate-500">Scannez pour vous connecter et retrouver cette consultation. L'adresse email sera deja renseignee.</p></div>:null;
 }
+

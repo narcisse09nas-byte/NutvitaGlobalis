@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { InsightResult, HealthRow } from "@/lib/health-analysis";
 import { createNutvitaDocumentBranding, createReportQrCode } from "@/lib/pdf-branding";
@@ -46,7 +46,8 @@ export async function renderHealthReport(
     const lineWidth = page === firstPage && y > 585 ? (size >= 15 ? 42 : 68) : (size >= 15 ? 60 : 92);
     for (const line of wrap(value, lineWidth)) {
       if (y < 85) addPage();
-      page.drawText(line, { x: 50, y, size, font, color }); y -= size + 4;
+      const words=line.split(" ").filter(Boolean), available=page===firstPage&&y>585?360:495, natural=font.widthOfTextAtSize(line,size);
+      if(words.length>1&&!line.startsWith("-")&&natural<available*.94){let x=50;const gap=(available-words.reduce((sum,word)=>sum+font.widthOfTextAtSize(word,size),0))/(words.length-1);for(const word of words){page.drawText(word,{x,y,size,font,color});x+=font.widthOfTextAtSize(word,size)+gap}}else page.drawText(line,{x:50,y,size,font,color}); y -= size + 4;
     }
   };
   const heading = (value: string) => { if (y < 140) addPage(); y -= 7; page.drawRectangle({ x: 45, y: y - 22, width: 505, height: 30, color: rgb(.94, .98, .96), borderColor: rgb(.82, .88, .85), borderWidth: .6 }); page.drawText(value, { x: 58, y: y - 13, size: 13, font: bold, color: rgb(.07, .24, .19) }); y -= 35; };
@@ -154,3 +155,4 @@ export async function renderHealthReport(
   for (const [index, current] of pdf.getPages().entries()) current.drawText(`NutVitaGlobalis - ${fr ? "page" : "page"} ${index + 1}/${pdf.getPageCount()} - ${formatDate(generatedAt, locale)}`, { x: 50, y: 76, size: 7, font: regular, color: rgb(.45, .45, .45) });
   return pdf.save();
 }
+

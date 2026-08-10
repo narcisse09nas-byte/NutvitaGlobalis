@@ -110,7 +110,7 @@ function activeSessionRule(pathname: string): SessionRule | null {
   if (starts("/admin/croissance-enfant")) return { services: ["child_growth"], roles: ["admin"] };
   if (starts("/admin/teleconseils")) return { services: ["teleconsultation"], roles: ["admin"] };
   if (starts("/admin/recrutement") || starts("/admin/dieteticiens")) return { services: ["recruitment"], roles: ["admin"] };
-  if ((starts("/admin") && pathname !== "/admin") || starts("/super-admin")) return { services: ["administration"], roles: ["super_admin"] };
+  if (starts("/super-admin")) return { services: ["administration"], roles: ["super_admin"] };
 
   if (starts("/api/admin")) return { services: ["administration"], roles: ["super_admin"] };
   if (starts("/api/partner")) return { services: ["health", "child_growth", "teleconsultation"], roles: ["nutritionist"] };

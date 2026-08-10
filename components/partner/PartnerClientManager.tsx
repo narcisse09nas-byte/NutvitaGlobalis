@@ -108,22 +108,11 @@ export default function PartnerClientManager({ initial, partnerId }: { initial: 
 
       <section className="rounded-2xl border bg-white p-6">
         <h2 className="text-xl font-black">Mes clients</h2>
-        <div className="mt-4 grid gap-3">
-          {sortedRows.map(row => {
-            const active = statusFor(row) === "actif";
-            return <div key={row.id} className="rounded-xl bg-slate-50 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div><b>{row.full_name}</b><p className="text-xs text-slate-500">{row.client_number || "Numero a generer"} - {row.username || row.email || "Sans identifiant affiche"}</p><p className="mt-1 text-xs text-slate-500">{[row.phone || row.whatsapp_phone, row.city, row.country].filter(Boolean).join(" - ") || "Coordonnees incompletes"}</p><p className="mt-1 text-xs text-slate-500">Expire le : {row.partner_access_expires_at ? new Date(row.partner_access_expires_at).toLocaleDateString("fr-FR") : "non defini"}</p></div>
-                <span className={`rounded-full px-3 py-1 text-xs font-black ${active ? "bg-mint text-leaf" : "bg-rose-50 text-rose-700"}`}>{active ? "Actif" : "Inactif"}</span>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-3 text-sm font-bold">
-                <Link href={`/partenaire/clients/${row.id}/suivi`} className="text-leaf">Dossier Premium</Link>
-                <Link href={`/partenaire/clients/${row.id}/carte?name=${encodeURIComponent(row.full_name)}&username=${encodeURIComponent(row.email || row.username || "client.demo")}&number=${encodeURIComponent(row.client_number || "NVG-C-0001")}`} className="text-leaf">Carte QR</Link>
-                <button onClick={() => setExtensionFor(row)} className="text-orange">Prolonger l'acces</button>
-              </div>
-            </div>;
-          })}
-          {!rows.length && <p className="text-slate-400">Aucun client cree directement ou attribue.</p>}
+        <div className="mt-4 overflow-x-auto rounded-xl border">
+          <table className="w-full min-w-[860px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Client</th><th className="p-4">Coordonnees</th><th className="p-4">Expiration</th><th className="p-4">Statut</th><th className="p-4 text-right">Actions</th></tr></thead>
+            <tbody className="divide-y">{sortedRows.map(row => { const active=statusFor(row)==="actif"; return <tr key={row.id}><td className="p-4"><b className="text-forest">{row.full_name}</b><p className="text-xs text-slate-500">{row.client_number||"Numero a generer"}</p></td><td className="p-4"><p>{row.username||row.email||"Sans identifiant"}</p><p className="text-xs text-slate-500">{[row.phone||row.whatsapp_phone,row.city,row.country].filter(Boolean).join(" - ")||"Coordonnees incompletes"}</p></td><td className="p-4">{row.partner_access_expires_at?new Date(row.partner_access_expires_at).toLocaleDateString("fr-FR"):"Non definie"}</td><td className="p-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${active?"bg-mint text-leaf":"bg-rose-50 text-rose-700"}`}>{active?"Actif":"Inactif"}</span></td><td className="p-4"><div className="flex justify-end gap-3 font-bold"><Link href={`/partenaire/clients/${row.id}/suivi`} className="text-leaf">Dossier</Link><Link href={`/partenaire/clients/${row.id}/carte?name=${encodeURIComponent(row.full_name)}&username=${encodeURIComponent(row.email||row.username||"client.demo")}&number=${encodeURIComponent(row.client_number||"NVG-C-0001")}`} className="text-leaf">Carte QR</Link><button onClick={()=>setExtensionFor(row)} className="text-orange">Prolonger</button></div></td></tr>})}{!rows.length&&<tr><td colSpan={5} className="p-10 text-center text-slate-400">Aucun client cree directement ou attribue.</td></tr>}</tbody>
+          </table>
         </div>
       </section>
 
@@ -131,3 +120,4 @@ export default function PartnerClientManager({ initial, partnerId }: { initial: 
     </div>
   );
 }
+

@@ -1,5 +1,2 @@
-"use client";
-
-export default function PrintCardButton() {
-  return <button onClick={() => window.print()} className="btn-primary">Télécharger / imprimer ma carte</button>;
-}
+'use client';
+export default function PrintCardButton({ label = 'Télécharger / imprimer' }: { label?: string }) { return <button onClick={()=>window.print()} className='btn-primary'>{label}</button>; }

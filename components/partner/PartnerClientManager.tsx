@@ -1,123 +1,24 @@
-﻿"use client";
-
+"use client";
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { hasLocalAdminMode } from "@/lib/supabase/config";
-
-type Row = Record<string, any>;
-
-const statusFor = (row: Row) => {
-  const expires = row.partner_access_expires_at ? new Date(row.partner_access_expires_at) : null;
-  return expires && expires >= new Date() ? "actif" : "inactif";
-};
-
-export default function PartnerClientManager({ initial, partnerId }: { initial: Row[]; partnerId: string }) {
-  const [rows, setRows] = useState(initial);
-  const [credentials, setCredentials] = useState<Row | null>(null);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [extensionFor, setExtensionFor] = useState<Row | null>(null);
-  const [countries, setCountries] = useState<Array<{ name: string }>>([]);
-  const sortedRows = useMemo(() => [...rows].sort((a, b) => Number(statusFor(b) === "actif") - Number(statusFor(a) === "actif")), [rows]);
-
-  useEffect(() => {
-    fetch("/api/geo?type=countries").then(response => response.json()).then(setCountries).catch(() => setCountries([]));
-  }, []);
-
-  async function uploadReceipt(file: File | null, clientHint: string) {
-    if (!file) return null;
-    const safe = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");
-    const path = `${partnerId}/${clientHint || crypto.randomUUID()}/${crypto.randomUUID()}-${safe}`;
-    const { error } = await createClient().storage.from("partner-receipts").upload(path, file);
-    if (error) throw error;
-    return path;
-  }
-
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
-    const form = e.currentTarget, fd = new FormData(form);
-    try {
-      const receiptPath = await uploadReceipt((fd.get("receipt") as File) || null, String(fd.get("username") || fd.get("full_name") || ""));
-      const payload = Object.fromEntries(fd);
-      delete payload.receipt;
-      const response = await fetch("/api/partner/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, receipt_path: receiptPath }) });
-      const result = await response.json();
-      if (!response.ok) {
-        setMessage(result.message);
-        setLoading(false);
-        return;
-      }
-      if (hasLocalAdminMode()) await createClient().from("client_profiles").insert({ ...result.client, created_by_partner_id: partnerId, assigned_partner_id: partnerId });
-      setRows([{ ...result.client, latest_payment: result.payment }, ...rows]);
-      setCredentials({ username: result.client.username, password: result.password, client_number: result.client.client_number, id: result.client.id, full_name: result.client.full_name, email: result.client.email });
-      form.reset();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Recu impossible a joindre.");
-    }
-    setLoading(false);
-  }
-
-  async function extend(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!extensionFor) return;
-    setMessage("");
-    const form = e.currentTarget, fd = new FormData(form);
-    try {
-      const receiptPath = await uploadReceipt((fd.get("receipt") as File) || null, extensionFor.username || extensionFor.id);
-      const payload = Object.fromEntries(fd);
-      delete payload.receipt;
-      const response = await fetch("/api/partner/client-extension", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, client_id: extensionFor.id, receipt_path: receiptPath }) });
-      const result = await response.json();
-      if (!response.ok) {
-        setMessage(result.message);
-        return;
-      }
-      setRows(rows.map(row => row.id === extensionFor.id ? { ...row, partner_access_expires_at: result.expires_at, partner_assignment_status: "active" } : row));
-      setExtensionFor(null);
-      setMessage("Extension enregistree.");
-      form.reset();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Extension impossible.");
-    }
-  }
-
-  return (
-    <div className="grid gap-6">
-      <form onSubmit={submit} className="grid gap-4 rounded-2xl border bg-white p-6 md:grid-cols-2">
-        <h2 className="text-xl font-black md:col-span-2">Creer un client recu sur site</h2>
-        <label className="grid gap-2 text-sm font-bold">Nom complet<input name="full_name" required className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Nom d'utilisateur souhaite<input name="username" className="admin-input" placeholder="Ex. marie.ngono" /></label>
-        <label className="grid gap-2 text-sm font-bold">Email facultatif<input name="email" type="email" className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Telephone<input name="phone" className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Pays<select name="country" className="admin-input"><option value="">Selectionner un pays</option>{countries.map(country => <option key={country.name} value={country.name}>{country.name}</option>)}</select></label>
-        <label className="grid gap-2 text-sm font-bold">Ville<input name="city" className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Montant<input name="amount" type="number" min="0" defaultValue="15000" className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Paiement<select name="payment_status" className="admin-input"><option value="paid">Paye</option><option value="partial">Partiel</option><option value="unpaid">Non paye</option><option value="waived">Gratuit / exonere</option></select></label>
-        <label className="grid gap-2 text-sm font-bold">Moyen de paiement<select name="payment_method" className="admin-input"><option value="cash">Especes</option><option value="mobile_money">Mobile money</option><option value="bank_transfer">Virement</option><option value="card">Carte</option></select></label>
-        <label className="grid gap-2 text-sm font-bold">Periode couverte<input name="period_months" type="number" min="1" defaultValue="3" className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold md:col-span-2">Recu de paiement<input name="receipt" type="file" accept=".pdf,.jpg,.jpeg,.png" className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold md:col-span-2">Mot de passe temporaire facultatif<input name="password" type="text" minLength={8} className="admin-input" placeholder="Genere automatiquement si vide" /></label>
-        <button disabled={loading} className="btn-primary justify-self-start md:col-span-2">{loading ? "Creation..." : "Creer le client et ses acces"}</button>
-        {message && <p className="text-sm font-bold text-leaf md:col-span-2">{message}</p>}
-      </form>
-
-      {credentials && <section className="rounded-2xl bg-forest p-6 text-white"><h2 className="text-xl font-black text-white">Acces a remettre au client</h2><div className="mt-4 grid gap-2 text-sm"><p>Numero client : <b>{credentials.client_number}</b></p><p>Nom d'utilisateur : <b>{credentials.username}</b></p><p>Mot de passe temporaire : <b>{credentials.password}</b></p></div><p className="mt-4 text-sm text-white/70">Le client devra modifier son mot de passe apres sa premiere connexion.</p><Link href={`/partenaire/clients/${credentials.id}/carte?name=${encodeURIComponent(credentials.full_name)}&username=${encodeURIComponent(credentials.email || credentials.username)}&number=${encodeURIComponent(credentials.client_number)}`} className="btn-primary mt-5" target="_blank">Afficher la carte QR</Link></section>}
-
-      <section className="rounded-2xl border bg-white p-6">
-        <h2 className="text-xl font-black">Mes clients</h2>
-        <div className="mt-4 overflow-x-auto rounded-xl border">
-          <table className="w-full min-w-[860px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Client</th><th className="p-4">Coordonnees</th><th className="p-4">Expiration</th><th className="p-4">Statut</th><th className="p-4 text-right">Actions</th></tr></thead>
-            <tbody className="divide-y">{sortedRows.map(row => { const active=statusFor(row)==="actif"; return <tr key={row.id}><td className="p-4"><b className="text-forest">{row.full_name}</b><p className="text-xs text-slate-500">{row.client_number||"Numero a generer"}</p></td><td className="p-4"><p>{row.username||row.email||"Sans identifiant"}</p><p className="text-xs text-slate-500">{[row.phone||row.whatsapp_phone,row.city,row.country].filter(Boolean).join(" - ")||"Coordonnees incompletes"}</p></td><td className="p-4">{row.partner_access_expires_at?new Date(row.partner_access_expires_at).toLocaleDateString("fr-FR"):"Non definie"}</td><td className="p-4"><span className={`rounded-full px-3 py-1 text-xs font-black ${active?"bg-mint text-leaf":"bg-rose-50 text-rose-700"}`}>{active?"Actif":"Inactif"}</span></td><td className="p-4"><div className="flex justify-end gap-3 font-bold"><Link href={`/partenaire/clients/${row.id}/suivi`} className="text-leaf">Dossier</Link><Link href={`/partenaire/clients/${row.id}/carte?name=${encodeURIComponent(row.full_name)}&username=${encodeURIComponent(row.email||row.username||"client.demo")}&number=${encodeURIComponent(row.client_number||"NVG-C-0001")}`} className="text-leaf">Carte QR</Link><button onClick={()=>setExtensionFor(row)} className="text-orange">Prolonger</button></div></td></tr>})}{!rows.length&&<tr><td colSpan={5} className="p-10 text-center text-slate-400">Aucun client cree directement ou attribue.</td></tr>}</tbody>
-          </table>
-        </div>
-      </section>
-
-      {extensionFor && <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/60 p-4"><form onSubmit={extend} className="mx-auto my-10 grid max-w-xl gap-4 rounded-3xl bg-white p-7 md:grid-cols-2"><div className="md:col-span-2 flex items-start justify-between gap-4"><div><h2 className="text-2xl font-black">Prolonger {extensionFor.full_name}</h2><p className="mt-1 text-sm text-slate-500">Le nouveau paiement prolonge la periode active.</p></div><button type="button" onClick={() => setExtensionFor(null)} className="text-3xl leading-none">x</button></div><label className="grid gap-2 text-sm font-bold">Montant<input name="amount" type="number" min="0" defaultValue="15000" className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Paiement<select name="payment_status" className="admin-input"><option value="paid">Paye</option><option value="partial">Partiel</option><option value="waived">Gratuit / exonere</option></select></label><label className="grid gap-2 text-sm font-bold">Moyen<select name="payment_method" className="admin-input"><option value="cash">Especes</option><option value="mobile_money">Mobile money</option><option value="bank_transfer">Virement</option><option value="card">Carte</option></select></label><label className="grid gap-2 text-sm font-bold">Mois ajoutes<input name="period_months" type="number" min="1" defaultValue="3" className="admin-input" /></label><label className="grid gap-2 text-sm font-bold md:col-span-2">Recu<input name="receipt" type="file" accept=".pdf,.jpg,.jpeg,.png" className="admin-input" /></label><button className="btn-primary justify-self-start md:col-span-2">Enregistrer l'extension</button></form></div>}
-    </div>
-  );
+import {FormEvent,useMemo,useState} from "react";
+import {createClient} from "@/lib/supabase/client";
+type Row=Record<string,any>;
+const txt={created:"Client cr\u00e9\u00e9. Son dossier est imm\u00e9diatement disponible.",create:"Cr\u00e9er un client",age:"\u00c2ge",goals:"Objectifs vis\u00e9s",details:"D\u00e9tails",transfer:"Transf\u00e9rer",phone:"T\u00e9l\u00e9phone",select:"S\u00e9lectionner",state:"\u00c9tat / r\u00e9gion",duration:"Dur\u00e9e d\u2019acc\u00e8s (mois)"};
+const age=(birth?:string)=>birth?Math.max(0,new Date().getFullYear()-new Date(birth).getFullYear()):"\u2014";
+export default function PartnerClientManager({initial,partnerId:_,collaborators}:{initial:Row[];partnerId:string;collaborators:Row[]}){
+ const [rows,setRows]=useState(initial),[open,setOpen]=useState(false),[transfer,setTransfer]=useState<Row|null>(null),[query,setQuery]=useState(""),[sex,setSex]=useState("all"),[message,setMessage]=useState(""),[loading,setLoading]=useState(false);
+ const filtered=useMemo(()=>rows.filter(r=>[r.client_number,r.full_name,r.complaints,r.objectives].join(" ").toLowerCase().includes(query.toLowerCase())&&(sex==="all"||r.sex===sex)),[rows,query,sex]);
+ async function create(e:FormEvent<HTMLFormElement>){e.preventDefault();setLoading(true);const form=e.currentTarget,res=await fetch("/api/partner/clients",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.fromEntries(new FormData(form)))}),data=await res.json();if(res.ok){setRows(x=>[{...data.client,waiting_request:null},...x]);setOpen(false);form.reset();setMessage(txt.created)}else setMessage(data.message||"Creation impossible.");setLoading(false)}
+ async function transferClient(e:FormEvent<HTMLFormElement>){e.preventDefault();if(!transfer)return;const id=String(new FormData(e.currentTarget).get("partner_id")||""),{error}=await createClient().from("client_profiles").update({assigned_partner_id:id,partner_assignment_status:"active"}).eq("id",transfer.id);if(error)setMessage(error.message);else{setRows(x=>x.filter(r=>r.id!==transfer.id));setTransfer(null);setMessage("Client transf\u00e9r\u00e9 au collaborateur.")}}
+ return <section className="grid gap-5">
+  <header className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl font-black">Mes clients</h1><p className="mt-2 text-slate-500">Registre unique des clients cr&eacute;&eacute;s ou attribu&eacute;s.</p></div><button onClick={()=>setOpen(true)} className="btn-primary">+ {txt.create}</button></header>
+  {message&&<p className="rounded-xl bg-mint p-3 text-sm font-bold text-leaf">{message}</p>}
+  <div className="grid gap-3 rounded-2xl border bg-white p-4 md:grid-cols-[1fr_220px]"><input value={query} onChange={e=>setQuery(e.target.value)} className="admin-input" placeholder={"Rechercher par ID, nom, plainte ou objectif\u2026"}/><select value={sex} onChange={e=>setSex(e.target.value)} className="admin-input"><option value="all">Tous les sexes</option><option value="female">Femme</option><option value="male">Homme</option><option value="other">Autre</option></select></div>
+  <div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full min-w-[1250px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{["ID client","ID demande","Nom du client",txt.age,"Sexe","Plaintes",txt.goals,"Actions"].map(x=><th key={x} className="p-4">{x}</th>)}</tr></thead><tbody className="divide-y">{filtered.map(r=><tr key={r.id}><td className="p-4 font-black text-forest">{r.client_number||"En generation"}</td><td className="p-4">{r.waiting_request?.request_code||"Creation directe"}</td><td className="p-4 font-bold">{r.full_name}</td><td className="p-4">{age(r.birth_date)}</td><td className="p-4">{r.sex||"\u2014"}</td><td className="max-w-[220px] p-4">{r.complaints||r.waiting_request?.reason||"\u2014"}</td><td className="max-w-[220px] p-4">{r.objectives||"\u2014"}</td><td className="p-4"><div className="flex flex-wrap gap-2 font-bold"><Link href={`/partenaire/clients/${r.id}/suivi`} className="btn-secondary px-3 py-2">{txt.details}</Link><Link href={`/partenaire/consultations?client=${r.id}`} className="btn-secondary px-3 py-2">Consultations</Link><button onClick={()=>setTransfer(r)} className="btn-secondary px-3 py-2">{txt.transfer}</button><Link href={`/partenaire/messages?client=${r.id}`} className="btn-primary px-3 py-2">Message</Link></div></td></tr>)}{!filtered.length&&<tr><td colSpan={8} className="p-10 text-center text-slate-400">Aucun client ne correspond aux filtres.</td></tr>}</tbody></table></div>
+  {open&&<div className="fixed inset-0 z-[130] overflow-y-auto bg-slate-950/60 p-4"><form onSubmit={create} className="mx-auto my-8 grid max-w-3xl gap-4 rounded-3xl bg-white p-7 md:grid-cols-2"><div className="flex justify-between md:col-span-2"><div><h2 className="text-2xl font-black">{txt.create}</h2><p className="text-sm text-slate-500">Le dossier complet sera cr&eacute;&eacute; automatiquement.</p></div><button type="button" onClick={()=>setOpen(false)} className="text-3xl">&times;</button></div>
+   <Field label="Nom complet" name="full_name" required/><Field label="Nom utilisateur" name="username"/><Field label="Email" name="email" type="email"/><Field label={txt.phone} name="phone"/><Field label="Date de naissance" name="birth_date" type="date"/><label className="grid gap-2 text-sm font-bold">Sexe<select name="sex" className="admin-input"><option value="">{txt.select}</option><option value="female">Femme</option><option value="male">Homme</option><option value="other">Autre</option></select></label><Field label="Ville" name="city"/><Field label={txt.state} name="state_region"/><Field label="Pays" name="country"/><Field label={txt.duration} name="period_months" type="number" defaultValue="3"/><label className="grid gap-2 text-sm font-bold md:col-span-2">Plaintes<textarea name="complaints" className="admin-input"/></label><label className="grid gap-2 text-sm font-bold md:col-span-2">{txt.goals}<textarea name="objectives" className="admin-input"/></label><button disabled={loading} className="btn-primary justify-self-start md:col-span-2">{loading?"Creation...":txt.create+" et son dossier"}</button>
+  </form></div>}
+  {transfer&&<div className="fixed inset-0 z-[130] bg-slate-950/60 p-4"><form onSubmit={transferClient} className="mx-auto mt-24 grid max-w-lg gap-4 rounded-3xl bg-white p-7"><div className="flex justify-between"><h2 className="text-xl font-black">{txt.transfer} {transfer.full_name}</h2><button type="button" onClick={()=>setTransfer(null)} className="text-3xl">&times;</button></div><select name="partner_id" required className="admin-input"><option value="">Choisir un collaborateur</option>{collaborators.map(x=><option key={x.id} value={x.id}>{x.full_name}</option>)}</select><button className="btn-primary justify-self-end">Confirmer le transfert</button></form></div>}
+ </section>
 }
-
+function Field({label,name,type="text",required=false,defaultValue}:{label:string;name:string;type?:string;required?:boolean;defaultValue?:string}){return <label className="grid gap-2 text-sm font-bold">{label}<input name={name} type={type} required={required} defaultValue={defaultValue} className="admin-input"/></label>}

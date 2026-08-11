@@ -50,6 +50,8 @@ export default function ClientShellClient({ children, email, access, activeServi
     ["/espace-client/messages", "Messages", ChatBubbleLeftRightIcon, access.teleconsultation],
     ["/espace-client/nutvita-ia", "NutVita IA", SparklesIcon, true],
     ["/espace-client/appels", english ? "Teleconsultations" : "Téléconsultations", VideoCameraIcon, access.teleconsultation],
+    ["/espace-client/menus", english ? "My meal plans" : "Mes plans alimentaires", ClipboardDocumentListIcon, access.teleconsultation],
+    ["/espace-client/historique", english ? "Complete history" : "Historique complet", ClipboardDocumentListIcon, access.teleconsultation],
     ["/espace-client/dossier", english ? "My follow-up" : "Mon suivi", ClipboardDocumentListIcon, access.health],
     ["/espace-client/tendances", english ? "My progress" : "Mes progrès", ChartBarIcon, access.health],
     ["/espace-client/ordonnances", english ? "My documents" : "Mes documents", DocumentCheckIcon, access.teleconsultation],

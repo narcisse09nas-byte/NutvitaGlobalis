@@ -1,0 +1,7 @@
+import ClientShell from "@/components/client/ClientShell";
+import {requireTeleconsultationAccess} from "@/lib/client";
+export default async function Page(){
+ const {supabase,user}=await requireTeleconsultationAccess();
+ const {data}=await supabase.from("client_menu_plans").select("*").eq("client_id",user.id).eq("status","validated").order("generated_at",{ascending:false});
+ return <ClientShell email={user.email||""}><div className="mb-7"><h1 className="text-3xl font-black">Mes plans alimentaires</h1><p className="mt-2 text-slate-500">Menus validés par votre nutritionniste et synchronisés avec votre dossier.</p></div><div className="grid gap-4">{(data||[]).map((x:any)=><article key={x.id} className="rounded-2xl border bg-white p-6"><div className="flex flex-wrap justify-between gap-4"><div><p className="text-xs font-black uppercase text-orange">{x.menu_code}</p><h2 className="mt-2 text-xl font-black">{x.title}</h2><p className="mt-1 text-sm text-slate-500">{new Date(x.period_start).toLocaleDateString("fr-FR")} → {new Date(x.period_end).toLocaleDateString("fr-FR")}</p></div><span className="rounded-full bg-mint px-3 py-1 text-xs font-black text-leaf">Validé</span></div><pre className="mt-5 whitespace-pre-wrap rounded-xl bg-slate-50 p-4 font-sans text-sm leading-6">{x.menu_payload?.text||"Le détail du menu sera bientôt disponible."}</pre></article>)}{!data?.length&&<p className="rounded-2xl bg-white p-10 text-center text-slate-400">Aucun plan alimentaire validé.</p>}</div></ClientShell>
+}

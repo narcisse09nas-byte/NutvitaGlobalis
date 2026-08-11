@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     client_id: client.id,
     booking_id: body.booking_id || null,
     source: body.source || "online",
+    consultation_nature: body.consultation_nature || (body.booking_id ? "appointment" : "first_contact"),
     status: "completed",
     scheduled_at: body.scheduled_at ? new Date(body.scheduled_at).toISOString() : finalizedAt,
     started_at: finalizedAt,

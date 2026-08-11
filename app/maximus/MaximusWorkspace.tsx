@@ -103,12 +103,12 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
       </div>
       <nav className="p-3">
         <Link href="/maximus" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${!module && !workflowView ? 'bg-[#ef7f3b] text-white' : 'text-white/75 hover:bg-white/10'}`}><LayoutDashboard className="h-5" />Tableau de bord</Link>
-        {isSuperAdmin && <Link href="/maximus/workflows" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${workflowView ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><GitBranch className="h-5" />Flux centralisÃ©s</Link>}
+{isSuperAdmin && <Link href="/maximus/workflows" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${workflowView ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><GitBranch className="h-5" />Flux centralisés</Link>}
         <Link href="/maximus/finance/internal-transfers" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'finance/internal-transfers' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><Wallet className="h-5" />Transferts internes</Link>
         {(!allowedModules || allowedModules.includes('communications/messages')) && <Link href="/maximus/communications/messages" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/messages' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />Messagerie Maximus</Link>}
-        {(!allowedModules || allowedModules.includes('communications/meetings')) && <Link href="/maximus/communications/meetings" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/meetings' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />RÃ©unions Maximus</Link>}
-        <Link href="/signatures" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white/75 hover:bg-white/10"><FileSignature className="h-5" />Signatures Ã©lectroniques</Link>
-        <Link href="/maximus/carte" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white/75 hover:bg-white/10"><IdCard className="h-5" />Ma carte d'accÃ¨s</Link>
+{(!allowedModules || allowedModules.includes('communications/meetings')) && <Link href="/maximus/communications/meetings" className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'communications/meetings' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><ClipboardList className="h-5" />Réunions Maximus</Link>}
+<Link href="/signatures" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white/75 hover:bg-white/10"><FileSignature className="h-5" />Signatures électroniques</Link>
+<Link href="/maximus/carte" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white/75 hover:bg-white/10"><IdCard className="h-5" />Ma carte d'accès</Link>
         <Link href="/" className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold text-white/75 hover:bg-white/10"><Globe2 className="h-5" />Retour au site principal</Link>
         {(!allowedModules || allowedModules.includes('menus')) && <Link href="/maximus/menus" onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-md px-3 py-3 text-sm font-bold ${module?.slug === 'menus' ? 'bg-white/15 text-white' : 'text-white/75 hover:bg-white/10'}`}><Utensils className="h-5" />Menus</Link>}
         {groups.map(([group, items]) => {
@@ -124,7 +124,7 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
 
     <section className="min-h-screen min-w-0 lg:pl-72">
       <header className="flex min-h-20 min-w-0 flex-wrap items-center justify-between gap-3 border-b bg-white px-4 py-3 pl-20 sm:px-6 sm:pl-20 lg:pl-8">
-        <div className="min-w-0"><p className="text-xs font-black uppercase tracking-widest text-[#ef7f3b]">Gestion interne</p><h1 className="break-words text-xl font-black sm:text-2xl">{workflowView ? 'Flux centralisÃ©s' : module?.title || 'Tableau de bord'}</h1></div>
+<div className="min-w-0"><p className="text-xs font-black uppercase tracking-widest text-[#ef7f3b]">Gestion interne</p><h1 className="break-words text-xl font-black sm:text-2xl">{workflowView ? 'Flux centralisés' : module?.title || 'Tableau de bord'}</h1></div>
         <div className="flex items-center gap-3"><div className="hidden text-right sm:block"><p className="text-sm font-black">{adminName}</p><p className="text-xs text-slate-500">{isSuperAdmin ? 'Super administrateur' : 'Utilisateur Maximus'}</p></div><span className="grid h-11 w-11 place-items-center rounded-full bg-[#123d32] font-black text-white">{adminName.slice(0, 2).toUpperCase()}</span></div>
       </header>
       <div className="min-w-0 overflow-x-hidden p-3 sm:p-5 lg:p-8">{workflowView ? <MaximusWorkflowOverview /> : module ? <ModuleRenderer module={module} /> : <Dashboard />}</div>
@@ -133,7 +133,7 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
 }
 
 function ModuleRenderer({ module }: { module: MaximusModule }) {
-  if (module.slug === 'hr/recruitment/question-bank') return <RecruitmentQuestionImporter scope="maximus" categories={['Nutrition','DiÃ©tÃ©tique','Finance','Ressources humaines','Commercial','Production','Logistique','Administration','Informatique']} />;
+if (module.slug === 'hr/recruitment/question-bank') return <RecruitmentQuestionImporter scope="maximus" categories={['Nutrition','Diététique','Finance','Ressources humaines','Commercial','Production','Logistique','Administration','Informatique']} />;
   if (module.slug === 'finance/reports') return <TreasuryFinancialReports />;
   if (module.slug === 'finance/internal-transfers') return <InternalTransfers />;
   if (module.slug === 'finance/treasury-accounts') return <TreasuryManagement mode="accounts" />;
@@ -195,17 +195,17 @@ function ModuleRenderer({ module }: { module: MaximusModule }) {
 
 function Dashboard() {
   const metrics = [
-    ['Chiffre dâ€™affaires', '0 FCFA', ShoppingCart, 'Ventes consolidÃ©es du mois'],
+['Chiffre d’affaires', '0 FCFA', ShoppingCart, 'Ventes consolidées du mois'],
     ['Personnel actif', '0', Users, 'Cabinet, cuisines et points de vente'],
-    ['Commandes du jour', '0', ClipboardList, 'Toutes unitÃ©s confondues'],
-    ['Actifs enregistrÃ©s', '0', Archive, 'Ã‰quipements et flotte'],
+['Commandes du jour', '0', ClipboardList, 'Toutes unités confondues'],
+['Actifs enregistrés', '0', Archive, 'Équipements et flotte'],
   ] as const;
   return <div className="grid gap-6">
-    <section><h2 className="text-2xl font-black">Vue dâ€™ensemble opÃ©rationnelle</h2><p className="mt-1 text-slate-500">Pilotage du cabinet, de la restauration, des Ã©quipes et des ressources.</p></section>
+<section><h2 className="text-2xl font-black">Vue d’ensemble opérationnelle</h2><p className="mt-1 text-slate-500">Pilotage du cabinet, de la restauration, des équipes et des ressources.</p></section>
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(([label, value, Icon, note]) => <article key={label} className="rounded-lg border bg-white p-5"><div className="flex items-start justify-between"><div><p className="text-sm font-bold text-slate-500">{label}</p><p className="mt-3 text-3xl font-black">{value}</p></div><span className="grid h-10 w-10 place-items-center rounded-md bg-emerald-50 text-emerald-700"><Icon className="h-5" /></span></div><p className="mt-4 text-xs text-slate-400">{note}</p></article>)}</section>
     <section className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-      <article className="rounded-lg border bg-white p-6"><h3 className="text-lg font-black">ActivitÃ© mensuelle</h3><div className="mt-6 flex h-72 items-end gap-3 border-b border-l p-5">{[28,44,37,62,55,74,69,86,72,91,83,96].map((height, index) => <div key={index} className="flex-1 rounded-t bg-[#24945f]" style={{ height: `${height}%` }} title={`Mois ${index + 1}`} />)}</div></article>
-      <article className="rounded-lg border bg-white p-6"><h3 className="text-lg font-black">PrioritÃ©s de gestion</h3><div className="mt-5 grid gap-3">{['Valider les demandes financiÃ¨res', 'Consolider les commandes des points de vente', 'ContrÃ´ler les seuils du stock central', 'Mettre Ã  jour les prÃ©sences du personnel'].map((item, index) => <div key={item} className="flex items-center gap-3 rounded-md bg-slate-50 p-4"><span className="grid h-8 w-8 place-items-center rounded-full bg-white font-black text-emerald-700">{index + 1}</span><p className="text-sm font-bold">{item}</p></div>)}</div></article>
+      <article className="rounded-lg border bg-white p-6"><h3 className="text-lg font-black">Activité mensuelle</h3><div className="mt-6 flex h-72 items-end gap-3 border-b border-l p-5">{[28,44,37,62,55,74,69,86,72,91,83,96].map((height, index) => <div key={index} className="flex-1 rounded-t bg-[#24945f]" style={{ height: `${height}%` }} title={`Mois ${index + 1}`} />)}</div></article>
+      <article className="rounded-lg border bg-white p-6"><h3 className="text-lg font-black">Priorités de gestion</h3><div className="mt-5 grid gap-3">{['Valider les demandes financières', 'Consolider les commandes des points de vente', 'Contrôler les seuils du stock central', 'Mettre à jour les présences du personnel'].map((item, index) => <div key={item} className="flex items-center gap-3 rounded-md bg-slate-50 p-4"><span className="grid h-8 w-8 place-items-center rounded-full bg-white font-black text-emerald-700">{index + 1}</span><p className="text-sm font-bold">{item}</p></div>)}</div></article>
     </section>
   </div>;
 }

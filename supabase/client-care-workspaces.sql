@@ -1,0 +1,16 @@
+-- Dedicated client workspaces. Run after platform-compliance-ops.sql.
+alter table public.dietitian_profiles add column if not exists avatar_url text;
+alter table public.dietitian_profiles add column if not exists sex text check (sex is null or sex in ('female','male','other'));
+alter table public.dietitian_profiles add column if not exists public_bio text;
+alter table public.dietitian_profiles add column if not exists public_bio_en text;
+alter table public.dietitian_profiles add column if not exists public_profile jsonb not null default '{}'::jsonb;
+alter table public.dietitian_profiles add column if not exists public_visible_fields text[] not null default array['full_name','specialties','languages','public_bio'];
+create table if not exists public.client_care_goals (id uuid primary key default gen_random_uuid(),client_id uuid not null references public.client_profiles(id) on delete cascade,dietitian_id uuid references public.dietitian_profiles(id) on delete set null,consultation_id uuid references public.partner_consultations(id) on delete set null,label text not null,target_value numeric,target_text text,unit text,status text not null default 'active' check(status in ('active','achieved','paused','cancelled')),source text not null default 'client' check(source in ('client','dietitian')),target_date date,notes text,created_at timestamptz not null default now(),updated_at timestamptz not null default now());
+create table if not exists public.client_symptom_logs (id uuid primary key default gen_random_uuid(),client_id uuid not null references public.client_profiles(id) on delete cascade,logged_at timestamptz not null default now(),symptom text not null,severity integer check(severity between 1 and 10),duration text,notes text,shared_with_dietitian boolean not null default true);
+create table if not exists public.client_reminders (id uuid primary key default gen_random_uuid(),client_id uuid not null references public.client_profiles(id) on delete cascade,title text not null,reminder_type text not null default 'general',scheduled_for timestamptz not null,recurrence text,notes text,completed_at timestamptz,created_at timestamptz not null default now());
+alter table public.client_care_goals enable row level security;
+alter table public.client_symptom_logs enable row level security;
+alter table public.client_reminders enable row level security;
+create policy goal_participants_manage on public.client_care_goals for all to authenticated using(client_id=(select auth.uid()) or public.is_admin() or exists(select 1 from public.dietitian_profiles d where d.id=dietitian_id and d.candidate_id=(select auth.uid()))) with check(client_id=(select auth.uid()) or public.is_admin() or exists(select 1 from public.dietitian_profiles d where d.id=dietitian_id and d.candidate_id=(select auth.uid())));
+create policy clients_manage_symptoms on public.client_symptom_logs for all to authenticated using(client_id=(select auth.uid()) or public.is_admin()) with check(client_id=(select auth.uid()) or public.is_admin());
+create policy clients_manage_reminders on public.client_reminders for all to authenticated using(client_id=(select auth.uid()) or public.is_admin()) with check(client_id=(select auth.uid()) or public.is_admin());

@@ -1,18 +1,11 @@
 import PartnerShell from "@/components/partner/PartnerShell";
-import RegionalMealPlanner from "@/components/partner/RegionalMealPlanner";
-import { requirePartner } from "@/lib/partner";
-
-export default async function Page() {
-  const { user } = await requirePartner();
-  return (
-    <PartnerShell email={user.email || ""}>
-      <div className="mb-7">
-        <h1 className="text-3xl font-black">Menus et équivalents régionaux</h1>
-        <p className="mt-2 max-w-3xl text-slate-500">
-          Préparez un brouillon de plan alimentaire local, puis validez-le selon le dossier clinique, les analyses, les traitements et les préférences du patient.
-        </p>
-      </div>
-      <RegionalMealPlanner />
-    </PartnerShell>
-  );
+import ClientMenuPlannerWorkspace from "@/components/partner/ClientMenuPlannerWorkspace";
+import {requirePartner} from "@/lib/partner";
+export default async function Page(){
+ const {supabase,user,profile}=await requirePartner();
+ const [{data:clients},{data:menus}]=await Promise.all([
+  supabase.from("client_profiles").select("id,client_number,full_name").or(`created_by_partner_id.eq.${profile.id},assigned_partner_id.eq.${profile.id}`).order("full_name"),
+  supabase.from("client_menu_plans").select("*,client_profiles(full_name)").eq("partner_id",profile.id).order("generated_at",{ascending:false})
+ ]);
+ return <PartnerShell email={user.email||""}><ClientMenuPlannerWorkspace partnerId={profile.id} clients={clients||[]} initial={menus||[]}/></PartnerShell>
 }

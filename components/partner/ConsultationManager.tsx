@@ -9,6 +9,7 @@ import {ageInMonths,calculateIycf,calculateMddw,childFoodItems,mddwFoodItems} fr
 import LabParameterEditor, { defaultLabParameters, serializeLabParameters, type LabParameter } from "@/components/health/LabParameterEditor";
 import RegionalMealPlanner from "@/components/partner/RegionalMealPlannerI18n";
 import WellnessQuestionnaires from "@/components/health/WellnessQuestionnairesV2";
+import Nutrition24hAssessment from "@/components/partner/Nutrition24hAssessment";
 import type { WellnessAssessmentBundle } from "@/lib/wellness-assessments-v2";
 
 type Row = Record<string, any>;
@@ -62,6 +63,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
   const [labParameters,setLabParameters]=useState<LabParameter[]>(defaultLabParameters);
   const [mealPlan,setMealPlan]=useState("");
   const [wellnessAssessment,setWellnessAssessment]=useState<WellnessAssessmentBundle|null>(null);
+  const [nutrition24h,setNutrition24h]=useState<Row|null>(null);
   const client = clients.find(item => item.id === clientId);
   const children=Array.isArray(client?.children)?client.children:[];
   const selectedChild=children.find((item:Row)=>item.id===childId);
@@ -80,7 +82,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
     const calorieIntake=["breakfast_kcal","lunch_kcal","dinner_kcal","snacks_kcal","drinks_kcal"].reduce((sum,key)=>sum+Number(data.get(key)||0),0);
     const vigorousMinutes=(Number(data.get("vigorous_work_days")||0)*Number(data.get("vigorous_work_minutes")||0))+(Number(data.get("vigorous_leisure_days")||0)*Number(data.get("vigorous_leisure_minutes")||0));
     const moderateMinutes=(Number(data.get("moderate_work_days")||0)*Number(data.get("moderate_work_minutes")||0))+(Number(data.get("moderate_leisure_days")||0)*Number(data.get("moderate_leisure_minutes")||0))+(Number(data.get("transport_days")||0)*Number(data.get("transport_minutes")||0));
-    return {laboratory_parameters:serializeLabParameters(labParameters),wellness_scores:wellnessAssessment?{nutrition:wellnessAssessment.nutrition,activity:wellnessAssessment.activity,lifestyle:wellnessAssessment.lifestyle,answers:wellnessAssessment.answers}:null,dietary:{module:"NUTVITA_12_ITEM_SCORE",age_months:childAge,result:wellnessAssessment?.nutrition||dietary},calorie:{estimated_intake_kcal:calorieIntake,estimated_need_kcal:Number(data.get("estimated_need_kcal")||0),method:"24h meal estimate"},physical_activity:{met_minutes_week:vigorousMinutes*8+moderateMinutes*4,vigorous_minutes_week:vigorousMinutes,moderate_transport_minutes_week:moderateMinutes,sitting_minutes_day:Number(data.get("sitting_minutes_day")||0),method:"WHO GPAQ domains"},lifestyle:{sleep_hours:Number(data.get("sleep_hours")||0),sleep_quality:data.get("sleep_quality"),stress_level:Number(data.get("stress_level")||0),water_liters:Number(data.get("water_liters")||0),screen_hours:Number(data.get("screen_hours")||0),tobacco:data.get("tobacco"),alcohol:data.get("alcohol")}};
+    return {laboratory_parameters:serializeLabParameters(labParameters),wellness_scores:wellnessAssessment?{nutrition:wellnessAssessment.nutrition,activity:wellnessAssessment.activity,lifestyle:wellnessAssessment.lifestyle,answers:wellnessAssessment.answers}:null,dietary:{module:"NUTVITA_12_ITEM_SCORE",age_months:childAge,result:wellnessAssessment?.nutrition||dietary},calorie:{estimated_intake_kcal:nutrition24h?.totals?.kcal||calorieIntake,estimated_need_kcal:Number(data.get("estimated_need_kcal")||0),protein_g:nutrition24h?.totals?.protein_g,carbohydrate_g:nutrition24h?.totals?.carbohydrate_g,fat_g:nutrition24h?.totals?.fat_g,fiber_g:nutrition24h?.totals?.fiber_g,minerals:nutrition24h?.minerals,vitamins:nutrition24h?.vitamins,professional_comment:nutrition24h?.professional_comment,recommendations:nutrition24h?.recommendations,method:"AI-assisted quantified 24h recall"},physical_activity:{met_minutes_week:vigorousMinutes*8+moderateMinutes*4,vigorous_minutes_week:vigorousMinutes,moderate_transport_minutes_week:moderateMinutes,sitting_minutes_day:Number(data.get("sitting_minutes_day")||0),method:"WHO GPAQ domains"},lifestyle:{sleep_hours:Number(data.get("sleep_hours")||0),sleep_quality:data.get("sleep_quality"),stress_level:Number(data.get("stress_level")||0),water_liters:Number(data.get("water_liters")||0),screen_hours:Number(data.get("screen_hours")||0),tobacco:data.get("tobacco"),alcohol:data.get("alcohol")}};
   }
 
   async function analyzeBeforePlan(form:HTMLFormElement){
@@ -106,6 +108,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
       child_id:childId||null,
       pack_type: pack,
       source: data.get("source"),
+      consultation_nature: data.get("consultation_nature"),
       scheduled_at: data.get("scheduled_at"),
       reason: data.get("reason"),
       complaints: data.getAll("complaints"),
@@ -136,6 +139,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
     setLabParameters(defaultLabParameters);
     setMealPlan("");
     setWellnessAssessment(null);
+    setNutrition24h(null);
     setMessage("Consultation finalisee, documents crees et prochain rendez-vous programme.");
   }
 
@@ -154,10 +158,11 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {!!dietitians.length&&<label className="grid gap-2 text-sm font-bold">Nutritionniste responsable<select value={responsiblePartnerId} onChange={event=>setResponsiblePartnerId(event.target.value)} required className="admin-input"><option value="">Selectionner</option>{dietitians.map(item=><option key={item.id} value={item.id}>{item.full_name}</option>)}</select></label>}
           <label className="grid gap-2 text-sm font-bold">Client actif<select value={clientId} onChange={event => setClientId(event.target.value)} required className="admin-input"><option value="">Selectionner</option>{clients.map(item => <option key={item.id} value={item.id}>{item.full_name} - {item.username || item.email || item.client_number}</option>)}</select></label>
-          <label className="grid gap-2 text-sm font-bold">Pack / contexte<select value={pack} onChange={event => { setPack(event.target.value); setGoals([]); }} className="admin-input"><option value="general">Consultation generale</option><option value="perte-poids">Pack Perte de poids</option><option value="diabete">Pack Diabete</option><option value="grossesse">Pack Femme enceinte</option><option value="infantile">Pack Nutrition infantile</option></select></label>
+          <label className="grid gap-2 text-sm font-bold">Contexte clinique<select value={pack} onChange={event => { setPack(event.target.value); setGoals([]); }} className="admin-input"><option value="general">Consultation générale</option><option value="perte-poids">Gestion du poids</option><option value="diabete">Diabète et risque cardiométabolique</option><option value="grossesse">Grossesse</option><option value="infantile">Nutrition infantile</option></select></label>
           {!!children.length&&<label className="grid gap-2 text-sm font-bold">Enfant concerne (facultatif)<select value={childId} onChange={event=>setChildId(event.target.value)} className="admin-input"><option value="">Client lui-meme</option>{children.map((item:Row)=><option key={item.id} value={item.id}>{item.full_name} - {ageInMonths(item.birth_date)} mois</option>)}</select></label>}
           <label className="grid gap-2 text-sm font-bold">Date de consultation<input name="scheduled_at" type="datetime-local" required className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Mode<select name="source" className="admin-input"><option value="online">En ligne</option><option value="onsite">Site physique</option><option value="home_visit">Visite a domicile</option><option value="partner_direct">Initiee directement</option></select></label>
+          <label className="grid gap-2 text-sm font-bold">Nature<select name="consultation_nature" className="admin-input"><option value="first_contact">Premier contact</option><option value="appointment">Consultation sur rendez-vous</option><option value="other">Autre</option></select></label>
+          <label className="grid gap-2 text-sm font-bold">Type<select name="source" className="admin-input"><option value="online">En ligne</option><option value="onsite">En présentiel</option><option value="home_visit">À domicile</option></select></label>
         </div>
         {client && <div className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 text-sm md:grid-cols-3"><Info label="Nom" value={client.full_name}/><Info label="Naissance" value={client.birth_date}/><Info label="Sexe" value={client.sex}/><Info label="Telephone" value={client.phone || client.whatsapp_phone}/><Info label="Ville" value={client.city}/><Info label="Allergies" value={client.allergies}/></div>}
       </section>
@@ -170,15 +175,16 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
       </section>
 
       <section className="rounded-3xl border border-forest/10 bg-white p-6 shadow-soft">
-        <Step number="3" title="RÃ©sultats biologiques et sanguins" />
-        <p className="mt-3 text-sm leading-6 text-slate-600">Saisissez les rÃ©sultats disponibles avec lâ€™unitÃ© et les limites de rÃ©fÃ©rence propres au laboratoire. Ces informations seront intÃ©grÃ©es dans lâ€™analyse prÃ©paratoire.</p>
+<Step number="3" title="Résultats biologiques et sanguins" />
+<p className="mt-3 text-sm leading-6 text-slate-600">Saisissez les résultats disponibles avec l’unité et les limites de référence propres au laboratoire. Ces informations seront intégrées dans l’analyse préparatoire.</p>
         <div className="mt-5"><LabParameterEditor items={labParameters} onChange={setLabParameters} locale={locale}/></div>
       </section>
 
 <section className="grid gap-6">
         <div className="rounded-2xl border bg-white p-6"><Step number="4" title="Alimentation, activite physique et mode de vie" /><p className="mt-3 text-sm text-slate-500">Questionnaires structures sur les 7 derniers jours. Les scores et signaux prioritaires alimentent l'analyse preparatoire.</p></div>
         <WellnessQuestionnaires onChange={setWellnessAssessment} locale={locale}/>
-        <div className="rounded-2xl border bg-white p-6"><h3 className="font-black">Estimation energetique sur 24 heures</h3><div className="mt-3 grid gap-3 md:grid-cols-3"><MiniNumber name="breakfast_kcal" label="Petit-dejeuner (kcal)"/><MiniNumber name="lunch_kcal" label="Dejeuner (kcal)"/><MiniNumber name="dinner_kcal" label="Diner (kcal)"/><MiniNumber name="snacks_kcal" label="Collations (kcal)"/><MiniNumber name="drinks_kcal" label="Boissons (kcal)"/><MiniNumber name="estimated_need_kcal" label="Besoin estime (kcal/j)"/></div></div>
+        <Nutrition24hAssessment clientId={clientId} partnerId={responsiblePartnerId} locale={locale} onAnalyzed={setNutrition24h}/>
+        <div className="rounded-2xl border bg-white p-6"><h3 className="font-black">Besoin énergétique de référence</h3><div className="mt-3 max-w-sm"><MiniNumber name="estimated_need_kcal" label="Besoin estimé (kcal/j)"/></div></div>
       </section>
 
       <section className="rounded-2xl border-2 border-leaf bg-white p-6">

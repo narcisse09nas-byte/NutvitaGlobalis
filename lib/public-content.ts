@@ -101,6 +101,7 @@ export async function getHomepage() {
   const locale = await getCurrentLocale();
   const canonical = locale === "en" ? [
     { title: "Dietetic and nutrition consultations", text: "In-person or online consultations, personalized assessment, follow-up and professional nutrition guidance.", ctaLabel: "Access consultations", href: "/teleconseils" },
+    { title: "Specialist medical consultations", text: "Consult qualified healthcare professionals for metabolic, nutrition-related and associated conditions.", ctaLabel: "Access consultations", href: "/consultations-medicales" },
     { title: "Autonomous Health Monitoring", text: "Record your indicators, visualize trends and receive careful analyses in your secure space.", ctaLabel: "Discover the solution", href: "/suivi-sante" },
     { title: "Support applications", text: "Applications for acute malnutrition care, surveys and project, programme and portfolio management.", ctaLabel: "Explore applications", href: "/applications-support" },
     { title: "Certified training", text: "Practical, assessed certification pathways designed by nutrition, health and management experts.", ctaLabel: "Explore courses", href: "/formations" },
@@ -108,6 +109,7 @@ export async function getHomepage() {
     { title: "Scientific Research, Innovation & Strategic Consulting", text: "Research, data, AI and strategic support for institutions, organizations and businesses worldwide.", ctaLabel: "Discover the solution", href: "/recherche-innovation" },
   ] : [
     { title: "Consultations diététiques et nutritionnelles", text: "Consultations en présentiel ou en ligne, bilan personnalisé, suivi et orientation nutritionnelle professionnelle.", ctaLabel: "Accéder aux consultations", href: "/teleconseils" },
+    { title: "Consultations médicales spécialisées", text: "Consultez des professionnels de santé qualifiés pour la prise en charge des pathologies métaboliques, nutritionnelles et associées.", ctaLabel: "Accéder aux consultations", href: "/consultations-medicales" },
     { title: "Suivi Santé Autonome", text: "Enregistrez vos indicateurs, visualisez vos tendances et recevez des analyses prudentes dans votre espace sécurisé.", ctaLabel: "Découvrir la solution", href: "/suivi-sante" },
     { title: "Applications de support", text: "Applications dédiées à la malnutrition aiguë, aux enquêtes et à la gestion de projets, programmes et portefeuilles.", ctaLabel: "Explorer les applications", href: "/applications-support" },
     { title: "Formations certifiantes", text: "Parcours pratiques, évalués et certifiants conçus par des experts.", ctaLabel: "Explorer les formations", href: "/formations" },
@@ -118,10 +120,11 @@ export async function getHomepage() {
   const { data } = await (await createClient()).from("homepage_settings").select("*").eq("id", 1).maybeSingle();
   if (!data) return { services: canonical };
   const stored = locale === "en" && Array.isArray(data.services_en) ? repairContent(data.services_en) : locale === "fr" && Array.isArray(data.services) ? repairContent(data.services) : [];
-  const patterns = [/consult|tele/i,/autonomous health|suivi sant[eé] autonome/i,/support application|applications de support/i,/certified training|formations certifiantes/i,/catering|restauration/i,/scientific|scientifique/i];
+  const patterns = [/dietetic|diététique|nutrition consultation/i,/specialist medical|médicales spécialisées/i,/autonomous health|suivi sant[eé] autonome/i,/support application|applications de support/i,/certified training|formations certifiantes/i,/catering|restauration/i,/scientific|scientifique/i];
   const services = canonical.map((fallback,index) => ({...fallback,...(stored.find((item:any)=>patterns[index].test(String(item?.title||"")))||{})}));
-  services[0].href="/teleconseils"; services[1].href="/suivi-sante"; services[2].href="/applications-support"; services[3].href="/formations"; services[4].href="/restauration"; services[5].href="/recherche-innovation";
-  services[5].ctaLabel=locale==="en"?"Discover the solution":"Découvrir la solution";
+  services[0].href="/teleconseils"; services[1].href="/consultations-medicales"; services[2].href="/suivi-sante"; services[3].href="/applications-support"; services[4].href="/formations"; services[5].href="/restauration"; services[6].href="/recherche-innovation";
+  services[1].ctaLabel=locale==="en"?"Access consultations":"Accéder aux consultations";
+  services[6].ctaLabel=locale==="en"?"Discover the solution":"Découvrir la solution";
   return repairContent({ ...data, hero_title: pickLocalized(data, "hero_title", locale), slogan: pickLocalized(data, "slogan", locale), presentation: pickLocalized(data, "presentation", locale), primary_button_label: pickLocalized(data, "primary_button_label", locale), secondary_button_label: pickLocalized(data, "secondary_button_label", locale), newsletter_title: pickLocalized(data, "newsletter_title", locale), newsletter_text: pickLocalized(data, "newsletter_text", locale), services });
 }
 export async function getHomepageCommunity() {

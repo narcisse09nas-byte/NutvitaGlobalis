@@ -78,6 +78,15 @@ const navGroups = [
     ["/admin/promoteurs/registre", "Registre et cagnotes", UserGroupIcon, [...all, "recruitment_admin", "finance_admin"]],
     ["/admin/promoteurs/paiements", "Paiements promoteurs", CreditCardIcon, [...all, "finance_admin"]],
   ]},
+  {title:"Médecins spécialistes", tone:"bg-emerald-500/15", links:[
+    ["/admin/medecins-specialistes", "Recrutement & management", UserPlusIcon, [...all, "recruitment_admin", "health_admin"]],
+  ]},
+  {title:"Médecins spécialistes", tone:"bg-emerald-500/15", links:[
+    ["/admin/medecins-specialistes", "Recrutement & management", UserPlusIcon, [...all, "recruitment_admin", "health_admin"]],
+  ]},
+  {title:"Médecins spécialistes", tone:"bg-emerald-500/15", links:[
+    ["/admin/medecins-specialistes", "Recrutement & management", UserPlusIcon, [...all, "recruitment_admin", "health_admin"]],
+  ]},
   {title:"Collaboration", tone:"bg-violet-500/15", links:[
     ["/admin/collaboration", "Collaboration", ChatBubbleOvalLeftEllipsisIcon, [...all, "health_admin", "recruitment_admin"]],
     ["/admin/appels", "Appels video", VideoCameraIcon, [...all, "health_admin", "recruitment_admin"]],
@@ -132,7 +141,7 @@ export default function AdminShell({ children, name }: { children: ReactNode; na
     links:group.links.filter(([, , , roles]) => !roles || roles.includes(role as never)),
   })).filter(group=>group.links.length);
 
-  return <div className={`min-h-screen bg-slate-100 ${path.startsWith("/admin/recrutement") || path.startsWith("/admin/promoteurs") ? "admin-recruitment-workspace" : ""}`}>
+  return <div className={`min-h-screen bg-slate-100 ${path.startsWith("/admin/recrutement") || path.startsWith("/admin/promoteurs") || path.startsWith("/admin/medecins-specialistes") ? "admin-recruitment-workspace" : ""}`}>
     <aside className={`fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-forest p-6 pb-24 text-white transition lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="mb-9 flex items-center justify-between">
         <Link href="/admin" className="text-xl font-black">NutVita<span className="text-orange">Admin</span></Link>

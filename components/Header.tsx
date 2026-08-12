@@ -32,6 +32,9 @@ export default function Header() {
   const opportunities = [
     ["/carrieres", locale === "en" ? "Job opportunities" : "Offres d'emploi", locale === "en" ? "Join the NutVitaGlobalis staff team." : "Rejoignez l'équipe Staff NutVitaGlobalis.", BriefcaseIcon],
     ["/recrutement-dieteticiens", locale === "en" ? "Spontaneous dietitian application" : "Candidature spontanée nutritionniste", locale === "en" ? "Submit and track your spontaneous application." : "Déposez et suivez votre candidature spontanée en continu.", UserGroupIcon],
+    ["/rejoindre-medecins-specialistes", locale === "en" ? "Join our specialist doctors" : "Rejoindre notre réseau de médecins spécialistes", locale === "en" ? "Apply and track your specialist application." : "Postulez et suivez votre candidature médicale.", UserGroupIcon],
+    ["/rejoindre-medecins-specialistes", locale === "en" ? "Join our specialist doctors" : "Rejoindre notre réseau de médecins spécialistes", locale === "en" ? "Apply and track your specialist application." : "Postulez et suivez votre candidature médicale.", UserGroupIcon],
+    ["/rejoindre-medecins-specialistes", locale === "en" ? "Join our specialist doctors" : "Rejoindre notre réseau de médecins spécialistes", locale === "en" ? "Apply and track your specialist application." : "Postulez et suivez votre candidature médicale.", UserGroupIcon],
     ["/devenir-promoteur", locale === "en" ? "Promoter network" : "Espace promoteurs", locale === "en" ? "Join the NutVitaGlobalis promoter network." : "Rejoignez le reseau des promoteurs NutVitaGlobalis.", MegaphoneIcon],
   ] as const;
   const opportunityActive = opportunities.some(([href]) => canonical === href);

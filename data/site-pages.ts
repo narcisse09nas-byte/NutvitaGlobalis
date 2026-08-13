@@ -1,4 +1,5 @@
 import { clinicalNutritionSectionsEn, clinicalNutritionSectionsFr } from "./clinical-nutrition-page";
+import { nutritionProgramSitePages } from "./nutrition-program-site-pages";
 export type ManagedSection = { title: string; text?: string; items?: string[]; image_url?: string; cta_label?: string; cta_url?: string; badge?: string };
 export type SitePageContent = {
   page_key: string;
@@ -93,6 +94,7 @@ export const sitePages: SitePageContent[] = [
     { title: "Nos domaines", items: ["Santé publique et nutrition", "Sécurité alimentaire", "Données et systèmes d'information", "Gestion de projets, programmes et portefeuilles"] },
     { title: "Notre démarche", items: ["Comprendre", "Concevoir", "Mettre en œuvre", "Mesurer", "Capitaliser"] },
     { title: "Pourquoi NutVitaGlobalis", items: ["Décisions fondées sur les preuves", "Expertise multidisciplinaire internationale", "Solutions adaptées au contexte", "Référentiels OMS, UNICEF, FAO et Sphere"] },
-  ], cta_label: "Parler de votre projet", cta_url: "/contact" },];
+  ], cta_label: "Parler de votre projet", cta_url: "/contact" },  ...nutritionProgramSitePages,
+];
 
 export function defaultSitePage(key: string) { return sitePages.find(page => page.page_key === key); }

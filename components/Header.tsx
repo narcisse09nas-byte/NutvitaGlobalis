@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -23,8 +23,6 @@ export default function Header() {
   const links = [
     ["/", t.home],
     ["/services", locale === "en" ? "Our services" : "Nos services"],
-    ["/teleconseils", locale === "en" ? "Dietetic/nutrition consultations" : "Consultations diététiques/nutritionnelles"],
-    ["/restauration", locale === "en" ? "Catering" : "Restauration"],
     ["/ressources", t.resources],
     ["/a-propos", t.about],
     ["/contact", t.contact],

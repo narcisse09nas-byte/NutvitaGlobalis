@@ -1,5 +1,5 @@
-import ManagedPageHero from "@/components/ManagedPageHero";
-import ManagedPageSections from "@/components/ManagedPageSections";
+import AboutExperience from "@/components/AboutExperience";
 import { getSitePage } from "@/lib/site-pages";
-export const metadata = { title: "À propos" };
-export default async function About() { const page = await getSitePage("a-propos"); return page ? <><ManagedPageHero initial={page}/><ManagedPageSections initial={page}/></> : null; }
+import { getCurrentLocale } from "@/lib/i18n-server";
+export const metadata = { title: "À propos | NutVitaGlobalis" };
+export default async function About() { const [page,locale] = await Promise.all([getSitePage("a-propos"),getCurrentLocale()]); return page ? <AboutExperience page={page} en={locale==="en"}/> : null; }

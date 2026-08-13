@@ -1,4 +1,4 @@
-import type {PlatformRole,PlatformServiceKey} from "@/lib/platform-services";
+﻿import type {PlatformRole,PlatformServiceKey} from "@/lib/platform-services";
 
 const purchaseDestinations: Record<PlatformServiceKey,string> = {
   client:"/espace-client/services",
@@ -6,6 +6,7 @@ const purchaseDestinations: Record<PlatformServiceKey,string> = {
   health:"/espace-client/services?categorie=health_tracking",
   child_growth:"/espace-client/services?categorie=child_growth",
   teleconsultation:"/teleconseils",
+  medical_consultation:"/consultations-medicales",
   catering:"/restauration",
   survey:"/espace-client/services?categorie=survey",
   project_management:"/espace-client/services?categorie=project_management",

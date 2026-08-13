@@ -1,4 +1,4 @@
--- Central NutVitaGlobalis service and role access. Run after advanced-admin-security.sql.
+﻿-- Central NutVitaGlobalis service and role access. Run after advanced-admin-security.sql.
 create table if not exists public.platform_service_access (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -9,7 +9,7 @@ create table if not exists public.platform_service_access (
   unique(user_id,service_key)
 );
 alter table public.platform_service_access drop constraint if exists platform_service_access_service_key_check;
-alter table public.platform_service_access add constraint platform_service_access_service_key_check check(service_key in ('client','academy','health','child_growth','teleconsultation','survey','project_management','recruitment','nutritrack','maximus','administration'));
+alter table public.platform_service_access add constraint platform_service_access_service_key_check check(service_key in ('client','academy','health','child_growth','teleconsultation','medical_consultation','survey','project_management','recruitment','nutritrack','maximus','catering','administration'));
 create table if not exists public.platform_session_selections (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -23,6 +23,7 @@ alter table public.platform_session_selections add constraint platform_session_s
   (service_key='client' and role_key='client') or
   (service_key='academy' and role_key in ('student','instructor','admin')) or
   (service_key in ('health','child_growth','teleconsultation') and role_key in ('client','nutritionist','admin')) or
+  (service_key='medical_consultation' and role_key in ('client','specialist','admin')) or
   (service_key in ('survey','project_management','nutritrack') and role_key in ('client','admin')) or
   (service_key='recruitment' and role_key in ('candidate','admin')) or
   (service_key='maximus' and role_key in ('staff','admin')) or
@@ -86,8 +87,9 @@ insert into public.platform_service_access(user_id,service_key,roles)
 select u.id,s.service_key,s.roles from auth.users u cross join (values
   ('client',array['client']),('academy',array['student','instructor','admin']),('health',array['client','nutritionist','admin']),
   ('child_growth',array['client','nutritionist','admin']),('teleconsultation',array['client','nutritionist','admin']),
+  ('medical_consultation',array['client','specialist','admin']),
   ('survey',array['client','admin']),('project_management',array['client','admin']),
   ('recruitment',array['candidate','admin']),
-  ('nutritrack',array['client','admin']),('maximus',array['staff','admin']),('administration',array['super_admin'])
+  ('nutritrack',array['client','admin']),('maximus',array['staff','admin']),('catering',array['client','admin']),('administration',array['super_admin'])
 ) as s(service_key,roles) where lower(u.email) in ('pauln.zebaze@gmail.com','contact@nutvitaglobalis.com')
 on conflict(user_id,service_key) do update set roles=excluded.roles,active=true,expires_at=null;

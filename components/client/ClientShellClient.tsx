@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -22,7 +22,6 @@ export default function ClientShellClient({ children, email, access, activeServi
   const path = usePathname();
   const common: LinkItem[] = [
     ["/espace-client", english ? "Dashboard" : "Tableau de bord", HomeIcon, true],
-    ["/espace-client/services", english ? "Our services" : "Nos services", CreditCardIcon, true],
     ["/espace-client/abonnement", english ? "My subscriptions" : "Mes abonnements", CreditCardIcon, true],
     ["/espace-client/profil", english ? "My profile" : "Mon profil", UserCircleIcon, true],
     ["/espace-client/nutvita-ia", "NutVita IA", SparklesIcon, true],
@@ -63,7 +62,7 @@ export default function ClientShellClient({ children, email, access, activeServi
   const catering: LinkItem[] = [
     ["/restauration/commander", "Commander un repas", CreditCardIcon, true],
   ];
-  const commonPaths = ["/espace-client", "/espace-client/services", "/espace-client/abonnement", "/espace-client/profil", "/espace-client/carte", "/espace-client/securite", "/espace-client/confidentialite", "/espace-client/ressources-premium"];
+  const commonPaths = ["/espace-client", "/espace-client/abonnement", "/espace-client/profil", "/espace-client/carte", "/espace-client/securite", "/espace-client/confidentialite", "/espace-client/ressources-premium"];
   const serviceLinks = commonPaths.includes(path) ? common : activeService === "health" ? health : activeService === "child_growth" ? childGrowth : activeService === "teleconsultation" ? teleconsultation : activeService === "catering" ? catering : common;
   const healthMode = activeService === "health" || activeService === "child_growth";
 

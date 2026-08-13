@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -77,12 +77,6 @@ const navGroups = [
 ["/admin/promoteurs/decisions", "Décisions et codes", DocumentCheckIcon, [...all, "recruitment_admin"]],
     ["/admin/promoteurs/registre", "Registre et cagnotes", UserGroupIcon, [...all, "recruitment_admin", "finance_admin"]],
     ["/admin/promoteurs/paiements", "Paiements promoteurs", CreditCardIcon, [...all, "finance_admin"]],
-  ]},
-  {title:"Médecins spécialistes", tone:"bg-emerald-500/15", links:[
-    ["/admin/medecins-specialistes", "Recrutement & management", UserPlusIcon, [...all, "recruitment_admin", "health_admin"]],
-  ]},
-  {title:"Médecins spécialistes", tone:"bg-emerald-500/15", links:[
-    ["/admin/medecins-specialistes", "Recrutement & management", UserPlusIcon, [...all, "recruitment_admin", "health_admin"]],
   ]},
   {title:"Médecins spécialistes", tone:"bg-emerald-500/15", links:[
     ["/admin/medecins-specialistes", "Recrutement & management", UserPlusIcon, [...all, "recruitment_admin", "health_admin"]],

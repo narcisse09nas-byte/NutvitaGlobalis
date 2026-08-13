@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { hasLocalAdminMode, hasSupabaseConfig } from "@/lib/supabase/config";
@@ -39,7 +39,7 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
   if (!identity.supabase) add("client", "client");
   if (identity.supabase) {
     const userId = identity.user.id;
-    const [{ data: grants }, { data: clientProfile }, { data: enrollments }, { data: academyProfile }, { data: subscriptions }, { data: plans }, { data: bookings }, { data: partner }, { data: candidate }, { data: nutritrack }, { data: maximus }] = await Promise.all([
+    const [{ data: grants }, { data: clientProfile }, { data: enrollments }, { data: academyProfile }, { data: subscriptions }, { data: plans }, { data: bookings }, { data: partner }, { data: candidate }, { data: medicalApplication }, { data: medicalSpecialist }, { data: medicalConsultation }, { data: nutritrack }, { data: maximus }] = await Promise.all([
       identity.supabase.from("platform_service_access").select("service_key,roles").eq("user_id", userId).eq("active", true),
       identity.supabase.from("client_profiles").select("id").eq("id", userId).maybeSingle(),
       identity.supabase.from("formation_enrollments").select("id").eq("client_id", userId).limit(1),
@@ -49,6 +49,9 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
       identity.supabase.from("consultation_bookings").select("status,access_expires_at").eq("client_id", userId),
       identity.supabase.from("dietitian_profiles").select("id,status").eq("candidate_id", userId).maybeSingle(),
       identity.supabase.from("recruitment_applications").select("id").eq("candidate_id", userId).limit(1),
+      identity.supabase.from("medical_specialist_applications").select("id").eq("candidate_id", userId).limit(1),
+      identity.supabase.from("medical_specialists").select("id,active").eq("user_id", userId).maybeSingle(),
+      identity.supabase.from("medical_consultations").select("id").eq("client_id", userId).limit(1),
       identity.supabase.from("nutritrack_members").select("id,status").eq("user_id", userId).maybeSingle(),
       identity.supabase.from("maximus_user_access").select("active").eq("user_id", userId).eq("active", true).maybeSingle(),
     ]);
@@ -63,7 +66,9 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
     if (active.some((item: any) => item.child_id || types.get(item.plan_id) === "child_growth")) add("child_growth", "client");
     if ((bookings || []).some((item: any) => !["cancelled", "refunded"].includes(item.status) && (!item.access_expires_at || +new Date(item.access_expires_at) > Date.now()))) add("teleconsultation", "client");
     if (partner?.status === "active") for (const service of ["health", "child_growth", "teleconsultation"] as const) add(service, "nutritionist");
-    if (candidate?.length) add("recruitment", "candidate");
+    if (candidate?.length || medicalApplication?.length) add("recruitment", "candidate");
+    if (medicalConsultation?.length) add("medical_consultation", "client");
+    if (medicalSpecialist?.active) add("medical_consultation", "specialist");
     if (nutritrack?.status === "active") add("nutritrack", "client");
     if (maximus?.active) add("maximus", "staff");
   }

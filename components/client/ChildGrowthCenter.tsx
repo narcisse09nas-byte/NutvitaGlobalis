@@ -10,6 +10,7 @@ import { customIndicatorTemplates } from "@/lib/tracking-indicators";
 import ChildNutritionVaccination from "@/components/client/ChildNutritionVaccination";
 import { calculateNutriTrackZScores, completedAgeMonths } from "@/lib/child-growth-zscores";
 import { buildWhoGrowthCurve, whoCurveDefinitions, type WhoCurveKey, type WhoGrowthReference } from "@/lib/who-growth-curves";
+import ChildGrowthAlertRegistry from "@/components/client/ChildGrowthAlertRegistry";
 
 type Row = Record<string, any>;
 
@@ -20,7 +21,7 @@ function formPayload(form: HTMLFormElement) {
   return payload;
 }
 
-export default function ChildGrowthCenter({ parentId, initialChildren, initialMeasurements, subscriptions, plan, taxRate, initialAnalyses, initialAlerts, initialReports, initialFeeding, initialVaccinations, growthStandards, locale = "fr" }: { parentId: string; initialChildren: Row[]; initialMeasurements: Row[]; subscriptions: Row[]; plan: Row | null; taxRate: number; initialAnalyses:Row[]; initialAlerts:Row[]; initialReports:Row[]; initialFeeding:Row[]; initialVaccinations:Row[]; growthStandards:WhoGrowthReference[]; locale?: "fr" | "en" }) {
+export default function ChildGrowthCenter({ parentId, initialChildren, initialMeasurements, subscriptions, plan, taxRate, initialAnalyses, initialAlerts, initialReports, initialFeeding, initialVaccinations, growthStandards, locale = "fr", canRequestConsultation = false }: { parentId: string; initialChildren: Row[]; initialMeasurements: Row[]; subscriptions: Row[]; plan: Row | null; taxRate: number; initialAnalyses:Row[]; initialAlerts:Row[]; initialReports:Row[]; initialFeeding:Row[]; initialVaccinations:Row[]; growthStandards:WhoGrowthReference[]; locale?: "fr" | "en"; canRequestConsultation?: boolean }) {
   const [children, setChildren] = useState(initialChildren);
   const [activeSubscriptions,setActiveSubscriptions]=useState(subscriptions);
   const [measurements, setMeasurements] = useState(initialMeasurements);
@@ -206,7 +207,7 @@ export default function ChildGrowthCenter({ parentId, initialChildren, initialMe
         <GrowthCharts rows={rows} child={child} standards={growthStandards} locale={locale} />
         <MeasurementHistory rows={rows} onEdit={editMeasure} onDelete={deleteMeasure} locale={locale} />
         <section className="rounded-2xl border bg-white p-6"><h2 className="text-xl font-black">{tx("Analyse IA explicable","Explainable AI analysis")}</h2><p className="mt-4 leading-7">{savedAnalysis?.summary||analysis.summary}</p>{(savedAnalysis?.positives||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-leaf">+ {item}</p>)}{(savedAnalysis?.attention_points||[]).map((item:string)=><p key={item} className="mt-2 text-sm text-orange">! {item}</p>)}<p className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{analysis.advice}</p>{(savedAnalysis?.indicator_insights||savedAnalysis?.indicatorInsights||[]).length>0&&<div className="mt-5 grid gap-3">{(savedAnalysis?.indicator_insights||savedAnalysis?.indicatorInsights||[]).map((item:any)=><article key={item.indicator} className="rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap justify-between gap-2"><b>{item.indicator}</b><span className="text-xs font-bold uppercase text-slate-500">{item.status}</span></div><p className="mt-2 text-sm text-slate-700">{item.parentInterpretation}</p><p className="mt-2 text-xs text-slate-500">{item.professionalInterpretation}</p></article>)}</div>}</section>
-        <AlertPanel alerts={childAlerts} locale={locale}/>
+        <ChildGrowthAlertRegistry initial={childAlerts} locale={locale} canRequestConsultation={canRequestConsultation}/>
         <AdvicePanel items={savedAnalysis?.parent_advice||[]} locale={locale}/>
         <section className="rounded-2xl border bg-white p-6"><h2 className="text-xl font-black">{tx("Rapports de croissance","Growth reports")}</h2><div className="mt-4 grid gap-3">{childReports.map(item=><button key={item.id} onClick={()=>openReport(item.file_path)} className="flex justify-between rounded-xl bg-slate-50 p-4 text-left font-bold"><span>{item.title}</span><span className="text-leaf">{tx("Telecharger","Download")}</span></button>)}{!childReports.length&&<p className="text-slate-400">{tx("Aucun rapport genere.","No report generated.")}</p>}</div></section>
       </>}
@@ -327,5 +328,4 @@ function QuickOverview({rows,birthDate,locale}:{rows:Row[];birthDate:string;loca
     </div>
   </section>;
 }
-function AlertPanel({alerts,locale}:{alerts:Row[];locale:"fr"|"en"}){const en=locale==="en";return <section><h2 className="mb-4 text-2xl font-black">{en?"Child alerts":"Alertes enfant"}</h2><div className="grid gap-3">{alerts.map(alert=><article key={alert.id} className={`rounded-2xl border-l-4 bg-white p-5 ${alert.severity==='critical'?'border-red-500':alert.severity==='warning'?'border-orange':'border-sky-500'}`}><div className="flex justify-between gap-4"><b>{alert.title}</b><span className="text-xs font-bold uppercase text-slate-400">{alert.severity}</span></div><p className="mt-2 text-sm text-slate-600">{alert.message}</p>{alert.email_sent_at&&<p className="mt-2 text-xs text-slate-400">{en?"Email notification sent.":"Notification email envoyee."}</p>}</article>)}{!alerts.length&&<p className="rounded-2xl bg-white p-6 text-slate-400">{en?"No recorded alert.":"Aucune alerte enregistree."}</p>}</div></section>}
 function AdvicePanel({items,locale}:{items:Row[];locale:"fr"|"en"}){const en=locale==="en";return <section><h2 className="mb-4 text-2xl font-black">{en?"Personalized advice for parents":"Conseils personnalises aux parents"}</h2><div className="grid gap-4 md:grid-cols-2">{items.map((item,index)=><article key={`${item.category}-${index}`} className="rounded-2xl border bg-white p-5"><p className="text-xs font-bold uppercase text-leaf">{item.category}</p><h3 className="mt-2 font-black">{item.title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{item.text}</p></article>)}{!items.length&&<p className="rounded-2xl bg-white p-6 text-slate-400 md:col-span-2">{en?"Update the analysis to receive tailored advice.":"Actualisez l'analyse pour obtenir des conseils adaptes."}</p>}</div></section>}

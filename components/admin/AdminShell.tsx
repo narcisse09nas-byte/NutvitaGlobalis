@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { ReactNode } from "react";
 import Link from "next/link";
@@ -49,16 +49,11 @@ const navGroups = [
     ["/admin/tableau-consultations", "Tableau consultations", ChartBarIcon, [...all, "health_admin", "content_admin"]],
 ["/admin/page-suivi-sante", "Page suivi santé", ChartBarIcon, [...all, "health_admin", "content_admin"]],
   ]},
-  {title:"Finance", tone:"bg-orange/15", links:[
+  {title:"Finance des services en ligne", tone:"bg-orange/15", links:[
     ["/admin/offres", "Offres et prix", CreditCardIcon, [...all, "finance_admin"]],
-    ["/admin/paiements", "Paiements", CreditCardIcon, [...all, "finance_admin"]],
-    ["/admin/prestataires-paiements", "Paiements prestataires", CreditCardIcon, [...all, "finance_admin"]],
-    ["/admin/paiements-partenaires", "PayPal partenaires", CreditCardIcon, [...all, "finance_admin"]],
-    ["/admin/depenses", "Depenses", CalculatorIcon, [...all, "finance_admin"]],
-    ["/admin/factures", "Factures", DocumentTextIcon, [...all, "finance_admin"]],
+    ["/maximus/finance/online-payments", "Ouvrir le suivi Finance Maximus", CreditCardIcon, [...all, "finance_admin"]],
     ["/admin/taxes", "Taxes", CalculatorIcon, [...all, "finance_admin"]],
-  ]},
-  {title:"Recrutement des nutritionnistes", tone:"bg-sky-500/15", links:[
+  ]},  {title:"Recrutement des nutritionnistes", tone:"bg-sky-500/15", links:[
     ["/admin/recrutement", "Tableau de recrutement", UserPlusIcon, [...all, "recruitment_admin"]],
 ["/admin/recrutement/candidatures", "Candidatures spontanées", DocumentTextIcon, [...all, "recruitment_admin"]],
 ["/admin/recrutement/tests-ecrits", "Tests écrits", DocumentCheckIcon, [...all, "recruitment_admin"]],
@@ -75,8 +70,6 @@ const navGroups = [
     ["/admin/promoteurs/salle-attente", "Salle d'attente", ExclamationTriangleIcon, [...all, "recruitment_admin"]],
     ["/admin/promoteurs/entretiens", "Entretiens", VideoCameraIcon, [...all, "recruitment_admin"]],
 ["/admin/promoteurs/decisions", "Décisions et codes", DocumentCheckIcon, [...all, "recruitment_admin"]],
-    ["/admin/promoteurs/registre", "Registre et cagnotes", UserGroupIcon, [...all, "recruitment_admin", "finance_admin"]],
-    ["/admin/promoteurs/paiements", "Paiements promoteurs", CreditCardIcon, [...all, "finance_admin"]],
   ]},
   {title:"Médecins spécialistes", tone:"bg-emerald-500/15", links:[
     ["/admin/medecins-specialistes", "Recrutement & management", UserPlusIcon, [...all, "recruitment_admin", "health_admin"]],

@@ -189,7 +189,8 @@ const baseMaximusModules: MaximusModule[] = [
     { key: 'amortizationMethod', label: 'Amortization Method', hidden: true },
   ] },
   { slug: 'finance/treasury-accounts', title: 'Comptes de versement', group: 'Finance', description: 'Banques, comptes Mobile Money et petites caisses.', fields: [] },
-  { slug: 'finance/settlements', title: 'Versements en attente', group: 'Finance', description: 'Tickets de versement des livraisons et clôtures des points de vente.', fields: [] },  { slug: 'finance/dashboard', title: 'Dashboard financier', group: 'Finance', description: 'Synthèse des budgets, engagements, paiements, caisse et trésorerie.', fields: [
+  { slug: 'finance/settlements', title: 'Versements en attente', group: 'Finance', description: 'Tickets de versement des livraisons et clôtures des points de vente.', fields: [] },
+  { slug: 'finance/dashboard', title: 'Dashboard financier', group: 'Finance', description: 'Synthèse des budgets, engagements, paiements, caisse et trésorerie.', fields: [
     { key: 'period', label: 'Période', required: true }, { key: 'opening_balance', label: 'Solde initial', type: 'number' }, { key: 'income', label: 'Recettes', type: 'number' },
     { key: 'expenses', label: 'Dépenses', type: 'number' }, { key: 'commitments', label: 'Engagements', type: 'number' }, { key: 'closing_balance', label: 'Solde final', type: 'number' }, { key: 'comment', label: 'Commentaire', type: 'textarea' },
   ] },
@@ -248,6 +249,11 @@ const baseMaximusModules: MaximusModule[] = [
     { key: 'sale_point', label: 'Point de vente', required: true }, { key: 'report_reference', label: 'Rapport de vente' }, { key: 'amount', label: 'Montant déposé', type: 'number' },
     { key: 'deposit_date', label: 'Date', type: 'date' }, { key: 'deposited_by', label: 'Déposé par' }, { key: 'bank_reference', label: 'Référence banque / caisse' },
   ] },
+  { slug: 'finance/online-payments', title: 'Paiements en ligne', group: 'Finance', description: 'Registre de tous les achats effectués en ligne et de leurs factures.', fields: [] },
+  { slug: 'finance/partner-registry', title: 'Registre des partenaires', group: 'Finance', description: 'Nutritionnistes, médecins, promoteurs, fournisseurs et autres partenaires avec numéro vendor.', fields: [] },
+  { slug: 'finance/partner-payments', title: 'Suivi des paiements aux prestataires', group: 'Finance', description: 'Paiements, preuves et commentaires des prestataires et partenaires.', fields: [] },
+  { slug: 'finance/partner-accounts', title: 'Comptes partenaires', group: 'Finance', description: 'Comptes bancaires et Mobile Money des partenaires.', fields: [] },
+  { slug: 'finance/organization-payment-accounts', title: 'Comptes de paiement manuel', group: 'Finance', description: 'Comptes bancaires, Mobile Money et autres comptes de NutVitaGlobalis.', fields: [] },
   { slug: 'communications/messages', title: 'Messagerie Maximus', group: 'Communications', description: 'Messages internes propres a Maximus, sans melange avec l administration NutVitaGlobalis.', registryColumns: ['subject','sender','recipient','priority','message_status'], fields: [
     { key: 'subject', label: 'Sujet', required: true }, { key: 'sender', label: 'Expediteur', required: true }, { key: 'recipient', label: 'Destinataire / equipe', required: true },
     { key: 'priority', label: 'Priorite', type: 'select', options: ['Normale', 'Haute', 'Urgente'] }, { key: 'message_status', label: 'Statut', type: 'select', options: ['Brouillon', 'Envoye', 'Lu', 'Traite'] },

@@ -76,8 +76,7 @@ export default async function Home() {
           <h1 className="text-5xl font-black leading-[1.05] text-white md:text-7xl">{settings?.hero_title || (english ? "Nutrition, health and well-being for all" : "Nutrition, santé et bien-être pour tous")}</h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-white/75">{settings?.presentation || (english ? "Reliable expertise and practical solutions for families, professionals and communities." : "Une expertise fiable et des solutions concrètes pour les familles, les professionnels et les communautés.")}</p>
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <Link className="btn-primary" href={localizedPath(community.locale, settings?.primary_button_url || "/formations")}>{settings?.primary_button_label || (english ? "Explore our courses" : "Découvrir nos formations")}</Link>
-            <Link className="btn-secondary border-white/30 bg-white/10 text-white" href={localizedPath(community.locale, settings?.secondary_button_url || "/teleconseils")}>{settings?.secondary_button_label || (english ? "Book a consultation" : "Réserver un téléconseil")}</Link>
+            <Link className="btn-primary" href={localizedPath(community.locale, "/services")}>{english ? "Discover our services" : "Découvrir nos services"}</Link>
           </div>
         </div>
       </div>

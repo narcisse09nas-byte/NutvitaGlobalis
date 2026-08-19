@@ -1,4 +1,4 @@
-﻿import "server-only";
+import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import type { ChildGrowthAnalysis, GrowthRow } from "@/lib/child-growth-analysis";
 import { createNutvitaDocumentBranding, createReportQrCode } from "@/lib/pdf-branding";
@@ -30,7 +30,14 @@ export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRo
   const addPage = () => { page = pdf.addPage([595, 842]); brand(page); y = 670; };
   const text = (value: string, size = 9, font = regular, color = rgb(.16, .23, .22)) => {
     const lineWidth = page === firstPage && y > 585 ? (size >= 15 ? 42 : 68) : (size >= 15 ? 60 : 92);
-    for (const line of wrap(value, lineWidth)) { if (y < 85) addPage(); const words=line.split(" ").filter(Boolean),available=page===firstPage&&y>585?360:495,natural=font.widthOfTextAtSize(line,size); if(words.length>1&&!line.startsWith("-")&&natural<available*.94){let x=50;const gap=(available-words.reduce((sum,word)=>sum+font.widthOfTextAtSize(word,size),0))/(words.length-1);for(const word of words){page.drawText(word,{x,y,size,font,color});x+=font.widthOfTextAtSize(word,size)+gap}}else page.drawText(line,{x:50,y,size,font,color}); y-=size+4; }
+    for (const line of wrap(value, lineWidth)) { if (y < 85) addPage(); page.drawText(line,{x:50,y,size,font,color}); y-=size+4; }
+  };
+  const twoColumnText = (value: string, size = 9, font = regular, color = rgb(.16, .23, .22)) => {
+    const lines = wrap(value, 43), perColumn = Math.ceil(lines.length / 2), rows = Math.max(1, perColumn);
+    if (y - rows * (size + 4) < 85) addPage();
+    const top = y;
+    lines.forEach((line, index) => page.drawText(line, { x: index < perColumn ? 50 : 307, y: top - (index % perColumn) * (size + 4), size, font, color }));
+    y = top - rows * (size + 4) - 5;
   };
   const heading = (value: string) => { if (y < 140) addPage(); y -= 7; page.drawRectangle({ x: 45, y: y - 22, width: 505, height: 30, color: rgb(.94, .98, .96), borderColor: rgb(.82, .88, .85), borderWidth: .6 }); page.drawText(value, { x: 58, y: y - 13, size: 13, font: bold, color: rgb(.07, .24, .19) }); y -= 35; };
   const bullets = (values: string[] | undefined, limit = 5) => (values || []).filter(Boolean).slice(0, limit).forEach(value => text(`- ${value}`, 8.5));
@@ -114,7 +121,7 @@ export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRo
   text(`Genere le ${date(generatedAt)} | Periode analysee: ${date(period.start)} - ${date(period.end)}`, 9);
   text(`Reference: ${metadata?.reportId || "N/A"} | Nombre de visites: ${rows.length}`, 8, regular, rgb(.4, .45, .44));
   heading("Synthese pour le parent");
-  text(analysis.summary, 10);
+  twoColumnText(analysis.summary, 10);
   if (analysis.attentionPoints?.length) { text("Points de vigilance", 10, bold, rgb(.72, .25, .12)); bullets(analysis.attentionPoints, 4); }
   if (analysis.positives?.length) { text("Elements favorables", 10, bold, rgb(.12, .49, .33)); bullets(analysis.positives, 3); }
   y -= 8;
@@ -158,13 +165,13 @@ export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRo
 
   heading("Conseils pratiques prioritaires");
   const practicalAdvice = unique(analysis.practicalAdvice).slice(0, 6);
-  bullets(practicalAdvice, 6);
+  twoColumnCards(practicalAdvice.map(item => ({ title: "Conseil prioritaire", body: item, tone: "usual" })));
   const adviceKeys = new Set(practicalAdvice.map(value => value.toLowerCase()));
   const days30 = unique(analysis.actionPlan?.days30).filter(value => !adviceKeys.has(value.toLowerCase())).slice(0, 4);
   if (days30.length) { text("Dans les 30 prochains jours", 9, bold); bullets(days30, 4); }
 
   heading("Note professionnelle");
-  text(analysis.professionalSummary, 9);
+  twoColumnText(analysis.professionalSummary, 9);
   twoColumnCards(analysis.indicatorInsights.filter(item => item.status === "urgent" || item.status === "watch").slice(0, 6).map(item => ({
     title: `${item.indicator} [${item.status}]`,
     body: item.professionalInterpretation,
@@ -178,23 +185,22 @@ export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRo
     tone: "usual",
   })));
   heading("Qualite des donnees et limites");
-  bullets(analysis.limitations, 6);
+  twoColumnCards(unique(analysis.limitations).slice(0, 6).map(item => ({ title: "Limite documentee", body: item, tone: "watch" })));
 
   if (y < 220) addPage();
   y -= 6;
   page.drawRectangle({ x: 50, y: y - 4, width: 495, height: 4, color: rgb(.12, .49, .33) });
   y -= 20;
   heading("Conclusion");
-  text(analysis.parentConclusion, 10);
+  twoColumnText(analysis.parentConclusion, 10);
   const conclusionAdvice = unique(analysis.practicalAdvice).slice(0, 4);
   if (conclusionAdvice.length) {
     text("Recommandations retenues", 9, bold, rgb(.12, .49, .33));
-    bullets(conclusionAdvice, 4);
+    twoColumnCards(conclusionAdvice.map(item => ({ title: "Recommandation", body: item, tone: "usual" })));
   }
 
   y -= 8;
-  text("Ce rapport automatise accompagne le suivi de croissance. Il ne remplace pas l examen clinique, le diagnostic pediatrique ni l interpretation des courbes OMS par un professionnel qualifie.", 8, regular, rgb(.58, .3, .13));
+  twoColumnText("Ce rapport automatise accompagne le suivi de croissance. Il ne remplace pas l examen clinique, le diagnostic pediatrique ni l interpretation des courbes OMS par un professionnel qualifie.", 8, regular, rgb(.58, .3, .13));
   for (const [index, current] of pdf.getPages().entries()) current.drawText(`NutVitaGlobalis - page ${index + 1}/${pdf.getPageCount()} - ${date(generatedAt)}`, { x: 50, y: 76, size: 7, font: regular, color: rgb(.45, .45, .45) });
   return pdf.save();
 }
-

@@ -61,40 +61,60 @@ export async function renderConsultationDocument(
     y -= 7;
   };
 
+  const prescriptionType = String(consultation.prescription_type || 'exams');
+  const prescriptionTypeLabel = String(consultation.prescription_type_label || '').trim();
+  const prescriptionTitles: Record<string, string> = {
+    exams: 'ORDONNANCE DE DEMANDE D’EXAMENS',
+    medication: 'ORDONNANCE MÉDICALE',
+    other: prescriptionTypeLabel ? `ORDONNANCE — ${prescriptionTypeLabel.toUpperCase()}` : 'ORDONNANCE',
+  };
   const title = prescriptionOnly
-    ? 'ORDONNANCE D’EXAMENS'
+    ? prescriptionTitles[prescriptionType] || prescriptionTitles.other
     : consultation.document_title || 'COMPTE RENDU DE CONSULTATION NUTRITIONNELLE';
-  page.drawText(title, { x: 48, y: 620, size: prescriptionOnly ? 20 : 16, font: bold, color: rgb(.04, .24, .18) });
-  page.drawText(`Date : ${new Date(consultation.finalized_at || consultation.scheduled_at || Date.now()).toLocaleDateString('fr-FR')}`, { x: 48, y: 596, size: 9, font: regular });
+  page.drawText(title, { x: 48, y: 570, size: prescriptionOnly ? 17 : 16, font: bold, color: rgb(.04, .24, .18) });
+  const dateText = `Date : ${new Date(consultation.finalized_at || consultation.scheduled_at || Date.now()).toLocaleDateString('fr-FR')}`;
+  page.drawText(dateText, { x: 547 - regular.widthOfTextAtSize(dateText, 9), y: 544, size: 9, font: regular });
+  y = 512;
   page.drawText(`Client : ${client.full_name || client.email || consultation.client_id}`, { x: 48, y, size: 10, font: bold });
   y -= 17;
-  page.drawText(`Nutritionniste : ${dietitian.full_name || 'Professionnel NutVitaGlobalis'}`, { x: 48, y, size: 10, font: regular });
+  page.drawText(`Traitant : ${dietitian.full_name || 'Professionnel NutVitaGlobalis'}`, { x: 48, y, size: 10, font: regular });
   y -= 26;
 
   if (prescriptionOnly) {
-    await heading('Examens demandés');
+    const itemHeading = prescriptionType === 'medication'
+      ? 'Médicaments prescrits'
+      : prescriptionType === 'other'
+        ? (prescriptionTypeLabel || 'Prescription')
+        : 'Examens demandés';
+    await heading(itemHeading);
     const items = Array.isArray(consultation.prescription_items) ? consultation.prescription_items : [];
     for (const item of items) await paragraph(`• ${typeof item === 'string' ? item : item.label || item.name}`, 48, 350);
     if (consultation.prescription_notes) {
       await heading('Indications');
       await paragraph(consultation.prescription_notes, 48, 350);
     }
-    await paragraph('Les résultats doivent être interprétés par un professionnel habilité dans leur contexte clinique.', 48, 350);
-    drawQr(page, 'Accès sécurisé', { x: 455, y: 410, labelX: 460, labelY: 397 });
-    page.drawText('Scannez pour vous connecter et', { x: 420, y: 384, size: 6.5, font: regular, color: rgb(.35, .4, .39) });
-    page.drawText('retrouver ce document.', { x: 443, y: 375, size: 6.5, font: regular, color: rgb(.35, .4, .39) });
+    if (prescriptionType === 'exams') {
+      await paragraph('Les résultats doivent être interprétés par un professionnel habilité dans leur contexte clinique.', 48, 350);
+    }
+
+    drawQr(page, '', { x: 455, y: 455, labelX: 455, labelY: 448 });
+    page.drawText('Scannez pour vous connecter et', { x: 398, y: 442, size: 6.5, font: regular, color: rgb(.35, .4, .39) });
+    page.drawText('retrouver ce document.', { x: 432, y: 433, size: 6.5, font: regular, color: rgb(.35, .4, .39) });
 
     const signer = signature?.displayName || dietitian.full_name || 'Professionnel NutVitaGlobalis';
-    page.drawText(signer, { x: 365, y: 190, size: 10, font: bold, color: rgb(.04, .24, .18) });
-    page.drawText('Signature du nutritionniste traitant', { x: 365, y: 174, size: 8, font: regular, color: rgb(.35, .4, .39) });
+    const signerWidth = bold.widthOfTextAtSize(signer, 10);
+    page.drawText(signer, { x: Math.max(355, 535 - signerWidth), y: 182, size: 10, font: bold, color: rgb(.04, .24, .18) });
+    page.drawText('Signature du traitant', { x: 425, y: 166, size: 8, font: regular, color: rgb(.35, .4, .39) });
     if (signature?.bytes?.length) {
       try {
         const image = signature.mimeType === 'image/jpeg'
           ? await pdf.embedJpg(signature.bytes)
           : await pdf.embedPng(signature.bytes);
-        const scale = Math.min(130 / image.width, 55 / image.height);
-        page.drawImage(image, { x: 365, y: 108, width: image.width * scale, height: image.height * scale });
+        const scale = Math.min(130 / image.width, 62 / image.height);
+        page.drawImage(image, { x: 405, y: 94, width: image.width * scale, height: image.height * scale });
       } catch {}
+    } else {
+      page.drawText('Signature non téléversée', { x: 410, y: 130, size: 7, font: regular, color: rgb(.55, .58, .57) });
     }
   } else {
     await heading('Profil du client');

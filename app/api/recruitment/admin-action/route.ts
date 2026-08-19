@@ -16,7 +16,16 @@ export async function POST(request:Request){
   if(!id||!(status in applicationStatuses))return NextResponse.json({message:'Action invalide.'},{status:400});
   const {data:app}=await supabase.from('recruitment_applications').select('*').eq('id',id).single();
   if(!app)return NextResponse.json({message:'Candidature introuvable.'},{status:404});
-  const {error}=await supabase.from('recruitment_applications').update({status,internal_comments:body.internal_comments??app.internal_comments,administrative_score:body.administrative_score??app.administrative_score}).eq('id',id);
+  const {error}=await supabase.from('recruitment_applications').update({
+    status,
+    internal_comments:body.internal_comments??app.internal_comments,
+    administrative_score:body.administrative_score??app.administrative_score,
+    internal_evaluation_percent:body.internal_evaluation_percent??app.internal_evaluation_percent,
+    internal_comment:body.internal_comment??app.internal_comment,
+    candidate_visible_message:body.candidate_visible_message??app.candidate_visible_message,
+    last_admin_decision:body.last_admin_decision??status,
+    last_admin_decision_at:new Date().toISOString(),
+  }).eq('id',id);
   if(error)return NextResponse.json({message:error.message},{status:400});
   if(body.manual_score!==undefined)await supabase.from('recruitment_test_attempts').update({manual_score:body.manual_score,reviewer_comments:body.reviewer_comments||null,status:'graded'}).eq('application_id',id);
   await supabase.from('recruitment_history').insert({application_id:id,actor_id:user.id,action:body.notify===false?'Évaluation interne enregistrée':`Statut : ${applicationStatuses[status]}`,from_status:app.status,to_status:status,note});

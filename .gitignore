@@ -15,3 +15,7 @@ node_modules/
 
 # Local one-off maintenance scripts
 /tmp/*.ps1
+/tmp/*.new.ts
+/tmp/*.new.tsx
+/tmp/*.clean.tsx
+/tmp/*.patch

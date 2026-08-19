@@ -14,13 +14,10 @@ function isMissingBookingEntitlementColumn(error: { code?: string; message?: str
 
 function includedTrackingBenefits(productName: string) {
   const normalized = productName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  if (normalized.includes("femme enceinte")) return [
-    { serviceType: "child_growth", extraMonths: 0 },
-    { serviceType: "health_tracking", extraMonths: 1 },
-  ];
-  if (normalized.includes("diabete") || normalized.includes("perte de poids")) return [{ serviceType: "health_tracking", extraMonths: 0 }];
-  if (normalized.includes("nutrition infantile")) return [{ serviceType: "child_growth", extraMonths: 0 }];
-  return [];
+  const health = { serviceType: "health_tracking", extraMonths: 0 };
+  if (normalized.includes("femme enceinte")) return [health, { serviceType: "child_growth", extraMonths: 0 }];
+  if (normalized.includes("nutrition infantile")) return [health, { serviceType: "child_growth", extraMonths: 0 }];
+  return [health];
 }
 
 async function activateIncludedPremiumTracking(admin: SupabaseClient, payment: any, start: Date, accessEnd: Date) {
@@ -93,6 +90,7 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
   const service = { name: payment.product_name || plan.name || "Service NutVitaGlobalis", duration_months: plan.duration_months };
   const start = new Date();
   let end: Date | null = null;
+  let consultationServiceKey: "teleconsultation" | "medical_consultation" | null = null;
 
   if (payment.purchase_type === "subscription") {
     const duration = Math.max(1, Number(plan.duration_months || payment.subscriptions?.renewal_period_months || 12));
@@ -121,38 +119,108 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
     const notification = await admin.from("client_notifications").insert({ client_id: payment.client_id, title: "Formation disponible", message: `${payment.product_name} est maintenant accessible depuis votre espace client.`, link_url: "/espace-client" });
     failIfError("Notification formation", notification.error);
   } else if (payment.purchase_type === "consultation") {
-    let existingResult=await admin.from('consultation_bookings').select('*').eq('client_id',payment.client_id).eq('teleconseil_id',payment.product_id).order('access_expires_at',{ascending:false}).limit(1).maybeSingle();
-    if(isMissingBookingEntitlementColumn(existingResult.error))existingResult=await admin.from('consultation_bookings').select('*').eq('client_id',payment.client_id).eq('teleconseil_id',payment.product_id).order('created_at',{ascending:false}).limit(1).maybeSingle();
-    failIfError("Lecture du programme existant",existingResult.error);
-    const existing=existingResult.data;
-    const accessStart=existing?.access_expires_at&&+new Date(existing.access_expires_at)>+start?new Date(existing.access_expires_at):start;
-    const accessEnd=new Date(accessStart);accessEnd.setUTCMonth(accessEnd.getUTCMonth()+3);end=accessEnd;
-    let booking:any;
-    if(existing){
-      const status=['slot_required','scheduled','completed'].includes(existing.status)?existing.status:'slot_required';
-      let result=await admin.from('consultation_bookings').update({payment_id:payment.id,status,access_starts_at:existing.access_starts_at||start.toISOString(),access_expires_at:accessEnd.toISOString(),renewal_price_xof:Number(payment.source_amount_xof||payment.price_excluding_tax||0)}).eq('id',existing.id).select().single();
-      if(isMissingBookingEntitlementColumn(result.error))result=await admin.from('consultation_bookings').update({payment_id:payment.id,status}).eq('id',existing.id).select().single();
-      failIfError("Renouvellement du programme",result.error);booking=result.data;
-    }else{
-      const base={client_id:payment.client_id,teleconseil_id:payment.product_id,payment_id:payment.id,status:'slot_required'};
-      let result=await admin.from('consultation_bookings').insert({...base,access_starts_at:start.toISOString(),access_expires_at:accessEnd.toISOString(),renewal_price_xof:Number(payment.source_amount_xof||payment.price_excluding_tax||0)}).select().single();
-      if(isMissingBookingEntitlementColumn(result.error))result=await admin.from('consultation_bookings').insert(base).select().single();
-      failIfError("Activation du programme",result.error);booking=result.data;
+    const { data: medicalSpecialist, error: specialistError } = await admin
+      .from("medical_specialists")
+      .select("id,full_name")
+      .eq("id", payment.product_id)
+      .eq("active", true)
+      .maybeSingle();
+    failIfError("Identification du type de consultation", specialistError);
+    const medical = Boolean(medicalSpecialist);
+    consultationServiceKey = medical ? "medical_consultation" : "teleconsultation";
+    const priceKey = medical ? "medical_consultation" : "dietetic_consultation";
+    const { data: pricing, error: pricingError } = await admin
+      .from("consultation_service_prices")
+      .select("access_duration_months")
+      .eq("service_key", priceKey)
+      .single();
+    failIfError("Lecture de la durée de consultation", pricingError);
+    const duration = Math.max(1, Number(pricing?.access_duration_months || 3));
+
+    if (medical && medicalSpecialist) {
+      const { data: previous, error: previousError } = await admin
+        .from("medical_consultations")
+        .select("access_expires_at,created_at")
+        .eq("client_id", payment.client_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      failIfError("Lecture de la consultation médicale existante", previousError);
+      const accessStart = previous?.access_expires_at && +new Date(previous.access_expires_at) > +start
+        ? new Date(previous.access_expires_at)
+        : start;
+      const accessEnd = new Date(accessStart);
+      accessEnd.setUTCMonth(accessEnd.getUTCMonth() + duration);
+      end = accessEnd;
+      const consultation = await admin.from("medical_consultations").insert({
+        specialist_id: medicalSpecialist.id,
+        client_id: payment.client_id,
+        payment_id: payment.id,
+        status: "requested",
+        consultation_mode: "video",
+        chief_complaint: "Consultation médicale spécialisée",
+        amount_paid: Number(payment.total_including_tax || payment.amount || 0),
+        currency: payment.currency || "XAF",
+        access_starts_at: start.toISOString(),
+        access_expires_at: accessEnd.toISOString(),
+      });
+      failIfError("Activation de la consultation médicale", consultation.error);
+      await activateIncludedPremiumTracking(admin, payment, start, accessEnd);
+      failIfError("Notification de la consultation médicale", (await admin.from("client_notifications").insert({
+        client_id: payment.client_id,
+        title: "Consultation médicale activée",
+        message: `Votre consultation et votre suivi santé Premium sont actifs jusqu’au ${accessEnd.toLocaleDateString("fr-FR")}.`,
+        link_url: "/espace-client/consultations-medicales",
+      })).error);
+    } else {
+      let existingResult = await admin.from("consultation_bookings").select("*").eq("client_id", payment.client_id).eq("teleconseil_id", payment.product_id).order("access_expires_at", { ascending: false }).limit(1).maybeSingle();
+      if (isMissingBookingEntitlementColumn(existingResult.error)) existingResult = await admin.from("consultation_bookings").select("*").eq("client_id", payment.client_id).eq("teleconseil_id", payment.product_id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      failIfError("Lecture de la consultation existante", existingResult.error);
+      const existing = existingResult.data;
+      const accessStart = existing?.access_expires_at && +new Date(existing.access_expires_at) > +start ? new Date(existing.access_expires_at) : start;
+      const accessEnd = new Date(accessStart);
+      accessEnd.setUTCMonth(accessEnd.getUTCMonth() + duration);
+      end = accessEnd;
+      let booking: any;
+      if (existing) {
+        const status = ["slot_required", "scheduled", "completed"].includes(existing.status) ? existing.status : "slot_required";
+        let result = await admin.from("consultation_bookings").update({ payment_id: payment.id, status, access_starts_at: existing.access_starts_at || start.toISOString(), access_expires_at: accessEnd.toISOString(), renewal_price_xof: Number(payment.source_amount_xof || payment.price_excluding_tax || 0) }).eq("id", existing.id).select().single();
+        if (isMissingBookingEntitlementColumn(result.error)) result = await admin.from("consultation_bookings").update({ payment_id: payment.id, status }).eq("id", existing.id).select().single();
+        failIfError("Renouvellement de la consultation", result.error);
+        booking = result.data;
+      } else {
+        const base = { client_id: payment.client_id, teleconseil_id: payment.product_id, payment_id: payment.id, status: "slot_required" };
+        let result = await admin.from("consultation_bookings").insert({ ...base, access_starts_at: start.toISOString(), access_expires_at: accessEnd.toISOString(), renewal_price_xof: Number(payment.source_amount_xof || payment.price_excluding_tax || 0) }).select().single();
+        if (isMissingBookingEntitlementColumn(result.error)) result = await admin.from("consultation_bookings").insert(base).select().single();
+        failIfError("Activation de la consultation", result.error);
+        booking = result.data;
+      }
+      await activateIncludedPremiumTracking(admin, payment, start, accessEnd);
+      if (booking && !existing) {
+        const { data: conversation } = await admin.from("collaboration_conversations").insert({ title: `Suivi expert - ${payment.product_name}`, conversation_type: "consultation", consultation_id: booking.id, created_by: payment.client_id }).select().single();
+        if (conversation) await admin.from("collaboration_members").insert({ conversation_id: conversation.id, user_id: payment.client_id, member_role: "client" });
+        await admin.from("consultation_waiting_room").insert({ client_id: payment.client_id, teleconseil_id: payment.product_id, payment_id: payment.id, reason: payment.product_name, status: "waiting", country: client.country || null, city: client.city || null, ai_recommendation: { signals: ["Nouveau paiement confirmé", "Client en attente d’attribution"], score: 50 } });
+      }
+      failIfError("Notification de la consultation nutritionnelle", (await admin.from("client_notifications").insert({
+        client_id: payment.client_id,
+        title: existing ? "Consultation renouvelée" : "Consultation à planifier",
+        message: `Votre consultation et votre suivi santé Premium sont actifs jusqu’au ${accessEnd.toLocaleDateString("fr-FR")}.`,
+        link_url: "/espace-client/consultations",
+      })).error);
     }
-    await activateIncludedPremiumTracking(admin, payment, start, accessEnd);
-    if(booking&&!existing){const {data:conversation}=await admin.from('collaboration_conversations').insert({title:`Suivi expert - ${payment.product_name}`,conversation_type:'consultation',consultation_id:booking.id,created_by:payment.client_id}).select().single();if(conversation)await admin.from('collaboration_members').insert({conversation_id:conversation.id,user_id:payment.client_id,member_role:'client'});await admin.from("consultation_waiting_room").insert({client_id:payment.client_id,teleconseil_id:payment.product_id,payment_id:payment.id,reason:payment.product_name,status:"waiting",country:client.country||null,city:client.city||null,ai_recommendation:{signals:["Nouveau paiement confirme","Client en attente d attribution"],score:50}})}
-    await admin.from("client_notifications").insert({ client_id: payment.client_id, title: existing?"Pack téléconseil renouvelé":"Consultation à planifier", message: `Votre accès est actif jusqu’au ${accessEnd.toLocaleDateString('fr-FR')}. Chat et appels vidéo avec votre expert inclus.`, link_url: "/espace-client/messages" });
   }
 
-  const platformGrant = payment.purchase_type === "formation"
-    ? { service_key: "academy", roles: ["student"] }
+  const platformGrants = payment.purchase_type === "formation"
+    ? [{ service_key: "academy", roles: ["student"] }]
     : payment.purchase_type === "consultation"
-      ? { service_key: "teleconsultation", roles: ["client"] }
+      ? [{ service_key: consultationServiceKey || "teleconsultation", roles: ["client"] }, { service_key: "health", roles: ["client"] }]
       : plan.service_type === "child_growth"
-        ? { service_key: "child_growth", roles: ["parent"] }
-        : { service_key: "health", roles: ["client"] };
-  const grantResult = await admin.from("platform_service_access").upsert({ user_id: payment.client_id, ...platformGrant, active: true, expires_at: end?.toISOString() || null }, { onConflict: "user_id,service_key" });
-  failIfError("Activation de l'accès au service", grantResult.error);
+        ? [{ service_key: "child_growth", roles: ["parent"] }]
+        : [{ service_key: "health", roles: ["client"] }];
+  for (const platformGrant of platformGrants) {
+    const grantResult = await admin.from("platform_service_access").upsert({ user_id: payment.client_id, ...platformGrant, active: true, expires_at: end?.toISOString() || null }, { onConflict: "user_id,service_key" });
+    failIfError("Activation de l'accès au service", grantResult.error);
+  }
   failIfError("Validation du paiement", (await admin.from("payments").update({ status: "succeeded", provider_payment_id: providerPaymentId, paid_at: start.toISOString(), raw_event: rawEvent }).eq("id", payment.id)).error);
 
   if (client.referred_by_promoter_id) {

@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { renderConsultationDocument } from "@/lib/consultation-record-pdf";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -60,6 +60,8 @@ export async function POST(request: Request) {
     goals: body.goals || [],
     care_plan: body.plan || {},
     next_appointment_at: nextAppointment,
+    prescription_type: ["exams", "medication", "other"].includes(body.prescription_type) ? body.prescription_type : "exams",
+    prescription_type_label: body.prescription_type === "other" ? String(body.prescription_type_label || "").trim() || null : null,
     prescription_items: body.prescription_items || [],
     prescription_notes: body.prescription_notes || null,
     clinical_assessments: body.clinical_assessments || {},
@@ -87,7 +89,8 @@ export async function POST(request: Request) {
   let prescriptionPath: string | null = null;
   if (Array.isArray(body.prescription_items) && body.prescription_items.length) {
     const prescriptionBytes = await renderConsultationDocument(consultation, client, dietitian, loginUrl, true, signature);
-    prescriptionPath = `${basePath}/ordonnance-examens.pdf`;
+    const prescriptionSlug = consultation.prescription_type === "medication" ? "ordonnance-medicale" : consultation.prescription_type === "other" ? "ordonnance-autre" : "demande-examens";
+    prescriptionPath = `${basePath}/${prescriptionSlug}.pdf`;
     const upload = await adminClient.storage.from("document-vault").upload(prescriptionPath, prescriptionBytes, { contentType: "application/pdf", upsert: true });
     if (upload.error) return NextResponse.json({ message: upload.error.message }, { status: 500 });
   }
@@ -130,4 +133,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ...consultation, consultation_pdf_path: consultationPath, prescription_pdf_path: prescriptionPath });
 }
-

@@ -1,11 +1,11 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getApplicableTax, priceBreakdown } from "@/lib/taxes";
 import {xofPerUsd,xofToUsd} from "@/lib/currency";
 import { finalizePayment } from "@/lib/payment-finalization";
 
-type Purchase = { type: "subscription" | "formation" | "consultation"; id: string; name: string; price: number; currency: string; duration: number; childId?: string; serviceType?: string; tier?: string };
+type Purchase = { type: "subscription" | "formation" | "consultation"; checkoutType?: "subscription" | "formation" | "consultation" | "medical_consultation"; consultationKind?: "dietetic" | "medical"; id: string; name: string; price: number; currency: string; duration: number; childId?: string; serviceType?: string; tier?: string };
 type Provider = "cinetpay" | "paypal" | "manual_mobile_money" | "manual_bank_transfer";
 const freeAccessMode = () => process.env.NUTVITA_PAYMENTS_PAUSED !== "false";
 
@@ -76,9 +76,37 @@ export async function POST(request: Request) {
     const { data } = await supabase.from("formations").select("id,title,price").eq("id", String(body.product_id)).eq("status", "published").single();
     if (data) purchase = { type: "formation", id: data.id, name: data.title, price: Number(data.price || 50000), currency: "XOF", duration: 0 };
   } else if (body.purchase_type === "consultation") {
-    const { data } = await supabase.from("teleconseils").select("id,name,price").eq("id", String(body.product_id)).eq("status", "active").single();
-    const {data:previous}=await supabase.from('consultation_bookings').select('id').eq('client_id',user.id).eq('teleconseil_id',String(body.product_id)).limit(1).maybeSingle();
-    if (data) purchase = { type: "consultation", id: data.id, name: `${previous?'Renouvellement ':''}Programme ${data.name} - 3 mois`, price: previous?Number(data.price || 15000):Number(data.price || 15000), currency: "XOF", duration: 3 };
+    const [{ data: consultation }, { data: pricing }, { data: previous }] = await Promise.all([
+      supabase.from("teleconseils").select("id,name").eq("id", String(body.product_id)).eq("status", "active").single(),
+      supabase.from("consultation_service_prices").select("*").eq("service_key", "dietetic_consultation").eq("active", true).single(),
+      supabase.from("consultation_bookings").select("id").eq("client_id", user.id).limit(1).maybeSingle(),
+    ]);
+    if (consultation && pricing) purchase = {
+      type: "consultation",
+      checkoutType: "consultation",
+      consultationKind: "dietetic",
+      id: consultation.id,
+      name: previous ? `Renouvellement - ${pricing.name_fr}` : pricing.name_fr,
+      price: Number(previous ? pricing.renewal_price_xof : pricing.initial_price_xof),
+      currency: "XOF",
+      duration: Math.max(1, Number(pricing.access_duration_months || 3)),
+    };
+  } else if (body.purchase_type === "medical_consultation") {
+    const [{ data: specialist }, { data: pricing }, { data: previous }] = await Promise.all([
+      supabase.from("medical_specialists").select("id,full_name").eq("id", String(body.product_id)).eq("active", true).single(),
+      supabase.from("consultation_service_prices").select("*").eq("service_key", "medical_consultation").eq("active", true).single(),
+      supabase.from("medical_consultations").select("id").eq("client_id", user.id).limit(1).maybeSingle(),
+    ]);
+    if (specialist && pricing) purchase = {
+      type: "consultation",
+      checkoutType: "medical_consultation",
+      consultationKind: "medical",
+      id: specialist.id,
+      name: `${previous ? "Renouvellement - " : ""}${pricing.name_fr} · Dr. ${specialist.full_name}`,
+      price: Number(previous ? pricing.renewal_price_xof : pricing.initial_price_xof),
+      currency: "XOF",
+      duration: Math.max(1, Number(pricing.access_duration_months || 3)),
+    };
   }
   if (!purchase) return NextResponse.json({ message: "Produit ou service introuvable." }, { status: 404 });
 
@@ -224,7 +252,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           intent: "CAPTURE",
           purchase_units: [{ reference_id: reference, custom_id: payment.id, description: purchase.name, amount: { currency_code: purchase.currency, value: Number(breakdown.totalIncludingTax).toFixed(2) } }],
-          application_context: { brand_name: "NutVitaGlobalis", landing_page: "LOGIN", user_action: "PAY_NOW", return_url: `${origin}/api/payments/paypal/capture?payment_id=${payment.id}`, cancel_url: `${origin}/checkout?type=${purchase.type}&id=${purchase.id}&paiement=annule` }
+          application_context: { brand_name: "NutVitaGlobalis", landing_page: "LOGIN", user_action: "PAY_NOW", return_url: `${origin}/api/payments/paypal/capture?payment_id=${payment.id}`, cancel_url: `${origin}/checkout?type=${purchase.checkoutType || purchase.type}&id=${purchase.id}&paiement=annule` }
         })
       });
       const result = await response.json();

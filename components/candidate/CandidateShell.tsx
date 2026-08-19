@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AcademicCapIcon, ArrowRightStartOnRectangleIcon, ChatBubbleLeftRightIcon, ClipboardDocumentCheckIcon, DocumentTextIcon, HomeIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
+import {
+  AcademicCapIcon,
+  ArrowRightStartOnRectangleIcon,
+  ChatBubbleLeftRightIcon,
+  ClipboardDocumentCheckIcon,
+  CreditCardIcon,
+  DocumentTextIcon,
+  HomeIcon,
+  VideoCameraIcon,
+} from "@heroicons/react/24/outline";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import HelpBox from "@/components/shared/HelpBox";
 import { createClient } from "@/lib/supabase/client";
@@ -10,11 +19,12 @@ import { createClient } from "@/lib/supabase/client";
 const links = [
   ["/candidat", "Tableau de bord", HomeIcon],
   ["/candidat/dossier", "Mon dossier", ClipboardDocumentCheckIcon],
-  ["/candidat/test-ecrit", "Test ecrit", AcademicCapIcon],
+  ["/candidat/test-ecrit", "Test écrit", AcademicCapIcon],
   ["/candidat/entretien", "Entretien", VideoCameraIcon],
   ["/candidat/messages", "Messages", ChatBubbleLeftRightIcon],
   ["/candidat/contrats", "Mes contrats", DocumentTextIcon],
-  ["/signatures", "Signatures electroniques", DocumentTextIcon],
+  ["/signatures", "Signatures électroniques", DocumentTextIcon],
+  ["/mes-paiements-partenaire", "Mes paiements partenaire", CreditCardIcon],
 ] as const;
 
 export default function CandidateShell({ children, email }: { children: React.ReactNode; email: string }) {
@@ -28,7 +38,7 @@ export default function CandidateShell({ children, email }: { children: React.Re
     <header className="border-b bg-white">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5">
         <Link href="/candidat" className="text-xl font-black text-forest">NutVita<span className="text-orange">Candidat</span></Link>
-        <div className="flex items-center gap-4"><LanguageSwitcher compact /><span className="hidden text-sm text-slate-500 sm:block">{email}</span><button onClick={logout} className="flex items-center gap-2 text-sm font-bold text-forest"><ArrowRightStartOnRectangleIcon className="h-5" />Deconnexion</button></div>
+        <div className="flex items-center gap-4"><LanguageSwitcher compact /><span className="hidden text-sm text-slate-500 sm:block">{email}</span><button onClick={logout} className="flex items-center gap-2 text-sm font-bold text-forest"><ArrowRightStartOnRectangleIcon className="h-5" />Déconnexion</button></div>
       </div>
     </header>
     <div className="mx-auto grid max-w-7xl gap-7 px-5 py-8 lg:grid-cols-[240px_1fr]">

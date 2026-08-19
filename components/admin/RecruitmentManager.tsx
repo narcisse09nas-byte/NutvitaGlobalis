@@ -5,288 +5,34 @@ import {createClient} from "@/lib/supabase/client";
 import {applicationStatuses,documentFields,type ApplicationStatus} from "@/lib/recruitment-data";
 
 type Row=Record<string,any>;
-const actions:[ApplicationStatus,string][]=[
-  ["under_review","Mettre en analyse"],
-  ["incomplete","Marquer incomplet"],
-  ["preselected","Preselectionner"],
-  ["invited_to_test","Inviter au test ecrit"],
-  ["invited_to_interview","Inviter a l'entretien"],
-  ["interview_completed","Entretien termine"],
-  ["selected","Retenir"],
-  ["rejected","Rejeter"],
-  ["integrated","Integrer au reseau"],
-];
+const decisions:[ApplicationStatus,string][]=[["incomplete","Marquer incomplet"],["invited_to_test","Inviter au test écrit"],["invited_to_interview","Inviter à l’entretien"],["rejected","Rejeter"],["integrated","Intégrer au réseau"]];
 
-export default function RecruitmentManager({initial,questions}:{initial:Row[];questions:Row[]}){
-  const [rows,setRows]=useState(initial);
-  const [selected,setSelected]=useState<Row|null>(null);
-  const [query,setQuery]=useState("");
-  const [status,setStatus]=useState("");
-  const [note,setNote]=useState("");
-  const [message,setMessage]=useState("");
-  const [history,setHistory]=useState<Row[]>([]);
-  const [reviews,setReviews]=useState<Row[]>([]);
-  const [reviewerEmails,setReviewerEmails]=useState("");
+export default function RecruitmentManager({initial}:{initial:Row[];questions?:Row[]}){
+  const [rows,setRows]=useState(initial),[selected,setSelected]=useState<Row|null>(null),[query,setQuery]=useState(""),[status,setStatus]=useState(""),[message,setMessage]=useState(""),[history,setHistory]=useState<Row[]>([]);
   const supabase=useMemo(()=>createClient(),[]);
-  const safeRows=Array.isArray(rows)?rows:[];
-  const safeQuestions=Array.isArray(questions)?questions:[];
-  const filtered=useMemo(()=>safeRows.filter(r=>[r.full_name,r.country,r.city,r.specialization,r.status].join(" ").toLowerCase().includes(query.toLowerCase())&&(!status||r.status===status)),[safeRows,query,status]);
-  const testsToReview=useMemo(()=>safeRows.filter(row=>asArray(row.recruitment_test_attempts).some((attempt:Row)=>["submitted","expired","graded"].includes(attempt.status))),[safeRows]);
-
-  async function open(row:Row){
-    setSelected(row);
-    setNote("");
-    const {data}=await supabase.from("recruitment_history").select("*").eq("application_id",row.id).order("created_at",{ascending:false});
-    setHistory(data||[]);
-    const attempt=asArray(row.recruitment_test_attempts)[0];
-    if(attempt?.id){
-      const result=await supabase.from("recruitment_test_reviews").select("*").eq("attempt_id",attempt.id).order("created_at");
-      setReviews(result.error?[]:result.data||[]);
-    }else setReviews([]);
+  const filtered=useMemo(()=>rows.filter(row=>[row.full_name,row.email,row.specialization,row.city,row.country,row.status].join(" ").toLowerCase().includes(query.toLowerCase())&&(!status||row.status===status)),[rows,query,status]);
+  function patch(id:string,values:Row){setRows(current=>current.map(row=>row.id===id?{...row,...values}:row));if(selected?.id===id)setSelected(current=>current?{...current,...values}:current)}
+  async function open(row:Row){setSelected(row);const{data}=await supabase.from("recruitment_history").select("*").eq("application_id",row.id).order("created_at",{ascending:false});setHistory(data||[])}
+  async function save(row:Row,nextStatus?:ApplicationStatus,notify=false){
+    const statusValue=nextStatus||row.status as ApplicationStatus;
+    setMessage("Enregistrement…");
+    const response=await fetch("/api/recruitment/admin-action",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:row.id,status:statusValue,notify,note:row.candidate_visible_message||"",internal_comments:row.internal_comment||row.internal_comments||"",administrative_score:row.internal_evaluation_percent??row.administrative_score??null,internal_evaluation_percent:row.internal_evaluation_percent??null,internal_comment:row.internal_comment||"",candidate_visible_message:row.candidate_visible_message||"",last_admin_decision:statusValue})});
+    const result=await response.json();if(!response.ok){setMessage(result.message||"Enregistrement impossible.");return}
+    patch(row.id,{status:statusValue,last_admin_decision:statusValue,last_admin_decision_at:new Date().toISOString()});setMessage(notify?"Décision enregistrée et candidat notifié.":"Évaluation interne enregistrée.");
   }
-
-  async function openDocument(path:string){
-    const {data,error}=await supabase.storage.from("recruitment-documents").createSignedUrl(path,300);
-    if(error)setMessage(error.message);
-    else window.open(data.signedUrl,"_blank");
-  }
-
-  async function act(next:ApplicationStatus,notify=true){
-    if(!selected)return;
-    if(notify&&!confirm(`Confirmer l'action "${applicationStatuses[next]}" ?`))return;
-    setMessage("Enregistrement...");
-    const attempt=selected.recruitment_test_attempts?.[0];
-    const response=await fetch("/api/recruitment/admin-action",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        id:selected.id,
-        status:next,
-        note,
-        notify,
-        internal_comments:selected.internal_comments,
-        administrative_score:selected.administrative_score,
-        manual_score:attempt?.manual_score,
-        reviewer_comments:attempt?.reviewer_comments,
-      }),
-    });
-    const result=await response.json();
-    if(!response.ok){
-      setMessage(result.message);
-      return;
-    }
-    const updated:Row={...selected,status:next};
-    setRows(safeRows.map(r=>r.id===updated.id?updated:r));
-    setSelected(updated);
-    setMessage(notify?"Statut mis a jour et notification envoyee.":"Evaluation enregistree.");
-    open(updated);
-  }
-
-  function update(name:string,value:unknown){
-    setSelected(s=>s?{...s,[name]:value}:s);
-  }
-
-  async function inviteReviewers(){
-    if(!attempt?.id)return;
-    const response=await fetch("/api/recruitment/test-reviewers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({attempt_id:attempt.id,emails:reviewerEmails})});
-    const result=await response.json();
-    if(!response.ok){setMessage(result.message||"Invitation impossible.");return}
-    setReviewerEmails("");
-    setMessage(`${result.count} correcteur(s) invite(s).`);
-    const refreshed=await supabase.from("recruitment_test_reviews").select("*").eq("attempt_id",attempt.id).order("created_at");
-    if(!refreshed.error)setReviews(refreshed.data||[]);
-  }
-
-  async function saveReview(review:Row){
-    const response=await fetch("/api/recruitment/test-reviewers",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({review_id:review.id,score:review.score,comments:review.comments})});
-    const result=await response.json();
-    if(!response.ok){setMessage(result.message||"Correction impossible.");return}
-    setMessage("Note du correcteur enregistree et moyenne mise a jour.");
-  }
-
-  const docs=(selected?.documents&&typeof selected.documents==="object"?selected.documents:{}) as Record<string,Array<{name:string;path:string}>>;
-  const attempt=asArray(selected?.recruitment_test_attempts)[0];
-
-  return <div>
-    <section className="mb-8 rounded-3xl border bg-white p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-orange">Correction</p>
-          <h2 className="mt-2 text-2xl font-black">Tests ecrits a corriger</h2>
-          <p className="mt-2 text-sm text-slate-500">Ouvrez un candidat, lisez ses reponses, attribuez une note de correction (%) puis cliquez sur "Enregistrer l'evaluation".</p>
-        </div>
-        <span className="rounded-full bg-orange/10 px-4 py-2 text-sm font-black text-orange">{testsToReview.length} dossier(s)</span>
-      </div>
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
-        {testsToReview.map(row=>{
-          const attempt=asArray(row.recruitment_test_attempts)[0]||{};
-          return <button key={row.id} onClick={()=>open(row)} className="rounded-2xl bg-slate-50 p-4 text-left hover:bg-mint">
-            <b className="text-forest">{row.full_name||row.email}</b>
-            <p className="mt-1 text-sm text-slate-500">Statut test : {attempt.status} - Score QCM : {formatScore(attempt.automatic_score)}%</p>
-            <p className="mt-1 text-xs text-slate-400">Note correction : {attempt.manual_score??"non attribuee"}%</p>
-          </button>;
-        })}
-        {!testsToReview.length&&<p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500 md:col-span-2">Aucun test soumis a corriger pour le moment.</p>}
-      </div>
-    </section>
-    <div className="mb-6 flex flex-wrap items-center gap-3">
-      <input className="admin-input flex-1" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Rechercher nom, pays, ville, specialite..."/>
-      <select className="admin-input w-[240px]" value={status} onChange={e=>setStatus(e.target.value)}>
-        <option value="">Tous les statuts</option>
-        {Object.entries(applicationStatuses).map(([value,label])=><option key={value} value={value}>{label}</option>)}
-      </select>
-      <button onClick={()=>exportCsv(filtered)} className="btn-secondary shrink-0">Exporter CSV</button>
-    </div>
-    {message&&<p className="mb-4 rounded-xl bg-mint p-4 text-sm font-bold text-forest">{message}</p>}
-    <div className="overflow-x-auto rounded-2xl border bg-white">
-      <table className="w-full min-w-[900px] text-left">
-        <thead className="border-b bg-slate-50 text-xs uppercase text-slate-400"><tr><th className="p-4">Candidat</th><th className="p-4">Localisation</th><th className="p-4">Specialite</th><th className="p-4">Statut</th><th className="p-4">Date de candidature</th><th/></tr></thead>
-        <tbody>
-          {filtered.map(row=><tr key={row.id} className="border-b">
-            <td className="p-4"><b className="text-forest">{row.full_name||"Sans nom"}</b><p className="text-xs text-slate-400">{row.email}</p></td>
-            <td className="p-4">{row.city}, {row.country}</td>
-            <td className="p-4">{row.specialization}</td>
-            <td className="p-4"><span className="rounded-full bg-mint px-3 py-1 text-xs font-bold text-leaf">{applicationStatuses[row.status as ApplicationStatus]}</span></td>
-            <td className="p-4 text-sm text-slate-500">{row.created_at?new Date(row.created_at).toLocaleDateString('fr-FR'):'—'}</td>
-            <td className="p-4 text-right"><button onClick={()=>open(row)} className="font-bold text-leaf">Examiner</button></td>
-          </tr>)}
-          {!filtered.length&&<tr><td colSpan={6} className="p-8 text-center text-slate-400">Aucune candidature.</td></tr>}
-        </tbody>
-      </table>
-    </div>
-
-    {selected&&<div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/60 p-4">
-      <div className="mx-auto my-5 max-w-5xl rounded-3xl bg-white p-6 md:p-9">
-        <div className="flex items-start justify-between">
-          <div><h2 className="text-3xl font-black">{selected.full_name}</h2><p className="mt-1 text-slate-500">{selected.professional_title} - {selected.specialization}</p></div>
-          <button onClick={()=>setSelected(null)} className="text-3xl">x</button>
-        </div>
-        <div className="mt-7 grid gap-6 lg:grid-cols-2">
-          <Info title="Informations" values={[
-            ["Naissance",selected.birth_date],
-            ["Localisation",`${selected.city}, ${selected.country}`],
-            ["WhatsApp",selected.whatsapp_phone],
-            ["Email",selected.email],
-            ["Diplome",selected.highest_degree],
-            ["Experience",`${selected.years_experience||0} ans`],
-            ["Langues",asArray(selected.languages).join(", ")],
-            ["Disponibilite (heures)",selected.weekly_availability],
-            ["Tarif",`${selected.desired_rate||0} FCFA`],
-            ["Domaines",asArray(selected.intervention_domains).join(", ")],
-          ]}/>
-          <section className="rounded-2xl bg-slate-50 p-5">
-            <h3 className="text-xl font-black">Documents</h3>
-            <div className="mt-4 grid gap-3">{documentFields.map(([key,label])=><div key={key}>
-              <b className="text-sm">{label}</b>
-              {asArray(docs[key]).map(file=><button key={file.path} onClick={()=>openDocument(file.path)} className="ml-3 text-sm font-bold text-leaf">{file.name}</button>)}
-            </div>)}</div>
-          </section>
-
-          {attempt&&<section className="rounded-2xl bg-slate-50 p-5 lg:col-span-2">
-            <h3 className="text-xl font-black">Test ecrit</h3>
-            <p className="mt-3">Score QCM automatique : <b>{formatScore(attempt.automatic_score)}%</b> - Statut : {attempt.status}</p>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm font-bold">Note de correction (%)
-                <input type="number" min="0" max="100" className="admin-input" value={attempt.manual_score??""} onChange={e=>setSelected({...selected,recruitment_test_attempts:[{...attempt,manual_score:e.target.value===""?null:Number(e.target.value)}]})}/>
-              </label>
-              <label className="grid gap-2 text-sm font-bold">Commentaires de correction
-                <textarea className="admin-input" value={attempt.reviewer_comments||""} onChange={e=>setSelected({...selected,recruitment_test_attempts:[{...attempt,reviewer_comments:e.target.value}]})}/>
-              </label>
-            </div>
-            <div className="mt-5 grid gap-3">{safeQuestions.map(question=><div key={question.id} className="rounded-xl bg-white p-4">
-              <b>{question.prompt}</b>
-              <AnswerDisplay value={attempt.answers?.[question.id]} openDocument={openDocument}/>
-            </div>)}</div>
-            <div className="mt-6 rounded-2xl bg-white p-5">
-              <h4 className="text-lg font-black">Correcteurs du test</h4>
-              <p className="mt-1 text-sm text-slate-500">Invitez des membres du reseau ou des correcteurs externes disposant d'un compte NutVitaGlobalis. Chaque note est en pourcentage; la moyenne alimente la note finale de correction.</p>
-              <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
-                <textarea className="admin-input" value={reviewerEmails} onChange={e=>setReviewerEmails(e.target.value)} placeholder="emails separes par virgule ou retour a la ligne"/>
-                <button onClick={inviteReviewers} className="btn-secondary px-4">Inviter</button>
-              </div>
-              <div className="mt-4 grid gap-3">{reviews.map(review=><div key={review.id} className="grid gap-3 rounded-xl bg-slate-50 p-4 md:grid-cols-[1fr_120px_1fr_auto]">
-                <div><b>{review.reviewer_email}</b><p className="text-xs text-slate-400">{review.status}</p></div>
-                <input type="number" min="0" max="100" className="admin-input" value={review.score??""} onChange={e=>setReviews(reviews.map(item=>item.id===review.id?{...item,score:e.target.value}:item))} placeholder="%"/>
-                <input className="admin-input" value={review.comments||""} onChange={e=>setReviews(reviews.map(item=>item.id===review.id?{...item,comments:e.target.value}:item))} placeholder="Commentaire"/>
-                <button onClick={()=>saveReview(review)} className="btn-primary px-4">Enregistrer</button>
-              </div>)}
-              {!reviews.length&&<p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Aucun correcteur invite pour ce test.</p>}</div>
-              {reviews.some(review=>review.score!==null&&review.score!==undefined)&&<p className="mt-4 rounded-xl bg-mint p-3 text-sm font-bold text-forest">Moyenne actuelle : {averageScore(reviews)}%</p>}
-            </div>
-          </section>}
-
-          <section className="rounded-2xl border p-5 lg:col-span-2">
-            <h3 className="text-xl font-black">Evaluation interne</h3>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm font-bold">Note administrative (%)
-                <input type="number" min="0" max="100" className="admin-input" value={selected.administrative_score??""} onChange={e=>update("administrative_score",e.target.value===""?null:Number(e.target.value))}/>
-              </label>
-              <label className="grid gap-2 text-sm font-bold">Commentaire interne
-                <textarea className="admin-input" value={selected.internal_comments||""} onChange={e=>update("internal_comments",e.target.value)}/>
-              </label>
-            </div>
-            <button onClick={()=>act(selected.status as ApplicationStatus,false)} className="btn-secondary mt-4">Enregistrer l'evaluation</button>
-            <label className="mt-5 grid gap-2 text-sm font-bold">Message envoye au candidat
-              <textarea className="admin-input" value={note} onChange={e=>setNote(e.target.value)} placeholder="Precisions, lien d'entretien, documents manquants..."/>
-            </label>
-            <div className="mt-5 flex flex-wrap gap-2">{actions.map(([value,label])=><button key={value} onClick={()=>act(value)} className={value==="rejected"?"rounded-full bg-red-600 px-4 py-2 text-sm font-bold text-white":"btn-secondary px-4 py-2"}>{label}</button>)}</div>
-          </section>
-
-          <section className="lg:col-span-2">
-            <h3 className="text-xl font-black">Historique des decisions</h3>
-            <div className="mt-3 grid gap-2">{history.map(item=><div key={item.id} className="rounded-xl bg-slate-50 p-4 text-sm">
-              <b>{item.action}</b><span className="ml-3 text-slate-400">{new Date(item.created_at).toLocaleString("fr-FR")}</span>{item.note&&<p className="mt-1">{item.note}</p>}
-            </div>)}</div>
-          </section>
-        </div>
-      </div>
-    </div>}
+  async function openDocument(path:string){const{data,error}=await supabase.storage.from("recruitment-documents").createSignedUrl(path,300);if(error)setMessage(error.message);else window.open(data.signedUrl,"_blank","noopener,noreferrer")}
+  return <div className="grid gap-5">
+    <div className="grid gap-3 rounded-2xl border bg-white p-4 md:grid-cols-[1fr_260px_auto]"><input className="admin-input" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Candidat, email, poste, pays…"/><select className="admin-input" value={status} onChange={e=>setStatus(e.target.value)}><option value="">Tous les statuts</option>{Object.entries(applicationStatuses).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><button onClick={()=>exportCsv(filtered)} className="btn-secondary">Exporter CSV</button></div>
+    {message&&<p className="rounded-xl bg-mint p-4 font-bold text-forest">{message}</p>}
+    <div className="overflow-x-auto rounded-2xl border bg-white"><table className="w-full min-w-[1500px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Candidat</th><th className="p-4">Poste / spécialité</th><th className="p-4">Date</th><th className="p-4">Statut</th><th className="p-4">Vue</th><th className="p-4">Évaluation interne</th><th className="p-4">Décision</th><th className="p-4">Commentaire interne</th><th className="p-4">Message candidat</th><th className="p-4">Enregistrer</th></tr></thead><tbody>{filtered.map(row=><tr key={row.id} className="border-t align-top"><td className="p-4"><b className="text-forest">{row.full_name||"Sans nom"}</b><p className="text-xs text-slate-500">{row.email}</p></td><td className="p-4">{row.specialization||row.professional_title||"Candidature spontanée"}</td><td className="p-4">{date(row.created_at)}</td><td className="p-4"><span className="rounded-full bg-mint px-3 py-1 text-xs font-bold text-forest">{applicationStatuses[row.status as ApplicationStatus]||row.status}</span></td><td className="p-4"><button onClick={()=>open(row)} className="btn-secondary px-3 py-2">Voir</button></td><td className="p-4"><div className="flex items-center gap-2"><input className="admin-input w-24" type="number" min="0" max="100" value={row.internal_evaluation_percent??row.administrative_score??""} onChange={e=>patch(row.id,{internal_evaluation_percent:e.target.value===""?null:Number(e.target.value)})}/><span>%</span></div></td><td className="p-4"><select className="admin-input min-w-48" value={row.last_admin_decision||""} onChange={e=>{const next=e.target.value as ApplicationStatus;patch(row.id,{last_admin_decision:next});if(next)save({...row,last_admin_decision:next},next,true)}}><option value="">Choisir…</option>{decisions.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></td><td className="p-4"><textarea rows={3} className="admin-input min-w-64" value={row.internal_comment||row.internal_comments||""} onChange={e=>patch(row.id,{internal_comment:e.target.value})}/></td><td className="p-4"><textarea rows={3} className="admin-input min-w-64" value={row.candidate_visible_message||""} onChange={e=>patch(row.id,{candidate_visible_message:e.target.value})} placeholder="Visible dans l’espace candidat"/></td><td className="p-4"><button onClick={()=>save(row,undefined,false)} className="btn-primary px-4 py-2">Enregistrer</button></td></tr>)}{!filtered.length&&<tr><td colSpan={10} className="p-10 text-center text-slate-400">Aucune candidature correspondant aux filtres.</td></tr>}</tbody></table></div>
+    {selected&&<CandidateModal row={selected} history={history} close={()=>setSelected(null)} openDocument={openDocument}/>}
   </div>;
 }
 
-function AnswerDisplay({value,openDocument}:{value:any;openDocument:(path:string)=>void}){
-  if(value===undefined||value===null||value==="")return <p className="mt-2 text-sm text-slate-400">Sans reponse</p>;
-  if(Array.isArray(value))return <ul className="mt-2 list-disc pl-5 text-sm">{value.map((item,index)=><li key={`${item}-${index}`}>{String(item)}</li>)}</ul>;
-  if(typeof value==="object"&&value.path){
-    return <button onClick={()=>openDocument(value.path)} className="mt-2 text-sm font-bold text-leaf">{value.name||"Fichier joint"}</button>;
-  }
-  if(typeof value==="object")return <pre className="mt-2 overflow-x-auto rounded-xl bg-slate-100 p-3 text-xs">{JSON.stringify(value,null,2)}</pre>;
-  return <p className="mt-2 whitespace-pre-wrap text-sm">{String(value)}</p>;
+function CandidateModal({row,history,close,openDocument}:{row:Row;history:Row[];close:()=>void;openDocument:(path:string)=>void}){
+  const docs=(row.documents&&typeof row.documents==="object"?row.documents:{}) as Record<string,Array<{name:string;path:string}>>;
+  return <div className="fixed inset-0 z-[130] overflow-y-auto bg-slate-950/65 p-4"><div className="mx-auto my-6 max-w-5xl rounded-[2rem] bg-forest p-4 shadow-2xl"><div className="rounded-[1.5rem] bg-white p-6 md:p-8"><div className="flex justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-widest text-orange">Dossier candidat</p><h2 className="mt-2 text-3xl font-black text-forest">{row.full_name}</h2><p className="text-slate-500">{row.email} · {row.specialization||row.professional_title}</p></div><button onClick={close} className="text-3xl">×</button></div><div className="mt-7 grid gap-5 md:grid-cols-2"><Card title="Informations" items={[["Téléphone",row.whatsapp_phone||row.phone],["Pays",row.country],["Région",row.state_region],["Ville",row.city],["Diplôme",row.highest_degree],["Expérience",`${row.years_experience||0} ans`],["Disponibilité",row.weekly_availability],["Statut",applicationStatuses[row.status as ApplicationStatus]||row.status]]}/><section className="rounded-2xl bg-slate-50 p-5"><h3 className="text-xl font-black">Documents</h3><div className="mt-4 grid gap-3">{documentFields.map(([key,label])=><div key={key}><b className="text-sm">{label}</b>{(docs[key]||[]).map(file=><button key={file.path} onClick={()=>openDocument(file.path)} className="ml-3 text-sm font-bold text-leaf">{file.name}</button>)}</div>)}</div></section><Card title="Évaluation et décision" items={[["Note administrative",`${row.internal_evaluation_percent??row.administrative_score??"—"}%`],["Décision",row.last_admin_decision||"—"],["Commentaire interne",row.internal_comment||row.internal_comments||"—"],["Message candidat",row.candidate_visible_message||"—"]]}/><section className="rounded-2xl bg-slate-50 p-5"><h3 className="text-xl font-black">Historique complet</h3><div className="mt-4 grid gap-2">{history.map(item=><div key={item.id} className="rounded-xl bg-white p-3 text-sm"><b>{item.action}</b><span className="ml-2 text-xs text-slate-400">{new Date(item.created_at).toLocaleString("fr-FR")}</span>{item.note&&<p>{item.note}</p>}</div>)}{!history.length&&<p className="text-sm text-slate-400">Aucun événement.</p>}</div></section></div></div></div></div>;
 }
-
-function Info({title,values}:{title:string;values:Array<[string,unknown]>}){
-  return <section className="rounded-2xl bg-slate-50 p-5">
-    <h3 className="text-xl font-black">{title}</h3>
-    <dl className="mt-4 grid gap-3">{values.map(([key,value])=><div key={key}><dt className="text-xs font-bold uppercase text-slate-400">{key}</dt><dd>{String(value||"-")}</dd></div>)}</dl>
-  </section>;
-}
-
-function exportCsv(rows:Row[]){
-  const escape=(value:unknown)=>`"${String(value??"").replace(/"/g,'""')}"`;
-  const csv=[
-    "Nom,Email,Ville,Pays,Specialite,Statut,Date de candidature",
-    ...rows.map(row=>[row.full_name,row.email,row.city,row.country,row.specialization,applicationStatuses[row.status as ApplicationStatus]||row.status,row.created_at?new Date(row.created_at).toISOString():""].map(escape).join(",")),
-  ].join("\n");
-  const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
-  const link=document.createElement("a");
-  link.href=url;link.download="candidatures-nutvita.csv";link.click();
-  URL.revokeObjectURL(url);
-}
-
-function formatScore(value:any){
-  const score=Number(value||0);
-  return Number.isInteger(score)?String(score):score.toFixed(2);
-}
-
-function asArray(value:any){
-  if(Array.isArray(value))return value;
-  if(value===undefined||value===null||value==="")return [];
-  return [value];
-}
-
-function averageScore(rows:Row[]){
-  const scores=rows.map(row=>Number(row.score)).filter(score=>!Number.isNaN(score));
-  if(!scores.length)return "0";
-  const average=scores.reduce((sum,score)=>sum+score,0)/scores.length;
-  return Number.isInteger(average)?String(average):average.toFixed(2);
-}
+function Card({title,items}:{title:string;items:Array<[string,unknown]>}){return <section className="rounded-2xl bg-slate-50 p-5"><h3 className="text-xl font-black">{title}</h3><dl className="mt-4 grid gap-3">{items.map(([key,value])=><div key={key}><dt className="text-xs font-bold uppercase text-slate-400">{key}</dt><dd className="whitespace-pre-wrap">{String(value||"—")}</dd></div>)}</dl></section>}
+function date(value:unknown){return value?new Date(String(value)).toLocaleDateString("fr-FR"):"—"}
+function exportCsv(rows:Row[]){const esc=(value:unknown)=>`"${String(value??"").replace(/"/g,'""')}"`;const csv=["Nom,Email,Spécialité,Statut,Évaluation,Date",...rows.map(row=>[row.full_name,row.email,row.specialization,row.status,row.internal_evaluation_percent,row.created_at].map(esc).join(","))].join("\n");const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})),link=document.createElement("a");link.href=url;link.download="candidatures-nutritionnistes.csv";link.click();URL.revokeObjectURL(url)}

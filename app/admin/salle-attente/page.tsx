@@ -8,5 +8,5 @@ export default async function Page() {
     supabase.from("consultation_waiting_room").select("*, client_profiles(full_name,email,phone,city,state_region,country,sex,complaints,objectives)").order("created_at", { ascending: false }),
     supabase.from("dietitian_profiles").select("*").order("full_name"),
   ]);
-  return <AdminShell name={admin.full_name || admin.email}><div className="mb-7"><h1 className="text-3xl font-black">Salle d'attente consultations</h1><p className="mt-2 text-slate-500">Attribuez les nouveaux clients aux partenaires. Le score IA est une aide rapide, a valider par l'admin.</p></div><WaitingRoomManager initial={requests || []} partners={partners || []} /></AdminShell>;
+  return <AdminShell name={admin.full_name || admin.email}><div className="mb-7"><h1 className="text-3xl font-black">Salle d’attente des consultations</h1><p className="mt-2 text-slate-500">Registre central des demandes, attributions et réattributions aux nutritionnistes.</p></div><WaitingRoomManager initial={requests || []} partners={partners || []} adminId={admin.id} /></AdminShell>;
 }

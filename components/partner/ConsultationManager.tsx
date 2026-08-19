@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import ClinicalAssessmentSummary from "@/components/consultations/ClinicalAssessmentSummary";
@@ -64,6 +64,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
   const [mealPlan,setMealPlan]=useState("");
   const [wellnessAssessment,setWellnessAssessment]=useState<WellnessAssessmentBundle|null>(null);
   const [nutrition24h,setNutrition24h]=useState<Row|null>(null);
+  const [prescriptionType,setPrescriptionType]=useState<"exams"|"medication"|"other">("exams");
   const client = clients.find(item => item.id === clientId);
   const children=Array.isArray(client?.children)?client.children:[];
   const selectedChild=children.find((item:Row)=>item.id===childId);
@@ -121,6 +122,8 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
         education: data.get("education"),
       },
       next_appointment_at: data.get("next_appointment_at"),
+      prescription_type: prescriptionType,
+      prescription_type_label: prescriptionType === "other" ? data.get("prescription_type_label") : null,
       prescription_items: data.getAll("prescription_items").map(String).filter(item => item.trim()),
       prescription_notes: data.get("prescription_notes"),
       clinical_assessments:{...assessments,pre_analysis:preAnalysis?.analysis||null},
@@ -140,6 +143,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
     setMealPlan("");
     setWellnessAssessment(null);
     setNutrition24h(null);
+    setPrescriptionType("exams");
     setMessage("Consultation finalisee, documents crees et prochain rendez-vous programme.");
   }
 
@@ -213,10 +217,14 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
       </section>
 
       <section className="rounded-2xl border bg-white p-6">
-        <Step number="9" title="Ordonnance d'examens" />
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{presets.exams.map(item => <label key={item} className="flex gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold"><input name="prescription_items" value={item} type="checkbox" />{item}</label>)}</div>
-        <label className="mt-4 grid gap-2 text-sm font-bold">Examens supplementaires<input name="prescription_items" className="admin-input" placeholder="Saisir un examen supplementaire" /></label>
-        <label className="mt-4 grid gap-2 text-sm font-bold">Indications et commentaires<textarea name="prescription_notes" rows={3} className="admin-input" /></label>
+        <Step number="9" title={tx("Ordonnance", "Prescription")} />
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <label className="grid gap-2 text-sm font-bold">{tx("Nature de l’ordonnance", "Prescription type")}<select value={prescriptionType} onChange={event=>setPrescriptionType(event.target.value as "exams"|"medication"|"other")} className="admin-input"><option value="exams">{tx("Demande d’examens", "Examination request")}</option><option value="medication">{tx("Achat de médicaments", "Medication prescription")}</option><option value="other">{tx("Autre", "Other")}</option></select></label>
+          {prescriptionType==="other"&&<label className="grid gap-2 text-sm font-bold">{tx("Préciser la nature", "Specify the type")}<input name="prescription_type_label" required className="admin-input" placeholder={tx("Ex. matériel médical", "E.g. medical equipment")}/></label>}
+        </div>
+        {prescriptionType==="exams"&&<div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{presets.exams.map(item => <label key={item} className="flex gap-3 rounded-xl bg-slate-50 p-3 text-sm font-bold"><input name="prescription_items" value={item} type="checkbox" />{item}</label>)}</div>}
+        <label className="mt-4 grid gap-2 text-sm font-bold">{prescriptionType==="exams"?tx("Examen supplémentaire","Additional examination"):prescriptionType==="medication"?tx("Médicament et posologie","Medication and dosage"):tx("Élément prescrit","Prescribed item")}<input name="prescription_items" className="admin-input" placeholder={prescriptionType==="exams"?tx("Saisir un examen supplémentaire","Enter an additional examination"):prescriptionType==="medication"?tx("Nom, dosage, fréquence et durée","Name, dosage, frequency and duration"):tx("Préciser la prescription","Specify the prescription")}/></label>
+        <label className="mt-4 grid gap-2 text-sm font-bold">{tx("Indications et commentaires", "Directions and comments")}<textarea name="prescription_notes" rows={3} className="admin-input" /></label>
       </section>
 
       {message && <p className="rounded-xl bg-mint p-4 font-bold text-forest">{message}</p>}
@@ -260,4 +268,3 @@ function PrintableAccessQr({ email }: { email?: string }) {
   useEffect(()=>{QRCode.toDataURL(`${location.origin}/connexion?identifiant=${encodeURIComponent(email||"")}&redirect=${encodeURIComponent("/espace-client/consultations")}`,{width:220,margin:1}).then(setSrc)},[email]);
   return src?<div className="mt-7 flex items-center gap-3 border-t pt-5"><img src={src} alt="QR acces securise" className="h-20 w-20"/><p className="max-w-xs text-xs text-slate-500">Scannez pour vous connecter et retrouver cette consultation. L'adresse email sera deja renseignee.</p></div>:null;
 }
-

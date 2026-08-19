@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { hasLocalAdminMode, hasSupabaseConfig } from "@/lib/supabase/config";
 import { createLocalClient, localAdmin } from "@/lib/supabase/local";
 import { cookies } from "next/headers";
-import { requireActivePlatformSession } from "@/lib/active-platform-session";
 
 export async function requireAdmin() {
   if (hasLocalAdminMode() && !hasSupabaseConfig()) {
@@ -15,7 +14,6 @@ export async function requireAdmin() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/admin");
-  await requireActivePlatformSession(["administration","health","child_growth","teleconsultation","recruitment","nutritrack","catering"],["admin","super_admin"]);
   const { data: admin } = await supabase.from("admin_users").select("id,email,full_name").eq("id", user.id).eq("active", true).maybeSingle();
   if (!admin) {
     await supabase.auth.signOut();

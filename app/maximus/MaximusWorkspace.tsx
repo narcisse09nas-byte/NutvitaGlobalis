@@ -61,6 +61,7 @@ import CateringManagement from './specialized/CateringManagement';
 import TreasuryManagement from './specialized/TreasuryManagement';
 import TreasuryFinancialReports from './specialized/TreasuryFinancialReports';
 import InternalTransfers from './specialized/InternalTransfers';
+import OnlineServiceFinance from './specialized/OnlineServiceFinance';
 import RecruitmentQuestionImporter from '@/components/admin/RecruitmentQuestionImporter';
 
 const FinancialDashboard = dynamic(() => import('./specialized/FinancialDashboard'), {
@@ -83,7 +84,7 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
   const groups = useMemo(() => {
     const result = new Map<string, MaximusModule[]>();
     maximusModules.filter(item => item.group !== 'Restauration' && (!allowedModules || allowedModules.includes(item.slug))).forEach(item => result.set(item.group, [...(result.get(item.group) || []), item]));
-    const financeOrder = ['finance/dashboard','finance/reports','finance/treasury-accounts','finance/internal-transfers','finance/settlements','finance/budget-lines','finance/requests','finance/payment-initiation','finance/my-payments','finance/cash-supply-requests','finance/cost-estimations','finance/payments','finance/payment-register','finance/operational-advances','finance/petty-cash','finance/bank-transfers','finance/cash-deposits'];
+    const financeOrder = ['finance/dashboard','finance/reports','finance/online-payments','finance/partner-registry','finance/partner-payments','finance/partner-accounts','finance/treasury-accounts','finance/internal-transfers','finance/settlements','finance/budget-lines','finance/requests','finance/payment-initiation','finance/my-payments','finance/cash-supply-requests','finance/cost-estimations','finance/payments','finance/payment-register','finance/operational-advances','finance/petty-cash','finance/bank-transfers','finance/cash-deposits','finance/organization-payment-accounts'];
     return Array.from(result).map(([group, items]) => [group, group === 'Finance' ? [...items].sort((a, b) => financeOrder.indexOf(a.slug) - financeOrder.indexOf(b.slug)) : items] as const);
   }, [allowedModules]);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
@@ -133,6 +134,11 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
 }
 
 function ModuleRenderer({ module }: { module: MaximusModule }) {
+  if (module.slug === 'finance/online-payments') return <OnlineServiceFinance mode="online-payments" />;
+  if (module.slug === 'finance/partner-registry') return <OnlineServiceFinance mode="partner-registry" />;
+  if (module.slug === 'finance/partner-payments') return <OnlineServiceFinance mode="partner-payments" />;
+  if (module.slug === 'finance/partner-accounts') return <OnlineServiceFinance mode="partner-accounts" />;
+  if (module.slug === 'finance/organization-payment-accounts') return <OnlineServiceFinance mode="organization-accounts" />;
 if (module.slug === 'hr/recruitment/question-bank') return <RecruitmentQuestionImporter scope="maximus" categories={['Nutrition','Diététique','Finance','Ressources humaines','Commercial','Production','Logistique','Administration','Informatique']} />;
   if (module.slug === 'finance/reports') return <TreasuryFinancialReports />;
   if (module.slug === 'finance/internal-transfers') return <InternalTransfers />;

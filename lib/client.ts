@@ -1,4 +1,4 @@
-﻿import {redirect} from "next/navigation";
+import {redirect} from "next/navigation";
 import {cookies} from "next/headers";
 import {createClient} from "@/lib/supabase/server";
 import {hasLocalAdminMode,hasSupabaseConfig} from "@/lib/supabase/config";
@@ -7,49 +7,61 @@ import {localClientUser} from "@/lib/local-seed";
 import {isPrincipalEmail} from "@/lib/platform-services";
 import {requireActivePlatformSession} from "@/lib/active-platform-session";
 
-export type ClientEntitlements={health:boolean;childGrowth:boolean;teleconsultation:boolean;premiumResources:boolean};
+export type ClientEntitlements={health:boolean;childGrowth:boolean;teleconsultation:boolean;medicalConsultation:boolean;premiumResources:boolean};
 
 export async function requireClient(){
   if(hasLocalAdminMode()&&!hasSupabaseConfig()){
-    if((await cookies()).get('nutvita_local_client')?.value!=='1')redirect('/connexion');
+    if((await cookies()).get("nutvita_local_client")?.value!=="1")redirect("/connexion");
     const supabase=createLocalClient();
-    const {data:profile}=await supabase.from('client_profiles').select('*').eq('id',localClientUser.id).maybeSingle();
+    const {data:profile}=await supabase.from("client_profiles").select("*").eq("id",localClientUser.id).maybeSingle();
     return{supabase,user:localClientUser,profile};
   }
-  if(!hasSupabaseConfig())redirect('/espace-client?setup=1');
+  if(!hasSupabaseConfig())redirect("/espace-client?setup=1");
   const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();
-  if(!user)redirect('/connexion');
-  const {data:profile}=await supabase.from('client_profiles').select('*').eq('id',user.id).maybeSingle();
+  if(!user)redirect("/connexion");
+  const {data:profile}=await supabase.from("client_profiles").select("*").eq("id",user.id).maybeSingle();
   return{supabase,user,profile};
 }
 
 export async function getClientEntitlements(supabase:any,userId:string):Promise<ClientEntitlements>{
-  const authResult=typeof supabase.auth?.getUser==='function'?await supabase.auth.getUser():{data:{user:null}};
-  const {data:admin}=await supabase.from('admin_users').select('role,active').eq('id',userId).maybeSingle();
-  if(isPrincipalEmail(authResult.data?.user?.email)||(admin?.active&&admin.role==='super_admin'))return{health:true,childGrowth:true,teleconsultation:true,premiumResources:true};
+  const authResult=typeof supabase.auth?.getUser==="function"?await supabase.auth.getUser():{data:{user:null}};
+  const {data:admin}=await supabase.from("admin_users").select("role,active").eq("id",userId).maybeSingle();
+  if(isPrincipalEmail(authResult.data?.user?.email)||(admin?.active&&admin.role==="super_admin"))return{health:true,childGrowth:true,teleconsultation:true,medicalConsultation:true,premiumResources:true};
   const now=Date.now();
-  const [{data:subscriptions},{data:plans},{data:bookings},{data:grants}]=await Promise.all([
-    supabase.from('subscriptions').select('*').eq('client_id',userId).eq('status','active'),
-    supabase.from('subscription_plans').select('id,service_type,tier'),
-    supabase.from('consultation_bookings').select('*').eq('client_id',userId),
-    supabase.from('platform_service_access').select('service_key,active,expires_at').eq('user_id',userId).eq('active',true),
+  const [{data:subscriptions},{data:plans},{data:bookings},{data:medicalConsultations},{data:grants}]=await Promise.all([
+    supabase.from("subscriptions").select("*").eq("client_id",userId).eq("status","active"),
+    supabase.from("subscription_plans").select("id,service_type,tier"),
+    supabase.from("consultation_bookings").select("*").eq("client_id",userId),
+    supabase.from("medical_consultations").select("*").eq("client_id",userId),
+    supabase.from("platform_service_access").select("service_key,active,expires_at").eq("user_id",userId).eq("active",true),
   ]);
   const planTypes=new Map((plans||[]).map((plan:any)=>[plan.id,plan.service_type]));
-  const premiumPlanIds=new Set((plans||[]).filter((plan:any)=>plan.tier==='premium').map((plan:any)=>plan.id));
+  const premiumPlanIds=new Set((plans||[]).filter((plan:any)=>plan.tier==="premium").map((plan:any)=>plan.id));
   const active=(subscriptions||[]).filter((item:any)=>!item.expires_at||+new Date(item.expires_at)>now);
   const granted=(service:string)=>(grants||[]).some((item:any)=>item.service_key===service&&(!item.expires_at||+new Date(item.expires_at)>now));
+  const activeDietetic=granted("teleconsultation")||(bookings||[]).some((item:any)=>{
+    if(["cancelled","refunded"].includes(item.status))return false;
+    if(item.access_expires_at)return +new Date(item.access_expires_at)>now;
+    const legacyEnd=new Date(item.created_at);legacyEnd.setUTCMonth(legacyEnd.getUTCMonth()+3);
+    return Number.isFinite(+legacyEnd)&&+legacyEnd>now;
+  });
+  const activeMedical=granted("medical_consultation")||(medicalConsultations||[]).some((item:any)=>{
+    if(["cancelled","refunded","rejected"].includes(item.status))return false;
+    if(item.access_expires_at)return +new Date(item.access_expires_at)>now;
+    const legacyEnd=new Date(item.created_at);legacyEnd.setUTCMonth(legacyEnd.getUTCMonth()+3);
+    return Number.isFinite(+legacyEnd)&&+legacyEnd>now;
+  });
+  const consultationPremium=activeDietetic||activeMedical;
   return{
-    health:granted("health")||active.some((item:any)=>!item.child_id&&(planTypes.get(item.plan_id)==='health_tracking'||String(item.plan_id).includes('health'))),
-    childGrowth:granted("child_growth")||active.some((item:any)=>planTypes.get(item.plan_id)==='child_growth'||String(item.plan_id).includes('child-growth')),
-    premiumResources:active.some((item:any)=>premiumPlanIds.has(item.plan_id)),
-    teleconsultation:granted("teleconsultation")||(bookings||[]).some((item:any)=>{
-      if(['cancelled','refunded'].includes(item.status))return false;
-      if(item.access_expires_at)return +new Date(item.access_expires_at)>now;
-      const legacyEnd=new Date(item.created_at);legacyEnd.setUTCMonth(legacyEnd.getUTCMonth()+3);
-      return Number.isFinite(+legacyEnd)&&+legacyEnd>now;
-    }),
+    health:consultationPremium||granted("health")||active.some((item:any)=>!item.child_id&&(planTypes.get(item.plan_id)==="health_tracking"||String(item.plan_id).includes("health"))),
+    childGrowth:granted("child_growth")||active.some((item:any)=>planTypes.get(item.plan_id)==="child_growth"||String(item.plan_id).includes("child-growth")),
+    premiumResources:consultationPremium||active.some((item:any)=>premiumPlanIds.has(item.plan_id)),
+    teleconsultation:activeDietetic,
+    medicalConsultation:activeMedical,
   };
 }
 
-export async function requireHealthAccess(){await requireActivePlatformSession("health","client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.health)redirect('/espace-client/abonnement?acces=suivi-sante-requis');return{...context,access}}
-export async function requireTeleconsultationAccess(){await requireActivePlatformSession("teleconsultation","client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.teleconsultation)redirect('/teleconseils?acces=pack-requis');return{...context,access}}
+export async function requireHealthAccess(){await requireActivePlatformSession(["health","teleconsultation","medical_consultation"],"client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.health)redirect("/espace-client/abonnement?acces=suivi-sante-requis");return{...context,access}}
+export async function requireTeleconsultationAccess(){await requireActivePlatformSession("teleconsultation","client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.teleconsultation)redirect("/teleconseils?acces=consultation-requise");return{...context,access}}
+export async function requireMedicalConsultationAccess(){await requireActivePlatformSession("medical_consultation","client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.medicalConsultation)redirect("/consultations-medicales/specialistes?acces=consultation-requise");return{...context,access}}
+export async function requireCareAccess(){await requireActivePlatformSession(["teleconsultation","medical_consultation"],"client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.teleconsultation&&!access.medicalConsultation)redirect("/services?acces=consultation-requise");return{...context,access}}

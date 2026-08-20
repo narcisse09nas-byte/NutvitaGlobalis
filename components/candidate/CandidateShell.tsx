@@ -19,7 +19,6 @@ import { createClient } from "@/lib/supabase/client";
 const links = [
   ["/candidat", "Tableau de bord", HomeIcon],
   ["/candidatures", "Mes candidatures", ClipboardDocumentCheckIcon],
-  ["/candidat/dossier", "Mon dossier", ClipboardDocumentCheckIcon],
   ["/candidat/test-ecrit", "Test écrit", AcademicCapIcon],
   ["/candidat/entretien", "Entretien", VideoCameraIcon],
   ["/candidat/messages", "Messages", ChatBubbleLeftRightIcon],

@@ -186,12 +186,12 @@ export function drawIndicatorReportCard(
   const interpretation = insight?.professionalInterpretation || insight?.publicInterpretation;
   if (interpretation) {
     lines.push({ text: fr ? "Observation clinique" : "Clinical observation", bold: true, color: toneColor(insight?.status) });
-    wrapFn(interpretation, wrapChars).slice(0, 4).forEach(text => lines.push({ text }));
+    wrapFn(interpretation, wrapChars).forEach(text => lines.push({ text }));
   }
   const recommendation = insight?.recommendation || insight?.professionalRecommendations?.[0];
   if (recommendation) {
     lines.push({ text: fr ? "Recommandation" : "Recommendation", bold: true, color: toneColor(insight?.status) });
-    wrapFn(recommendation, wrapChars).slice(0, 3).forEach(text => lines.push({ text }));
+    wrapFn(recommendation, wrapChars).forEach(text => lines.push({ text }));
   }
 
   const lineHeight = 11.5;

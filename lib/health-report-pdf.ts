@@ -57,15 +57,15 @@ export async function renderHealthReport(
     y = top - rows * (size + 4) - 5;
   };
   const twoColumnBullets = (values: string[] | undefined, limit = 6) => {
-    const items = (values || []).filter(Boolean).slice(0, limit), perColumn = Math.ceil(items.length / 2), prepared = items.map(item => wrap(`- ${item}`, 43));
+    const items = (values || []).filter(Boolean).slice(0, limit), perColumn = Math.ceil(items.length / 2), prepared = items.map(item => wrap(`•  ${item}`, 43));
     const rows = Math.max(prepared.slice(0, perColumn).flat().length, prepared.slice(perColumn).flat().length, 1);
     if (y - rows * 12 < 85) addPage();
     const top = y;
     [prepared.slice(0, perColumn), prepared.slice(perColumn)].forEach((column, columnIndex) => { let lineY = top; column.flat().forEach(line => { page.drawText(line, { x: columnIndex ? 307 : 50, y: lineY, size: 8.5, font: regular, color: rgb(.16, .23, .22) }); lineY -= 12; }); });
     y = top - rows * 12 - 5;
   };
-  const heading = (value: string) => { if (y < 140) addPage(); y -= 7; page.drawRectangle({ x: 45, y: y - 22, width: 505, height: 30, color: rgb(.94, .98, .96), borderColor: rgb(.82, .88, .85), borderWidth: .6 }); page.drawText(value, { x: 58, y: y - 13, size: 13, font: bold, color: rgb(.07, .24, .19) }); y -= 35; };
-  const bullets = (values: string[] | undefined, limit = 5) => (values || []).filter(Boolean).slice(0, limit).forEach(value => text(`- ${value}`, 8.5));
+  const heading = (value: string) => { if (y < 140) addPage(); y -= 7; page.drawRectangle({ x: 45, y: y - 22, width: 505, height: 30, color: rgb(.94, .98, .96), borderColor: rgb(.82, .88, .85), borderWidth: .6 }); page.drawRectangle({ x: 45, y: y - 22, width: 4, height: 30, color: rgb(.12, .49, .33) }); page.drawText(value, { x: 58, y: y - 13, size: 13, font: bold, color: rgb(.07, .24, .19) }); y -= 35; };
+  const bullets = (values: string[] | undefined, limit = 5) => (values || []).filter(Boolean).slice(0, limit).forEach(value => text(`•  ${value}`, 8.5));
 
   text(fr ? "Rapport de suivi sante" : "Health monitoring report", 20, bold, rgb(.07, .24, .19));
   text(profile.full_name || (fr ? "Client" : "Client"), 12, bold);

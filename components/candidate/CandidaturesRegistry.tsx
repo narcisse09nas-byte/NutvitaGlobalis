@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { CandidatureCard } from "@/lib/candidate-unified";
 import AutoRefresh from "@/components/candidate/AutoRefresh";
 
@@ -21,9 +21,7 @@ function statusColor(percent: number) {
 
 export default function CandidaturesRegistry({ cards, notifications }: { cards: CandidatureCard[]; notifications: Record<string, Notification> }) {
   const [filter, setFilter] = useState<string | null>(null);
-  const [trackFilter, setTrackFilter] = useState<string>("all");
-  const tracks = useMemo(() => Array.from(new Set(cards.map(c => c.track))), [cards]);
-  const visible = cards.filter(c => (!filter || c.key === filter) && (trackFilter === "all" || c.track === trackFilter));
+  const visible = cards.filter(c => !filter || c.key === filter);
 
   return <div className="grid gap-7">
     <AutoRefresh />
@@ -36,11 +34,6 @@ export default function CandidaturesRegistry({ cards, notifications }: { cards: 
       </button>)}
       {!cards.length && <p className="rounded-2xl border bg-white p-6 text-slate-500">Aucune candidature soumise pour le moment.</p>}
     </div>
-
-    {tracks.length > 1 && <div className="flex flex-wrap gap-2">
-      <button onClick={() => setTrackFilter("all")} className={`rounded-full px-4 py-2 text-xs font-black ${trackFilter === "all" ? "bg-forest text-white" : "bg-white text-slate-500"}`}>Toutes les candidatures</button>
-      {tracks.map(track => <button key={track} onClick={() => setTrackFilter(track)} className={`rounded-full px-4 py-2 text-xs font-black ${trackFilter === track ? "bg-forest text-white" : "bg-white text-slate-500"}`}>{trackLabels[track]}</button>)}
-    </div>}
 
     <div className="overflow-x-auto rounded-2xl border bg-white">
       <table className="w-full min-w-[900px] text-left text-sm">

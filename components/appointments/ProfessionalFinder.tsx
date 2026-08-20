@@ -98,6 +98,7 @@ export default function ProfessionalFinder({
     setSaving(false);
     if (!response.ok) return setMessage(result.message || t("La demande n’a pas pu être envoyée.", "The request could not be sent."));
     setMessage(t("Votre demande a été transmise au professionnel et enregistrée dans la salle d’attente.", "Your request was sent to the professional and registered in the waiting room."));
+    setTimeout(() => { setSelected(null); setMessage(""); }, 1200);
   }
 
   return <>

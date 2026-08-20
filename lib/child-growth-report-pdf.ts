@@ -39,8 +39,8 @@ export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRo
     lines.forEach((line, index) => page.drawText(line, { x: index < perColumn ? 50 : 307, y: top - (index % perColumn) * (size + 4), size, font, color }));
     y = top - rows * (size + 4) - 5;
   };
-  const heading = (value: string) => { if (y < 140) addPage(); y -= 7; page.drawRectangle({ x: 45, y: y - 22, width: 505, height: 30, color: rgb(.94, .98, .96), borderColor: rgb(.82, .88, .85), borderWidth: .6 }); page.drawText(value, { x: 58, y: y - 13, size: 13, font: bold, color: rgb(.07, .24, .19) }); y -= 35; };
-  const bullets = (values: string[] | undefined, limit = 5) => (values || []).filter(Boolean).slice(0, limit).forEach(value => text(`- ${value}`, 8.5));
+  const heading = (value: string) => { if (y < 140) addPage(); y -= 7; page.drawRectangle({ x: 45, y: y - 22, width: 505, height: 30, color: rgb(.94, .98, .96), borderColor: rgb(.82, .88, .85), borderWidth: .6 }); page.drawRectangle({ x: 45, y: y - 22, width: 4, height: 30, color: rgb(.12, .49, .33) }); page.drawText(value, { x: 58, y: y - 13, size: 13, font: bold, color: rgb(.07, .24, .19) }); y -= 35; };
+  const bullets = (values: string[] | undefined, limit = 5) => (values || []).filter(Boolean).slice(0, limit).forEach(value => text(`•  ${value}`, 8.5));
   const unique = (values: string[] | undefined) => [...new Map((values || []).filter(Boolean).map(value => [value.trim().toLowerCase(), value.trim()])).values()];
   const twoColumnCards = (items: Array<{ title: string; body: string; lines?: string[]; tone?: "urgent" | "watch" | "usual" }>) => {
     const columns = [{ x: 50, width: 238 }, { x: 307, width: 238 }];
@@ -48,7 +48,7 @@ export async function renderChildGrowthReport(child: GrowthRow, source: GrowthRo
       const pair = items.slice(index, index + 2);
       const prepared = pair.map(item => {
         const bodyLines = wrap(item.body, 43);
-        const detailLines = unique(item.lines).flatMap(line => wrap(`- ${line}`, 43));
+        const detailLines = unique(item.lines).flatMap(line => wrap(`•  ${line}`, 43));
         return { ...item, bodyLines, detailLines, height: 31 + (bodyLines.length + detailLines.length) * 10 };
       });
       const height = Math.max(...prepared.map(item => item.height));

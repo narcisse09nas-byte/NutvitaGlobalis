@@ -41,7 +41,7 @@ export default function AcceptConsultationButton({
     setSaving(false);
     if (!response.ok) return setMessage(result.message || t("Acceptation impossible.", "Unable to accept."));
     setMessage(t("Rendez-vous confirmé. Le client a reçu le lien de paiement.", "Appointment confirmed. The client received the payment link."));
-    setTimeout(() => location.reload(), 900);
+    setTimeout(() => { setOpen(false); location.reload(); }, 900);
   }
 
   return <>

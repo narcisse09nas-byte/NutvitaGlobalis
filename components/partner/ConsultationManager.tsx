@@ -47,7 +47,7 @@ function parseArray(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
 
-export default function ConsultationManager({ initial, clients, partnerId, dietitians = [], locale="fr" }: { initial: Row[]; clients: Row[]; partnerId: string; dietitians?:Row[]; locale?:"fr"|"en" }) {
+export default function ConsultationManager({ initial, clients, partnerId, dietitians = [], locale="fr", onClose }: { initial: Row[]; clients: Row[]; partnerId: string; dietitians?:Row[]; locale?:"fr"|"en"; onClose?: () => void }) {
   const tx=(fr:string,en:string)=>locale==="en"?en:fr;
   const [rows, setRows] = useState(initial);
   const [message, setMessage] = useState("");
@@ -236,7 +236,7 @@ export default function ConsultationManager({ initial, clients, partnerId, dieti
       <div className="mt-5 grid gap-3">{registry.map(row => <article key={row.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-slate-50 p-4"><div><b>{row.client_profiles?.full_name || "Client"} - {row.reason || row.pack_type}</b><p className="mt-1 text-sm text-slate-500">{new Date(row.finalized_at || row.scheduled_at).toLocaleString(locale==="en"?"en-GB":"fr-FR")} - {row.pack_type || "general"}</p></div><button type="button" onClick={() => setSelected(row)} className="btn-secondary px-4 py-2"><EyeIcon className="mr-2 h-4"/>Voir</button></article>)}{!registry.length && <p className="text-slate-400">Aucune consultation.</p>}</div>
     </section>
 
-    {selected && <ConsultationDetails row={selected} close={() => setSelected(null)} openDocument={openDocument} locale={locale}/>}
+    {selected && <ConsultationDetails row={selected} close={() => { setSelected(null); onClose?.(); }} openDocument={openDocument} locale={locale}/>}
   </div>;
 }
 

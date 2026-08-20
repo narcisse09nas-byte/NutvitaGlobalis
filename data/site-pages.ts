@@ -95,7 +95,7 @@ export const sitePages: SitePageContent[] = [
     description_en: "NutriTrack is the complete application that digitizes the national protocol for acute malnutrition care. From admission to recovery follow-up, track every child, manage reports compliant with national and WHO standards, and improve care quality.",
     hero_image_url: "/images/Image-mere-enfant-hero.png", cta_label: "Accéder à l'application", cta_label_en: "Access the application", cta_url: "/nutritrack",
     sections: [
-      { badge: "hero-checklist", title: "", items: ["Conforme aux protocoles nationaux et OMS", "Suivi clinique et nutritionnel personnalisé", "Gestion des stocks et consommables", "Rapports standards et tableaux de bord"] },
+      { badge: "hero-checklist", title: "", text: "Digitalisez. Suivez. Sauvez des vies.", items: ["Conforme aux protocoles nationaux et OMS", "Suivi clinique et nutritionnel personnalisé", "Gestion des stocks et consommables", "Rapports standards et tableaux de bord"] },
       { badge: "chips", title: "Résultats mesurés sur le terrain", items: ["+25% — Taux de récupération", "-40% — Temps de traitement administratif", "100% — Conformité aux protocoles CMAM/OMS", "Données fiables — pour des décisions éclairées"] },
       { badge: "features", title: "Fonctionnalités clés", items: [
         "Dépistage et admission simplifiés|||Enregistrez rapidement les enfants, leur état nutritionnel (PB, PB/TA, appétit, œdèmes) et leur éligibilité au programme.",
@@ -117,7 +117,7 @@ export const sitePages: SitePageContent[] = [
       { badge: "closing", title: "Une meilleure prise en charge, des vies sauvées", text: "NutriTrack vous aide à fournir des soins de qualité, basés sur des données fiables et en temps réel, pour chaque enfant qui en a besoin.", image_url: "/images/Image-mere-enfant-hero.png" },
     ],
     sections_en: [
-      { badge: "hero-checklist", title: "", items: ["Compliant with national and WHO protocols", "Personalized clinical and nutritional follow-up", "Stock and supply management", "Standard reports and dashboards"] },
+      { badge: "hero-checklist", title: "", text: "Digitize. Track. Save lives.", items: ["Compliant with national and WHO protocols", "Personalized clinical and nutritional follow-up", "Stock and supply management", "Standard reports and dashboards"] },
       { badge: "chips", title: "Results measured in the field", items: ["+25% — Recovery rate", "-40% — Administrative processing time", "100% — Compliance with CMAM/WHO protocols", "Reliable data — for informed decisions"] },
       { badge: "features", title: "Key features", items: [
         "Simplified screening and admission|||Quickly register children, their nutritional status (MUAC, WHZ, appetite, oedema) and programme eligibility.",
@@ -146,7 +146,7 @@ export const sitePages: SitePageContent[] = [
     description_en: "A complete solution to plan and run nutrition and food security surveys end to end, with data collection (ODK), management and Python-powered analysis tools.",
     hero_image_url: "/images/research-innovation/hero-field-impact.png", cta_label: "Accéder à l'application", cta_label_en: "Access the application", cta_url: "/surveys",
     sections: [
-      { badge: "hero-checklist", title: "", items: ["Conception de questionnaires intelligente", "Collecte de données mobile via ODK/Kobo", "Analyses avancées avec Python", "Cartographie et visualisation interactive"] },
+      { badge: "hero-checklist", title: "", text: "Concevez. Collectez. Analysez. Décidez avec confiance.", items: ["Conception de questionnaires intelligente", "Collecte de données mobile via ODK/Kobo", "Analyses avancées avec Python", "Cartographie et visualisation interactive"] },
       { badge: "chips", title: "Des modèles standards intégrés pour gagner du temps", items: ["MAD/MDD — Malnutrition aiguë", "FCS — Food Consumption Score", "rCSI — Reduced Coping Strategies Index", "SMART — Standardized Monitoring & Assessment", "HEA — Household Economy Approach", "+ Autres modules — WASH, IYCF, nutrition infantile, etc."] },
       { badge: "steps", title: "Notre approche en 5 étapes", items: [
         "Planifier|||Définissez les objectifs, la méthodologie, l'échantillonnage et le calendrier.",
@@ -170,7 +170,7 @@ export const sitePages: SitePageContent[] = [
       { badge: "closing", title: "Transformez vos données en impact", text: "Collectez des données de qualité, analysez-les en profondeur et prenez des décisions qui améliorent réellement la sécurité alimentaire et la nutrition.", image_url: "/images/research-innovation/hero-field-impact.png" },
     ],
     sections_en: [
-      { badge: "hero-checklist", title: "", items: ["Smart questionnaire design", "Mobile data collection via ODK/Kobo", "Advanced analysis with Python", "Interactive mapping and visualization"] },
+      { badge: "hero-checklist", title: "", text: "Design. Collect. Analyze. Decide with confidence.", items: ["Smart questionnaire design", "Mobile data collection via ODK/Kobo", "Advanced analysis with Python", "Interactive mapping and visualization"] },
       { badge: "chips", title: "Built-in standard modules to save time", items: ["MAD/MDD — Acute malnutrition", "FCS — Food Consumption Score", "rCSI — Reduced Coping Strategies Index", "SMART — Standardized Monitoring & Assessment", "HEA — Household Economy Approach", "+ Other modules — WASH, IYCF, child nutrition, etc."] },
       { badge: "steps", title: "Our 5-step approach", items: [
         "Plan|||Define objectives, methodology, sampling and timeline.",
@@ -201,7 +201,7 @@ export const sitePages: SitePageContent[] = [
     description_en: "Our application translates PMBOK® guide best practices into a simple, powerful tool to run your nutrition and health projects and programmes with efficiency, transparency and impact.",
     hero_image_url: "/images/research-innovation/project-capacity-building.png", cta_label: "Accéder à l'application", cta_label_en: "Access the application", cta_url: "/op-management",
     sections: [
-      { badge: "hero-checklist", title: "", items: [
+      { badge: "hero-checklist", title: "", text: "Planifiez. Exécutez. Suivez. Atteignez vos objectifs.", items: [
         "Approche PMBOK® complète|||De l'initiation à la clôture",
         "Rapports intelligents avec IA|||Analyses et recommandations",
         "Tableaux de bord interactifs|||Indicateurs en temps réel",
@@ -230,7 +230,7 @@ export const sitePages: SitePageContent[] = [
       { badge: "closing", title: "Pilotez vos projets. Maximisez votre impact.", text: "Adoptez une gestion de projet moderne, centrée sur les résultats et alignée sur les meilleures pratiques internationales.", image_url: "/images/research-innovation/project-capacity-building.png" },
     ],
     sections_en: [
-      { badge: "hero-checklist", title: "", items: [
+      { badge: "hero-checklist", title: "", text: "Plan. Execute. Track. Reach your goals.", items: [
         "Complete PMBOK® approach|||From initiation to closure",
         "Smart AI-powered reports|||Analyses and recommendations",
         "Interactive dashboards|||Real-time indicators",

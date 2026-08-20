@@ -1,7 +1,7 @@
 import ClientShell from "@/components/client/ClientShell";
-import {requireTeleconsultationAccess} from "@/lib/client";
+import {requireCareAccess} from "@/lib/client";
 export default async function Page(){
- const {supabase,user}=await requireTeleconsultationAccess();
+ const {supabase,user}=await requireCareAccess();
  const [{data:consultations},{data:menus},{data:meetings}]=await Promise.all([
   supabase.from("partner_consultations").select("id,consultation_code,reason,status,scheduled_at,completed_at").eq("client_id",user.id).order("scheduled_at",{ascending:false}),
   supabase.from("client_menu_plans").select("id,menu_code,title,status,period_start,period_end,generated_at").eq("client_id",user.id).eq("status","validated").order("generated_at",{ascending:false}),

@@ -42,6 +42,8 @@ export async function POST(request: Request) {
   if (!user?.email) return NextResponse.json({ message: "Non authentifie." }, { status: 401 });
   if (process.env.PAYMENTS_ENABLED !== "true") return NextResponse.json({ message: "Ce service payant n'est pas encore disponible a l'achat." }, { status: 503 });
   const body = await request.json();
+  const consultationRequestId = body.request_id ? String(body.request_id) : null;
+  const consultationRequestType = body.request_type === "medical" ? "medical" : body.request_type === "dietetic" ? "dietetic" : null;
   const provider = (body.provider || "manual_mobile_money") as Provider;
   if (!["cinetpay", "paypal", "manual_mobile_money", "manual_bank_transfer"].includes(provider)) return NextResponse.json({ message: "Fournisseur invalide." }, { status: 400 });
   const dbProvider = provider.startsWith("manual_") ? "manual" : provider;
@@ -107,6 +109,18 @@ export async function POST(request: Request) {
       currency: "XOF",
       duration: Math.max(1, Number(pricing.access_duration_months || 3)),
     };
+  }
+  if (purchase && consultationRequestId) {
+    if (!consultationRequestType || purchase.type !== "consultation" || purchase.consultationKind !== consultationRequestType) {
+      return NextResponse.json({ message: "La demande de consultation ne correspond pas au service choisi." }, { status: 400 });
+    }
+    if (consultationRequestType === "dietetic") {
+      const { data: acceptedRequest } = await supabase.from("consultation_waiting_room").select("id,teleconseil_id").eq("id", consultationRequestId).eq("client_id", user.id).eq("status", "accepted_pending_payment").maybeSingle();
+      if (!acceptedRequest || acceptedRequest.teleconseil_id !== purchase.id) return NextResponse.json({ message: "Cette demande n’est pas prête au paiement." }, { status: 403 });
+    } else {
+      const { data: acceptedRequest } = await supabase.from("medical_consultations").select("id,specialist_id").eq("id", consultationRequestId).eq("client_id", user.id).eq("status", "accepted_pending_payment").maybeSingle();
+      if (!acceptedRequest || acceptedRequest.specialist_id !== purchase.id) return NextResponse.json({ message: "Cette demande n’est pas prête au paiement." }, { status: 403 });
+    }
   }
   if (!purchase) return NextResponse.json({ message: "Produit ou service introuvable." }, { status: 404 });
 
@@ -183,10 +197,10 @@ export async function POST(request: Request) {
     subscriptionId = data.id;
     if (extendsSubscriptionId && !upgradeFromSubscriptionId) purchase.name = `Extension - ${purchase.name}`;
   }
-  const paymentPayload = { client_id: user.id, subscription_id: subscriptionId, provider: dbProvider, manual_method: manualMethod, checkout_reference: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, source_amount_xof:sourceAmountXof, exchange_rate_xof_per_usd:exchangeRate, price_excluding_tax: breakdown.priceExcludingTax, tax_rate: breakdown.taxRate, tax_amount: breakdown.taxAmount, total_including_tax: breakdown.totalIncludingTax, purchase_type: purchase.type, product_id: purchase.type === "subscription" ? null : purchase.id, product_name: purchase.name };
+  const paymentPayload = { client_id: user.id, subscription_id: subscriptionId, provider: dbProvider, manual_method: manualMethod, checkout_reference: reference, amount: breakdown.totalIncludingTax, currency: purchase.currency, source_amount_xof:sourceAmountXof, exchange_rate_xof_per_usd:exchangeRate, price_excluding_tax: breakdown.priceExcludingTax, tax_rate: breakdown.taxRate, tax_amount: breakdown.taxAmount, total_including_tax: breakdown.totalIncludingTax, purchase_type: purchase.type, product_id: purchase.type === "subscription" ? null : purchase.id, product_name: purchase.name, consultation_request_id: consultationRequestId, consultation_request_type: consultationRequestType };
   let { data: payment, error: paymentError } = await admin.from("payments").insert(paymentPayload).select().single();
   if (isSchemaCacheColumnError(paymentError)) {
-    const { source_amount_xof: _sourceAmount, exchange_rate_xof_per_usd: _exchangeRate, ...compatiblePayload } = paymentPayload;
+    const { source_amount_xof: _sourceAmount, exchange_rate_xof_per_usd: _exchangeRate, consultation_request_id: _requestId, consultation_request_type: _requestType, ...compatiblePayload } = paymentPayload;
     const retry = await admin.from("payments").insert(compatiblePayload).select().single();
     payment = retry.data;
     paymentError = retry.error;

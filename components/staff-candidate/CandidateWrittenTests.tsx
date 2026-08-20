@@ -49,6 +49,8 @@ type Assignment = {
   maximus_staff_applications?: {
     maximus_job_offers?: { title: string; reference: string } | null;
   } | null;
+  admin_comments?: Array<{ comments: string; created_at: string }>;
+  candidate_comments?: Array<{ id: string; message: string; created_at: string }>;
 };
 
 const statusLabels: Record<string, string> = {
@@ -70,6 +72,7 @@ export default function CandidateWrittenTests() {
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
 
   async function load() {
     const response = await fetch('/api/staff-candidate/tests', { cache: 'no-store' });
@@ -165,6 +168,21 @@ export default function CandidateWrittenTests() {
     await load();
   }
 
+  async function submitComment(item: Assignment) {
+    const value = (commentDrafts[item.id] || '').trim();
+    if (!value) return;
+    setBusy(`comment-${item.id}`);
+    const response = await fetch('/api/candidate/test-comment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ track: 'staff', test_ref_id: item.id, message: value }),
+    });
+    setBusy('');
+    if (!response.ok) { const payload = await response.json().catch(() => ({})); setMessage(payload.message || 'Envoi impossible.'); return; }
+    setCommentDrafts(current => ({ ...current, [item.id]: '' }));
+    await load();
+  }
+
   if (!items.length) return null;
 
   return <section className="rounded-lg border bg-white p-6">
@@ -179,17 +197,38 @@ export default function CandidateWrittenTests() {
     </div>
     {message && <p className="mt-4 rounded-md border bg-slate-50 p-3 text-sm font-semibold">{message}</p>}
     <div className="mt-5 grid gap-3">
-      {items.map(item => <article key={item.id} className="flex flex-col justify-between gap-4 rounded-md border p-4 sm:flex-row sm:items-center">
-        <div>
-          <p className="text-xs font-bold uppercase text-leaf">{item.maximus_staff_applications?.maximus_job_offers?.reference} · {item.maximus_staff_applications?.maximus_job_offers?.title}</p>
-          <h3 className="mt-1 font-black">{item.maximus_written_tests?.title}</h3>
-          <p className="mt-1 text-sm text-slate-500">{item.maximus_written_tests?.duration_minutes} minutes · Note de passage {item.maximus_written_tests?.pass_score}%</p>
-          {item.final_score !== null && item.final_score !== undefined && <p className="mt-2 text-sm font-black text-forest">Note finale : {item.final_score}/100</p>}
+      {items.map(item => <article key={item.id} className="grid gap-4 rounded-md border p-4">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-xs font-bold uppercase text-leaf">{item.maximus_staff_applications?.maximus_job_offers?.reference} · {item.maximus_staff_applications?.maximus_job_offers?.title}</p>
+            <h3 className="mt-1 font-black">{item.maximus_written_tests?.title}</h3>
+            <p className="mt-1 text-sm text-slate-500">{item.maximus_written_tests?.duration_minutes} minutes · Note de passage {item.maximus_written_tests?.pass_score}%</p>
+            {item.final_score !== null && item.final_score !== undefined && <p className="mt-2 text-sm font-black text-forest">Note finale : {item.final_score}/100</p>}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{statusLabels[item.status] || item.status}</span>
+            <button disabled={busy === item.id || !['sent', 'opened'].includes(item.status)} onClick={() => start(item)} className="inline-flex items-center gap-2 rounded-md bg-[#24945f] px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"><Play className="h-4 w-4" />Passer le test</button>
+            <button disabled={item.status !== 'in_progress'} onClick={() => { setActive(item); setAnswers(item.answers || {}); }} className="rounded-md border px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40">Poursuivre</button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{statusLabels[item.status] || item.status}</span>
-          {['sent', 'opened'].includes(item.status) && <button disabled={busy === item.id} onClick={() => start(item)} className="inline-flex items-center gap-2 rounded-md bg-[#24945f] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><Play className="h-4 w-4" />Commencer</button>}
-          {item.status === 'in_progress' && <button onClick={() => { setActive(item); setAnswers(item.answers || {}); }} className="rounded-md border px-4 py-2 text-sm font-bold">Continuer</button>}
+        <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
+          <div>
+            <p className="text-xs font-bold uppercase text-slate-400">Commentaires reçus de l&apos;administration</p>
+            <div className="mt-2 grid gap-2">
+              {(item.admin_comments || []).map((comment, index) => <p key={index} className="rounded-md bg-slate-50 p-3 text-sm">{comment.comments}<span className="mt-1 block text-[11px] text-slate-400">{new Date(comment.created_at).toLocaleDateString('fr-FR')}</span></p>)}
+              {!(item.admin_comments || []).length && <p className="text-sm text-slate-400">Aucun commentaire pour le moment.</p>}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase text-slate-400">Mon commentaire</p>
+            <div className="mt-2 grid gap-2">
+              {(item.candidate_comments || []).map(comment => <p key={comment.id} className="rounded-md bg-mint/50 p-3 text-sm">{comment.message}<span className="mt-1 block text-[11px] text-slate-400">{new Date(comment.created_at).toLocaleDateString('fr-FR')}</span></p>)}
+              <div className="flex gap-2">
+                <input className="admin-input flex-1" placeholder="Ajouter un commentaire..." value={commentDrafts[item.id] || ''} onChange={event => setCommentDrafts(current => ({ ...current, [item.id]: event.target.value }))} />
+                <button disabled={busy === `comment-${item.id}`} onClick={() => submitComment(item)} className="rounded-md border px-4 py-2 text-sm font-bold disabled:opacity-50">Envoyer</button>
+              </div>
+            </div>
+          </div>
         </div>
       </article>)}
     </div>

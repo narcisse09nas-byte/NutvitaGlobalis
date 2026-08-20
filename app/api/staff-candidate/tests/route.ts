@@ -7,7 +7,7 @@ async function candidate() {
   if (!hasSupabaseConfig()) return { error: NextResponse.json({ message: 'Supabase non configure.' }, { status: 503 }) };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || user.user_metadata?.account_type !== 'staff_candidate') return { error: NextResponse.json({ message: 'Compte candidat Staff requis.' }, { status: 401 }) };
+  if (!user) return { error: NextResponse.json({ message: 'Connectez-vous pour continuer.' }, { status: 401 }) };
   return { supabase, user };
 }
 
@@ -19,6 +19,12 @@ export async function GET() {
     .eq('maximus_staff_applications.candidate_id', ctx.user.id)
     .order('sent_at', { ascending: false });
   if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+  const ids = (data || []).map(item => item.id);
+  const service = createAdminClient();
+  const [{ data: reviews }, { data: candidateComments }] = await Promise.all([
+    ids.length ? service.from('maximus_test_reviews').select('assignment_id,comments,created_at').in('assignment_id', ids).not('comments', 'is', null) : Promise.resolve({ data: [] }),
+    ids.length ? ctx.supabase.from('test_candidate_comments').select('id,test_ref_id,message,created_at').eq('track', 'staff').in('test_ref_id', ids).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
+  ]);
   const items = (data || []).map(item => {
     const relation = item.maximus_written_tests as unknown;
     const test = (Array.isArray(relation) ? relation[0] : relation) as {
@@ -31,6 +37,8 @@ export async function GET() {
         ...test,
         maximus_test_questions: [...(test.maximus_test_questions || [])].sort((a, b) => a.position - b.position),
       } : null,
+      admin_comments: (reviews || []).filter(review => review.assignment_id === item.id),
+      candidate_comments: (candidateComments || []).filter(comment => comment.test_ref_id === item.id),
     };
   });
   return NextResponse.json({ items });

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AcceptConsultationButton from "@/components/appointments/AcceptConsultationButton";
 import {
   ChatBubbleLeftRightIcon,
   ClipboardDocumentListIcon,
@@ -66,7 +67,14 @@ function WorkspaceContent({ role, name, consultations, locale }: WorkspaceProps)
                   <td>{consultation.chief_complaint || "—"}</td>
                   <td>{consultation.consultation_mode}</td>
                   <td>{consultation.status}</td>
-                  <td><button className="btn-mini">{en ? "View details" : "Voir les détails"}</button></td>
+                  <td><div className="flex flex-wrap gap-2">
+                    {role === "specialist" && consultation.status === "requested" ? <AcceptConsultationButton
+                      requestId={consultation.id}
+                      requestType="medical"
+                      requestedStart={consultation.requested_start || consultation.scheduled_at}
+                    /> : null}
+                    <button className="btn-mini">{en ? "View details" : "Voir les détails"}</button>
+                  </div></td>
                 </tr>
               ))}
             </tbody>

@@ -27,12 +27,6 @@ export default function StaffCandidateAuth() {
         setLoading(false);
         return;
       }
-      if (result.data.user.user_metadata?.account_type !== 'staff_candidate') {
-        await supabase.auth.signOut();
-        setMessage('Ce compte n est pas un compte candidat Staff.');
-        setLoading(false);
-        return;
-      }
       router.refresh();
       return;
     }

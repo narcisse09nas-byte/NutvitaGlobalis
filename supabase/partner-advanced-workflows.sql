@@ -101,34 +101,47 @@ using(
   or public.is_admin()
 );
 
+drop policy if exists "Partners create client payments" on public.partner_client_payments;
 create policy "Partners create client payments" on public.partner_client_payments for insert to authenticated
 with check(partner_id=public.current_partner_id() or public.is_admin());
+drop policy if exists "Partners read client payments" on public.partner_client_payments;
 create policy "Partners read client payments" on public.partner_client_payments for select to authenticated
 using(partner_id=public.current_partner_id() or client_id=(select auth.uid()) or public.is_admin());
 
+drop policy if exists "Waiting room visible to partners and admins" on public.consultation_waiting_room;
 create policy "Waiting room visible to partners and admins" on public.consultation_waiting_room for select to authenticated
 using(public.current_partner_id() is not null or client_id=(select auth.uid()) or public.is_admin());
+drop policy if exists "Clients create waiting requests" on public.consultation_waiting_room;
 create policy "Clients create waiting requests" on public.consultation_waiting_room for insert to authenticated
 with check(client_id=(select auth.uid()) or public.is_admin());
+drop policy if exists "Admins manage waiting room" on public.consultation_waiting_room;
 create policy "Admins manage waiting room" on public.consultation_waiting_room for update to authenticated
 using(public.is_admin()) with check(public.is_admin());
+drop policy if exists "Assigned partners endorse requests" on public.consultation_waiting_room;
 create policy "Assigned partners endorse requests" on public.consultation_waiting_room for update to authenticated
 using(selected_partner_id=public.current_partner_id()) with check(selected_partner_id=public.current_partner_id());
 
+drop policy if exists "Partners express interest" on public.consultation_waiting_room_interests;
 create policy "Partners express interest" on public.consultation_waiting_room_interests for insert to authenticated
 with check(partner_id=public.current_partner_id());
+drop policy if exists "Partners and admins read interests" on public.consultation_waiting_room_interests;
 create policy "Partners and admins read interests" on public.consultation_waiting_room_interests for select to authenticated
 using(partner_id=public.current_partner_id() or public.is_admin());
+drop policy if exists "Admins update interests" on public.consultation_waiting_room_interests;
 create policy "Admins update interests" on public.consultation_waiting_room_interests for update to authenticated
 using(public.is_admin()) with check(public.is_admin());
 
+drop policy if exists "Partners read own payouts" on public.partner_payouts;
 create policy "Partners read own payouts" on public.partner_payouts for select to authenticated
 using(partner_id=public.current_partner_id() or public.is_admin());
+drop policy if exists "Finance admins manage partner payouts" on public.partner_payouts;
 create policy "Finance admins manage partner payouts" on public.partner_payouts for all to authenticated
 using(public.admin_has_permission('finance.read')) with check(public.admin_has_permission('finance.manage'));
 
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values('partner-receipts','partner-receipts',false,10485760,array['application/pdf','image/jpeg','image/png'])
 on conflict(id) do nothing;
+drop policy if exists "Partners upload receipts" on storage.objects;
 create policy "Partners upload receipts" on storage.objects for insert to authenticated with check(bucket_id='partner-receipts');
+drop policy if exists "Partners read receipts" on storage.objects;
 create policy "Partners read receipts" on storage.objects for select to authenticated using(bucket_id='partner-receipts');

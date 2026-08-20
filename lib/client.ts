@@ -61,7 +61,13 @@ export async function getClientEntitlements(supabase:any,userId:string):Promise<
   };
 }
 
-export async function requireHealthAccess(){await requireActivePlatformSession(["health","teleconsultation","medical_consultation"],"client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.health)redirect("/espace-client/abonnement?acces=suivi-sante-requis");return{...context,access}}
-export async function requireTeleconsultationAccess(){await requireActivePlatformSession("teleconsultation","client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.teleconsultation)redirect("/teleconseils?acces=consultation-requise");return{...context,access}}
-export async function requireMedicalConsultationAccess(){await requireActivePlatformSession("medical_consultation","client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.medicalConsultation)redirect("/consultations-medicales/specialistes?acces=consultation-requise");return{...context,access}}
-export async function requireCareAccess(){await requireActivePlatformSession(["teleconsultation","medical_consultation"],"client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.teleconsultation&&!access.medicalConsultation)redirect("/services?acces=consultation-requise");return{...context,access}}
+// Any active service value granted within the client platform. Real feature gating happens
+// right below via getClientEntitlements() + a redirect to a clear upgrade page — this session
+// check only confirms "this is a client session", so it must never itself bounce someone to the
+// service selector while they navigate their own already-provisioned sidebar.
+export const CLIENT_SERVICES=["client","health","child_growth","teleconsultation","medical_consultation"];
+
+export async function requireHealthAccess(){await requireActivePlatformSession(CLIENT_SERVICES,"client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.health)redirect("/espace-client/abonnement?acces=suivi-sante-requis");return{...context,access}}
+export async function requireTeleconsultationAccess(){await requireActivePlatformSession(CLIENT_SERVICES,"client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.teleconsultation)redirect("/teleconseils?acces=consultation-requise");return{...context,access}}
+export async function requireMedicalConsultationAccess(){await requireActivePlatformSession(CLIENT_SERVICES,"client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.medicalConsultation)redirect("/consultations-medicales/specialistes?acces=consultation-requise");return{...context,access}}
+export async function requireCareAccess(){await requireActivePlatformSession(CLIENT_SERVICES,"client");const context=await requireClient(),access=await getClientEntitlements(context.supabase,context.user.id);if(!access.teleconsultation&&!access.medicalConsultation)redirect("/services?acces=consultation-requise");return{...context,access}}

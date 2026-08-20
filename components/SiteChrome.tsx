@@ -6,11 +6,12 @@ import ChildGrowthPromo from "./ChildGrowthPromo";
 import CareersHomePreview from "@/components/careers/CareersHomePreview";
 import { stripLocale } from "@/lib/i18n";
 import PageBackButton from "@/components/PageBackButton";
+import PrivateAreaFooter from "@/components/PrivateAreaFooter";
 
 export default function SiteChrome({children,footerSettings}:{children:React.ReactNode;footerSettings?:Record<string,unknown>}) {
   const pathname = usePathname();
   const cleanPath = stripLocale(pathname).pathname;
   const privateArea = cleanPath.startsWith("/admin") || cleanPath.startsWith("/super-admin") || cleanPath.startsWith("/maximus") || cleanPath.startsWith("/nutritrack") || cleanPath.startsWith("/op-management") || cleanPath.startsWith("/candidat") || cleanPath.startsWith("/staff-candidat") || cleanPath.startsWith("/partenaire") || cleanPath.startsWith("/espace-client") || cleanPath.startsWith("/checkout") || cleanPath === "/inscription" || cleanPath === "/connexion" || cleanPath === "/mot-de-passe-oublie";
-  if (privateArea) return <>{children}<PageBackButton/></>;
+  if (privateArea) return <>{children}<PrivateAreaFooter/><PageBackButton/></>;
   return <><Header/><main>{children}{cleanPath === "/" && <><CareersHomePreview/><ChildGrowthPromo/></>}</main><PageBackButton/><Footer settings={footerSettings}/></>;
 }

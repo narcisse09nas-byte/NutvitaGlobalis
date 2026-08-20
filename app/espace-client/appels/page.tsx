@@ -1,8 +1,8 @@
 import ClientShell from "@/components/client/ClientShell";
 import CallManager from "@/components/collaboration/CallManager";
-import {requireTeleconsultationAccess} from "@/lib/client";
+import {requireCareAccess} from "@/lib/client";
 export default async function Page(){
- const {supabase,user}=await requireTeleconsultationAccess();
+ const {supabase,user}=await requireCareAccess();
  const [{data:memberRows},{data:conversations}]=await Promise.all([
   supabase.from("collaboration_call_members").select("call_id, collaboration_calls(*, collaboration_call_members(*))").eq("user_id",user.id),
   supabase.from("collaboration_conversations").select("*").order("updated_at",{ascending:false})

@@ -91,12 +91,16 @@ function activeSessionRule(pathname: string): SessionRule | null {
   if (starts("/academy/dashboard") || starts("/academy/learn") || starts("/academy/enroll")) return { services: ["academy"], roles: ["student"] };
   if (starts("/academy") && !starts("/academy/auth")) return { services: ["academy"], roles: ["student", "instructor", "admin"] };
 
-  if (pathname === "/espace-client") return { services: ["client", "health", "child_growth", "teleconsultation"], roles: ["client"] };
-  if (["/espace-client/services", "/espace-client/abonnement", "/espace-client/profil", "/espace-client/securite", "/espace-client/confidentialite"].some(starts)) return { services: ["client", "health", "child_growth", "teleconsultation"], roles: ["client"] };
-  if (starts("/espace-client/croissance-enfant")) return { services: ["client", "child_growth"], roles: ["client"] };
-  if (["/espace-client/consultations", "/espace-client/messages", "/espace-client/appels"].some(starts)) return { services: ["teleconsultation"], roles: ["client"] };
-  if (["/espace-client/dossier", "/espace-client/tendances", "/espace-client/analyse", "/espace-client/consentements-sante", "/espace-client/ordonnances", "/espace-client/resultats-laboratoire"].some(starts)) return { services: ["health"], roles: ["client"] };
-  if (starts("/espace-client")) return { services: ["client"], roles: ["client"] };
+  // Every /espace-client/* sub-page accepts any of the client platform's real service values here.
+  // The session cookie only ever needs to prove "this is a client session" — the actual per-feature
+  // entitlement (health / teleconsultation / medical_consultation / child_growth subscription) is
+  // enforced by the page itself via getClientEntitlements(), which redirects to a clear upgrade page
+  // when genuinely missing. Splitting this by service used to make middleware and page-level guards
+  // disagree, bouncing an already-provisioned client to the service selector mid-navigation.
+  const clientServices = ["client", "health", "child_growth", "teleconsultation", "medical_consultation"];
+  if (["/espace-client/consultations", "/espace-client/menus"].some(starts)) return { services: ["teleconsultation"], roles: ["client"] };
+  if (starts("/espace-client/consultations-medicales")) return { services: ["medical_consultation"], roles: ["client"] };
+  if (starts("/espace-client")) return { services: clientServices, roles: ["client"] };
 
   if (starts("/partenaire") && pathname !== "/partenaire/connexion") return { services: ["health", "child_growth", "teleconsultation"], roles: ["nutritionist"] };
   if (starts("/restauration/commander")) return { services: ["catering"], roles: ["client"] };

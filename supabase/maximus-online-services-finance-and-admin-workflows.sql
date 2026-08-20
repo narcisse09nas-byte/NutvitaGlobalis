@@ -153,7 +153,7 @@ from public.medical_specialists m
 on conflict(source_table,source_id) do update set full_name=excluded.full_name,email=excluded.email,status=excluded.status;
 
 insert into public.partner_vendor_registry(user_id,vendor_number,partner_type,source_table,source_id,full_name,email,status,recruited_at)
-select p.candidate_id,public.next_partner_vendor_number('promoter'),'promoter_profiles',p.id,p.full_name,p.email,case when p.status='active' then 'active' else 'inactive' end,coalesce(p.created_at,now())
+select p.candidate_id,public.next_partner_vendor_number('promoter'),'promoter','promoter_profiles',p.id,p.full_name,p.email,case when p.status='active' then 'active' else 'inactive' end,coalesce(p.created_at,now())
 from public.promoter_profiles p
 on conflict(source_table,source_id) do update set full_name=excluded.full_name,email=excluded.email,status=excluded.status;
 

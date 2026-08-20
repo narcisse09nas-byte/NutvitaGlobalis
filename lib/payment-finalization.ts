@@ -126,7 +126,7 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
       .eq("active", true)
       .maybeSingle();
     failIfError("Identification du type de consultation", specialistError);
-    const medical = Boolean(medicalSpecialist);
+    const medical = payment.consultation_request_type === "medical" || Boolean(medicalSpecialist);
     consultationServiceKey = medical ? "medical_consultation" : "teleconsultation";
     const priceKey = medical ? "medical_consultation" : "dietetic_consultation";
     const { data: pricing, error: pricingError } = await admin
@@ -152,18 +152,17 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
       const accessEnd = new Date(accessStart);
       accessEnd.setUTCMonth(accessEnd.getUTCMonth() + duration);
       end = accessEnd;
-      const consultation = await admin.from("medical_consultations").insert({
-        specialist_id: medicalSpecialist.id,
-        client_id: payment.client_id,
+      const medicalPayload = {
         payment_id: payment.id,
-        status: "requested",
-        consultation_mode: "video",
-        chief_complaint: "Consultation médicale spécialisée",
+        status: "scheduled",
         amount_paid: Number(payment.total_including_tax || payment.amount || 0),
         currency: payment.currency || "XAF",
         access_starts_at: start.toISOString(),
         access_expires_at: accessEnd.toISOString(),
-      });
+      };
+      const consultation = payment.consultation_request_id
+        ? await admin.from("medical_consultations").update(medicalPayload).eq("id", payment.consultation_request_id).eq("client_id", payment.client_id).eq("specialist_id", medicalSpecialist.id)
+        : await admin.from("medical_consultations").insert({ ...medicalPayload, specialist_id: medicalSpecialist.id, client_id: payment.client_id, consultation_mode: "video", chief_complaint: "Consultation médicale spécialisée" });
       failIfError("Activation de la consultation médicale", consultation.error);
       await activateIncludedPremiumTracking(admin, payment, start, accessEnd);
       failIfError("Notification de la consultation médicale", (await admin.from("client_notifications").insert({
@@ -199,7 +198,8 @@ export async function finalizePayment(admin: SupabaseClient, paymentId: string, 
       if (booking && !existing) {
         const { data: conversation } = await admin.from("collaboration_conversations").insert({ title: `Suivi expert - ${payment.product_name}`, conversation_type: "consultation", consultation_id: booking.id, created_by: payment.client_id }).select().single();
         if (conversation) await admin.from("collaboration_members").insert({ conversation_id: conversation.id, user_id: payment.client_id, member_role: "client" });
-        await admin.from("consultation_waiting_room").insert({ client_id: payment.client_id, teleconseil_id: payment.product_id, payment_id: payment.id, reason: payment.product_name, status: "waiting", country: client.country || null, city: client.city || null, ai_recommendation: { signals: ["Nouveau paiement confirmé", "Client en attente d’attribution"], score: 50 } });
+        if (payment.consultation_request_id) await admin.from("consultation_waiting_room").update({ payment_id: payment.id, status: "active" }).eq("id", payment.consultation_request_id).eq("client_id", payment.client_id);
+        else await admin.from("consultation_waiting_room").insert({ client_id: payment.client_id, teleconseil_id: payment.product_id, payment_id: payment.id, reason: payment.product_name, status: "waiting", country: client.country || null, city: client.city || null, ai_recommendation: { signals: ["Nouveau paiement confirmé", "Client en attente d’attribution"], score: 50 } });
       }
       failIfError("Notification de la consultation nutritionnelle", (await admin.from("client_notifications").insert({
         client_id: payment.client_id,

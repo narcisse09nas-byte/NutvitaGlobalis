@@ -1,1 +1,8 @@
-﻿import SupportProductPage from"@/components/support/SupportProductPage";import{getCurrentLocale}from"@/lib/i18n-server";export default async function Page(){const en=(await getCurrentLocale())==="en";return <SupportProductPage en={en} product={en?{name:"SANSurvey",subtitle:"by NutVitaGlobalis",eyebrow:"Survey application",title:"Food security and nutrition surveys",lead:"Design, collect, analyze and act with a complete environment for nutrition and food security surveys, from questionnaire to decision-ready report.",features:["Questionnaire design","ODK mobile collection","Survey planning","Python data analysis","Interactive dashboards","Automated reports"],benefits:["SMART modules","Offline collection","Powerful analysis","Reliable results","Ready reports","Evidence-based decisions"],image:"/images/support-applications-devices-v1.png",appHref:"/surveys"}:{name:"SANSurvey",subtitle:"par NutVitaGlobalis",eyebrow:"Application d’enquêtes",title:"Enquêtes de sécurité alimentaire et nutrition",lead:"Concevez, collectez, analysez et agissez avec un environnement complet, du questionnaire au rapport directement exploitable pour la décision.",features:["Conception de questionnaires","Collecte mobile via ODK","Planification de l’enquête","Analyse des données avec Python","Tableaux de bord interactifs","Rapports automatiques"],benefits:["Modules SMART","Collecte hors ligne","Analyses puissantes","Résultats fiables","Rapports prêts","Décisions fondées sur les preuves"],image:"/images/support-applications-devices-v1.png",appHref:"/surveys"}}/>;}
+import SupportProductPage from "@/components/support/SupportProductPage";
+import { getSitePage } from "@/lib/site-pages";
+
+export default async function Page() {
+  const page = await getSitePage("applications-support-sansurvey");
+  if (!page) return null;
+  return <SupportProductPage page={page} appHref="/surveys" />;
+}

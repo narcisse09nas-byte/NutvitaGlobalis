@@ -1,1 +1,8 @@
-﻿import SupportProductPage from"@/components/support/SupportProductPage";import{getCurrentLocale}from"@/lib/i18n-server";export default async function Page(){const en=(await getCurrentLocale())==="en";return <SupportProductPage en={en} product={en?{name:"NutriTrack",subtitle:"by NutVitaGlobalis",eyebrow:"Support application",title:"Acute malnutrition care",lead:"A comprehensive application that digitizes screening, admission, clinical and nutrition follow-up, immunization and performance reporting.",features:["Screening and admission","Clinical and nutrition monitoring","Integrated immunization management","Automated reports","National protocol compliance","Offline operation"],benefits:["Complete assessment","Personalized monitoring","Immunization","Alerts","Automated reports","Performance indicators"],image:"/images/support-applications-devices-v1.png",appHref:"/nutritrack"}:{name:"NutriTrack",subtitle:"par NutVitaGlobalis",eyebrow:"Application de support",title:"Prise en charge de la malnutrition aiguë",lead:"Une application complète qui digitalise le dépistage, l’admission, le suivi clinique et nutritionnel, la vaccination et les rapports de performance.",features:["Dépistage et admission","Suivi clinique et nutritionnel","Gestion intégrée des vaccinations","Rapports automatiques","Conformité aux protocoles","Fonctionnement hors ligne"],benefits:["Évaluation complète","Suivi personnalisé","Vaccinations","Alertes","Rapports automatiques","Indicateurs performants"],image:"/images/support-applications-devices-v1.png",appHref:"/nutritrack"}}/>;}
+import SupportProductPage from "@/components/support/SupportProductPage";
+import { getSitePage } from "@/lib/site-pages";
+
+export default async function Page() {
+  const page = await getSitePage("applications-support-nutritrack");
+  if (!page) return null;
+  return <SupportProductPage page={page} appHref="/nutritrack" />;
+}

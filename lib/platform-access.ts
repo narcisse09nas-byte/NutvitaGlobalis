@@ -40,7 +40,7 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
   if (identity.supabase) {
     const userId = identity.user.id;
     const now = Date.now();
-    const [{ data: grants }, { data: clientProfile }, { data: enrollments }, { data: academyProfile }, { data: subscriptions }, { data: plans }, { data: bookings }, { data: partner }, { data: candidate }, { data: medicalApplication }, { data: medicalSpecialist }, { data: medicalConsultations }, { data: nutritrack }, { data: maximus }] = await Promise.all([
+    const [{ data: grants }, { data: clientProfile }, { data: enrollments }, { data: academyProfile }, { data: subscriptions }, { data: plans }, { data: bookings }, { data: partner }, { data: candidate }, { data: medicalApplication }, { data: medicalSpecialist }, { data: medicalConsultations }, { data: nutritrack }, { data: maximus }, { data: staffApplication }] = await Promise.all([
       identity.supabase.from("platform_service_access").select("service_key,roles,expires_at").eq("user_id", userId).eq("active", true),
       identity.supabase.from("client_profiles").select("id").eq("id", userId).maybeSingle(),
       identity.supabase.from("formation_enrollments").select("id").eq("client_id", userId).limit(1),
@@ -55,6 +55,7 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
       identity.supabase.from("medical_consultations").select("*").eq("client_id", userId),
       identity.supabase.from("nutritrack_members").select("id,status").eq("user_id", userId).maybeSingle(),
       identity.supabase.from("maximus_user_access").select("active").eq("user_id", userId).eq("active", true).maybeSingle(),
+      identity.supabase.from("maximus_staff_applications").select("id").eq("candidate_id", userId).limit(1),
     ]);
     if (clientProfile) add("client", "client");
     const validGrants = (grants || []).filter((grant: any) => !grant.expires_at || +new Date(grant.expires_at) > now);
@@ -80,7 +81,7 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
     if (activeMedical) add("medical_consultation", "client");
     if ((activeDietetic || activeMedical) && allowed.get("health")) allowed.get("health")!.delete("client");
     if (partner?.status === "active") for (const service of ["health", "child_growth", "teleconsultation"] as const) add(service, "nutritionist");
-    if (candidate?.length || medicalApplication?.length) add("recruitment", "candidate");
+    if (candidate?.length || medicalApplication?.length || staffApplication?.length) add("recruitment", "candidate");
     if (medicalSpecialist?.active) add("medical_consultation", "specialist");
     if (nutritrack?.status === "active") add("nutritrack", "client");
     if (maximus?.active) add("maximus", "staff");

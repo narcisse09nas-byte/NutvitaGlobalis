@@ -36,7 +36,7 @@ export async function PATCH(request: Request) {
   if (!hasSupabaseConfig()) return NextResponse.json({ message: 'Supabase doit etre configure.' }, { status: 503 });
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || user.user_metadata?.account_type !== 'staff_candidate') return NextResponse.json({ message: 'Compte candidat Staff requis.' }, { status: 401 });
+  if (!user) return NextResponse.json({ message: 'Connectez-vous pour continuer.' }, { status: 401 });
   const body = await request.json();
   const proposalId = String(body.proposal_id || '');
   const response = String(body.response || '');
@@ -64,10 +64,7 @@ export async function POST(request: Request) {
   if (!hasSupabaseConfig()) return NextResponse.json({ message: 'Supabase doit etre configure.' }, { status: 503 });
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ message: 'Connectez-vous avec votre compte candidat Staff.' }, { status: 401 });
-  if (user.user_metadata?.account_type !== 'staff_candidate') {
-    return NextResponse.json({ message: 'Ce parcours requiert un compte candidat Staff distinct.' }, { status: 403 });
-  }
+  if (!user) return NextResponse.json({ message: 'Connectez-vous pour continuer.' }, { status: 401 });
   const body = await request.json();
   const offerId = String(body.offer_id || '');
   const { data: offer } = await supabase.from('maximus_job_offers').select('id,status,closing_at').eq('id', offerId).eq('status', 'published').maybeSingle();

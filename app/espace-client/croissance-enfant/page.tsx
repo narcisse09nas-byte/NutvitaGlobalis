@@ -2,13 +2,13 @@ import { Suspense } from "react";
 import { requireActivePlatformSession } from "@/lib/active-platform-session";
 import ClientShell from "@/components/client/ClientShell";
 import ChildGrowthWorkspace from "@/components/client/ChildGrowthWorkspace";
-import {requireClient} from "@/lib/client";
+import {requireClient,CLIENT_SERVICES} from "@/lib/client";
 import {getApplicableTax} from "@/lib/taxes";
 import {getCurrentLocale} from "@/lib/i18n-server";
 import {getChildGrowthPageSettings} from "@/lib/child-growth-page";
 
 export default async function ChildGrowthPage(){
-  await requireActivePlatformSession("child_growth","client");
+  await requireActivePlatformSession(CLIENT_SERVICES,"client");
   const {supabase,user,profile}=await requireClient();
   const locale=await getCurrentLocale(), now=new Date().toISOString();
   const settings=await getChildGrowthPageSettings();

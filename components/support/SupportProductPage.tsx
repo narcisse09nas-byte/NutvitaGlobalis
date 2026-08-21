@@ -1,123 +1,38 @@
-import Link from "next/link";
-import {
-  ArrowRight, BadgeCheck, BarChart3, CheckCircle2, Clock3, Database, FileCheck2,
-  Globe2, ListChecks, Map, MessageSquare, Puzzle, ShieldCheck, Sparkles, TrendingUp, Users,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+﻿import Link from "next/link";
+import { ArrowRight, BadgeCheck, BarChart3, Clock3, Database, FileCheck2, HeartPulse, Layers3, ListChecks, Map, ShieldCheck, Sparkles, Users, type LucideIcon } from "lucide-react";
 import type { ManagedSection, SitePageContent } from "@/data/site-pages";
 
-// Each section's `badge` field is reused as a layout hint (not a literal small badge on this
-// page), so the same admin-editable ManagedSection shape can drive very different visual blocks
-// without any schema change: "hero-checklist" | "chips" | "steps" | "features" | "list" | "closing".
-// Any item whose text contains "|||" is rendered as a title + description pair, everywhere.
-// "chips" items also support a "Value — Label" convention, rendered as a colored stat card.
-const featureIcons: LucideIcon[] = [Sparkles, ListChecks, BadgeCheck, Database, Puzzle, BarChart3, Map, MessageSquare];
-const statIcons: LucideIcon[] = [Users, Clock3, ShieldCheck, TrendingUp, Database, Globe2];
-const stepIcons: LucideIcon[] = [FileCheck2, Sparkles, Database, TrendingUp, CheckCircle2, ShieldCheck];
-const palette = [
-  { soft: "bg-rose-50", strong: "bg-rose-500", text: "text-rose-600" },
-  { soft: "bg-sky-50", strong: "bg-sky-500", text: "text-sky-600" },
-  { soft: "bg-emerald-50", strong: "bg-emerald-500", text: "text-emerald-600" },
-  { soft: "bg-amber-50", strong: "bg-amber-500", text: "text-amber-600" },
-  { soft: "bg-violet-50", strong: "bg-violet-500", text: "text-violet-600" },
-  { soft: "bg-cyan-50", strong: "bg-cyan-500", text: "text-cyan-600" },
-];
+const icons:LucideIcon[]=[ListChecks,Clock3,Database,ShieldCheck,BarChart3,Users,Map,FileCheck2];
+const stepIcons:LucideIcon[]=[Sparkles,ListChecks,Database,BarChart3,BadgeCheck,Layers3];
+const configs={
+ "applications-support-nutritrack":{accent:"#f43f68",soft:"#fff0f4",dashboard:"/images/support-nutritrack-dashboard-v2.png",photo:"/images/Image-mere-enfant-hero.png",icon:HeartPulse},
+ "applications-support-sansurvey":{accent:"#f36a0a",soft:"#eef7f1",dashboard:"/images/support-sansurvey-dashboard-v2.png",photo:"/images/research-innovation/hero-field-impact.png",icon:ListChecks},
+ "applications-support-promanage":{accent:"#18834d",soft:"#edf7ef",dashboard:"/images/support-promanage-dashboard-v2.png",photo:"",icon:BarChart3},
+} as const;
+function splitItem(item:string){const[title,...rest]=item.split("|||");return{title,description:rest.join("|||")||null}}
+function splitStat(item:string){const{title,description}=splitItem(item),parts=title.split(/\s+[—-]\s+/);return{value:parts[0],label:parts.slice(1).join(" — ")||description||""}}
 
-function splitItem(item: string) {
-  const [title, ...rest] = item.split("|||");
-  return { title, description: rest.join("|||") || null };
+export default function SupportProductPage({page,appHref}:{page:SitePageContent;appHref:string}){
+ const cfg=configs[page.page_key as keyof typeof configs]||configs["applications-support-sansurvey"];
+ const sections=page.sections||[],hero=sections.find(s=>s.badge==="hero-checklist"),closing=[...sections].reverse().find(s=>s.badge==="closing"),middle=sections.filter(s=>s!==hero&&s!==closing),Icon=cfg.icon,primary=page.cta_label||"Accéder à l’application";
+ return <main className="support-product bg-white text-[#132238]" style={{"--support-accent":cfg.accent,"--support-soft":cfg.soft} as React.CSSProperties}>
+  <section className="border-t border-slate-100 pb-8 pt-6 lg:pb-10"><div className="container-site"><nav className="mb-8 hidden text-xs text-slate-500 lg:block">Accueil <span className="mx-3">›</span> Nos services <span className="mx-3">›</span> <b className="text-forest">{page.title}</b></nav>
+   <div className="grid items-center gap-8 lg:grid-cols-[.88fr_1.32fr]"><div><div className="flex items-center justify-between gap-4"><span className="grid h-14 w-14 place-items-center rounded-2xl bg-[var(--support-soft)] text-[var(--support-accent)] lg:hidden"><Icon className="h-7 w-7"/></span>{page.eyebrow&&<span className="rounded-full bg-[var(--support-soft)] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--support-accent)]">{page.eyebrow}</span>}</div>
+    <h1 className="mt-4 text-[2rem] font-black leading-[1.08] text-[#073f33] sm:text-4xl lg:text-[3.25rem]">{page.title}</h1>{hero?.text&&<p className="mt-3 text-lg font-black text-[var(--support-accent)]">{hero.text}</p>}<p className="mt-4 max-w-xl text-[15px] leading-7 text-slate-600 lg:text-base">{page.description}</p>
+    <div className="mt-7 grid gap-x-7 gap-y-4 sm:grid-cols-2">{(hero?.items||[]).map((raw,index)=>{const{title,description}=splitItem(raw),ItemIcon=icons[index%icons.length];return <div key={title} className="flex gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--support-soft)] text-[var(--support-accent)]"><ItemIcon className="h-[18px] w-[18px]"/></span><div><b className="text-sm text-[#073f33]">{title}</b>{description&&<p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>}</div></div>})}</div>
+    <div className="mt-8 flex flex-col gap-3 sm:flex-row"><Link href={appHref} className="support-primary">{primary}<ArrowRight className="h-4 w-4"/></Link><Link href="/contact" className="support-secondary">Demander une démo<ArrowRight className="h-4 w-4"/></Link></div></div>
+    <div className="relative hidden min-h-[430px] lg:block"><div className="absolute inset-[4%_2%_2%_5%] rounded-[3rem] bg-[var(--support-soft)]"/><img src={cfg.dashboard} alt={`Aperçu de ${page.title}`} className="absolute inset-0 z-10 h-full w-full rounded-[2rem] object-cover object-center shadow-[0_18px_55px_rgba(7,63,51,.16)]"/>{cfg.photo&&<img src={cfg.photo} alt="" className="absolute bottom-0 right-0 z-20 h-[72%] w-[24%] rounded-[0_2rem_2rem_0] object-cover shadow-xl"/>}</div></div></div>
+  </section>
+  {middle.map((section,index)=><MiddleSection key={`${section.title}-${index}`} section={section}/>)}
+  {closing&&<section className="pb-10 pt-5"><div className="container-site"><div className="grid items-center gap-6 overflow-hidden rounded-2xl bg-[var(--support-soft)] px-7 py-6 lg:grid-cols-[auto_1fr_auto]"><span className="hidden h-20 w-20 place-items-center rounded-full bg-white text-[var(--support-accent)] lg:grid"><Icon className="h-10 w-10"/></span><div><h2 className="text-xl font-black text-[#073f33] lg:text-2xl">{closing.title}</h2>{closing.text&&<p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{closing.text}</p>}</div><div className="grid min-w-[260px] gap-2"><Link href={appHref} className="support-primary">{primary}<ArrowRight className="h-4 w-4"/></Link><Link href="/contact" className="support-secondary">Demander une démo<ArrowRight className="h-4 w-4"/></Link></div></div><p className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500"><ShieldCheck className="h-4 text-[#073f33]"/> Sécurisé • Fiable • Conçu pour le terrain</p></div></section>}
+ </main>
 }
 
-export default function SupportProductPage({ page, appHref }: { page: SitePageContent; appHref: string }) {
-  const sections = page.sections || [];
-  const hero = sections.find(s => s.badge === "hero-checklist");
-  const closing = [...sections].reverse().find(s => s.badge === "closing");
-  const middle = sections.filter(s => s !== hero && s !== closing);
-  const primaryLabel = page.cta_label || "Accéder à l'application";
-
-  // Consecutive "list" sections (e.g. "Pour qui ?" + "Intégrations") are paired side by side.
-  const rows: ManagedSection[][] = [];
-  for (const section of middle) {
-    const last = rows[rows.length - 1];
-    if (section.badge === "list" && last?.length === 1 && last[0].badge === "list") last.push(section);
-    else rows.push([section]);
-  }
-
-  return <main className="bg-[#fbfcfb]">
-    <section className="container-site grid items-center gap-10 py-14 lg:grid-cols-[1.05fr_.95fr]">
-      <div>
-        {page.eyebrow && <span className="inline-flex rounded-full bg-mint px-4 py-2 text-xs font-black uppercase tracking-widest text-leaf">{page.eyebrow}</span>}
-        <h1 className="mt-5 whitespace-pre-line text-5xl font-black leading-[1.03] md:text-6xl">{page.title}</h1>
-        {hero?.text && <p className="mt-3 text-xl font-black text-orange">{hero.text}</p>}
-        <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">{page.description}</p>
-        {hero?.items && hero.items.length > 0 && <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {hero.items.map(raw => { const { title, description } = splitItem(raw); return <div className="flex gap-3" key={title}><CheckCircle2 className="h-6 shrink-0 text-leaf" /><div><b className="font-bold">{title}</b>{description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}</div></div>; })}
-        </div>}
-        <div className="mt-9"><Link href={appHref} className="btn-primary min-w-56">{primaryLabel}<ArrowRight className="ml-2 h-4" /></Link></div>
-      </div>
-      {page.hero_image_url && <div className="relative min-h-[420px] overflow-hidden rounded-[42px] shadow-soft"><img src={page.hero_image_url} alt={page.title} className="h-full min-h-[420px] w-full object-cover" /></div>}
-    </section>
-
-    {rows.map((group, index) => group.length === 2
-      ? <section key={index} className="py-6"><div className="container-site grid gap-5 md:grid-cols-2">{group.map(section => <ListBlock key={section.title} section={section} />)}</div></section>
-      : <MiddleSection key={index} section={group[0]} />)}
-
-    {closing && <section className="pb-20"><div className="container-site"><div className="grid items-center gap-8 overflow-hidden rounded-[2.5rem] bg-forest text-white lg:grid-cols-[1.2fr_.8fr]"><div className="p-10 md:p-14"><h2 className="text-3xl font-black leading-tight md:text-4xl">{closing.title}</h2>{closing.text && <p className="mt-4 max-w-xl leading-7 text-white/75">{closing.text}</p>}<Link href={appHref} className="btn-primary mt-8 min-w-56 bg-orange hover:bg-orange">{primaryLabel}<ArrowRight className="ml-2 h-4" /></Link></div>{closing.image_url && <div className="relative min-h-[280px] self-stretch lg:min-h-[360px]"><img src={closing.image_url} alt={closing.title} className="h-full w-full object-cover" /></div>}</div></div></section>}
-  </main>;
+function MiddleSection({section}:{section:ManagedSection}){const items=section.items||[];
+ if(section.badge==="chips")return <section className="py-4"><div className="container-site"><div className="rounded-2xl border border-slate-100 bg-[var(--support-soft)] px-5 py-6 lg:px-8"><h2 className="text-center text-xl font-black text-[#073f33]">{section.title}</h2><div className="mt-6 grid gap-0 sm:grid-cols-2 lg:grid-cols-6">{items.map((raw,index)=>{const{value,label}=splitStat(raw),ItemIcon=icons[index%icons.length];return <div key={raw} className="border-slate-200 px-4 py-3 text-center lg:border-r lg:last:border-0"><span className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-white text-[var(--support-accent)]"><ItemIcon className="h-5"/></span><b className="mt-2 block text-lg font-black text-[var(--support-accent)]">{value}</b><span className="mt-1 block text-xs font-semibold leading-5 text-slate-600">{label}</span></div>})}</div></div></div></section>;
+ if(section.badge==="steps")return <section className="py-8"><div className="container-site"><h2 className="text-2xl font-black text-[#073f33] lg:text-center">{section.title}</h2><div className="mt-7 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">{items.map((raw,index)=>{const{title,description}=splitItem(raw),ItemIcon=stepIcons[index%stepIcons.length];return <div key={raw} className="relative text-left lg:text-center"><span className="grid h-14 w-14 place-items-center rounded-full bg-[var(--support-soft)] text-[var(--support-accent)] lg:mx-auto"><ItemIcon className="h-6"/></span>{index<items.length-1&&<ArrowRight className="absolute -right-4 top-5 hidden h-4 text-slate-300 lg:block"/>}<b className="mt-3 block text-sm text-[#073f33]">{index+1}. {title}</b>{description&&<p className="mt-2 text-xs leading-5 text-slate-600">{description}</p>}</div>})}</div></div></section>;
+ if(section.badge==="features")return <section className="py-7"><div className="container-site"><h2 className="text-2xl font-black text-[#073f33]">{section.title}</h2><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{items.map((raw,index)=>{const{title,description}=splitItem(raw),ItemIcon=icons[index%icons.length];return <article key={raw} className="rounded-xl border border-slate-200 bg-white p-4"><div className="flex gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--support-soft)] text-[var(--support-accent)]"><ItemIcon className="h-5"/></span><div><h3 className="text-sm font-black text-[#073f33]">{title}</h3>{description&&<p className="mt-2 text-xs leading-5 text-slate-600">{description}</p>}</div></div></article>})}</div></div></section>;
+ if(section.badge==="list")return <section className="py-4"><div className="container-site"><div className="rounded-2xl border border-slate-100 bg-white p-6"><h2 className="text-xl font-black text-[#073f33]">{section.title}</h2><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{items.map((raw,index)=>{const{title}=splitItem(raw),ItemIcon=icons[index%icons.length];return <div key={raw} className="flex items-center gap-3 text-sm"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--support-soft)] text-[var(--support-accent)]"><ItemIcon className="h-4"/></span><b>{title}</b></div>})}</div></div></div></section>;
+ return null
 }
 
-function MiddleSection({ section }: { section: ManagedSection }) {
-  const items = section.items || [];
-
-  if (section.badge === "chips") return <section className="py-4"><div className="container-site"><div className="rounded-[2rem] border bg-white p-7 shadow-soft md:p-9">
-    {section.title && <h2 className="text-xl font-black">{section.title}</h2>}
-    <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{items.map((raw, index) => {
-      const { title, description } = splitItem(raw);
-      const [value, ...labelParts] = title.split(" — ");
-      const label = labelParts.join(" — ") || description || "";
-      const Icon = statIcons[index % statIcons.length];
-      const color = palette[index % palette.length];
-      return <div key={title} className={`rounded-2xl ${color.soft} p-5 text-center`}>
-        <span className={`mx-auto grid h-12 w-12 place-items-center rounded-full bg-white ${color.text} shadow-sm`}><Icon className="h-6" /></span>
-        <b className={`mt-3 block text-2xl font-black ${color.text}`}>{value}</b>
-        <span className="mt-1 block text-xs font-bold leading-5 text-slate-600">{label}</span>
-      </div>;
-    })}</div>
-  </div></div></section>;
-
-  if (section.badge === "steps") return <section className="py-10"><div className="container-site">
-    {section.title && <h2 className="text-center text-3xl font-black">{section.title}</h2>}
-    <div className="mt-9 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">{items.map((raw, index) => {
-      const { title, description } = splitItem(raw);
-      const Icon = stepIcons[index % stepIcons.length];
-      const color = palette[index % palette.length];
-      return <div key={title} className="relative text-center">
-        <span className={`relative mx-auto grid h-14 w-14 place-items-center rounded-full ${color.soft} ${color.text}`}><Icon className="h-6" /><span className={`absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full ${color.strong} text-xs font-black text-white`}>{index + 1}</span></span>
-        <b className="mt-4 block">{title}</b>
-        {description && <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>}
-      </div>;
-    })}</div>
-  </div></section>;
-
-  if (section.badge === "features") return <section className="py-10"><div className="container-site">
-    {section.title && <h2 className="text-center text-3xl font-black">{section.title}</h2>}
-    <div className="mt-9 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{items.map((raw, index) => {
-      const { title, description } = splitItem(raw);
-      const Icon = featureIcons[index % featureIcons.length];
-      const color = palette[index % palette.length];
-      return <div key={title} className="rounded-2xl border bg-white p-6 shadow-sm"><span className={`grid h-11 w-11 place-items-center rounded-xl ${color.soft} ${color.text}`}><Icon className="h-5" /></span><b className="mt-4 block">{title}</b>{description && <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>}</div>;
-    })}</div>
-  </div></section>;
-
-  if (section.badge === "list") return <section className="py-6"><div className="container-site"><ListBlock section={section} /></div></section>;
-
-  return <section className="py-6"><div className="container-site"><div className="rounded-[2rem] border bg-white p-7 shadow-soft md:p-9">{section.title && <h2 className="text-xl font-black">{section.title}</h2>}{section.text && <p className="mt-3 text-slate-600">{section.text}</p>}{items.length > 0 && <ul className="mt-4 grid gap-2 text-sm">{items.map(item => <li key={item} className="flex gap-3"><CheckCircle2 className="h-5 shrink-0 text-leaf" />{item}</li>)}</ul>}</div></div></section>;
-}
-
-function ListBlock({ section }: { section: ManagedSection }) {
-  const items = section.items || [];
-  return <div className="rounded-[2rem] border bg-white p-7 shadow-soft md:p-9">
-    {section.title && <h2 className="text-xl font-black">{section.title}</h2>}
-    <div className="mt-5 grid gap-3">{items.map((raw, index) => { const { title } = splitItem(raw); const color = palette[index % palette.length]; return <div key={title} className="flex items-center gap-3 text-sm font-bold"><span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${color.soft} ${color.text}`}><CheckCircle2 className="h-4" /></span>{title}</div>; })}</div>
-  </div>;
-}

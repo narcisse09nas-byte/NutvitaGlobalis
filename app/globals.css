@@ -113,3 +113,16 @@
 .admin-recruitment-workspace main [class*="shadow-sm"] { box-shadow: 0 1px 2px rgb(15 23 42 / .04); }
 .admin-recruitment-workspace main [class*="overflow-x-auto"] { max-width: 100%; overscroll-behavior-inline: contain; }
 @media (max-width: 1023px) { .admin-recruitment-workspace main [class*="lg:grid-cols-"] { grid-template-columns: minmax(0,1fr); } }
+@layer components {
+  .support-primary { @apply inline-flex min-h-12 items-center justify-center gap-3 rounded-full px-7 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5; background: var(--support-accent); }
+  .support-secondary { @apply inline-flex min-h-12 items-center justify-center gap-3 rounded-full border bg-white px-7 text-sm font-black text-forest transition hover:-translate-y-0.5; border-color: var(--support-accent); }
+}
+
+@media (max-width: 639px) {
+  .support-app-card { min-height: 0; padding: 1.25rem; }
+  .support-app-card h2 { font-size: 1.45rem; line-height: 1.18; }
+  .support-app-card ul { margin-top: 1.25rem; gap: .65rem; }
+  .support-app-card > div:last-child { padding-top: 1.5rem; }
+  .support-product > section:not(:first-child):not(:last-child) { display: none; }
+  .support-product > section:first-child { padding-top: 1.25rem; }
+}

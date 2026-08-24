@@ -3,6 +3,8 @@ import PPMShell from "@/components/op-management/PPMShell";
 import ProjectShell from "@/components/op-management/ProjectShell";
 import WorkPackageDetailView from "@/components/op-management/WorkPackageDetailView";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentLocale } from "@/lib/i18n-server";
+import { bc } from "@/lib/ppm/breadcrumb-labels";
 import {
   getApprovedPmbWorkPackageSnapshots, getEvmSettings, getProject, getWbsNode, listActivities,
   listAchievements, listBudgetLines, listDeliverables, listExpenses, listIssues, listNcrs,
@@ -14,7 +16,7 @@ export default async function WorkPackageDetailPage({ params }: { params: Promis
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/connexion?redirect=${encodeURIComponent(`/op-management/projets/${id}/work-packages/${wpId}`)}`);
-  const name = user.user_metadata?.full_name || user.email || "Utilisateur";
+  const name = user.user_metadata?.full_name || user.email || ((await getCurrentLocale()) === "en" ? "User" : "Utilisateur");
   const project = await getProject(supabase, id);
   if (!project) notFound();
   const workPackage = await getWbsNode(supabase, wpId);
@@ -28,8 +30,9 @@ export default async function WorkPackageDetailPage({ params }: { params: Promis
   ]);
   const wpQualityRequirements = qualityRequirements.filter(item => item.work_package_id === wpId);
   const wpActivityIds = new Set(activities.filter(item => item.work_package_id === wpId).map(item => item.id));
+  const locale = await getCurrentLocale();
 
-  return <PPMShell name={name} breadcrumbs={[{ href: "/op-management", label: "Vue d'ensemble" }, { href: "/op-management/projets", label: "Projets" }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/work-packages/${wpId}`, label: workPackage.title }]}>
+  return <PPMShell name={name} locale={locale} breadcrumbs={[{ href: "/op-management", label: bc(locale, "overview") }, { href: "/op-management/projets", label: bc(locale, "projects") }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/work-packages/${wpId}`, label: workPackage.title }]}>
     <ProjectShell project={project}>
       <WorkPackageDetailView
         projectId={id} workPackage={workPackage}
@@ -47,6 +50,7 @@ export default async function WorkPackageDetailPage({ params }: { params: Promis
         timePhasedRows={timePhasedRows.filter(item => item.work_package_id === wpId)}
         evmSettings={evmSettings}
         pmbSnapshots={pmbSnapshots}
+        locale={locale}
       />
     </ProjectShell>
   </PPMShell>;

@@ -65,8 +65,13 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
     if (academyProfile && ["instructor", "admin", "super_admin"].includes(academyProfile.role)) add("academy", academyProfile.role === "super_admin" ? "admin" : academyProfile.role);
     const types = new Map((plans || []).map((plan: any) => [plan.id, plan.service_type]));
     const activeSubscriptions = (subscriptions || []).filter((item: any) => !item.expires_at || +new Date(item.expires_at) > now);
-    if (activeSubscriptions.some((item: any) => types.get(item.plan_id) === "health_tracking")) add("health", "client");
-    if (activeSubscriptions.some((item: any) => item.child_id || types.get(item.plan_id) === "child_growth")) add("child_growth", "client");
+    // Same plan_id resolution as getClientEntitlements() (lib/client.ts) — including its legacy
+    // string-match fallback for subscriptions whose plan_id doesn't resolve via the plans map
+    // (renamed/removed catalog rows). These two functions must agree: this one gates the
+    // /api/access/open redirect a client hits when opening "their" service, so any drift here
+    // sends an already-paying client to the purchase page instead of their service.
+    if (activeSubscriptions.some((item: any) => !item.child_id && (types.get(item.plan_id) === "health_tracking" || String(item.plan_id).includes("health")))) add("health", "client");
+    if (activeSubscriptions.some((item: any) => item.child_id || types.get(item.plan_id) === "child_growth" || String(item.plan_id).includes("child-growth"))) add("child_growth", "client");
     const activeDietetic = (bookings || []).some((item: any) => {
       if (["cancelled", "refunded"].includes(item.status)) return false;
       if (item.access_expires_at) return +new Date(item.access_expires_at) > now;

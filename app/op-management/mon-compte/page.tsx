@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import PPMShell from "@/components/op-management/PPMShell";
 import PasswordChange from "@/components/client/PasswordChange";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentLocale } from "@/lib/i18n-server";
+import { bc } from "@/lib/ppm/breadcrumb-labels";
 
 // Refinement program, Wave 9 (item 50): a site-wide "change my password" entry point, reachable
 // from the PPM shell — reuses the existing /api/client/change-password route and PasswordChange
@@ -11,12 +13,13 @@ export default async function PPMMonComptePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/connexion?redirect=%2Fop-management%2Fmon-compte");
-  const name = user.user_metadata?.full_name || user.email || "Utilisateur";
+  const name = user.user_metadata?.full_name || user.email || ((await getCurrentLocale()) === "en" ? "User" : "Utilisateur");
+  const locale = await getCurrentLocale();
 
-  return <PPMShell name={name} breadcrumbs={[{ href: "/op-management", label: "Vue d'ensemble" }, { href: "/op-management/mon-compte", label: "Mon compte" }]}>
+  return <PPMShell name={name} locale={locale} breadcrumbs={[{ href: "/op-management", label: bc(locale, "overview") }, { href: "/op-management/mon-compte", label: bc(locale, "myAccount") }]}>
     <div className="grid max-w-xl gap-5">
       <div>
-        <h1 className="text-2xl font-black text-forest">Mon compte</h1>
+        <h1 className="text-2xl font-black text-forest">{bc(locale, "myAccount")}</h1>
         <p className="mt-1 text-sm text-slate-500">{user.email}</p>
       </div>
       <PasswordChange />

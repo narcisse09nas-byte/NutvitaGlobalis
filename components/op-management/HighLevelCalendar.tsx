@@ -3,6 +3,7 @@
 // data the detailed per-day Gantt (PDMWorkspace.tsx) already renders — visible earlier, at
 // Cadrage time, before/alongside the detailed PDM planning.
 import { useMemo, useState } from "react";
+import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type { Activity } from "@/lib/ppm/types";
 
 type Granularity = "week" | "month" | "quarter" | "year";
@@ -17,11 +18,11 @@ function periodKey(date: Date, granularity: Granularity): string {
   return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-function periodLabel(key: string, granularity: Granularity): string {
+function periodLabel(key: string, granularity: Granularity, en: boolean): string {
   if (granularity === "year" || granularity === "week") return key;
   if (granularity === "quarter") return key.replace("-", " ");
   const [year, month] = key.split("-");
-  return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString("fr-FR", { month: "short", year: "numeric" });
+  return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString(en ? "en-US" : "fr-FR", { month: "short", year: "numeric" });
 }
 
 function nextPeriod(date: Date, granularity: Granularity): Date {
@@ -34,6 +35,7 @@ function nextPeriod(date: Date, granularity: Granularity): Date {
 }
 
 export default function HighLevelCalendar({ activities }: { activities: Activity[] }) {
+  const { en } = usePpmLocale();
   const [granularity, setGranularity] = useState<Granularity>("month");
   const dated = useMemo(() => activities.filter(row => row.planned_start && row.planned_end), [activities]);
 
@@ -68,14 +70,14 @@ export default function HighLevelCalendar({ activities }: { activities: Activity
 
   return <div className="grid gap-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-xl font-black text-forest">Calendrier previsionnel (vue haut niveau)</h2>
+      <h2 className="text-xl font-black text-forest">{en ? "Forecast calendar (high-level view)" : "Calendrier previsionnel (vue haut niveau)"}</h2>
       <div className="flex flex-wrap gap-2">
-        {([["week", "Semaine"], ["month", "Mois"], ["quarter", "Trimestre"], ["year", "Annee"]] as const).map(([value, label]) => <button key={value} onClick={() => setGranularity(value)} className={`rounded-full px-4 py-2 text-xs font-bold ${granularity === value ? "bg-forest text-white" : "bg-slate-100 text-slate-600 hover:bg-mint"}`}>{label}</button>)}
+        {([["week", en ? "Week" : "Semaine"], ["month", en ? "Month" : "Mois"], ["quarter", en ? "Quarter" : "Trimestre"], ["year", en ? "Year" : "Annee"]] as const).map(([value, label]) => <button key={value} onClick={() => setGranularity(value)} className={`rounded-full px-4 py-2 text-xs font-bold ${granularity === value ? "bg-forest text-white" : "bg-slate-100 text-slate-600 hover:bg-mint"}`}>{label}</button>)}
       </div>
     </div>
-    {!periods.length ? <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">Aucune activite datee a afficher.</p> : <div className="overflow-x-auto rounded-2xl border bg-white">
+    {!periods.length ? <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No dated activity to display." : "Aucune activite datee a afficher."}</p> : <div className="overflow-x-auto rounded-2xl border bg-white">
       <table className="w-full min-w-[720px] text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-3">Activite</th>{periods.map(key => <th key={key} className="whitespace-nowrap p-3 text-center">{periodLabel(key, granularity)}</th>)}</tr></thead>
+        <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-3">{en ? "Activity" : "Activite"}</th>{periods.map(key => <th key={key} className="whitespace-nowrap p-3 text-center">{periodLabel(key, granularity, en)}</th>)}</tr></thead>
         <tbody>
           {dated.map(activity => {
             const covered = activityPeriods(activity);

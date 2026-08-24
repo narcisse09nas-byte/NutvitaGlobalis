@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type { Activity, BudgetLine, Project, TimePhasedBudget, WBSNode } from "@/lib/ppm/types";
 
 function monthKey(date: Date) { return date.toISOString().slice(0, 7); }
@@ -13,6 +14,7 @@ function addMonths(key: string, delta: number) {
 export default function TimePhasedBudgetForm({ projectId, project, workPackages, budgetLines, activities, initial }: {
   projectId: string; project: Project; workPackages: WBSNode[]; budgetLines: BudgetLine[]; activities: Activity[]; initial: TimePhasedBudget[];
 }) {
+  const { en } = usePpmLocale();
   const [rows, setRows] = useState(initial);
   const [selectedWpId, setSelectedWpId] = useState(workPackages[0]?.id || "");
   const [amounts, setAmounts] = useState<Record<string, string>>({});
@@ -76,20 +78,20 @@ export default function TimePhasedBudgetForm({ projectId, project, workPackages,
     setSaving(false);
     if (result.error) { setMessage(result.error.message); return; }
     setRows(current => [...current.filter(row => row.work_package_id !== selectedWpId), ...(result.data as TimePhasedBudget[])]);
-    setMessage("Budget mensualise enregistre.");
+    setMessage(en ? "Time-phased budget saved." : "Budget mensualise enregistre.");
   }
 
   return <div className="grid gap-4 rounded-2xl border bg-white p-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-lg font-black text-forest">Budget mensualise (Time-Phased Budget)</h2>
-      <select value={selectedWpId} onChange={event => loadWp(event.target.value)} className="admin-input w-auto"><option value="">Selectionner un Work Package</option>{workPackages.map(wp => <option key={wp.id} value={wp.id}>{wp.title}</option>)}</select>
+      <h2 className="text-lg font-black text-forest">{en ? "Time-Phased Budget" : "Budget mensualise (Time-Phased Budget)"}</h2>
+      <select value={selectedWpId} onChange={event => loadWp(event.target.value)} className="admin-input w-auto"><option value="">{en ? "Select a Work Package" : "Selectionner un Work Package"}</option>{workPackages.map(wp => <option key={wp.id} value={wp.id}>{wp.title}</option>)}</select>
     </div>
-    {!workPackages.length && <p className="text-sm text-slate-400">Aucun Work Package (niveau 4 du WBS) n&apos;existe encore pour ce projet.</p>}
+    {!workPackages.length && <p className="text-sm text-slate-400">{en ? "No Work Package (WBS level 4) exists yet for this project." : "Aucun Work Package (niveau 4 du WBS) n'existe encore pour ce projet."}</p>}
     {selectedWp && <>
-      <p className="text-sm text-slate-500">BAC (budget approuve) pour <b>{selectedWp.title}</b> : <b>{bac.toLocaleString("fr-FR")}</b></p>
+      <p className="text-sm text-slate-500">{en ? "BAC (approved budget) for" : "BAC (budget approuve) pour"} <b>{selectedWp.title}</b> : <b>{bac.toLocaleString(en ? "en-US" : "fr-FR")}</b></p>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => extendRange("before")} className="btn-secondary px-3 py-1.5 text-xs">+ Mois avant</button>
-        <button type="button" onClick={() => extendRange("after")} className="btn-secondary px-3 py-1.5 text-xs">+ Mois apres</button>
+        <button type="button" onClick={() => extendRange("before")} className="btn-secondary px-3 py-1.5 text-xs">+ {en ? "Month before" : "Mois avant"}</button>
+        <button type="button" onClick={() => extendRange("after")} className="btn-secondary px-3 py-1.5 text-xs">+ {en ? "Month after" : "Mois apres"}</button>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[700px] text-left text-sm">
@@ -98,10 +100,10 @@ export default function TimePhasedBudgetForm({ projectId, project, workPackages,
         </table>
       </div>
       <div className={`rounded-xl p-3 text-sm font-bold ${matches ? "bg-mint text-forest" : "bg-red-50 text-red-700"}`}>
-        Total saisi : {total.toLocaleString("fr-FR")} {matches ? "— correspond au BAC ✓" : `— ecart de ${(total - bac).toLocaleString("fr-FR")} par rapport au BAC`}
+        {en ? "Total entered" : "Total saisi"} : {total.toLocaleString(en ? "en-US" : "fr-FR")} {matches ? (en ? "— matches the BAC ✓" : "— correspond au BAC ✓") : (en ? `— gap of ${(total - bac).toLocaleString("en-US")} vs. the BAC` : `— ecart de ${(total - bac).toLocaleString("fr-FR")} par rapport au BAC`)}
       </div>
       {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">{message}</p>}
-      <div><button onClick={save} disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Enregistrer la repartition"}</button></div>
+      <div><button onClick={save} disabled={saving} className="btn-primary">{saving ? (en ? "Saving..." : "Enregistrement...") : (en ? "Save the breakdown" : "Enregistrer la repartition")}</button></div>
     </>}
   </div>;
 }

@@ -3,9 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BellIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
+import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type { PPMNotification } from "@/lib/ppm/types";
 
 export default function NotificationBell() {
+  const { en } = usePpmLocale();
   const [notifications, setNotifications] = useState<PPMNotification[]>([]);
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -49,13 +51,13 @@ export default function NotificationBell() {
           const content = <div className={`rounded-xl px-3 py-2.5 text-sm ${item.read_at ? "text-slate-500" : "bg-mint/60 font-bold text-forest"}`}>
             <p>{item.title}</p>
             {item.message && <p className="mt-0.5 text-xs font-normal text-slate-500">{item.message}</p>}
-            <p className="mt-1 text-[10px] font-normal uppercase text-slate-400">{new Date(item.created_at).toLocaleString("fr-FR")}</p>
+            <p className="mt-1 text-[10px] font-normal uppercase text-slate-400">{new Date(item.created_at).toLocaleString(en ? "en-US" : "fr-FR")}</p>
           </div>;
           return item.link
             ? <Link key={item.id} href={item.link} onClick={() => markRead(item)} className="block">{content}</Link>
             : <button key={item.id} onClick={() => markRead(item)} className="block w-full text-left">{content}</button>;
         })}
-        {!notifications.length && <p className="px-3 py-6 text-center text-sm text-slate-400">Aucune notification.</p>}
+        {!notifications.length && <p className="px-3 py-6 text-center text-sm text-slate-400">{en ? "No notifications." : "Aucune notification."}</p>}
       </div>
     </div>}
   </div>;

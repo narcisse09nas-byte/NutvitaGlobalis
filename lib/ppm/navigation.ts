@@ -7,29 +7,29 @@ import type { ComponentType, SVGProps } from "react";
 import { ArchiveBoxIcon, BriefcaseIcon, BuildingOffice2Icon, ClipboardDocumentListIcon, HomeIcon, Squares2X2Icon } from "@heroicons/react/24/outline";
 
 export type PPMIcon = ComponentType<SVGProps<SVGSVGElement>>;
-export type PPMNavItem = { href: string; label: string; icon: PPMIcon; description?: string };
-export type PPMNavGroup = { title: string; items: PPMNavItem[] };
+export type PPMNavItem = { href: string; label: string; labelEn: string; icon: PPMIcon; description?: string; descriptionEn?: string };
+export type PPMNavGroup = { title: string; titleEn: string; items: PPMNavItem[] };
 
 export const PPM_NAV_GROUPS: PPMNavGroup[] = [
   {
-    title: "Accueil",
+    title: "Accueil", titleEn: "Home",
     items: [
-      { href: "/op-management", label: "Vue d'ensemble", icon: HomeIcon },
+      { href: "/op-management", label: "Vue d'ensemble", labelEn: "Overview", icon: HomeIcon },
     ],
   },
   {
-    title: "Structure",
+    title: "Structure", titleEn: "Structure",
     items: [
-      { href: "/op-management/organisations", label: "Organisations", icon: BuildingOffice2Icon },
-      { href: "/op-management/portefeuilles", label: "Portefeuilles", icon: Squares2X2Icon },
-      { href: "/op-management/programmes", label: "Programmes", icon: BriefcaseIcon },
-      { href: "/op-management/projets", label: "Projets", icon: ClipboardDocumentListIcon },
+      { href: "/op-management/organisations", label: "Organisations", labelEn: "Organizations", icon: BuildingOffice2Icon },
+      { href: "/op-management/portefeuilles", label: "Portefeuilles", labelEn: "Portfolios", icon: Squares2X2Icon },
+      { href: "/op-management/programmes", label: "Programmes", labelEn: "Programs", icon: BriefcaseIcon },
+      { href: "/op-management/projets", label: "Projets", labelEn: "Projects", icon: ClipboardDocumentListIcon },
     ],
   },
   {
-    title: "Outils existants",
+    title: "Outils existants", titleEn: "Existing tools",
     items: [
-      { href: "/op-management/legacy", label: "NFI, Estimateur besoins et autres outils", icon: ArchiveBoxIcon, description: "Ouvre l'application actuelle (non modifiee)" },
+      { href: "/op-management/legacy", label: "NFI, Estimateur besoins et autres outils", labelEn: "NFI, Needs Estimator and other tools", icon: ArchiveBoxIcon, description: "Ouvre l'application actuelle (non modifiee)", descriptionEn: "Opens the current application (unchanged)" },
     ],
   },
 ];

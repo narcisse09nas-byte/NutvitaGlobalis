@@ -1,11 +1,13 @@
+"use client";
+import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type { PPMStatus } from "@/lib/ppm/types";
 
-const labels: Record<PPMStatus, string> = {
-  draft: "Brouillon",
-  active: "Actif",
-  on_hold: "En pause",
-  closed: "Cloture",
-  cancelled: "Annule",
+const labels: Record<PPMStatus, { fr: string; en: string }> = {
+  draft: { fr: "Brouillon", en: "Draft" },
+  active: { fr: "Actif", en: "Active" },
+  on_hold: { fr: "En pause", en: "On hold" },
+  closed: { fr: "Cloture", en: "Closed" },
+  cancelled: { fr: "Annule", en: "Cancelled" },
 };
 
 const tones: Record<PPMStatus, string> = {
@@ -17,5 +19,6 @@ const tones: Record<PPMStatus, string> = {
 };
 
 export default function EntityStatusBadge({ status }: { status: PPMStatus }) {
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${tones[status]}`}>{labels[status]}</span>;
+  const { locale } = usePpmLocale();
+  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${tones[status]}`}>{labels[status][locale]}</span>;
 }

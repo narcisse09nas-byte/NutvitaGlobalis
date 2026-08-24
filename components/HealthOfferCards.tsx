@@ -5,7 +5,7 @@ import { Check, X } from "lucide-react";
 import { useState } from "react";
 
 type Plan={id:string;name:string;name_en?:string;price_excluding_tax?:number;amount?:number;currency?:string;service_type:string;tier:string;features?:string[]};
-type Access={health?:boolean;childGrowth?:boolean}|null;
+type Access={health?:boolean;childGrowth?:boolean;healthTier?:"basic"|"premium"|null;childGrowthTier?:"basic"|"premium"|null}|null;
 
 const featureSets={
  health_tracking:{
@@ -22,6 +22,10 @@ export default function HealthOfferCards({plans,english,userConnected,access}:{p
  const [selected,setSelected]=useState<Plan|null>(null);
  const t=(fr:string,en:string)=>english?en:fr;
  const active=(plan:Plan)=>plan.service_type==="child_growth"?access?.childGrowth:access?.health;
+ // The tier the client actually holds for this service_type (or null if none) — lets Standard
+ // grey out once Premium is active, and Premium read as "upgrade" once Standard is active,
+ // instead of every tier card being judged only against its own exact match.
+ const ownedTier=(plan:Plan)=>plan.service_type==="child_growth"?access?.childGrowthTier:access?.healthTier;
  const destination=(plan:Plan)=>{
   if(active(plan)) return `/api/access/open?service=${plan.service_type==="child_growth"?"child_growth":"health"}&role=client`;
   const checkout=`/checkout?type=subscription&id=${plan.id}`;
@@ -41,12 +45,15 @@ export default function HealthOfferCards({plans,english,userConnected,access}:{p
     const serviceKey=child?"child_growth":"health_tracking";
     const tierKey=premium?"premium":"basic";
     const features=featureSets[serviceKey][tierKey][english?"en":"fr"];
-    return <article key={plan.id} className={`flex min-h-[480px] flex-col rounded-[1.75rem] border bg-white p-7 shadow-soft transition hover:-translate-y-1 hover:shadow-xl ${premium?"border-orange/40":"border-slate-200"}`}>
-     <div className="flex items-center justify-between gap-3"><p className={`text-xs font-black uppercase tracking-[.16em] ${premium?"text-orange":"text-leaf"}`}>{premium?"Premium":"Standard"}</p><span className={`rounded-full px-3 py-1 text-xs font-black ${isActive?"bg-emerald-100 text-emerald-800":"bg-slate-100 text-slate-600"}`}>{isActive?t("Actif","Active"):t("Disponible","Available")}</span></div>
+    const owned=ownedTier(plan);
+    const blockedByPremium=!premium&&owned==="premium";
+    const upgradeable=premium&&!isActive&&owned==="basic";
+    return <article key={plan.id} className={`flex min-h-[480px] flex-col rounded-[1.75rem] border bg-white p-7 shadow-soft transition hover:-translate-y-1 hover:shadow-xl ${blockedByPremium?"opacity-60":""} ${premium?"border-orange/40":"border-slate-200"}`}>
+     <div className="flex items-center justify-between gap-3"><p className={`text-xs font-black uppercase tracking-[.16em] ${premium?"text-orange":"text-leaf"}`}>{premium?"Premium":"Standard"}</p><span className={`rounded-full px-3 py-1 text-xs font-black ${isActive?"bg-emerald-100 text-emerald-800":"bg-slate-100 text-slate-600"}`}>{blockedByPremium?t("Inclus dans Premium","Included in Premium"):isActive?t("Actif","Active"):t("Disponible","Available")}</span></div>
      <h3 className="mt-5 text-[1.35rem] font-black leading-7">{english&&plan.name_en?plan.name_en:plan.name}</h3>
      <p className="mt-4 text-sm leading-6 text-slate-600">{child?t("Un dossier strictement séparé pour chaque enfant, avec courbes et analyses adaptées.","A strictly separate record for each child, with charts and tailored analysis."):premium?t("Des analyses avancées et un accompagnement numérique renforcé.","Advanced analysis and stronger digital guidance."):t("Mesures, tendances, questionnaires et rapports personnalisés.","Measurements, trends, questionnaires and personalized reports.")}</p>
      <ul className="mt-6 grid gap-3 text-sm">{features.map(feature=><li key={feature} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-leaf"/><span>{feature}</span></li>)}</ul>
-     <button type="button" onClick={()=>isActive?location.assign(destination(plan)):setSelected(plan)} className={`${premium?"bg-orange":"bg-leaf"} mt-auto inline-flex min-h-12 items-center justify-center rounded-xl px-5 font-black text-white transition hover:brightness-95`}>{isActive?t("Ouvrir le service","Open service"):t("Activer le service","Activate service")}</button>
+     <button type="button" disabled={blockedByPremium} onClick={()=>isActive?location.assign(destination(plan)):setSelected(plan)} className={`${premium?"bg-orange":"bg-leaf"} mt-auto inline-flex min-h-12 items-center justify-center rounded-xl px-5 font-black text-white transition hover:brightness-95 disabled:bg-slate-300 disabled:hover:brightness-100`}>{blockedByPremium?t("Inclus dans Premium","Included in Premium"):isActive?t("Ouvrir le service","Open service"):upgradeable?t("Passer à Premium","Upgrade to Premium"):t("Activer le service","Activate service")}</button>
     </article>
    })}
   </div>

@@ -2,24 +2,28 @@
 import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
+import SearchableSelect from "@/components/op-management/SearchableSelect";
+import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type {
-  NcrStatus, NonConformityReport, QualityChecklistItem, QualityControlActual, QualityEvidence,
+  NcrStatus, NonConformityReport, PPMResource, QualityChecklistItem, QualityControlActual, QualityEvidence,
   QualityRequirement, QualityResult,
 } from "@/lib/ppm/types";
 
-const resultLabels: Record<QualityResult, string> = { pending: "En attente", conforme: "Conforme", non_conforme: "Non conforme", non_applicable: "Non applicable" };
+const resultLabels: Record<QualityResult, { fr: string; en: string }> = { pending: { fr: "En attente", en: "Pending" }, conforme: { fr: "Conforme", en: "Compliant" }, non_conforme: { fr: "Non conforme", en: "Non-compliant" }, non_applicable: { fr: "Non applicable", en: "Not applicable" } };
 const resultTones: Record<QualityResult, string> = {
   pending: "bg-slate-100 text-slate-600", conforme: "bg-mint text-forest", non_conforme: "bg-red-50 text-red-700", non_applicable: "bg-slate-100 text-slate-400",
 };
-const ncrStatusLabels: Record<NcrStatus, string> = {
-  open: "Ouverte", root_cause_identified: "Cause identifiee", capa_planned: "CAPA planifiee",
-  capa_implemented: "CAPA mise en oeuvre", effectiveness_reviewed: "Efficacite revue", closed: "Cloturee",
+const ncrStatusLabels: Record<NcrStatus, { fr: string; en: string }> = {
+  open: { fr: "Ouverte", en: "Open" }, root_cause_identified: { fr: "Cause identifiee", en: "Root cause identified" }, capa_planned: { fr: "CAPA planifiee", en: "CAPA planned" },
+  capa_implemented: { fr: "CAPA mise en oeuvre", en: "CAPA implemented" }, effectiveness_reviewed: { fr: "Efficacite revue", en: "Effectiveness reviewed" }, closed: { fr: "Cloturee", en: "Closed" },
 };
 const ncrSteps: NcrStatus[] = ["open", "root_cause_identified", "capa_planned", "capa_implemented", "effectiveness_reviewed", "closed"];
 
-export default function QualityManager({ projectId, initialRequirements, initialNcrs, initialActuals }: {
-  projectId: string; initialRequirements: QualityRequirement[]; initialNcrs: NonConformityReport[]; initialActuals: QualityControlActual[];
+export default function QualityManager({ projectId, initialRequirements, initialNcrs, initialActuals, staff = [] }: {
+  projectId: string; initialRequirements: QualityRequirement[]; initialNcrs: NonConformityReport[]; initialActuals: QualityControlActual[]; staff?: PPMResource[];
 }) {
+  const { locale, en } = usePpmLocale();
+  const staffOptions = staff.map(item => ({ value: item.name, label: item.name, hint: item.role_title }));
   const [requirements, setRequirements] = useState(initialRequirements);
   const [ncrs, setNcrs] = useState(initialNcrs);
   const [actuals, setActuals] = useState(initialActuals);
@@ -105,7 +109,7 @@ export default function QualityManager({ projectId, initialRequirements, initial
       result: "pending" as QualityResult,
       checklist: [],
     };
-    if (!payload.title) { setSaving(false); setMessage("Le titre est obligatoire."); return; }
+    if (!payload.title) { setSaving(false); setMessage(en ? "Title is required." : "Le titre est obligatoire."); return; }
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     const isNew = editing === "new";
@@ -125,7 +129,7 @@ export default function QualityManager({ projectId, initialRequirements, initial
     setMessage("");
     const form = new FormData(event.currentTarget);
     const requirementId = String(form.get("quality_requirement_id") || "");
-    if (!requirementId) { setSaving(false); setMessage("Selectionnez le controle qualite planifie."); return; }
+    if (!requirementId) { setSaving(false); setMessage(en ? "Select the planned quality control." : "Selectionnez le controle qualite planifie."); return; }
     const cleanedChecklist = checklist.filter(item => item.criterion.trim());
     const payload = {
       project_id: projectId,
@@ -149,7 +153,7 @@ export default function QualityManager({ projectId, initialRequirements, initial
       const ncrResult = await supabase.from("ppm_ncr").insert({ project_id: projectId, quality_requirement_id: requirementId, title: `NCR — ${requirement.title}`, created_by: user?.id }).select("*").single();
       if (!ncrResult.error) setNcrs(current => [ncrResult.data as NonConformityReport, ...current]);
     }
-    setMessage("Constat enregistre. Vous pouvez ajouter des preuves ci-dessous.");
+    setMessage(en ? "Finding recorded. You can add evidence below." : "Constat enregistre. Vous pouvez ajouter des preuves ci-dessous.");
   }
 
   async function submitNcr(event: FormEvent<HTMLFormElement>) {
@@ -176,10 +180,10 @@ export default function QualityManager({ projectId, initialRequirements, initial
 
   return <div className="grid gap-8">
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">Plan qualite</h2><button onClick={() => openEditor("new")} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Nouvelle exigence qualite</button></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">{en ? "Quality plan" : "Plan qualite"}</h2><button onClick={() => openEditor("new")} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />{en ? "New quality requirement" : "Nouvelle exigence qualite"}</button></div>
       <div className="overflow-x-auto rounded-2xl border bg-white">
         <table className="w-full min-w-[900px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Exigence</th><th className="p-4">Methode de controle</th><th className="p-4">Frequence</th><th className="p-4">Responsable</th><th className="p-4">Constats</th><th className="p-4">Action</th></tr></thead>
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">{en ? "Requirement" : "Exigence"}</th><th className="p-4">{en ? "Control method" : "Methode de controle"}</th><th className="p-4">{en ? "Frequency" : "Frequence"}</th><th className="p-4">{en ? "Responsible" : "Responsable"}</th><th className="p-4">{en ? "Findings" : "Constats"}</th><th className="p-4">Action</th></tr></thead>
           <tbody>
             {requirements.map(row => <tr key={row.id} className="border-t align-top">
               <td className="p-4"><b className="text-forest">{row.title}</b>{row.standard_reference && <p className="mt-1 text-xs text-slate-400">{row.standard_reference}</p>}</td>
@@ -187,101 +191,101 @@ export default function QualityManager({ projectId, initialRequirements, initial
               <td className="p-4">{row.frequency || "—"}</td>
               <td className="p-4">{row.responsible_name || "—"}</td>
               <td className="p-4">{actuals.filter(item => item.quality_requirement_id === row.id).length}</td>
-              <td className="p-4"><button onClick={() => openEditor(row)} className="btn-secondary px-3 py-2 text-xs">Modifier</button></td>
+              <td className="p-4"><button onClick={() => openEditor(row)} className="btn-secondary px-3 py-2 text-xs">{en ? "Edit" : "Modifier"}</button></td>
             </tr>)}
-            {!requirements.length && <tr><td colSpan={6} className="p-10 text-center text-slate-400">Aucune exigence qualite.</td></tr>}
+            {!requirements.length && <tr><td colSpan={6} className="p-10 text-center text-slate-400">{en ? "No quality requirement." : "Aucune exigence qualite."}</td></tr>}
           </tbody>
         </table>
       </div>
     </div>
 
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">Constats de controle qualite</h2><button onClick={openRecording} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Nouveau constat</button></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">{en ? "Quality control findings" : "Constats de controle qualite"}</h2><button onClick={openRecording} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />{en ? "New finding" : "Nouveau constat"}</button></div>
       <div className="overflow-x-auto rounded-2xl border bg-white">
         <table className="w-full min-w-[900px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Exigence</th><th className="p-4">Date</th><th className="p-4">Score</th><th className="p-4">Resultat</th><th className="p-4">Notes</th></tr></thead>
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">{en ? "Requirement" : "Exigence"}</th><th className="p-4">Date</th><th className="p-4">Score</th><th className="p-4">{en ? "Result" : "Resultat"}</th><th className="p-4">Notes</th></tr></thead>
           <tbody>
             {actuals.map(row => <tr key={row.id} className="border-t align-top">
               <td className="p-4"><b className="text-forest">{requirementById.get(row.quality_requirement_id)?.title || "—"}</b></td>
-              <td className="p-4">{row.control_date ? new Date(row.control_date).toLocaleDateString("fr-FR") : "—"}</td>
+              <td className="p-4">{row.control_date ? new Date(row.control_date).toLocaleDateString(en ? "en-US" : "fr-FR") : "—"}</td>
               <td className="p-4">{row.score != null ? `${row.score}%` : "—"}</td>
-              <td className="p-4"><span className={`rounded-full px-3 py-1 text-xs font-bold ${resultTones[row.result]}`}>{resultLabels[row.result]}</span></td>
+              <td className="p-4"><span className={`rounded-full px-3 py-1 text-xs font-bold ${resultTones[row.result]}`}>{resultLabels[row.result][locale]}</span></td>
               <td className="p-4">{row.notes || "—"}</td>
             </tr>)}
-            {!actuals.length && <tr><td colSpan={5} className="p-10 text-center text-slate-400">Aucun constat enregistre.</td></tr>}
+            {!actuals.length && <tr><td colSpan={5} className="p-10 text-center text-slate-400">{en ? "No finding recorded." : "Aucun constat enregistre."}</td></tr>}
           </tbody>
         </table>
       </div>
     </div>
 
     <div className="grid gap-4">
-      <h2 className="text-xl font-black text-forest">Non-conformites (NCR)</h2>
+      <h2 className="text-xl font-black text-forest">{en ? "Non-conformities (NCR)" : "Non-conformites (NCR)"}</h2>
       <div className="grid gap-3">
         {ncrs.map(row => <article key={row.id} className="rounded-2xl border bg-white p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3"><b className="text-forest">{row.title}</b><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">{ncrStatusLabels[row.status]}</span></div>
-          {row.root_cause && <p className="mt-2 text-sm text-slate-600"><b>Cause :</b> {row.root_cause}</p>}
+          <div className="flex flex-wrap items-start justify-between gap-3"><b className="text-forest">{row.title}</b><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">{ncrStatusLabels[row.status][locale]}</span></div>
+          {row.root_cause && <p className="mt-2 text-sm text-slate-600"><b>{en ? "Cause:" : "Cause :"}</b> {row.root_cause}</p>}
           {row.capa_action && <p className="mt-1 text-sm text-slate-600"><b>CAPA :</b> {row.capa_action}</p>}
-          <button onClick={() => setEditingNcr(row)} className="btn-secondary mt-3 px-3 py-1.5 text-xs">Instruire la NCR</button>
+          <button onClick={() => setEditingNcr(row)} className="btn-secondary mt-3 px-3 py-1.5 text-xs">{en ? "Process the NCR" : "Instruire la NCR"}</button>
         </article>)}
-        {!ncrs.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">Aucune non-conformite.</p>}
+        {!ncrs.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No non-conformity." : "Aucune non-conformite."}</p>}
       </div>
     </div>
 
     {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
-        <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? "Nouvelle exigence qualite" : "Modifier l'exigence"}</h2><button type="button" onClick={() => setEditing(null)} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
+        <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? (en ? "New quality requirement" : "Nouvelle exigence qualite") : (en ? "Edit requirement" : "Modifier l'exigence")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-2 text-sm font-bold sm:col-span-2">Titre<input name="title" defaultValue={editing !== "new" ? editing.title : ""} required className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Reference standard<input name="standard_reference" defaultValue={editing !== "new" ? editing.standard_reference || "" : ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Methode de controle<input name="control_method" defaultValue={editing !== "new" ? editing.control_method || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Title" : "Titre"}<input name="title" defaultValue={editing !== "new" ? editing.title : ""} required className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Standard reference" : "Reference standard"}<input name="standard_reference" defaultValue={editing !== "new" ? editing.standard_reference || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Control method" : "Methode de controle"}<input name="control_method" defaultValue={editing !== "new" ? editing.control_method || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Description<textarea name="description" rows={2} defaultValue={editing !== "new" ? editing.description || "" : ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Frequence<input name="frequency" defaultValue={editing !== "new" ? editing.frequency || "" : ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Responsable<input name="responsible_name" defaultValue={editing !== "new" ? editing.responsible_name || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Frequency" : "Frequence"}<input name="frequency" defaultValue={editing !== "new" ? editing.frequency || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Responsible" : "Responsable"}<SearchableSelect name="responsible_name" options={staffOptions} defaultValue={editing !== "new" ? editing.responsible_name || "" : ""} allowOther otherLabel={en ? "Responsible name" : "Nom du responsable"} placeholder={en ? "Select a staff member..." : "Selectionner un membre du staff..."} /></label>
           {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
-          <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">Annuler</button><button disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Enregistrer"}</button></div>
+          <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button disabled={saving} className="btn-primary">{saving ? (en ? "Saving..." : "Enregistrement...") : (en ? "Save" : "Enregistrer")}</button></div>
         </div>
       </form>
     </div>}
 
     {recording && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
       <form onSubmit={submitRecording} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
-        <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">Nouveau constat de controle</h2><button type="button" onClick={() => setRecording(null)} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
+        <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{en ? "New control finding" : "Nouveau constat de controle"}</h2><button type="button" onClick={() => setRecording(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-2 text-sm font-bold sm:col-span-2">Controle qualite planifie<select name="quality_requirement_id" value={recordingRequirementId} onChange={event => setRecordingRequirementId(event.target.value)} required className="admin-input"><option value="">Selectionner...</option>{requirements.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+          <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Planned quality control" : "Controle qualite planifie"}<select name="quality_requirement_id" value={recordingRequirementId} onChange={event => setRecordingRequirementId(event.target.value)} required className="admin-input"><option value="">{en ? "Select..." : "Selectionner..."}</option>{requirements.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
           {recordingRequirement && <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600 sm:col-span-2">
-            {recordingRequirement.control_method && <>Methode : <b>{recordingRequirement.control_method}</b>{" · "}</>}
-            {recordingRequirement.frequency && <>Frequence : <b>{recordingRequirement.frequency}</b>{" · "}</>}
-            Responsable : <b>{recordingRequirement.responsible_name || "—"}</b>
+            {recordingRequirement.control_method && <>{en ? "Method" : "Methode"} : <b>{recordingRequirement.control_method}</b>{" · "}</>}
+            {recordingRequirement.frequency && <>{en ? "Frequency" : "Frequence"} : <b>{recordingRequirement.frequency}</b>{" · "}</>}
+            {en ? "Responsible" : "Responsable"} : <b>{recordingRequirement.responsible_name || "—"}</b>
           </p>}
-          <label className="grid gap-2 text-sm font-bold">Date reelle du controle<input name="control_date" type="date" className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Resultat global<select name="result" defaultValue="pending" className="admin-input">{Object.entries(resultLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Actual control date" : "Date reelle du controle"}<input name="control_date" type="date" className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Overall result" : "Resultat global"}<select name="result" defaultValue="pending" className="admin-input">{Object.entries(resultLabels).map(([value, label]) => <option key={value} value={value}>{label[locale]}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Notes<textarea name="notes" rows={2} className="admin-input" /></label>
 
           <div className="sm:col-span-2">
             <div className="flex items-center justify-between"><h3 className="text-sm font-black uppercase text-slate-400">Checklist</h3>{score != null && <span className="rounded-full bg-mint px-3 py-1 text-xs font-bold text-forest">Score : {score}%</span>}</div>
             <div className="mt-2 grid gap-2">
               {checklist.map((row, index) => <div key={index} className="grid grid-cols-[1fr_140px_1fr_auto] gap-2">
-                <input placeholder="Critere" value={row.criterion} onChange={event => updateCriterion(index, { criterion: event.target.value })} className="admin-input" />
-                <select value={row.result} onChange={event => updateCriterion(index, { result: event.target.value as QualityResult })} className="admin-input">{Object.entries(resultLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-                <input placeholder="Commentaire" value={row.comment || ""} onChange={event => updateCriterion(index, { comment: event.target.value })} className="admin-input" />
-                <button type="button" onClick={() => removeCriterion(index)} aria-label="Retirer"><TrashIcon className="h-5 text-red-600" /></button>
+                <input placeholder={en ? "Criterion" : "Critere"} value={row.criterion} onChange={event => updateCriterion(index, { criterion: event.target.value })} className="admin-input" />
+                <select value={row.result} onChange={event => updateCriterion(index, { result: event.target.value as QualityResult })} className="admin-input">{Object.entries(resultLabels).map(([value, label]) => <option key={value} value={value}>{label[locale]}</option>)}</select>
+                <input placeholder={en ? "Comment" : "Commentaire"} value={row.comment || ""} onChange={event => updateCriterion(index, { comment: event.target.value })} className="admin-input" />
+                <button type="button" onClick={() => removeCriterion(index)} aria-label={en ? "Remove" : "Retirer"}><TrashIcon className="h-5 text-red-600" /></button>
               </div>)}
-              <button type="button" onClick={addCriterion} className="btn-secondary w-fit px-3 py-1.5 text-xs">+ Critere</button>
+              <button type="button" onClick={addCriterion} className="btn-secondary w-fit px-3 py-1.5 text-xs">+ {en ? "Criterion" : "Critere"}</button>
             </div>
           </div>
 
           <div className="sm:col-span-2">
-            <h3 className="text-sm font-black uppercase text-slate-400">Preuves</h3>
+            <h3 className="text-sm font-black uppercase text-slate-400">{en ? "Evidence" : "Preuves"}</h3>
             {savedActualId ? <div className="mt-2 grid gap-2">
-              <label className="btn-secondary w-fit cursor-pointer px-4 py-2 text-sm">{uploading ? "Televersement..." : "Ajouter une preuve"}<input type="file" onChange={uploadEvidence} className="hidden" /></label>
-              {recordingEvidence.map(item => <div key={item.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2 text-sm"><span>{item.title}</span>{item.file_path && <button type="button" onClick={() => viewEvidence(item.file_path)} className="text-xs font-bold text-leaf">Voir</button>}</div>)}
-            </div> : <p className="mt-2 text-sm text-slate-400">Enregistrez d&apos;abord le constat pour pouvoir ajouter des preuves.</p>}
+              <label className="btn-secondary w-fit cursor-pointer px-4 py-2 text-sm">{uploading ? (en ? "Uploading..." : "Televersement...") : (en ? "Add evidence" : "Ajouter une preuve")}<input type="file" onChange={uploadEvidence} className="hidden" /></label>
+              {recordingEvidence.map(item => <div key={item.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2 text-sm"><span>{item.title}</span>{item.file_path && <button type="button" onClick={() => viewEvidence(item.file_path)} className="text-xs font-bold text-leaf">{en ? "View" : "Voir"}</button>}</div>)}
+            </div> : <p className="mt-2 text-sm text-slate-400">{en ? "Save the finding first to be able to add evidence." : "Enregistrez d'abord le constat pour pouvoir ajouter des preuves."}</p>}
           </div>
 
           {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
           <div className="flex justify-end gap-3 sm:col-span-2">
-            <button type="button" onClick={() => setRecording(null)} className="btn-secondary">Fermer</button>
-            {!savedActualId && <button disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Enregistrer le constat"}</button>}
+            <button type="button" onClick={() => setRecording(null)} className="btn-secondary">{en ? "Close" : "Fermer"}</button>
+            {!savedActualId && <button disabled={saving} className="btn-primary">{saving ? (en ? "Saving..." : "Enregistrement...") : (en ? "Save the finding" : "Enregistrer le constat")}</button>}
           </div>
         </div>
       </form>
@@ -289,15 +293,15 @@ export default function QualityManager({ projectId, initialRequirements, initial
 
     {editingNcr && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
       <form onSubmit={submitNcr} className="mx-auto my-10 max-w-xl rounded-[30px] bg-white p-7 shadow-2xl">
-        <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">Instruire — {editingNcr.title}</h2><button type="button" onClick={() => setEditingNcr(null)} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
+        <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Process" : "Instruire"} — {editingNcr.title}</h2><button type="button" onClick={() => setEditingNcr(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
-          <label className="grid gap-2 text-sm font-bold">Cause racine (Root Cause)<textarea name="root_cause" rows={2} defaultValue={editingNcr.root_cause || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Action CAPA<textarea name="capa_action" rows={2} defaultValue={editingNcr.capa_action || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Responsable CAPA<input name="capa_responsible" defaultValue={editingNcr.capa_responsible || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Echeance CAPA<input name="capa_deadline" type="date" defaultValue={editingNcr.capa_deadline || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Revue d&apos;efficacite<textarea name="effectiveness_review" rows={2} defaultValue={editingNcr.effectiveness_review || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Statut<select name="status" defaultValue={editingNcr.status} className="admin-input">{ncrSteps.map(step => <option key={step} value={step}>{ncrStatusLabels[step]}</option>)}</select></label>
-          <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingNcr(null)} className="btn-secondary">Annuler</button><button className="btn-primary">Enregistrer</button></div>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Root cause" : "Cause racine (Root Cause)"}<textarea name="root_cause" rows={2} defaultValue={editingNcr.root_cause || ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "CAPA action" : "Action CAPA"}<textarea name="capa_action" rows={2} defaultValue={editingNcr.capa_action || ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "CAPA responsible" : "Responsable CAPA"}<SearchableSelect name="capa_responsible" options={staffOptions} defaultValue={editingNcr.capa_responsible || ""} allowOther otherLabel={en ? "Responsible name" : "Nom du responsable"} placeholder={en ? "Select a staff member..." : "Selectionner un membre du staff..."} /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "CAPA deadline" : "Echeance CAPA"}<input name="capa_deadline" type="date" defaultValue={editingNcr.capa_deadline || ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Effectiveness review" : "Revue d'efficacite"}<textarea name="effectiveness_review" rows={2} defaultValue={editingNcr.effectiveness_review || ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Status" : "Statut"}<select name="status" defaultValue={editingNcr.status} className="admin-input">{ncrSteps.map(step => <option key={step} value={step}>{ncrStatusLabels[step][locale]}</option>)}</select></label>
+          <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingNcr(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button className="btn-primary">{en ? "Save" : "Enregistrer"}</button></div>
         </div>
       </form>
     </div>}

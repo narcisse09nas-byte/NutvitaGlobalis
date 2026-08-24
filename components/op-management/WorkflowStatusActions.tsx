@@ -7,6 +7,9 @@
 // notifyPpmEvent call, any domain cascade) stays with the caller via onConfirm, since that differs
 // per entity.
 import { useState, type FormEvent } from "react";
+import SearchableSelect from "@/components/op-management/SearchableSelect";
+import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
+import type { PPMResource } from "@/lib/ppm/types";
 
 export type WorkflowAction = {
   value: string;
@@ -23,7 +26,7 @@ export type WorkflowHistoryEntry = {
 };
 
 export default function WorkflowStatusActions({
-  entityLabel, itemTitle, status, statusLabels, statusTones, actions, onConfirm, history, collectReviewerName = true,
+  entityLabel, itemTitle, status, statusLabels, statusTones, actions, onConfirm, history, collectReviewerName = true, staff = [],
 }: {
   entityLabel: string;
   itemTitle: string;
@@ -34,7 +37,10 @@ export default function WorkflowStatusActions({
   onConfirm: (input: { nextStatus: string; reviewedByName: string | null; note: string | null }) => Promise<{ error?: string } | void>;
   history?: WorkflowHistoryEntry[];
   collectReviewerName?: boolean;
+  staff?: PPMResource[];
 }) {
+  const { en } = usePpmLocale();
+  const staffOptions = staff.map(item => ({ value: item.name, label: item.name, hint: item.role_title }));
   const [deciding, setDeciding] = useState<WorkflowAction | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -46,7 +52,7 @@ export default function WorkflowStatusActions({
     const form = new FormData(event.currentTarget);
     const reviewedByName = String(form.get("reviewed_by_name") || "").trim() || null;
     const note = String(form.get("note") || "").trim() || null;
-    if (deciding.requireNote && !note) { setMessage("Un commentaire est obligatoire pour cette action."); return; }
+    if (deciding.requireNote && !note) { setMessage(en ? "A comment is required for this action." : "Un commentaire est obligatoire pour cette action."); return; }
     setSaving(true);
     setMessage("");
     const result = await onConfirm({ nextStatus: deciding.value, reviewedByName, note });
@@ -59,14 +65,14 @@ export default function WorkflowStatusActions({
     <div className="flex flex-wrap items-center gap-2">
       <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusTones[status] || "bg-slate-100 text-slate-600"}`}>{statusLabels[status] || status}</span>
       {!!history?.length && <button type="button" onClick={() => setShowHistory(current => !current)} className="text-xs font-bold text-slate-400 underline">
-        {showHistory ? "Masquer l'historique" : "Voir l'historique"}
+        {showHistory ? (en ? "Hide history" : "Masquer l'historique") : (en ? "View history" : "Voir l'historique")}
       </button>}
     </div>
 
     {showHistory && !!history?.length && <ul className="grid gap-1 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
       {history.map((entry, index) => <li key={index}>
         <b className={`font-bold ${statusTones[entry.status] ? "" : "text-slate-600"}`}>{statusLabels[entry.status] || entry.status}</b>
-        {" — "}{new Date(entry.at).toLocaleString("fr-FR")}{entry.byName ? ` · ${entry.byName}` : ""}
+        {" — "}{new Date(entry.at).toLocaleString(en ? "en-US" : "fr-FR")}{entry.byName ? ` · ${entry.byName}` : ""}
         {entry.note && <span className="block italic">{entry.note}</span>}
       </li>)}
     </ul>}
@@ -84,15 +90,15 @@ export default function WorkflowStatusActions({
       <form onSubmit={submit} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between">
           <h2 className="text-xl font-black text-forest">{deciding.label} — {entityLabel} : {itemTitle}</h2>
-          <button type="button" onClick={() => setDeciding(null)} className="text-2xl" aria-label="Fermer">×</button>
+          <button type="button" onClick={() => setDeciding(null)} className="text-2xl" aria-label={en ? "Close" : "Fermer"}>×</button>
         </div>
         <div className="mt-5 grid gap-4">
-          {collectReviewerName && <label className="grid gap-2 text-sm font-bold">Revu par<input name="reviewed_by_name" className="admin-input" /></label>}
-          <label className="grid gap-2 text-sm font-bold">Commentaire{deciding.requireNote ? " (obligatoire)" : ""}<textarea name="note" rows={3} required={deciding.requireNote} className="admin-input" /></label>
+          {collectReviewerName && <label className="grid gap-2 text-sm font-bold">{en ? "Reviewed by" : "Revu par"}<SearchableSelect name="reviewed_by_name" options={staffOptions} allowOther otherLabel={en ? "Reviewer name" : "Nom du reviseur"} placeholder={en ? "Select a staff member..." : "Selectionner un membre du staff..."} /></label>}
+          <label className="grid gap-2 text-sm font-bold">{en ? "Comment" : "Commentaire"}{deciding.requireNote ? (en ? " (required)" : " (obligatoire)") : ""}<textarea name="note" rows={3} required={deciding.requireNote} className="admin-input" /></label>
           {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">{message}</p>}
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => setDeciding(null)} className="btn-secondary">Annuler</button>
-            <button disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Confirmer"}</button>
+            <button type="button" onClick={() => setDeciding(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button>
+            <button disabled={saving} className="btn-primary">{saving ? (en ? "Saving..." : "Enregistrement...") : (en ? "Confirm" : "Confirmer")}</button>
           </div>
         </div>
       </form>

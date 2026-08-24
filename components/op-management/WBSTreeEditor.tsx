@@ -5,11 +5,15 @@ import { ChevronDownIcon, ChevronRightIcon, PlusIcon, TrashIcon, XMarkIcon } fro
 import { createClient } from "@/lib/supabase/client";
 import { buildWbsTree, type WBSTreeNode } from "@/lib/ppm/wbs";
 import SearchableSelect from "@/components/op-management/SearchableSelect";
+import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type { PPMResource, WBSNode } from "@/lib/ppm/types";
 
-const levelNames = ["", "Projet", "Composante", "Sous-composante", "Work Package"];
+const levelNamesFr = ["", "Projet", "Composante", "Sous-composante", "Work Package"];
+const levelNamesEn = ["", "Project", "Component", "Sub-component", "Work Package"];
 
 export default function WBSTreeEditor({ projectId, initial, staff = [] }: { projectId: string; initial: WBSNode[]; staff?: PPMResource[] }) {
+  const { en } = usePpmLocale();
+  const levelNames = en ? levelNamesEn : levelNamesFr;
   const staffOptions = staff.map(item => ({ value: item.name, label: item.name, hint: item.role_title }));
   const [nodes, setNodes] = useState(initial);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -41,7 +45,7 @@ export default function WBSTreeEditor({ projectId, initial, staff = [] }: { proj
       estimated_duration_days: form.get("estimated_duration_days") ? Number(form.get("estimated_duration_days")) : null,
       estimated_cost: form.get("estimated_cost") ? Number(form.get("estimated_cost")) : null,
     };
-    if (!payload.title) { setSaving(false); setMessage("Le titre est obligatoire."); return; }
+    if (!payload.title) { setSaving(false); setMessage(en ? "Title is required." : "Le titre est obligatoire."); return; }
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (isNewNode) {
@@ -62,7 +66,7 @@ export default function WBSTreeEditor({ projectId, initial, staff = [] }: { proj
   }
 
   async function remove(id: string) {
-    if (!confirm("Supprimer ce noeud et tous ses descendants ?")) return;
+    if (!confirm(en ? "Delete this node and all its descendants?" : "Supprimer ce noeud et tous ses descendants ?")) return;
     await createClient().from("ppm_wbs_nodes").delete().eq("id", id);
     const toRemove = new Set<string>([id]);
     let grew = true;
@@ -75,15 +79,15 @@ export default function WBSTreeEditor({ projectId, initial, staff = [] }: { proj
     const isCollapsed = collapsed.has(node.id);
     return <div key={node.id}>
       <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-white p-3" style={{ marginLeft: depth * 24 }}>
-        {hasChildren ? <button onClick={() => toggle(node.id)} aria-label="Basculer">{isCollapsed ? <ChevronRightIcon className="h-4" /> : <ChevronDownIcon className="h-4" />}</button> : <span className="w-4" />}
+        {hasChildren ? <button onClick={() => toggle(node.id)} aria-label={en ? "Toggle" : "Basculer"}>{isCollapsed ? <ChevronRightIcon className="h-4" /> : <ChevronDownIcon className="h-4" />}</button> : <span className="w-4" />}
         <span className="rounded-full bg-slate-100 px-2 py-1 font-mono text-xs font-bold text-slate-500">{node.code}</span>
         <button onClick={() => setEditing(node)} className="text-left font-bold text-forest hover:underline">{node.title}</button>
         <span className="text-xs text-slate-400">{levelNames[node.level]}</span>
         {node.responsible_name && <span className="text-xs text-slate-400">· {node.responsible_name}</span>}
         <div className="ml-auto flex gap-2">
-          {!hasChildren && <Link href={`/op-management/projets/${projectId}/work-packages/${node.id}`} className="rounded-lg border px-3 py-1.5 text-xs font-bold text-leaf">Vue 360°</Link>}
-          {node.level < 4 && <button onClick={() => setEditing({ parentId: node.id, level: (node.level + 1) as 1 | 2 | 3 | 4 })} className="rounded-lg border px-3 py-1.5 text-xs font-bold">+ Sous-niveau</button>}
-          <button onClick={() => remove(node.id)} aria-label="Supprimer" className="rounded-lg border border-red-200 p-1.5 text-red-600"><TrashIcon className="h-4" /></button>
+          {!hasChildren && <Link href={`/op-management/projets/${projectId}/work-packages/${node.id}`} className="rounded-lg border px-3 py-1.5 text-xs font-bold text-leaf">{en ? "360° view" : "Vue 360°"}</Link>}
+          {node.level < 4 && <button onClick={() => setEditing({ parentId: node.id, level: (node.level + 1) as 1 | 2 | 3 | 4 })} className="rounded-lg border px-3 py-1.5 text-xs font-bold">+ {en ? "Sub-level" : "Sous-niveau"}</button>}
+          <button onClick={() => remove(node.id)} aria-label={en ? "Delete" : "Supprimer"} className="rounded-lg border border-red-200 p-1.5 text-red-600"><TrashIcon className="h-4" /></button>
         </div>
       </div>
       {!isCollapsed && node.children.map(child => renderNode(child, depth + 1))}
@@ -95,29 +99,29 @@ export default function WBSTreeEditor({ projectId, initial, staff = [] }: { proj
   return <div className="grid gap-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-xl font-black text-forest">Work Breakdown Structure</h2>
-      <button onClick={() => setEditing({ parentId: null, level: 1 })} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Nouvelle racine</button>
+      <button onClick={() => setEditing({ parentId: null, level: 1 })} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />{en ? "New root" : "Nouvelle racine"}</button>
     </div>
     <div className="grid gap-2">
       {tree.map(node => renderNode(node, 0))}
-      {!tree.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">Aucun WBS. Creez le premier niveau (le projet lui-meme).</p>}
+      {!tree.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No WBS yet. Create the first level (the project itself)." : "Aucun WBS. Creez le premier niveau (le projet lui-meme)."}</p>}
     </div>
 
     {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
-        <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{isNewNode ? `Nouveau — ${levelNames[(editing as { level: number }).level]}` : `Fiche WBS — ${editingNode?.code}`}</h2><button type="button" onClick={() => setEditing(null)} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
+        <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{isNewNode ? `${en ? "New" : "Nouveau"} — ${levelNames[(editing as { level: number }).level]}` : `${en ? "WBS record" : "Fiche WBS"} — ${editingNode?.code}`}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-2 text-sm font-bold sm:col-span-2">Titre<input name="title" defaultValue={editingNode?.title || ""} required className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Title" : "Titre"}<input name="title" defaultValue={editingNode?.title || ""} required className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Description<textarea name="description" rows={2} defaultValue={editingNode?.description || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Perimetre inclus<textarea name="scope_included" rows={2} defaultValue={editingNode?.scope_included || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Perimetre exclu<textarea name="scope_excluded" rows={2} defaultValue={editingNode?.scope_excluded || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Responsable<SearchableSelect name="responsible_name" options={staffOptions} defaultValue={editingNode?.responsible_name || ""} allowOther otherLabel="Nom du responsable" placeholder="Selectionner un membre du staff..." /></label>
-          <label className="grid gap-2 text-sm font-bold">Resultat attendu<input name="expected_result" defaultValue={editingNode?.expected_result || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Livrables<input name="deliverables" defaultValue={editingNode?.deliverables || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Criteres d&apos;acceptation<input name="acceptance_criteria" defaultValue={editingNode?.acceptance_criteria || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Duree estimee (jours)<input name="estimated_duration_days" type="number" min="0" defaultValue={editingNode?.estimated_duration_days ?? ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Cout estimatif<input name="estimated_cost" type="number" min="0" step="0.01" defaultValue={editingNode?.estimated_cost ?? ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Scope included" : "Perimetre inclus"}<textarea name="scope_included" rows={2} defaultValue={editingNode?.scope_included || ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Scope excluded" : "Perimetre exclu"}<textarea name="scope_excluded" rows={2} defaultValue={editingNode?.scope_excluded || ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Responsible" : "Responsable"}<SearchableSelect name="responsible_name" options={staffOptions} defaultValue={editingNode?.responsible_name || ""} allowOther otherLabel={en ? "Responsible name" : "Nom du responsable"} placeholder={en ? "Select a staff member..." : "Selectionner un membre du staff..."} /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Expected result" : "Resultat attendu"}<input name="expected_result" defaultValue={editingNode?.expected_result || ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Deliverables" : "Livrables"}<input name="deliverables" defaultValue={editingNode?.deliverables || ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Acceptance criteria" : "Criteres d'acceptation"}<input name="acceptance_criteria" defaultValue={editingNode?.acceptance_criteria || ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Estimated duration (days)" : "Duree estimee (jours)"}<input name="estimated_duration_days" type="number" min="0" defaultValue={editingNode?.estimated_duration_days ?? ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Estimated cost" : "Cout estimatif"}<input name="estimated_cost" type="number" min="0" step="0.01" defaultValue={editingNode?.estimated_cost ?? ""} className="admin-input" /></label>
           {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
-          <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">Annuler</button><button disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Enregistrer"}</button></div>
+          <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button disabled={saving} className="btn-primary">{saving ? (en ? "Saving..." : "Enregistrement...") : (en ? "Save" : "Enregistrer")}</button></div>
         </div>
       </form>
     </div>}

@@ -151,6 +151,14 @@ export async function listResourceAssignments(supabase: SupabaseClient, projectI
   return (data || []) as ResourceAssignment[];
 }
 
+// Refinement program (person-field audit): org-wide staff pool for Portfolio/Program/new-Project
+// forms, which sit above any single project and so have no project_id to scope ppm_resources by.
+// RLS still restricts this to resources the current user can see.
+export async function listAllStaff(supabase: SupabaseClient): Promise<PPMResource[]> {
+  const { data } = await supabase.from("ppm_resources").select("*").in("type", ["human", "consultant"]).order("name");
+  return (data || []) as PPMResource[];
+}
+
 // Refinement program, Wave 1: Suppliers + Sites
 export async function listSuppliers(supabase: SupabaseClient, projectId: string): Promise<Supplier[]> {
   const { data } = await supabase.from("ppm_suppliers").select("*").eq("project_id", projectId).order("name");

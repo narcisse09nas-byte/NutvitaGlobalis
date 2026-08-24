@@ -4,6 +4,8 @@ import ProjectShell from "@/components/op-management/ProjectShell";
 import ReportingTabs from "@/components/op-management/ReportingTabs";
 import ProjectDashboard from "@/components/op-management/ProjectDashboard";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentLocale } from "@/lib/i18n-server";
+import { bc } from "@/lib/ppm/breadcrumb-labels";
 import {
   getApprovedPmbWorkPackageSnapshots, getEvmSettings, getProject, listActions, listActivities,
   listAchievements, listBudgetLines, listDeliverables, listExpenses, listIndicators, listIssues,
@@ -15,7 +17,7 @@ export default async function ReportingTableauxDeBordPage({ params }: { params: 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/connexion?redirect=${encodeURIComponent(`/op-management/projets/${id}/reporting/tableaux-de-bord`)}`);
-  const name = user.user_metadata?.full_name || user.email || "Utilisateur";
+  const name = user.user_metadata?.full_name || user.email || ((await getCurrentLocale()) === "en" ? "User" : "Utilisateur");
   const project = await getProject(supabase, id);
   if (!project) notFound();
   const [budgetLines, risks, issues, activities, procurementItems, qualityRequirements, ncrs, indicators, achievements, deliverables, actions, expenses, timePhasedRows, evmSettings, pmbSnapshots] = await Promise.all([
@@ -27,8 +29,9 @@ export default async function ReportingTableauxDeBordPage({ params }: { params: 
   ]);
   const issuesOpenCount = issues.filter(issue => issue.status === "open" || issue.status === "in_progress").length;
   const targetBeneficiaries = activities.reduce((sum, activity) => sum + Number(activity.beneficiaries || 0), 0);
+  const locale = await getCurrentLocale();
 
-  return <PPMShell name={name} breadcrumbs={[{ href: "/op-management", label: "Vue d'ensemble" }, { href: "/op-management/projets", label: "Projets" }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/reporting/tableaux-de-bord`, label: "Reporting" }]}>
+  return <PPMShell name={name} locale={locale} breadcrumbs={[{ href: "/op-management", label: bc(locale, "overview") }, { href: "/op-management/projets", label: bc(locale, "projects") }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/reporting/tableaux-de-bord`, label: bc(locale, "reporting") }]}>
     <ProjectShell project={project}>
       <div className="grid gap-5">
         <ReportingTabs projectId={id} />

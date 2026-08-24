@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import { wbsLeafNodes } from "@/lib/ppm/wbs";
+import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type { Activity, GovernanceRole, RaciEntry, RaciType, WBSNode } from "@/lib/ppm/types";
 
 const RACI_VALUES: RaciType[] = ["R", "A", "C", "I"];
@@ -12,6 +13,7 @@ const OTHER = "__other__";
 export default function RaciMatrix({ projectId, roles, initial, workPackages = [], activities = [] }: {
   projectId: string; roles: GovernanceRole[]; initial: RaciEntry[]; workPackages?: WBSNode[]; activities?: Activity[];
 }) {
+  const { en } = usePpmLocale();
   const [entries, setEntries] = useState(initial);
   const [extraAreas, setExtraAreas] = useState<string[]>([]);
   const [newArea, setNewArea] = useState("");
@@ -46,29 +48,29 @@ export default function RaciMatrix({ projectId, roles, initial, workPackages = [
   function addArea() {
     setMessage("");
     const value = (pickedArea === OTHER ? newArea : pickedArea).trim();
-    if (!value) { setMessage("Choisissez ou saisissez une zone."); return; }
-    if (areas.includes(value)) { setMessage("Cette zone existe deja."); return; }
+    if (!value) { setMessage(en ? "Choose or enter an area." : "Choisissez ou saisissez une zone."); return; }
+    if (areas.includes(value)) { setMessage(en ? "This area already exists." : "Cette zone existe deja."); return; }
     setExtraAreas(current => [...current, value]);
     setNewArea("");
     setPickedArea("");
   }
 
   return <div className="grid gap-4">
-    <h2 className="text-xl font-black text-forest">Matrice RACI</h2>
-    {!roles.length ? <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">Ajoutez d&apos;abord des responsables de gouvernance pour construire la matrice RACI.</p> : <>
+    <h2 className="text-xl font-black text-forest">{en ? "RACI Matrix" : "Matrice RACI"}</h2>
+    {!roles.length ? <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "Add governance members first to build the RACI matrix." : "Ajoutez d'abord des responsables de gouvernance pour construire la matrice RACI."}</p> : <>
       <div className="flex flex-wrap items-center gap-2">
         <select value={pickedArea} onChange={event => setPickedArea(event.target.value)} className="admin-input max-w-xs">
-          <option value="">Choisir un Work Package / une activite...</option>
+          <option value="">{en ? "Choose a Work Package / activity..." : "Choisir un Work Package / une activite..."}</option>
           {suggestedAreas.map(title => <option key={title} value={title}>{title}</option>)}
-          <option value={OTHER}>Autre (saisie libre)</option>
+          <option value={OTHER}>{en ? "Other (free text)" : "Autre (saisie libre)"}</option>
         </select>
-        {pickedArea === OTHER && <input value={newArea} onChange={event => setNewArea(event.target.value)} placeholder="Nom de la zone..." className="admin-input max-w-xs" />}
-        <button onClick={addArea} className="btn-secondary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Ajouter la ligne</button>
+        {pickedArea === OTHER && <input value={newArea} onChange={event => setNewArea(event.target.value)} placeholder={en ? "Area name..." : "Nom de la zone..."} className="admin-input max-w-xs" />}
+        <button onClick={addArea} className="btn-secondary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />{en ? "Add row" : "Ajouter la ligne"}</button>
       </div>
       {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">{message}</p>}
       <div className="overflow-x-auto rounded-2xl border bg-white">
         <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Zone / activite</th>{roles.map(role => <th key={role.id} className="p-4">{role.name}</th>)}</tr></thead>
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">{en ? "Area / activity" : "Zone / activite"}</th>{roles.map(role => <th key={role.id} className="p-4">{role.name}</th>)}</tr></thead>
           <tbody>
             {areas.map(area => <tr key={area} className="border-t">
               <td className="p-4 font-bold text-forest">{area}</td>
@@ -81,7 +83,7 @@ export default function RaciMatrix({ projectId, roles, initial, workPackages = [
                 </td>;
               })}
             </tr>)}
-            {!areas.length && <tr><td colSpan={roles.length + 1} className="p-10 text-center text-slate-400">Aucune zone ajoutee.</td></tr>}
+            {!areas.length && <tr><td colSpan={roles.length + 1} className="p-10 text-center text-slate-400">{en ? "No area added." : "Aucune zone ajoutee."}</td></tr>}
           </tbody>
         </table>
       </div>

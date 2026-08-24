@@ -3,24 +3,30 @@ import { useState, type FormEvent } from "react";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import EntityStatusBadge from "@/components/op-management/EntityStatusBadge";
+import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type { Activity, PPMResource, PPMStatus, ResourceAssignment, ResourceType } from "@/lib/ppm/types";
 
-const typeLabels: Record<ResourceType, string> = { human: "Personnel", consultant: "Consultant", equipment: "Equipement", vehicle: "Vehicule", infrastructure: "Infrastructure" };
+const typeLabels: Record<ResourceType, { fr: string; en: string }> = {
+  human: { fr: "Personnel", en: "Staff" }, consultant: { fr: "Consultant", en: "Consultant" }, equipment: { fr: "Equipement", en: "Equipment" },
+  vehicle: { fr: "Vehicule", en: "Vehicle" }, infrastructure: { fr: "Infrastructure", en: "Infrastructure" },
+};
 const splitList = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
 // Refinement program, Wave 9 (item 50): per-module workflow permissions, checked at staff
 // creation — module -> can submit/verify/approve. Kept as a small representative set covering
 // the workflows this program built, not an exhaustive list of every register in the app.
-const PPM_MODULES: Array<[string, string]> = [
-  ["budget", "Budget"], ["expenses", "Depenses"], ["procurement", "Procurement"],
-  ["achievements", "Realisations"], ["quality", "Qualite"], ["risks", "Risques"],
-  ["deliverables", "Livrables"], ["external_approvals", "Approbations externes"],
+const PPM_MODULES: Array<[string, string, string]> = [
+  ["budget", "Budget", "Budget"], ["expenses", "Depenses", "Expenses"], ["procurement", "Procurement", "Procurement"],
+  ["achievements", "Realisations", "Achievements"], ["quality", "Qualite", "Quality"], ["risks", "Risques", "Risks"],
+  ["deliverables", "Livrables", "Deliverables"], ["external_approvals", "Approbations externes", "External approvals"],
 ];
 type ResourcePermissions = Record<string, { submit?: boolean; verify?: boolean; approve?: boolean }>;
 
-export default function ResourceManager({ projectId, initial, initialAssignments, activities, title = "Ressources", allowedTypes }: {
+export default function ResourceManager({ projectId, initial, initialAssignments, activities, title, allowedTypes }: {
   projectId: string; initial: PPMResource[]; initialAssignments: ResourceAssignment[]; activities: Activity[];
   title?: string; allowedTypes?: ResourceType[];
 }) {
+  const { locale, en } = usePpmLocale();
+  const resolvedTitle = title || (en ? "Resources" : "Ressources");
   const [rows, setRows] = useState(initial);
   const [assignments, setAssignments] = useState(initialAssignments);
   const [editing, setEditing] = useState<PPMResource | "new" | null>(null);
@@ -61,7 +67,7 @@ export default function ResourceManager({ projectId, initial, initialAssignments
     });
     const payload = await response.json();
     setAccountSaving(false);
-    if (!response.ok) { setAccountMessage(payload.message || "Creation du compte impossible."); return; }
+    if (!response.ok) { setAccountMessage(payload.message || (en ? "Account creation failed." : "Creation du compte impossible.")); return; }
     setRows(current => current.map(row => row.id === creatingAccountFor.id ? payload.resource as PPMResource : row));
     setCreatingAccountFor(null);
   }
@@ -87,7 +93,7 @@ export default function ResourceManager({ projectId, initial, initialAssignments
       status: String(form.get("status") || "active") as PPMStatus,
       permissions: isHumanType ? permissions : {},
     };
-    if (!payload.name) { setSaving(false); setMessage("Le nom est obligatoire."); return; }
+    if (!payload.name) { setSaving(false); setMessage(en ? "Name is required." : "Le nom est obligatoire."); return; }
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     const isNew = editing === "new";
@@ -125,95 +131,95 @@ export default function ResourceManager({ projectId, initial, initialAssignments
   }
 
   return <div className="grid gap-4">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">{title}</h2><button onClick={() => openEditing("new")} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Nouvelle ressource</button></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">{resolvedTitle}</h2><button onClick={() => openEditing("new")} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />{en ? "New resource" : "Nouvelle ressource"}</button></div>
     <div className="overflow-x-auto rounded-2xl border bg-white">
       <table className="w-full min-w-[900px] text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Ressource</th><th className="p-4">Type</th><th className="p-4">Disponibilite</th><th className="p-4">Cout</th><th className="p-4">Affectations</th><th className="p-4">Statut</th><th className="p-4">Action</th></tr></thead>
+        <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">{en ? "Resource" : "Ressource"}</th><th className="p-4">Type</th><th className="p-4">{en ? "Availability" : "Disponibilite"}</th><th className="p-4">{en ? "Cost" : "Cout"}</th><th className="p-4">{en ? "Assignments" : "Affectations"}</th><th className="p-4">{en ? "Status" : "Statut"}</th><th className="p-4">Action</th></tr></thead>
         <tbody>
           {rows.map(row => <tr key={row.id} className="border-t align-top">
             <td className="p-4"><b className="text-forest">{row.name}</b>{row.role_title && <p className="mt-1 text-xs text-slate-400">{row.role_title}</p>}</td>
-            <td className="p-4">{typeLabels[row.type]}</td>
+            <td className="p-4">{typeLabels[row.type][locale]}</td>
             <td className="p-4">{row.availability_percent != null ? `${row.availability_percent}%` : "—"}</td>
             <td className="p-4">{row.cost_rate ? `${row.cost_rate.toLocaleString("fr-FR")} ${row.currency || ""}/${row.cost_unit}` : "—"}</td>
             <td className="p-4">{assignments.filter(a => a.resource_id === row.id).map(a => activityLabel(a.activity_id)).join(", ") || "—"}</td>
             <td className="p-4"><EntityStatusBadge status={row.status} /></td>
             <td className="p-4"><div className="flex flex-wrap gap-2">
-              <button onClick={() => openEditing(row)} className="btn-secondary px-3 py-2 text-xs">Modifier</button>
-              <button onClick={() => setAssigning(row)} className="btn-secondary px-3 py-2 text-xs">Affecter</button>
+              <button onClick={() => openEditing(row)} className="btn-secondary px-3 py-2 text-xs">{en ? "Edit" : "Modifier"}</button>
+              <button onClick={() => setAssigning(row)} className="btn-secondary px-3 py-2 text-xs">{en ? "Assign" : "Affecter"}</button>
               {(row.type === "human" || row.type === "consultant") && (row.user_id
-                ? <span className="rounded-full bg-mint px-3 py-2 text-xs font-bold text-forest">Compte actif ({row.account_email})</span>
-                : <button onClick={() => { setAccountMessage(""); setCreatingAccountFor(row); }} className="btn-primary px-3 py-2 text-xs">Creer un compte d&apos;acces</button>)}
+                ? <span className="rounded-full bg-mint px-3 py-2 text-xs font-bold text-forest">{en ? "Active account" : "Compte actif"} ({row.account_email})</span>
+                : <button onClick={() => { setAccountMessage(""); setCreatingAccountFor(row); }} className="btn-primary px-3 py-2 text-xs">{en ? "Create access account" : "Creer un compte d'acces"}</button>)}
             </div></td>
           </tr>)}
-          {!rows.length && <tr><td colSpan={7} className="p-10 text-center text-slate-400">Aucune ressource enregistree.</td></tr>}
+          {!rows.length && <tr><td colSpan={7} className="p-10 text-center text-slate-400">{en ? "No resources registered." : "Aucune ressource enregistree."}</td></tr>}
         </tbody>
       </table>
     </div>
 
     {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
-        <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? "Nouvelle ressource" : "Modifier la ressource"}</h2><button type="button" onClick={() => setEditing(null)} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
+        <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? (en ? "New resource" : "Nouvelle ressource") : (en ? "Edit resource" : "Modifier la ressource")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-2 text-sm font-bold sm:col-span-2">Nom<input name="name" defaultValue={editing !== "new" ? editing.name : ""} required className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Type<select value={formType} onChange={event => setFormType(event.target.value as ResourceType)} className="admin-input">{typeOptions.map(value => <option key={value} value={value}>{typeLabels[value]}</option>)}</select><input type="hidden" name="type" value={formType} /></label>
-          <label className="grid gap-2 text-sm font-bold">Poste / role<input name="role_title" defaultValue={editing !== "new" ? editing.role_title || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Name" : "Nom"}<input name="name" defaultValue={editing !== "new" ? editing.name : ""} required className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Type<select value={formType} onChange={event => setFormType(event.target.value as ResourceType)} className="admin-input">{typeOptions.map(value => <option key={value} value={value}>{typeLabels[value][locale]}</option>)}</select><input type="hidden" name="type" value={formType} /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Position / role" : "Poste / role"}<input name="role_title" defaultValue={editing !== "new" ? editing.role_title || "" : ""} className="admin-input" /></label>
           {isHumanType ? <>
-            <label className="grid gap-2 text-sm font-bold sm:col-span-2">Competences (separees par des virgules)<input name="skills" defaultValue={editing !== "new" ? (editing.skills || []).join(", ") : ""} className="admin-input" /></label>
-            <label className="grid gap-2 text-sm font-bold">Disponibilite (%)<input name="availability_percent" type="number" min="0" max="100" defaultValue={editing !== "new" ? editing.availability_percent ?? "" : ""} className="admin-input" /></label>
-            <label className="grid gap-2 text-sm font-bold">Capacite hebdo (heures)<input name="weekly_capacity_hours" type="number" min="0" defaultValue={editing !== "new" ? editing.weekly_capacity_hours ?? "" : ""} className="admin-input" /></label>
-          </> : <label className="grid gap-2 text-sm font-bold sm:col-span-2">Etat / notes de maintenance<textarea name="condition_notes" rows={2} defaultValue={editing !== "new" ? editing.condition_notes || "" : ""} className="admin-input" /></label>}
+            <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Skills (comma-separated)" : "Competences (separees par des virgules)"}<input name="skills" defaultValue={editing !== "new" ? (editing.skills || []).join(", ") : ""} className="admin-input" /></label>
+            <label className="grid gap-2 text-sm font-bold">{en ? "Availability (%)" : "Disponibilite (%)"}<input name="availability_percent" type="number" min="0" max="100" defaultValue={editing !== "new" ? editing.availability_percent ?? "" : ""} className="admin-input" /></label>
+            <label className="grid gap-2 text-sm font-bold">{en ? "Weekly capacity (hours)" : "Capacite hebdo (heures)"}<input name="weekly_capacity_hours" type="number" min="0" defaultValue={editing !== "new" ? editing.weekly_capacity_hours ?? "" : ""} className="admin-input" /></label>
+          </> : <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Condition / maintenance notes" : "Etat / notes de maintenance"}<textarea name="condition_notes" rows={2} defaultValue={editing !== "new" ? editing.condition_notes || "" : ""} className="admin-input" /></label>}
           {isHumanType && <div className="sm:col-span-2">
-            <p className="text-sm font-black uppercase text-slate-400">Permissions par module</p>
+            <p className="text-sm font-black uppercase text-slate-400">{en ? "Per-module permissions" : "Permissions par module"}</p>
             <div className="mt-2 overflow-x-auto rounded-xl border">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500"><tr><th className="p-2">Module</th><th className="p-2 text-center">Soumettre</th><th className="p-2 text-center">Verifier</th><th className="p-2 text-center">Approuver</th></tr></thead>
+                <thead className="bg-slate-50 text-slate-500"><tr><th className="p-2">Module</th><th className="p-2 text-center">{en ? "Submit" : "Soumettre"}</th><th className="p-2 text-center">{en ? "Verify" : "Verifier"}</th><th className="p-2 text-center">{en ? "Approve" : "Approuver"}</th></tr></thead>
                 <tbody>
-                  {PPM_MODULES.map(([key, label]) => <tr key={key} className="border-t">
-                    <td className="p-2 font-bold text-forest">{label}</td>
+                  {PPM_MODULES.map(([key, label, labelEn]) => <tr key={key} className="border-t">
+                    <td className="p-2 font-bold text-forest">{en ? labelEn : label}</td>
                     {(["submit", "verify", "approve"] as const).map(step => <td key={step} className="p-2 text-center"><input type="checkbox" checked={!!permissions[key]?.[step]} onChange={() => togglePermission(key, step)} className="h-4 w-4" /></td>)}
                   </tr>)}
                 </tbody>
               </table>
             </div>
           </div>}
-          <label className="grid gap-2 text-sm font-bold">Cout<input name="cost_rate" type="number" min="0" step="0.01" defaultValue={editing !== "new" ? editing.cost_rate ?? "" : ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Unite de cout<select name="cost_unit" defaultValue={editing !== "new" ? editing.cost_unit || "day" : "day"} className="admin-input"><option value="hour">Heure</option><option value="day">Jour</option><option value="week">Semaine</option><option value="month">Mois</option><option value="flat">Forfait</option></select></label>
-          <label className="grid gap-2 text-sm font-bold">Devise<input name="currency" defaultValue={editing !== "new" ? editing.currency || "XAF" : "XAF"} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Statut<select name="status" defaultValue={editing !== "new" ? editing.status : "active"} className="admin-input"><option value="draft">Brouillon</option><option value="active">Actif</option><option value="on_hold">En pause</option><option value="closed">Cloture</option><option value="cancelled">Annule</option></select></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Cost" : "Cout"}<input name="cost_rate" type="number" min="0" step="0.01" defaultValue={editing !== "new" ? editing.cost_rate ?? "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Cost unit" : "Unite de cout"}<select name="cost_unit" defaultValue={editing !== "new" ? editing.cost_unit || "day" : "day"} className="admin-input"><option value="hour">{en ? "Hour" : "Heure"}</option><option value="day">{en ? "Day" : "Jour"}</option><option value="week">{en ? "Week" : "Semaine"}</option><option value="month">{en ? "Month" : "Mois"}</option><option value="flat">{en ? "Flat fee" : "Forfait"}</option></select></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Currency" : "Devise"}<input name="currency" defaultValue={editing !== "new" ? editing.currency || "XAF" : "XAF"} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Status" : "Statut"}<select name="status" defaultValue={editing !== "new" ? editing.status : "active"} className="admin-input"><option value="draft">{en ? "Draft" : "Brouillon"}</option><option value="active">{en ? "Active" : "Actif"}</option><option value="on_hold">{en ? "On hold" : "En pause"}</option><option value="closed">{en ? "Closed" : "Cloture"}</option><option value="cancelled">{en ? "Cancelled" : "Annule"}</option></select></label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Notes<textarea name="notes" rows={2} defaultValue={editing !== "new" ? editing.notes || "" : ""} className="admin-input" /></label>
           {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
-          <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">Annuler</button><button disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Enregistrer"}</button></div>
+          <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button disabled={saving} className="btn-primary">{saving ? (en ? "Saving..." : "Enregistrement...") : (en ? "Save" : "Enregistrer")}</button></div>
         </div>
       </form>
     </div>}
 
     {assigning && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
       <form onSubmit={submitAssignment} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
-        <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">Affecter {assigning.name}</h2><button type="button" onClick={() => setAssigning(null)} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
+        <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Assign" : "Affecter"} {assigning.name}</h2><button type="button" onClick={() => setAssigning(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
           <div className="grid gap-2 text-sm font-bold">
-            Activites (selection multiple)
+            {en ? "Activities (multi-select)" : "Activites (selection multiple)"}
             <div className="max-h-48 overflow-y-auto rounded-xl border p-2">
               {activities.map(item => <label key={item.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-normal hover:bg-mint/40"><input type="checkbox" name="activity_ids" value={item.id} className="h-4 w-4" />{item.title}</label>)}
-              {!activities.length && <p className="p-2 text-sm text-slate-400">Aucune activite disponible.</p>}
+              {!activities.length && <p className="p-2 text-sm text-slate-400">{en ? "No activity available." : "Aucune activite disponible."}</p>}
             </div>
           </div>
-          <label className="grid gap-2 text-sm font-bold">Taux d&apos;allocation (%)<input name="allocation_percent" type="number" min="0" max="100" className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Date de debut<input name="start_date" type="date" className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Date de fin<input name="end_date" type="date" className="admin-input" /></label>
-          <div className="flex justify-end gap-3"><button type="button" onClick={() => setAssigning(null)} className="btn-secondary">Annuler</button><button className="btn-primary">Affecter</button></div>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Allocation rate (%)" : "Taux d'allocation (%)"}<input name="allocation_percent" type="number" min="0" max="100" className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Start date" : "Date de debut"}<input name="start_date" type="date" className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "End date" : "Date de fin"}<input name="end_date" type="date" className="admin-input" /></label>
+          <div className="flex justify-end gap-3"><button type="button" onClick={() => setAssigning(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button className="btn-primary">{en ? "Assign" : "Affecter"}</button></div>
         </div>
       </form>
     </div>}
 
     {creatingAccountFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
       <form onSubmit={submitAccountCreation} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
-        <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">Creer un compte d&apos;acces — {creatingAccountFor.name}</h2><button type="button" onClick={() => setCreatingAccountFor(null)} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
-        <p className="mt-2 text-sm text-slate-500">Un mot de passe temporaire sera genere et envoye par email. La personne devra le changer a sa premiere connexion.</p>
+        <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Create access account" : "Creer un compte d'acces"} — {creatingAccountFor.name}</h2><button type="button" onClick={() => setCreatingAccountFor(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
+        <p className="mt-2 text-sm text-slate-500">{en ? "A temporary password will be generated and sent by email. The person will have to change it on first login." : "Un mot de passe temporaire sera genere et envoye par email. La personne devra le changer a sa premiere connexion."}</p>
         <div className="mt-5 grid gap-4">
           <label className="grid gap-2 text-sm font-bold">Email<input name="email" type="email" required className="admin-input" /></label>
           {accountMessage && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">{accountMessage}</p>}
-          <div className="flex justify-end gap-3"><button type="button" onClick={() => setCreatingAccountFor(null)} className="btn-secondary">Annuler</button><button disabled={accountSaving} className="btn-primary">{accountSaving ? "Creation..." : "Creer le compte"}</button></div>
+          <div className="flex justify-end gap-3"><button type="button" onClick={() => setCreatingAccountFor(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button disabled={accountSaving} className="btn-primary">{accountSaving ? (en ? "Creating..." : "Creation...") : (en ? "Create the account" : "Creer le compte")}</button></div>
         </div>
       </form>
     </div>}

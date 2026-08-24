@@ -3,12 +3,14 @@ import { useMemo, useState, type FormEvent } from "react";
 import { PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import { buildResultChainTree, type ResultChainTreeNode } from "@/lib/ppm/result-chain";
+import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type { ResultChainNode, ResultLevel } from "@/lib/ppm/types";
 
 const levelLabels: Record<ResultLevel, string> = { impact: "Impact", outcome: "Outcome", output: "Output" };
 const childLevel: Record<ResultLevel, ResultLevel | null> = { impact: "outcome", outcome: "output", output: null };
 
 export default function ResultChainManager({ projectId, initial }: { projectId: string; initial: ResultChainNode[] }) {
+  const { en } = usePpmLocale();
   const [nodes, setNodes] = useState(initial);
   const [adding, setAdding] = useState<{ parentId: string | null; level: ResultLevel } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -35,7 +37,7 @@ export default function ResultChainManager({ projectId, initial }: { projectId: 
   }
 
   async function remove(id: string) {
-    if (!confirm("Supprimer ce noeud et ses enfants ?")) return;
+    if (!confirm(en ? "Delete this node and its children?" : "Supprimer ce noeud et ses enfants ?")) return;
     await createClient().from("ppm_result_chains").delete().eq("id", id);
     setNodes(current => current.filter(node => node.id !== id && node.parent_id !== id));
   }
@@ -50,7 +52,7 @@ export default function ResultChainManager({ projectId, initial }: { projectId: 
         {node.description && <span className="text-xs text-slate-400">{node.description}</span>}
         <div className="ml-auto flex gap-2">
           {next && <button onClick={() => setAdding({ parentId: node.id, level: next })} className="rounded-lg border px-3 py-1.5 text-xs font-bold">+ {levelLabels[next]}</button>}
-          <button onClick={() => remove(node.id)} aria-label="Supprimer" className="rounded-lg border border-red-200 p-1.5 text-red-600"><TrashIcon className="h-4" /></button>
+          <button onClick={() => remove(node.id)} aria-label={en ? "Delete" : "Supprimer"} className="rounded-lg border border-red-200 p-1.5 text-red-600"><TrashIcon className="h-4" /></button>
         </div>
       </div>
       {node.children.map(child => renderNode(child, depth + 1))}
@@ -58,19 +60,19 @@ export default function ResultChainManager({ projectId, initial }: { projectId: 
   }
 
   return <div className="grid gap-4">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">Cadre de resultats</h2><button onClick={() => setAdding({ parentId: null, level: "impact" })} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Nouvel Impact</button></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">{en ? "Results framework" : "Cadre de resultats"}</h2><button onClick={() => setAdding({ parentId: null, level: "impact" })} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />{en ? "New Impact" : "Nouvel Impact"}</button></div>
     <div className="grid gap-2">
       {tree.map(node => renderNode(node, 0))}
-      {!tree.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">Aucun cadre de resultats. Commencez par un Impact.</p>}
+      {!tree.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No results framework yet. Start with an Impact." : "Aucun cadre de resultats. Commencez par un Impact."}</p>}
     </div>
 
     {adding && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
-        <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">Nouveau {levelLabels[adding.level]}</h2><button type="button" onClick={() => setAdding(null)} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
+        <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "New" : "Nouveau"} {levelLabels[adding.level]}</h2><button type="button" onClick={() => setAdding(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
-          <label className="grid gap-2 text-sm font-bold">Titre<input name="title" required className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Title" : "Titre"}<input name="title" required className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Description<textarea name="description" rows={3} className="admin-input" /></label>
-          <div className="flex justify-end gap-3"><button type="button" onClick={() => setAdding(null)} className="btn-secondary">Annuler</button><button disabled={saving} className="btn-primary">{saving ? "Ajout..." : "Ajouter"}</button></div>
+          <div className="flex justify-end gap-3"><button type="button" onClick={() => setAdding(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button disabled={saving} className="btn-primary">{saving ? (en ? "Adding..." : "Ajout...") : (en ? "Add" : "Ajouter")}</button></div>
         </div>
       </form>
     </div>}

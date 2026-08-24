@@ -11,11 +11,13 @@ import { Country, State } from "country-state-city";
 import { MapPinIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import PPMFormModal from "@/components/op-management/PPMFormModal";
+import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type { Site } from "@/lib/ppm/types";
 
 const countries = Country.getAllCountries().sort((a, b) => a.name.localeCompare(b.name));
 
 export default function SiteRegister({ projectId, initial }: { projectId: string; initial: Site[] }) {
+  const { en } = usePpmLocale();
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<Site | "new" | null>(null);
   const [countryIso, setCountryIso] = useState("");
@@ -51,7 +53,7 @@ export default function SiteRegister({ projectId, initial }: { projectId: string
       site_name: String(form.get("site_name") || "").trim(),
       notes: String(form.get("notes") || "").trim() || null,
     };
-    if (!payload.country || !payload.site_name) { setSaving(false); setMessage("Le pays et le nom du site sont obligatoires."); return; }
+    if (!payload.country || !payload.site_name) { setSaving(false); setMessage(en ? "Country and site name are required." : "Le pays et le nom du site sont obligatoires."); return; }
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     const isNew = editing === "new";
@@ -65,10 +67,10 @@ export default function SiteRegister({ projectId, initial }: { projectId: string
   }
 
   return <div className="grid gap-4">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">Sites d&apos;intervention</h2><button onClick={() => openEditing("new")} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Nouveau site</button></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">{en ? "Implementation sites" : "Sites d'intervention"}</h2><button onClick={() => openEditing("new")} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />{en ? "New site" : "Nouveau site"}</button></div>
     <div className="overflow-x-auto rounded-2xl border bg-white">
       <table className="w-full min-w-[900px] text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Site</th><th className="p-4">Pays</th><th className="p-4">Region</th><th className="p-4">Division</th><th className="p-4">Sous-division</th><th className="p-4">Action</th></tr></thead>
+        <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Site</th><th className="p-4">{en ? "Country" : "Pays"}</th><th className="p-4">{en ? "Region" : "Region"}</th><th className="p-4">Division</th><th className="p-4">{en ? "Subdivision" : "Sous-division"}</th><th className="p-4">Action</th></tr></thead>
         <tbody>
           {rows.map(row => <tr key={row.id} className="border-t align-top">
             <td className="p-4"><b className="text-forest">{row.site_name}</b></td>
@@ -76,40 +78,40 @@ export default function SiteRegister({ projectId, initial }: { projectId: string
             <td className="p-4">{row.region || "—"}</td>
             <td className="p-4">{row.division || "—"}</td>
             <td className="p-4">{row.subdivision || "—"}</td>
-            <td className="p-4"><button onClick={() => openEditing(row)} className="btn-secondary px-3 py-2 text-xs">Modifier</button></td>
+            <td className="p-4"><button onClick={() => openEditing(row)} className="btn-secondary px-3 py-2 text-xs">{en ? "Edit" : "Modifier"}</button></td>
           </tr>)}
-          {!rows.length && <tr><td colSpan={6} className="p-10 text-center text-slate-400">Aucun site enregistre.</td></tr>}
+          {!rows.length && <tr><td colSpan={6} className="p-10 text-center text-slate-400">{en ? "No sites registered." : "Aucun site enregistre."}</td></tr>}
         </tbody>
       </table>
     </div>
 
-    {editing && <PPMFormModal icon={MapPinIcon} title={editing === "new" ? "Nouveau site" : "Modifier le site"} onClose={() => setEditing(null)}>
+    {editing && <PPMFormModal icon={MapPinIcon} title={editing === "new" ? (en ? "New site" : "Nouveau site") : (en ? "Edit site" : "Modifier le site")} onClose={() => setEditing(null)}>
       <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-2 text-sm font-bold">Pays<select
+        <label className="grid gap-2 text-sm font-bold">{en ? "Country" : "Pays"}<select
           required className="admin-input" value={countryIso}
           onChange={event => { const iso = event.target.value; setCountryIso(iso); setCountryName(countries.find(item => item.isoCode === iso)?.name || ""); setRegionName(""); }}
         >
-          <option value="">Selectionner...</option>
+          <option value="">{en ? "Select..." : "Selectionner..."}</option>
           {countries.map(item => <option key={item.isoCode} value={item.isoCode}>{item.name}</option>)}
         </select></label>
         <input type="hidden" name="country" value={countryName} />
-        <label className="grid gap-2 text-sm font-bold">Region / Etat<select
+        <label className="grid gap-2 text-sm font-bold">{en ? "Region / State" : "Region / Etat"}<select
           name="region" className="admin-input" value={regionName} disabled={!states.length}
           onChange={event => setRegionName(event.target.value)}
         >
-          <option value="">{states.length ? "Selectionner..." : "Aucune subdivision listee"}</option>
+          <option value="">{states.length ? (en ? "Select..." : "Selectionner...") : (en ? "No subdivision listed" : "Aucune subdivision listee")}</option>
           {states.map(item => <option key={item.isoCode} value={item.name}>{item.name}</option>)}
         </select></label>
         <label className="grid gap-2 text-sm font-bold">Division<input name="division" list="division-suggestions" defaultValue={editing !== "new" ? editing.division || "" : ""} className="admin-input" />
           <datalist id="division-suggestions">{divisionSuggestions.map(value => <option key={value} value={value} />)}</datalist>
         </label>
-        <label className="grid gap-2 text-sm font-bold">Sous-division<input name="subdivision" list="subdivision-suggestions" defaultValue={editing !== "new" ? editing.subdivision || "" : ""} className="admin-input" />
+        <label className="grid gap-2 text-sm font-bold">{en ? "Subdivision" : "Sous-division"}<input name="subdivision" list="subdivision-suggestions" defaultValue={editing !== "new" ? editing.subdivision || "" : ""} className="admin-input" />
           <datalist id="subdivision-suggestions">{subdivisionSuggestions.map(value => <option key={value} value={value} />)}</datalist>
         </label>
-        <label className="grid gap-2 text-sm font-bold sm:col-span-2">Nom du site<input name="site_name" defaultValue={editing !== "new" ? editing.site_name : ""} required className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Site name" : "Nom du site"}<input name="site_name" defaultValue={editing !== "new" ? editing.site_name : ""} required className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Notes<textarea name="notes" rows={2} defaultValue={editing !== "new" ? editing.notes || "" : ""} className="admin-input" /></label>
         {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
-        <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">Annuler</button><button disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Enregistrer"}</button></div>
+        <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button disabled={saving} className="btn-primary">{saving ? (en ? "Saving..." : "Enregistrement...") : (en ? "Save" : "Enregistrer")}</button></div>
       </form>
     </PPMFormModal>}
   </div>;

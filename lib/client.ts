@@ -7,7 +7,7 @@ import {localClientUser} from "@/lib/local-seed";
 import {isPrincipalEmail} from "@/lib/platform-services";
 import {requireActivePlatformSession} from "@/lib/active-platform-session";
 
-export type ClientEntitlements={health:boolean;childGrowth:boolean;teleconsultation:boolean;medicalConsultation:boolean;premiumResources:boolean};
+export type ClientEntitlements={health:boolean;childGrowth:boolean;teleconsultation:boolean;medicalConsultation:boolean;premiumResources:boolean;healthTier:"basic"|"premium"|null;childGrowthTier:"basic"|"premium"|null};
 
 export async function requireClient(){
   if(hasLocalAdminMode()&&!hasSupabaseConfig()){
@@ -26,7 +26,7 @@ export async function requireClient(){
 export async function getClientEntitlements(supabase:any,userId:string):Promise<ClientEntitlements>{
   const authResult=typeof supabase.auth?.getUser==="function"?await supabase.auth.getUser():{data:{user:null}};
   const {data:admin}=await supabase.from("admin_users").select("role,active").eq("id",userId).maybeSingle();
-  if(isPrincipalEmail(authResult.data?.user?.email)||(admin?.active&&admin.role==="super_admin"))return{health:true,childGrowth:true,teleconsultation:true,medicalConsultation:true,premiumResources:true};
+  if(isPrincipalEmail(authResult.data?.user?.email)||(admin?.active&&admin.role==="super_admin"))return{health:true,childGrowth:true,teleconsultation:true,medicalConsultation:true,premiumResources:true,healthTier:"premium",childGrowthTier:"premium"};
   const now=Date.now();
   const [{data:subscriptions},{data:plans},{data:bookings},{data:medicalConsultations},{data:grants}]=await Promise.all([
     supabase.from("subscriptions").select("*").eq("client_id",userId).eq("status","active"),
@@ -52,12 +52,22 @@ export async function getClientEntitlements(supabase:any,userId:string):Promise<
     return Number.isFinite(+legacyEnd)&&+legacyEnd>now;
   });
   const consultationPremium=activeDietetic||activeMedical;
+  const activeHealth=active.filter((item:any)=>!item.child_id&&(planTypes.get(item.plan_id)==="health_tracking"||String(item.plan_id).includes("health")));
+  const activeChildGrowth=active.filter((item:any)=>planTypes.get(item.plan_id)==="child_growth"||String(item.plan_id).includes("child-growth"));
+  // A consultation (teleconsultation/medical) already carries every Premium health-monitoring
+  // tool (see consultationPremium above), so it counts as "premium" tier for the health card too —
+  // otherwise a client with an active consultation but no separate health_tracking subscription
+  // would see the Standard health card as "active" instead of already-included-in-Premium.
+  const healthTier=consultationPremium?"premium":activeHealth.length?(activeHealth.some((item:any)=>premiumPlanIds.has(item.plan_id))?"premium":"basic"):null;
+  const childGrowthTier=activeChildGrowth.length?(activeChildGrowth.some((item:any)=>premiumPlanIds.has(item.plan_id))?"premium":"basic"):null;
   return{
-    health:consultationPremium||granted("health")||active.some((item:any)=>!item.child_id&&(planTypes.get(item.plan_id)==="health_tracking"||String(item.plan_id).includes("health"))),
-    childGrowth:granted("child_growth")||active.some((item:any)=>planTypes.get(item.plan_id)==="child_growth"||String(item.plan_id).includes("child-growth")),
+    health:consultationPremium||granted("health")||activeHealth.length>0,
+    childGrowth:granted("child_growth")||activeChildGrowth.length>0,
     premiumResources:consultationPremium||active.some((item:any)=>premiumPlanIds.has(item.plan_id)),
     teleconsultation:activeDietetic,
     medicalConsultation:activeMedical,
+    healthTier,
+    childGrowthTier,
   };
 }
 

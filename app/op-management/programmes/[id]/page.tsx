@@ -12,6 +12,7 @@ import {
   listTimePhasedBudgets, listWbsNodes,
 } from "@/lib/ppm/queries";
 import { computeProjectEvm, rollupEvm } from "@/lib/ppm/evm";
+import { wbsLeafNodes } from "@/lib/ppm/wbs";
 
 export default async function ProgramDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -40,7 +41,7 @@ export default async function ProgramDetailPage({ params }: { params: Promise<{ 
       getApprovedPmbWorkPackageSnapshots(supabase, childProject.id),
     ]);
     const metrics = computeProjectEvm({
-      workPackages: workPackages.filter(node => node.level === 4), activities, achievements, expenses, budgetLines,
+      workPackages: wbsLeafNodes(workPackages), activities, achievements, expenses, budgetLines,
       timePhasedRows, pmbSnapshots, asOfDate: settings.status_date || today,
     });
     evmRows.push({ projectId: childProject.id, projectName: childProject.name, metrics });

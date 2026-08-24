@@ -184,6 +184,18 @@ export default function AchievementReportForm({ projectId, activity, workPackage
     if (!error) window.open(data.signedUrl, "_blank");
   }
 
+  // Refinement program, Wave 4 (item 32): evidence can be replaced/deleted before submission —
+  // restricted to draft, same pattern as ExpenseManager.tsx, so a submitted achievement's audit
+  // trail stays intact.
+  async function deleteEvidence(item: AchievementEvidence) {
+    if (!confirm("Supprimer cette preuve ?")) return;
+    const supabase = createClient();
+    if (item.file_path) await supabase.storage.from("document-vault").remove([item.file_path]);
+    const result = await supabase.from("ppm_achievement_evidence").delete().eq("id", item.id);
+    if (!result.error) setEvidence(evidence.filter(row => row.id !== item.id));
+  }
+
+  const isDraftStatus = isNewInitially || (editing as Achievement).status === "draft";
   const showBeneficiaries = activity.beneficiaries != null && activity.beneficiaries > 0;
 
   return <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
@@ -287,7 +299,13 @@ export default function AchievementReportForm({ projectId, activity, workPackage
         <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">Preuves</h3>
         {achievementId ? <div className="sm:col-span-2 grid gap-2">
           <label className="btn-secondary w-fit cursor-pointer px-4 py-2 text-sm">Ajouter une preuve<input type="file" onChange={uploadEvidence} className="hidden" /></label>
-          {evidence.map(item => <div key={item.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2 text-sm"><span>{evidenceCategoryLabels[item.category]} — {item.title}</span>{item.file_path && <button type="button" onClick={() => viewEvidence(item.file_path)} className="text-xs font-bold text-leaf">Voir</button>}</div>)}
+          {evidence.map(item => <div key={item.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2 text-sm">
+            <span>{evidenceCategoryLabels[item.category]} — {item.title}</span>
+            <div className="flex items-center gap-3">
+              {item.file_path && <button type="button" onClick={() => viewEvidence(item.file_path)} className="text-xs font-bold text-leaf">Voir</button>}
+              {isDraftStatus && <button type="button" onClick={() => deleteEvidence(item)} aria-label="Supprimer"><TrashIcon className="h-4 text-red-600" /></button>}
+            </div>
+          </div>)}
         </div> : <p className="text-sm text-slate-400 sm:col-span-2">Enregistrez d&apos;abord un brouillon pour pouvoir ajouter des preuves.</p>}
 
         {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}

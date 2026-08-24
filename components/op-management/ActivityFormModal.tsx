@@ -31,9 +31,13 @@ export default function ActivityFormModal({ projectId, target, onClose, onSaved,
   const [message, setMessage] = useState("");
   const [evMethod, setEvMethod] = useState<EvMethod>(target !== "new" && target ? target.ev_method : "percent_complete");
   const [milestones, setMilestones] = useState<MilestoneWeight[]>(target !== "new" && target ? target.milestone_weights || [] : []);
+  const [workPackageId, setWorkPackageId] = useState(target !== "new" && target ? target.work_package_id || "" : "");
   if (!target) return null;
   const isNew = target === "new";
   const activity = isNew ? null : target;
+  // Refinement program, Wave 3: "activite parente" only lists activities under the same Work
+  // Package — cascading, instead of every activity in the project regardless of family.
+  const parentOptions = activities.filter(item => item.id !== activity?.id && (!workPackageId || item.work_package_id === workPackageId));
 
   function addMilestone() { setMilestones(current => [...current, { label: "", weight: 0, completed: false }]); }
   function updateMilestone(index: number, patch: Partial<MilestoneWeight>) { setMilestones(current => current.map((row, i) => i === index ? { ...row, ...patch } : row)); }
@@ -60,11 +64,8 @@ export default function ActivityFormModal({ projectId, target, onClose, onSaved,
       beneficiaries: form.get("beneficiaries") ? Number(form.get("beneficiaries")) : null,
       planned_start: String(form.get("planned_start") || "") || null,
       planned_end: String(form.get("planned_end") || "") || null,
-      actual_start: String(form.get("actual_start") || "") || null,
-      actual_end: String(form.get("actual_end") || "") || null,
       is_milestone: form.get("is_milestone") === "on",
       planned_budget: form.get("planned_budget") ? Number(form.get("planned_budget")) : null,
-      actual_expense: form.get("actual_expense") ? Number(form.get("actual_expense")) : null,
       progress_percent: form.get("progress_percent") ? Number(form.get("progress_percent")) : null,
       ev_method: evMethod,
       milestone_weights: evMethod === "milestone_weighted" ? milestones.filter(item => item.label.trim()) : [],
@@ -74,9 +75,6 @@ export default function ActivityFormModal({ projectId, target, onClose, onSaved,
       deliverable: String(form.get("deliverable") || "").trim() || null,
       risk_note: String(form.get("risk_note") || "").trim() || null,
       comment: String(form.get("comment") || "").trim() || null,
-      delay_reason: String(form.get("delay_reason") || "").trim() || null,
-      corrective_action: String(form.get("corrective_action") || "").trim() || null,
-      new_deadline: String(form.get("new_deadline") || "") || null,
     };
     if (!payload.title) { setSaving(false); setMessage("Le titre est obligatoire."); return; }
     const supabase = createClient();
@@ -96,8 +94,8 @@ export default function ActivityFormModal({ projectId, target, onClose, onSaved,
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Titre<input name="title" defaultValue={activity?.title || ""} required className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Description<textarea name="description" rows={2} defaultValue={activity?.description || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Type<select name="kind" defaultValue={activity?.kind || "activity"} className="admin-input">{Object.entries(kindLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label className="grid gap-2 text-sm font-bold">Activite parente (facultatif)<select name="parent_id" defaultValue={activity?.parent_id || ""} className="admin-input"><option value="">Aucune</option>{activities.filter(item => item.id !== activity?.id).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-        <label className="grid gap-2 text-sm font-bold">Work Package<select name="work_package_id" defaultValue={activity?.work_package_id || ""} className="admin-input"><option value="">Aucun</option>{workPackages.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">Work Package<select name="work_package_id" value={workPackageId} onChange={event => setWorkPackageId(event.target.value)} className="admin-input"><option value="">Aucun</option>{workPackages.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">Activite parente (facultatif — filtree par Work Package)<select name="parent_id" defaultValue={activity?.parent_id || ""} className="admin-input"><option value="">Aucune</option>{parentOptions.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
         <label className="grid gap-2 text-sm font-bold">Output lie<select name="output_id" defaultValue={activity?.output_id || ""} className="admin-input"><option value="">Aucun</option>{outputs.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
         <PersonPicker knownPeople={knownPeople} nameField="responsible_name" emailField="responsible_email" defaultName={activity?.responsible_name} defaultEmail={activity?.responsible_email} label="Responsable" />
         <label className="grid gap-2 text-sm font-bold">Co-responsables (separes par des virgules)<input name="co_responsible" defaultValue={(activity?.co_responsible || []).join(", ")} className="admin-input" /></label>
@@ -107,10 +105,7 @@ export default function ActivityFormModal({ projectId, target, onClose, onSaved,
         <label className="flex items-center gap-3 text-sm font-bold"><input type="checkbox" name="is_milestone" defaultChecked={activity?.is_milestone || false} className="h-5 w-5" />Jalon (milestone)</label>
         <label className="grid gap-2 text-sm font-bold">Date debut prevue<input name="planned_start" type="date" defaultValue={activity?.planned_start || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Date fin prevue<input name="planned_end" type="date" defaultValue={activity?.planned_end || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Date debut reelle<input name="actual_start" type="date" defaultValue={activity?.actual_start || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Date fin reelle<input name="actual_end" type="date" defaultValue={activity?.actual_end || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Budget prevu<input name="planned_budget" type="number" min="0" step="0.01" defaultValue={activity?.planned_budget ?? ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Depense reelle<input name="actual_expense" type="number" min="0" step="0.01" defaultValue={activity?.actual_expense ?? ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Progression (%)<input name="progress_percent" type="number" min="0" max="100" defaultValue={activity?.progress_percent ?? ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Methode EV (Valeur Acquise)<select value={evMethod} onChange={event => setEvMethod(event.target.value as EvMethod)} className="admin-input">{Object.entries(evMethodLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         {evMethod === "milestone_weighted" && <div className="sm:col-span-2">
@@ -132,9 +127,7 @@ export default function ActivityFormModal({ projectId, target, onClose, onSaved,
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Livrable<input name="deliverable" defaultValue={activity?.deliverable || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Risque<input name="risk_note" defaultValue={activity?.risk_note || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Commentaire<textarea name="comment" rows={2} defaultValue={activity?.comment || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Motif de retard<input name="delay_reason" defaultValue={activity?.delay_reason || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Action corrective<input name="corrective_action" defaultValue={activity?.corrective_action || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold sm:col-span-2">Nouvelle echeance<input name="new_deadline" type="date" defaultValue={activity?.new_deadline || ""} className="admin-input" /></label>
+        <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500 sm:col-span-2">Dates reelles, retard et action corrective se rapportent desormais via <b>Rapporter une realisation</b> — ce formulaire de planification ne couvre que le prevu.</p>
         {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
         <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={onClose} className="btn-secondary">Annuler</button><button disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Enregistrer"}</button></div>
       </div>

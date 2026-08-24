@@ -2,7 +2,8 @@
 import { useState, type FormEvent } from "react";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
-import type { Risk, RiskResponseStrategy, RiskStatus } from "@/lib/ppm/types";
+import SearchableSelect from "@/components/op-management/SearchableSelect";
+import type { PPMResource, Risk, RiskResponseStrategy, RiskReview, RiskStatus } from "@/lib/ppm/types";
 
 const responseLabels: Record<RiskResponseStrategy, string> = { avoid: "Eviter", mitigate: "Attenuer", transfer: "Transferer", accept: "Accepter" };
 const statusLabels: Record<RiskStatus, string> = { open: "Ouvert", monitoring: "Sous surveillance", closed: "Cloture" };
@@ -14,11 +15,47 @@ function levelFor(score: number) {
   return { label: "Faible", tone: "bg-mint text-forest" };
 }
 
-export default function RiskRegister({ projectId, initial }: { projectId: string; initial: Risk[] }) {
+export default function RiskRegister({ projectId, initial, initialReviews, staff = [] }: {
+  projectId: string; initial: Risk[]; initialReviews: RiskReview[]; staff?: PPMResource[];
+}) {
+  const staffOptions = staff.map(item => ({ value: item.name, label: item.name, hint: item.role_title }));
   const [rows, setRows] = useState(initial);
+  const [reviews, setReviews] = useState(initialReviews);
   const [editing, setEditing] = useState<Risk | "new" | null>(null);
+  const [reviewing, setReviewing] = useState<Risk | null>(null);
+  const [historyFor, setHistoryFor] = useState<Risk | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Refinement program, Wave 6 (item 35): a periodic review register — each review re-assesses
+  // probability/impact and can close the risk, keeping full history via ppm_risk_reviews instead
+  // of only the risk's current snapshot.
+  async function submitReview(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!reviewing) return;
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      project_id: projectId,
+      risk_id: reviewing.id,
+      review_date: String(form.get("review_date") || new Date().toISOString().slice(0, 10)),
+      reviewer_name: String(form.get("reviewer_name") || "").trim() || null,
+      probability: Number(form.get("probability") || reviewing.probability),
+      impact: Number(form.get("impact") || reviewing.impact),
+      status_after: String(form.get("status_after") || reviewing.status) as RiskStatus,
+      notes: String(form.get("notes") || "").trim() || null,
+    };
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const result = await supabase.from("ppm_risk_reviews").insert({ ...payload, created_by: user?.id }).select("*").single();
+    if (result.error) { setMessage(result.error.message); return; }
+    setReviews(current => [result.data as RiskReview, ...current]);
+    const updated = await supabase.from("ppm_risks").update({ probability: payload.probability, impact: payload.impact, status: payload.status_after }).eq("id", reviewing.id).select("*").single();
+    if (!updated.error) {
+      setRows(current => current.map(row => row.id === reviewing.id ? updated.data as Risk : row));
+      await supabase.from("ppm_history").insert({ entity_type: "project", entity_id: projectId, actor_id: user?.id, action: `Risque revise — ${reviewing.title}`, from_status: reviewing.status, to_status: payload.status_after, note: payload.notes || undefined });
+    }
+    setReviewing(null);
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -71,7 +108,11 @@ export default function RiskRegister({ projectId, initial }: { projectId: string
             <td className="p-4">{row.response_strategy ? responseLabels[row.response_strategy] : "—"}</td>
             <td className="p-4">{row.owner_name || "—"}</td>
             <td className="p-4">{statusLabels[row.status]}</td>
-            <td className="p-4"><button onClick={() => setEditing(row)} className="btn-secondary px-3 py-2 text-xs">Modifier</button></td>
+            <td className="p-4"><div className="flex flex-wrap gap-2">
+              <button onClick={() => setEditing(row)} className="btn-secondary px-3 py-2 text-xs">Modifier</button>
+              {row.status !== "closed" && <button onClick={() => setReviewing(row)} className="btn-primary px-3 py-2 text-xs">Reviser</button>}
+              {reviews.some(item => item.risk_id === row.id) && <button onClick={() => setHistoryFor(row)} className="text-xs font-bold text-slate-400 underline">Historique</button>}
+            </div></td>
           </tr>; })}
           {!rows.length && <tr><td colSpan={8} className="p-10 text-center text-slate-400">Aucun risque enregistre.</td></tr>}
         </tbody>
@@ -90,7 +131,7 @@ export default function RiskRegister({ projectId, initial }: { projectId: string
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Consequence<textarea name="consequence" rows={2} defaultValue={editing !== "new" ? editing.consequence || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Probabilite (1-5)<input name="probability" type="number" min="1" max="5" defaultValue={editing !== "new" ? editing.probability : 3} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Impact (1-5)<input name="impact" type="number" min="1" max="5" defaultValue={editing !== "new" ? editing.impact : 3} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Proprietaire<input name="owner_name" defaultValue={editing !== "new" ? editing.owner_name || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Proprietaire<SearchableSelect name="owner_name" options={staffOptions} defaultValue={editing !== "new" ? editing.owner_name || "" : ""} allowOther otherLabel="Nom du proprietaire" placeholder="Selectionner un membre du staff..." /></label>
           <label className="grid gap-2 text-sm font-bold">Strategie de reponse<select name="response_strategy" defaultValue={editing !== "new" ? editing.response_strategy || "" : ""} className="admin-input"><option value="">—</option>{Object.entries(responseLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Plan d&apos;attenuation<textarea name="mitigation_plan" rows={2} defaultValue={editing !== "new" ? editing.mitigation_plan || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Echeance<input name="deadline" type="date" defaultValue={editing !== "new" ? editing.deadline || "" : ""} className="admin-input" /></label>
@@ -102,6 +143,34 @@ export default function RiskRegister({ projectId, initial }: { projectId: string
           <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">Annuler</button><button disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Enregistrer"}</button></div>
         </div>
       </form>
+    </div>}
+
+    {reviewing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+      <form onSubmit={submitReview} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
+        <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">Reviser — {reviewing.title}</h2><button type="button" onClick={() => setReviewing(null)} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
+        <div className="mt-5 grid gap-4">
+          <label className="grid gap-2 text-sm font-bold">Date de revue<input name="review_date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Revu par<input name="reviewer_name" className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Probabilite (1-5)<input name="probability" type="number" min="1" max="5" defaultValue={reviewing.probability} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Impact (1-5)<input name="impact" type="number" min="1" max="5" defaultValue={reviewing.impact} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Statut apres revue<select name="status_after" defaultValue={reviewing.status} className="admin-input">{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="grid gap-2 text-sm font-bold">Notes<textarea name="notes" rows={2} className="admin-input" /></label>
+          {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">{message}</p>}
+          <div className="flex justify-end gap-3"><button type="button" onClick={() => setReviewing(null)} className="btn-secondary">Annuler</button><button className="btn-primary">Enregistrer la revue</button></div>
+        </div>
+      </form>
+    </div>}
+
+    {historyFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+      <div className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
+        <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">Historique des revues — {historyFor.title}</h2><button onClick={() => setHistoryFor(null)} className="text-2xl">×</button></div>
+        <div className="mt-4 grid gap-2">
+          {reviews.filter(item => item.risk_id === historyFor.id).map(item => <div key={item.id} className="rounded-xl bg-slate-50 p-3 text-sm">
+            <div className="flex flex-wrap items-center gap-2"><b className="text-forest">{new Date(item.review_date).toLocaleDateString("fr-FR")}</b><span className="text-xs text-slate-400">P{item.probability} × I{item.impact} — {statusLabels[item.status_after]}</span>{item.reviewer_name && <span className="text-xs text-slate-400">· {item.reviewer_name}</span>}</div>
+            {item.notes && <p className="mt-1 text-xs text-slate-500">{item.notes}</p>}
+          </div>)}
+        </div>
+      </div>
     </div>}
   </div>;
 }

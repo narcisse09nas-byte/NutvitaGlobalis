@@ -1,14 +1,15 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
-  Achievement, AchievementEvidence, Activity, ApprovalRequest, AuditLogEntry, BudgetLine,
+  Achievement, AchievementEvidence, Activity, ApprovalRequest, ArchiveItem, AuditLogEntry, BudgetCategory, BudgetLine,
   ChangeRequest, CommunicationActual, CommunicationItem, Deliverable, EquipmentCheckout,
-  Evaluation, EvmSettings, EvmSnapshot, Expense, FeedbackEntry, GovernanceRole, Indicator,
+  Evaluation, EvmSettings, EvmSnapshot, Expense, ExternalApprover, FeedbackEntry, FeedbackFollowup, GovernanceRole, HandoverItem, Indicator,
   Issue, KnownPerson, LessonLearned, MealEntry, NonConformityReport, Organization, Portfolio,
   PmbVersion, PmbWorkPackageSnapshot, PPMAction, PPMDocument, PPMNotification, PPMResource,
   Program, ProcurementItem, Project, ProjectCharter, ProjectClosure, QualityRequirement,
-  RaciEntry, Report, Requirement, ResourceAssignment, ResultChainNode, Risk, ScopeBaseline,
-  ScopeStatement, Stakeholder, StakeholderInteraction, TimePhasedBudget, Timesheet, WBSNode,
+  QualityControlActual, RaciEntry, Report, Requirement, ResourceAssignment, ResultChainNode, Risk,
+  RiskReview, ScopeBaseline, ScopeStatement, Site, Stakeholder, StakeholderInteraction, Supplier,
+  TimePhasedBudget, Timesheet, WBSNode,
 } from "./types";
 
 export async function listOrganizations(supabase: SupabaseClient): Promise<Organization[]> {
@@ -133,6 +134,12 @@ export async function listBudgetLines(supabase: SupabaseClient, projectId: strin
   return (data || []) as BudgetLine[];
 }
 
+// Refinement program, Wave 4: Budget category hierarchy
+export async function listBudgetCategories(supabase: SupabaseClient, projectId: string): Promise<BudgetCategory[]> {
+  const { data } = await supabase.from("ppm_budget_categories").select("*").eq("project_id", projectId).order("order_index");
+  return (data || []) as BudgetCategory[];
+}
+
 // Sprint 12: Resources
 export async function listResources(supabase: SupabaseClient, projectId: string): Promise<PPMResource[]> {
   const { data } = await supabase.from("ppm_resources").select("*").eq("project_id", projectId).order("name");
@@ -142,6 +149,17 @@ export async function listResources(supabase: SupabaseClient, projectId: string)
 export async function listResourceAssignments(supabase: SupabaseClient, projectId: string): Promise<ResourceAssignment[]> {
   const { data } = await supabase.from("ppm_resource_assignments").select("*").eq("project_id", projectId);
   return (data || []) as ResourceAssignment[];
+}
+
+// Refinement program, Wave 1: Suppliers + Sites
+export async function listSuppliers(supabase: SupabaseClient, projectId: string): Promise<Supplier[]> {
+  const { data } = await supabase.from("ppm_suppliers").select("*").eq("project_id", projectId).order("name");
+  return (data || []) as Supplier[];
+}
+
+export async function listSites(supabase: SupabaseClient, projectId: string): Promise<Site[]> {
+  const { data } = await supabase.from("ppm_sites").select("*").eq("project_id", projectId).order("site_name");
+  return (data || []) as Site[];
 }
 
 // Sprint 13: Procurement
@@ -159,6 +177,17 @@ export async function listQualityRequirements(supabase: SupabaseClient, projectI
 export async function listNcrs(supabase: SupabaseClient, projectId: string): Promise<NonConformityReport[]> {
   const { data } = await supabase.from("ppm_ncr").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
   return (data || []) as NonConformityReport[];
+}
+
+// Refinement program, Wave 6: Quality control actuals + Risk reviews
+export async function listQualityControlActuals(supabase: SupabaseClient, projectId: string): Promise<QualityControlActual[]> {
+  const { data } = await supabase.from("ppm_quality_control_actuals").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+  return (data || []) as QualityControlActual[];
+}
+
+export async function listRiskReviews(supabase: SupabaseClient, projectId: string): Promise<RiskReview[]> {
+  const { data } = await supabase.from("ppm_risk_reviews").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+  return (data || []) as RiskReview[];
 }
 
 // Sprint 15: Risks + Issues
@@ -204,6 +233,11 @@ export async function listLessonsLearned(supabase: SupabaseClient, projectId: st
   return (data || []) as LessonLearned[];
 }
 
+export async function listFeedbackFollowups(supabase: SupabaseClient, projectId: string): Promise<FeedbackFollowup[]> {
+  const { data } = await supabase.from("ppm_feedback_followups").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+  return (data || []) as FeedbackFollowup[];
+}
+
 // Sprint 18: Deliverables + Documents
 export async function listDeliverables(supabase: SupabaseClient, projectId: string): Promise<Deliverable[]> {
   const { data } = await supabase.from("ppm_deliverables").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
@@ -230,6 +264,22 @@ export async function listNotifications(supabase: SupabaseClient): Promise<PPMNo
 export async function listApprovalRequests(supabase: SupabaseClient, projectId: string): Promise<ApprovalRequest[]> {
   const { data } = await supabase.from("ppm_approval_requests").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
   return (data || []) as ApprovalRequest[];
+}
+
+// Refinement program, Wave 8
+export async function listExternalApprovers(supabase: SupabaseClient, projectId: string): Promise<ExternalApprover[]> {
+  const { data } = await supabase.from("ppm_external_approvers").select("*").eq("project_id", projectId).order("name");
+  return (data || []) as ExternalApprover[];
+}
+
+export async function listHandoverItems(supabase: SupabaseClient, projectId: string): Promise<HandoverItem[]> {
+  const { data } = await supabase.from("ppm_handover_items").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+  return (data || []) as HandoverItem[];
+}
+
+export async function listArchiveItems(supabase: SupabaseClient, projectId: string): Promise<ArchiveItem[]> {
+  const { data } = await supabase.from("ppm_archive_items").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+  return (data || []) as ArchiveItem[];
 }
 
 // Sprint 22: Audit Trail (reads public.ppm_history, populated since Sprint 2)

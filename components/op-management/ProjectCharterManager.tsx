@@ -22,7 +22,7 @@ const textFields: Array<[string, string]> = [
   ["success_criteria", "Criteres de succes"],
 ];
 
-export default function ProjectCharterManager({ projectId, initial }: { projectId: string; initial: ProjectCharter[] }) {
+export default function ProjectCharterManager({ projectId, initial, projectBudget }: { projectId: string; initial: ProjectCharter[]; projectBudget?: number }) {
   const [versions, setVersions] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -108,7 +108,7 @@ export default function ProjectCharterManager({ projectId, initial }: { projectI
           {textFields.map(([key, label]) => <label key={key} className="grid gap-2 text-sm font-bold sm:col-span-2"><span>{label}</span><textarea name={key} rows={2} defaultValue={(latest as unknown as Record<string, string>)[key] || ""} className="admin-input" /></label>)}
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Objectifs specifiques (separes par des virgules)<input name="specific_objectives" defaultValue={(latest.specific_objectives || []).join(", ")} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Principaux livrables (separes par des virgules)<input name="key_deliverables" defaultValue={(latest.key_deliverables || []).join(", ")} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Budget indicatif<input name="indicative_budget" type="number" min="0" step="0.01" defaultValue={latest.indicative_budget ?? ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Budget indicatif{latest.indicative_budget == null && projectBudget ? " (pre-rempli depuis le budget global)" : ""}<input name="indicative_budget" type="number" min="0" step="0.01" defaultValue={latest.indicative_budget ?? projectBudget ?? ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Prepare par<input name="prepared_by_name" defaultValue={latest.prepared_by_name || ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Revu par<input name="reviewed_by_name" defaultValue={latest.reviewed_by_name || ""} className="admin-input" /></label>
           {latest.approved_by_name && <label className="grid gap-2 text-sm font-bold">Approuve par<input disabled defaultValue={`${latest.approved_by_name}${latest.approved_at ? " — " + new Date(latest.approved_at).toLocaleDateString("fr-FR") : ""}`} className="admin-input" /></label>}

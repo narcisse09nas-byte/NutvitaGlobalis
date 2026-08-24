@@ -2,7 +2,7 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
-import type { Deliverable, DocumentCategory, DocumentConfidentiality, DocumentStatus, PPMDocument } from "@/lib/ppm/types";
+import type { Deliverable, DocumentCategory, DocumentConfidentiality, DocumentStatus, PPMDocument, WBSNode } from "@/lib/ppm/types";
 
 const categoryLabels: Record<DocumentCategory, string> = {
   contract: "Contrat", report: "Rapport", technical: "Technique", administrative: "Administratif",
@@ -11,17 +11,25 @@ const categoryLabels: Record<DocumentCategory, string> = {
 const confidentialityLabels: Record<DocumentConfidentiality, string> = { public: "Public", internal: "Interne", confidential: "Confidentiel" };
 const statusLabels: Record<DocumentStatus, string> = { draft: "Brouillon", final: "Final", archived: "Archive" };
 
-export default function DocumentRegister({ projectId, initial, deliverables }: { projectId: string; initial: PPMDocument[]; deliverables: Deliverable[] }) {
+export default function DocumentRegister({ projectId, initial, deliverables, wbsNodes = [] }: {
+  projectId: string; initial: PPMDocument[]; deliverables: Deliverable[]; wbsNodes?: WBSNode[];
+}) {
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<PPMDocument | "new" | null>(null);
   const [filePath, setFilePath] = useState("");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  // Refinement program, Wave 8 (item 47): "livrable associe" is multi-select, filtered to
+  // deliverables sharing the document's own Work Package.
+  const [workPackageId, setWorkPackageId] = useState("");
   const deliverableLabel = (id?: string | null) => deliverables.find(item => item.id === id)?.title;
+  const deliverableLabels = (ids?: string[]) => (ids || []).map(id => deliverableLabel(id) || "—").join(", ");
+  const filteredDeliverables = workPackageId ? deliverables.filter(item => item.work_package_id === workPackageId) : deliverables;
 
   function openEditor(row: PPMDocument | "new") {
     setFilePath(row !== "new" ? row.file_path || "" : "");
+    setWorkPackageId(row !== "new" ? row.work_package_id || "" : "");
     setMessage("");
     setEditing(row);
   }
@@ -51,9 +59,11 @@ export default function DocumentRegister({ projectId, initial, deliverables }: {
     setSaving(true);
     setMessage("");
     const form = new FormData(event.currentTarget);
+    const deliverableIds = form.getAll("deliverable_ids").map(String).filter(Boolean);
     const payload = {
       project_id: projectId,
-      deliverable_id: String(form.get("deliverable_id") || "") || null,
+      work_package_id: workPackageId || null,
+      deliverable_ids: deliverableIds,
       title: String(form.get("title") || "").trim(),
       category: String(form.get("category") || "other") as DocumentCategory,
       description: String(form.get("description") || "").trim() || null,
@@ -83,7 +93,7 @@ export default function DocumentRegister({ projectId, initial, deliverables }: {
         <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Document</th><th className="p-4">Categorie</th><th className="p-4">Confidentialite</th><th className="p-4">Version</th><th className="p-4">Statut</th><th className="p-4">Action</th></tr></thead>
         <tbody>
           {rows.map(row => <tr key={row.id} className="border-t align-top">
-            <td className="p-4"><b className="text-forest">{row.title}</b>{row.deliverable_id && <p className="mt-1 text-xs text-slate-400">Livrable : {deliverableLabel(row.deliverable_id) || "—"}</p>}</td>
+            <td className="p-4"><b className="text-forest">{row.title}</b>{!!row.deliverable_ids?.length && <p className="mt-1 text-xs text-slate-400">Livrables : {deliverableLabels(row.deliverable_ids)}</p>}</td>
             <td className="p-4">{categoryLabels[row.category]}</td>
             <td className="p-4">{confidentialityLabels[row.confidentiality]}</td>
             <td className="p-4">v{row.version}</td>
@@ -101,7 +111,14 @@ export default function DocumentRegister({ projectId, initial, deliverables }: {
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Titre<input name="title" defaultValue={editing !== "new" ? editing.title : ""} required className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Description<textarea name="description" rows={2} defaultValue={editing !== "new" ? editing.description || "" : ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Livrable associe<select name="deliverable_id" defaultValue={editing !== "new" ? editing.deliverable_id || "" : ""} className="admin-input"><option value="">Aucun</option>{deliverables.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+          <label className="grid gap-2 text-sm font-bold">Work Package<select value={workPackageId} onChange={event => setWorkPackageId(event.target.value)} className="admin-input"><option value="">Aucun</option>{wbsNodes.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+          <div className="grid gap-2 text-sm font-bold sm:col-span-2">
+            Livrables associes (selection multiple, filtree par Work Package)
+            <div className="max-h-40 overflow-y-auto rounded-xl border p-2">
+              {filteredDeliverables.map(item => <label key={item.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-normal hover:bg-mint/40"><input type="checkbox" name="deliverable_ids" value={item.id} defaultChecked={editing !== "new" ? (editing.deliverable_ids || []).includes(item.id) : false} className="h-4 w-4" />{item.title}</label>)}
+              {!filteredDeliverables.length && <p className="p-2 text-sm text-slate-400">Aucun livrable {workPackageId ? "pour ce Work Package" : "enregistre"}.</p>}
+            </div>
+          </div>
           <label className="grid gap-2 text-sm font-bold">Categorie<select name="category" defaultValue={editing !== "new" ? editing.category : "other"} className="admin-input">{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold">Confidentialite<select name="confidentiality" defaultValue={editing !== "new" ? editing.confidentiality : "internal"} className="admin-input">{Object.entries(confidentialityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold">Statut<select name="status" defaultValue={editing !== "new" ? editing.status : "draft"} className="admin-input">{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>

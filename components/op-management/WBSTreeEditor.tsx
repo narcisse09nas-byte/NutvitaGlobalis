@@ -4,11 +4,13 @@ import Link from "next/link";
 import { ChevronDownIcon, ChevronRightIcon, PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import { buildWbsTree, type WBSTreeNode } from "@/lib/ppm/wbs";
-import type { WBSNode } from "@/lib/ppm/types";
+import SearchableSelect from "@/components/op-management/SearchableSelect";
+import type { PPMResource, WBSNode } from "@/lib/ppm/types";
 
 const levelNames = ["", "Projet", "Composante", "Sous-composante", "Work Package"];
 
-export default function WBSTreeEditor({ projectId, initial }: { projectId: string; initial: WBSNode[] }) {
+export default function WBSTreeEditor({ projectId, initial, staff = [] }: { projectId: string; initial: WBSNode[]; staff?: PPMResource[] }) {
+  const staffOptions = staff.map(item => ({ value: item.name, label: item.name, hint: item.role_title }));
   const [nodes, setNodes] = useState(initial);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<WBSTreeNode | { parentId: string | null; level: 1 | 2 | 3 | 4 } | null>(null);
@@ -79,7 +81,7 @@ export default function WBSTreeEditor({ projectId, initial }: { projectId: strin
         <span className="text-xs text-slate-400">{levelNames[node.level]}</span>
         {node.responsible_name && <span className="text-xs text-slate-400">· {node.responsible_name}</span>}
         <div className="ml-auto flex gap-2">
-          {node.level === 4 && <Link href={`/op-management/projets/${projectId}/work-packages/${node.id}`} className="rounded-lg border px-3 py-1.5 text-xs font-bold text-leaf">Vue 360°</Link>}
+          {!hasChildren && <Link href={`/op-management/projets/${projectId}/work-packages/${node.id}`} className="rounded-lg border px-3 py-1.5 text-xs font-bold text-leaf">Vue 360°</Link>}
           {node.level < 4 && <button onClick={() => setEditing({ parentId: node.id, level: (node.level + 1) as 1 | 2 | 3 | 4 })} className="rounded-lg border px-3 py-1.5 text-xs font-bold">+ Sous-niveau</button>}
           <button onClick={() => remove(node.id)} aria-label="Supprimer" className="rounded-lg border border-red-200 p-1.5 text-red-600"><TrashIcon className="h-4" /></button>
         </div>
@@ -108,7 +110,7 @@ export default function WBSTreeEditor({ projectId, initial }: { projectId: strin
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Description<textarea name="description" rows={2} defaultValue={editingNode?.description || ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Perimetre inclus<textarea name="scope_included" rows={2} defaultValue={editingNode?.scope_included || ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Perimetre exclu<textarea name="scope_excluded" rows={2} defaultValue={editingNode?.scope_excluded || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Responsable<input name="responsible_name" defaultValue={editingNode?.responsible_name || ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Responsable<SearchableSelect name="responsible_name" options={staffOptions} defaultValue={editingNode?.responsible_name || ""} allowOther otherLabel="Nom du responsable" placeholder="Selectionner un membre du staff..." /></label>
           <label className="grid gap-2 text-sm font-bold">Resultat attendu<input name="expected_result" defaultValue={editingNode?.expected_result || ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Livrables<input name="deliverables" defaultValue={editingNode?.deliverables || ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Criteres d&apos;acceptation<input name="acceptance_criteria" defaultValue={editingNode?.acceptance_criteria || ""} className="admin-input" /></label>

@@ -1,7 +1,10 @@
 "use client";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
+import { getOrgCodeForProject, withUniqueRegistryCode, generateSequenceCode } from "@/lib/ppm/ids";
+import { checkIsSuperAdmin, isFinalStatus } from "@/lib/ppm/lock";
+import { notifyPpmEventClient } from "@/lib/ppm/notify-client";
 import type {
   ProcurementCategory, ProcurementItem, ProcurementMethod, ProcurementStage,
   ReceiptQualityAssessment, WBSNode,
@@ -27,6 +30,9 @@ export default function ProcurementPipeline({ projectId, initial, wbsNodes }: { 
   const [receiptMessage, setReceiptMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => { checkIsSuperAdmin(createClient()).then(setIsSuperAdmin); }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,9 +49,9 @@ export default function ProcurementPipeline({ projectId, initial, wbsNodes }: { 
       estimated_value: form.get("estimated_value") ? Number(form.get("estimated_value")) : null,
       currency: String(form.get("currency") || "XAF"),
       requested_by_name: String(form.get("requested_by_name") || "").trim() || null,
+      requested_by_email: String(form.get("requested_by_email") || "").trim() || null,
       supplier_name: String(form.get("supplier_name") || "").trim() || null,
       contract_reference: String(form.get("contract_reference") || "").trim() || null,
-      po_reference: String(form.get("po_reference") || "").trim() || null,
       awarded_amount: form.get("awarded_amount") ? Number(form.get("awarded_amount")) : null,
       delivery_date: String(form.get("delivery_date") || "") || null,
       notes: String(form.get("notes") || "").trim() || null,
@@ -68,11 +74,38 @@ export default function ProcurementPipeline({ projectId, initial, wbsNodes }: { 
     if (!forcedNextStage && (index < 0 || index >= STAGES.length - 1)) return;
     const nextStage = forcedNextStage || STAGES[index + 1];
     const supabase = createClient();
-    const result = await supabase.from("ppm_procurement_items").update({ stage: nextStage }).eq("id", row.id).select("*").single();
+
+    // Refinement program, Wave 4 (item 30): the moment a request is verified/validated into the
+    // "award" stage, an 8-character PO is generated automatically — this is the Besoin -> verifie
+    // -> valide chain the user described, expressed through the pipeline's existing stages.
+    const needsPo = nextStage === "award" && !row.po_reference;
+    let issuedPo: string | null = null;
+    let result: { data: ProcurementItem | null; error: { code?: string; message: string } | null };
+    if (needsPo) {
+      const orgCode = await getOrgCodeForProject(supabase, projectId);
+      result = await withUniqueRegistryCode<ProcurementItem>(
+        async code => await supabase.from("ppm_procurement_items").update({ stage: nextStage, po_reference: code }).eq("id", row.id).select("*").single(),
+        () => generateSequenceCode(orgCode),
+      );
+      if (!result.error) issuedPo = result.data?.po_reference || null;
+    } else {
+      result = await supabase.from("ppm_procurement_items").update({ stage: nextStage }).eq("id", row.id).select("*").single();
+    }
+
     if (!result.error) {
       setRows(current => current.map(item => item.id === row.id ? result.data as ProcurementItem : item));
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from("ppm_history").insert({ entity_type: "project", entity_id: projectId, actor_id: user?.id, action: `Procurement — ${row.title}`, from_status: row.stage, to_status: nextStage });
+      if (issuedPo && row.requested_by_email) {
+        await notifyPpmEventClient({
+          recipient: { email: row.requested_by_email },
+          projectId, category: "approval",
+          titleFr: `PO emis — ${row.title}`, titleEn: `PO issued — ${row.title}`,
+          messageFr: `Le bon de commande ${issuedPo} a ete emis pour votre demande "${row.title}".`,
+          messageEn: `Purchase order ${issuedPo} has been issued for your request "${row.title}".`,
+          link: `/op-management/projets/${projectId}/planification/procurement`,
+        });
+      }
     }
   }
 
@@ -138,11 +171,13 @@ export default function ProcurementPipeline({ projectId, initial, wbsNodes }: { 
         <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
           {row.estimated_value && <span>Estime : {row.estimated_value.toLocaleString("fr-FR")} {row.currency}</span>}
           {row.awarded_amount && <span>Attribue : {row.awarded_amount.toLocaleString("fr-FR")} {row.currency}</span>}
+          {row.po_reference && <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono font-bold text-slate-500">PO {row.po_reference}</span>}
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {row.stage === "delivery" && <button onClick={() => openReceiving(row)} className="btn-primary px-3 py-1.5 text-xs">Enregistrer la reception</button>}
           {row.stage !== "completed" && row.stage !== "cancelled" && row.stage !== "delivery" && <button onClick={() => advance(row)} className="btn-primary px-3 py-1.5 text-xs">Etape suivante →</button>}
           <button onClick={() => setEditing(row)} className="btn-secondary px-3 py-1.5 text-xs">Modifier</button>
+          {isFinalStatus("procurement", row.stage) && isSuperAdmin && <button onClick={() => advance(row, "contract")} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600">Rouvrir (admin)</button>}
         </div>
       </article>)}
       {!rows.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">Aucun achat enregistre.</p>}
@@ -160,9 +195,10 @@ export default function ProcurementPipeline({ projectId, initial, wbsNodes }: { 
           <label className="grid gap-2 text-sm font-bold">Valeur estimee<input name="estimated_value" type="number" min="0" step="0.01" defaultValue={editing !== "new" ? editing.estimated_value ?? "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Devise<input name="currency" defaultValue={editing !== "new" ? editing.currency || "XAF" : "XAF"} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Demande par<input name="requested_by_name" defaultValue={editing !== "new" ? editing.requested_by_name || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Email du demandeur<input name="requested_by_email" type="email" defaultValue={editing !== "new" ? editing.requested_by_email || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Fournisseur<input name="supplier_name" defaultValue={editing !== "new" ? editing.supplier_name || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Reference contrat<input name="contract_reference" defaultValue={editing !== "new" ? editing.contract_reference || "" : ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Reference PO<input name="po_reference" defaultValue={editing !== "new" ? editing.po_reference || "" : ""} className="admin-input" /></label>
+          {editing !== "new" && editing.po_reference && <p className="grid gap-2 text-sm font-bold">PO (genere automatiquement)<span className="admin-input bg-slate-50 font-mono">{editing.po_reference}</span></p>}
           <label className="grid gap-2 text-sm font-bold">Montant attribue<input name="awarded_amount" type="number" min="0" step="0.01" defaultValue={editing !== "new" ? editing.awarded_amount ?? "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Date de livraison<input name="delivery_date" type="date" defaultValue={editing !== "new" ? editing.delivery_date || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Notes<textarea name="notes" rows={2} defaultValue={editing !== "new" ? editing.notes || "" : ""} className="admin-input" /></label>

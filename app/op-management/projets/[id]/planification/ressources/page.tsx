@@ -24,12 +24,14 @@ export default async function PlanificationRessourcesPage({ params }: { params: 
     listWbsNodes(supabase, id), listTimesheets(supabase, id), listEquipmentCheckouts(supabase, id),
   ]);
   const equipment = resources.filter(item => item.type === "equipment");
+  const assetResources = resources.filter(item => item.type === "equipment" || item.type === "vehicle" || item.type === "infrastructure");
 
   return <PPMShell name={name} breadcrumbs={[{ href: "/op-management", label: "Vue d'ensemble" }, { href: "/op-management/projets", label: "Projets" }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/planification/ressources`, label: "Planification" }]}>
     <ProjectShell project={project}>
       <div className="grid gap-8">
         <PlanificationTabs projectId={id} />
-        <ResourceManager projectId={id} initial={resources} initialAssignments={assignments} activities={activities} />
+        <p className="rounded-2xl bg-mint/40 p-4 text-sm text-forest">Le personnel et les consultants se gerent desormais depuis l&apos;onglet <b>Equipe</b> du projet. Cette page couvre les actifs, equipements et leur affectation.</p>
+        <ResourceManager projectId={id} initial={assetResources} initialAssignments={assignments} activities={activities} title="Actifs & equipements" allowedTypes={["equipment", "vehicle", "infrastructure"]} />
         <TimesheetManager projectId={id} initial={timesheets} resources={resources} wbsNodes={wbsNodes} activities={activities} />
         <EquipmentCheckoutManager projectId={id} initial={checkouts} equipment={equipment} activities={activities} />
       </div>

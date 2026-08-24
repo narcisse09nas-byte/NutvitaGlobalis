@@ -5,6 +5,7 @@ import PlanificationTabs from "@/components/op-management/PlanificationTabs";
 import PDMWorkspace from "@/components/op-management/PDMWorkspace";
 import { createClient } from "@/lib/supabase/server";
 import { getProject, listActivities, listIndicators, listKnownPeople, listResultChain, listWbsNodes } from "@/lib/ppm/queries";
+import { wbsLeafNodes } from "@/lib/ppm/wbs";
 
 export default async function PlanificationPdmPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,8 +18,12 @@ export default async function PlanificationPdmPage({ params }: { params: Promise
   const [wbsNodes, resultChain, indicators, activities, knownPeople] = await Promise.all([
     listWbsNodes(supabase, id), listResultChain(supabase, id), listIndicators(supabase, id), listActivities(supabase, id), listKnownPeople(supabase, project),
   ]);
-  const workPackages = wbsNodes.filter(node => node.level === 4);
-  const outputs = resultChain.filter(node => node.level === "output");
+  const workPackages = wbsLeafNodes(wbsNodes);
+  // Prefer nodes explicitly leveled "output", but fall back to the whole result chain when a
+  // project's Impact->Outcome->Output hierarchy isn't fully built out yet (spec: le champ
+  // "Output lie" ne doit jamais rester vide faute d'un niveau precis defini).
+  const explicitOutputs = resultChain.filter(node => node.level === "output");
+  const outputs = explicitOutputs.length ? explicitOutputs : resultChain;
 
   return <PPMShell name={name} breadcrumbs={[{ href: "/op-management", label: "Vue d'ensemble" }, { href: "/op-management/projets", label: "Projets" }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/planification/pdm`, label: "Planification" }]}>
     <ProjectShell project={project}>

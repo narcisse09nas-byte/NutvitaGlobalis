@@ -2,7 +2,8 @@
 import { useState, type FormEvent } from "react";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
-import type { CommunicationChannel, CommunicationItem, CommunicationStatus, Stakeholder } from "@/lib/ppm/types";
+import SearchableSelect from "@/components/op-management/SearchableSelect";
+import type { CommunicationChannel, CommunicationItem, CommunicationStatus, PPMResource, Stakeholder } from "@/lib/ppm/types";
 
 const channelLabels: Record<CommunicationChannel, string> = { email: "Email", meeting: "Reunion", report: "Rapport", sms: "SMS", radio: "Radio", phone: "Telephone", other: "Autre" };
 const statusLabels: Record<CommunicationStatus, string> = { planned: "Planifie", sent: "Envoye", done: "Realise", cancelled: "Annule" };
@@ -10,7 +11,10 @@ const statusTones: Record<CommunicationStatus, string> = {
   planned: "bg-slate-100 text-slate-600", sent: "bg-sky-50 text-sky-800", done: "bg-mint text-forest", cancelled: "bg-red-50 text-red-700",
 };
 
-export default function CommunicationPlanManager({ projectId, initial, stakeholders }: { projectId: string; initial: CommunicationItem[]; stakeholders: Stakeholder[] }) {
+export default function CommunicationPlanManager({ projectId, initial, stakeholders, staff = [] }: {
+  projectId: string; initial: CommunicationItem[]; stakeholders: Stakeholder[]; staff?: PPMResource[];
+}) {
+  const staffOptions = staff.map(item => ({ value: item.name, label: item.name, hint: item.role_title }));
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<CommunicationItem | "new" | null>(null);
   const [saving, setSaving] = useState(false);
@@ -79,7 +83,7 @@ export default function CommunicationPlanManager({ projectId, initial, stakehold
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Message<textarea name="message" rows={2} defaultValue={editing !== "new" ? editing.message || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Canal<select name="channel" defaultValue={editing !== "new" ? editing.channel : "email"} className="admin-input">{Object.entries(channelLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold">Frequence<input name="frequency" defaultValue={editing !== "new" ? editing.frequency || "" : ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Responsable<input name="responsible_name" defaultValue={editing !== "new" ? editing.responsible_name || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Responsable<SearchableSelect name="responsible_name" options={staffOptions} defaultValue={editing !== "new" ? editing.responsible_name || "" : ""} allowOther otherLabel="Nom du responsable" placeholder="Selectionner un membre du staff..." /></label>
           <label className="grid gap-2 text-sm font-bold">Statut<select name="status" defaultValue={editing !== "new" ? editing.status : "planned"} className="admin-input">{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold">Prochaine echeance<input name="next_date" type="date" defaultValue={editing !== "new" ? editing.next_date || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Derniere diffusion<input name="last_sent_date" type="date" defaultValue={editing !== "new" ? editing.last_sent_date || "" : ""} className="admin-input" /></label>

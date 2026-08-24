@@ -2,7 +2,7 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
-import type { Activity, Deliverable, DeliverableAcceptanceStatus, DeliverableType, WBSNode } from "@/lib/ppm/types";
+import type { Activity, Deliverable, DeliverableAcceptanceStatus, DeliverableType, ExternalApprover, WBSNode } from "@/lib/ppm/types";
 
 const typeLabels: Record<DeliverableType, string> = { report: "Rapport", product: "Produit", infrastructure: "Infrastructure", training: "Formation", service: "Service", other: "Autre" };
 const acceptanceLabels: Record<DeliverableAcceptanceStatus, string> = {
@@ -19,8 +19,8 @@ const nextAction: Partial<Record<DeliverableAcceptanceStatus, { next: Deliverabl
   returned_for_revision: { next: "submitted", label: "Re-soumettre" },
 };
 
-export default function DeliverableManager({ projectId, initial, wbsNodes, activities }: {
-  projectId: string; initial: Deliverable[]; wbsNodes: WBSNode[]; activities: Activity[];
+export default function DeliverableManager({ projectId, initial, wbsNodes, activities, externalApprovers = [] }: {
+  projectId: string; initial: Deliverable[]; wbsNodes: WBSNode[]; activities: Activity[]; externalApprovers?: ExternalApprover[];
 }) {
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<Deliverable | "new" | null>(null);
@@ -28,8 +28,20 @@ export default function DeliverableManager({ projectId, initial, wbsNodes, activ
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [accepting, setAccepting] = useState<Deliverable | null>(null);
   const wbsLabel = (id?: string | null) => wbsNodes.find(item => item.id === id)?.title || "—";
   const activityLabel = (id?: string | null) => activities.find(item => item.id === id)?.title || "—";
+  // Refinement program, Wave 8 (item 46): category is set at deliverable creation so the register
+  // (and later, reporting) can filter by category first, instead of scrolling a long flat list.
+  const categories = Array.from(new Set(rows.map(item => item.category).filter((value): value is string => !!value)));
+  const filteredRows = categoryFilter ? rows.filter(item => item.category === categoryFilter) : rows;
+  // Refinement program, Wave 2: a simple sequential code (DEL-01, DEL-02...) computed from
+  // creation order — same "computed, never stored" approach as WBS/Result-Chain codes.
+  const deliverableCode = (row: Deliverable) => {
+    const index = [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at)).findIndex(item => item.id === row.id);
+    return `DEL-${String(index + 1).padStart(2, "0")}`;
+  };
 
   function openEditor(row: Deliverable | "new") {
     setFilePath(row !== "new" ? row.file_path || "" : "");
@@ -49,6 +61,15 @@ export default function DeliverableManager({ projectId, initial, wbsNodes, activ
     setFilePath(path);
   }
 
+  // Refinement program, Wave 4 (item 32): a deliverable's file can be replaced/removed before
+  // submission — restricted to "pending" (brouillon), same pattern as Expenses/Achievements.
+  async function removeFile() {
+    if (!filePath) return;
+    if (!confirm("Retirer ce fichier ?")) return;
+    await createClient().storage.from("document-vault").remove([filePath]);
+    setFilePath("");
+  }
+
   async function viewFile(path?: string) {
     if (!path) return;
     const { data, error } = await createClient().storage.from("document-vault").createSignedUrl(path, 180);
@@ -66,9 +87,21 @@ export default function DeliverableManager({ projectId, initial, wbsNodes, activ
   }
 
   function decide(row: Deliverable, next: DeliverableAcceptanceStatus) {
-    const note = next !== "accepted" ? prompt("Commentaire (obligatoire) :") : null;
-    if (next !== "accepted" && !note) return;
-    advance(row, next, next === "accepted" ? { accepted_by_name: prompt("Accepte par :") || null, accepted_at: new Date().toISOString() } : { notes: note });
+    if (next === "accepted") { setAccepting(row); return; }
+    const note = prompt("Commentaire (obligatoire) :");
+    if (!note) return;
+    advance(row, next, { notes: note });
+  }
+
+  // Refinement program, Wave 8 (item 46): "accepted by" is a dropdown of external approvers
+  // (created during project Cadrage — see ExternalApproverRegister), not a blind prompt().
+  async function submitAcceptance(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!accepting) return;
+    const form = new FormData(event.currentTarget);
+    const approver = externalApprovers.find(item => item.id === String(form.get("accepted_by_id") || ""));
+    await advance(accepting, "accepted", { accepted_by_name: approver?.name || null, accepted_at: new Date().toISOString() });
+    setAccepting(null);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -84,6 +117,7 @@ export default function DeliverableManager({ projectId, initial, wbsNodes, activ
       activity_id: String(form.get("activity_id") || "") || null,
       title: String(form.get("title") || "").trim(),
       description: String(form.get("description") || "").trim() || null,
+      category: String(form.get("category") || "").trim() || null,
       type: String(form.get("type") || "product") as DeliverableType,
       responsible_name: String(form.get("responsible_name") || "").trim() || null,
       planned_date: String(form.get("planned_date") || "") || null,
@@ -113,13 +147,19 @@ export default function DeliverableManager({ projectId, initial, wbsNodes, activ
   }
 
   return <div className="grid gap-4">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">Livrables</h2><button onClick={() => openEditor("new")} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Nouveau livrable</button></div>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-xl font-black text-forest">Livrables</h2>
+      <div className="flex flex-wrap items-center gap-2">
+        {!!categories.length && <select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)} className="admin-input w-auto"><option value="">Toutes categories</option>{categories.map(value => <option key={value} value={value}>{value}</option>)}</select>}
+        <button onClick={() => openEditor("new")} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Nouveau livrable</button>
+      </div>
+    </div>
     <div className="overflow-x-auto rounded-2xl border bg-white">
       <table className="w-full min-w-[980px] text-left text-sm">
         <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Livrable</th><th className="p-4">Rattachement</th><th className="p-4">Responsable</th><th className="p-4">Echeance</th><th className="p-4">Version</th><th className="p-4">Acceptation</th><th className="p-4">Action</th></tr></thead>
         <tbody>
-          {rows.map(row => <tr key={row.id} className="border-t align-top">
-            <td className="p-4"><b className="text-forest">{row.title}</b><p className="mt-1 text-xs text-slate-400">{typeLabels[row.type]}</p></td>
+          {filteredRows.map(row => <tr key={row.id} className="border-t align-top">
+            <td className="p-4"><span className="mr-2 rounded-full bg-slate-100 px-2 py-1 font-mono text-xs font-bold text-slate-500">{deliverableCode(row)}</span><b className="text-forest">{row.title}</b><p className="mt-1 text-xs text-slate-400">{typeLabels[row.type]}</p></td>
             <td className="p-4">{row.work_package_id ? wbsLabel(row.work_package_id) : row.activity_id ? activityLabel(row.activity_id) : "—"}</td>
             <td className="p-4">{row.responsible_name || "—"}</td>
             <td className="p-4">{row.planned_date ? new Date(row.planned_date).toLocaleDateString("fr-FR") : "—"}</td>
@@ -135,7 +175,7 @@ export default function DeliverableManager({ projectId, initial, wbsNodes, activ
               </>}
             </div></td>
           </tr>)}
-          {!rows.length && <tr><td colSpan={7} className="p-10 text-center text-slate-400">Aucun livrable enregistre.</td></tr>}
+          {!filteredRows.length && <tr><td colSpan={7} className="p-10 text-center text-slate-400">Aucun livrable enregistre.</td></tr>}
         </tbody>
       </table>
     </div>
@@ -146,6 +186,9 @@ export default function DeliverableManager({ projectId, initial, wbsNodes, activ
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Titre<input name="title" defaultValue={editing !== "new" ? editing.title : ""} required className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Description<textarea name="description" rows={2} defaultValue={editing !== "new" ? editing.description || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Categorie<input name="category" list="deliverable-category-suggestions" defaultValue={editing !== "new" ? editing.category || "" : ""} className="admin-input" />
+            <datalist id="deliverable-category-suggestions">{categories.map(value => <option key={value} value={value} />)}</datalist>
+          </label>
           <label className="grid gap-2 text-sm font-bold">Work Package<select name="work_package_id" defaultValue={editing !== "new" ? editing.work_package_id || "" : ""} className="admin-input"><option value="">Aucun</option>{wbsNodes.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold">Activite<select name="activity_id" defaultValue={editing !== "new" ? editing.activity_id || "" : ""} className="admin-input"><option value="">Aucune</option>{activities.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold">Type<select name="type" defaultValue={editing !== "new" ? editing.type : "product"} className="admin-input">{Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
@@ -158,13 +201,30 @@ export default function DeliverableManager({ projectId, initial, wbsNodes, activ
           <div className="grid gap-2 text-sm font-bold sm:col-span-2">
             Fichier du livrable
             <div className="flex flex-wrap items-center gap-3">
-              <label className="btn-secondary w-fit cursor-pointer px-4 py-2 text-sm">{uploading ? "Televersement..." : "Choisir un fichier"}<input type="file" onChange={uploadFile} className="hidden" /></label>
+              <label className="btn-secondary w-fit cursor-pointer px-4 py-2 text-sm">{uploading ? "Televersement..." : filePath ? "Remplacer le fichier" : "Choisir un fichier"}<input type="file" onChange={uploadFile} className="hidden" /></label>
               {filePath && <button type="button" onClick={() => viewFile(filePath)} className="text-sm font-bold text-leaf">Voir le fichier televerse</button>}
+              {filePath && (editing === "new" || editing.acceptance_status === "pending") && <button type="button" onClick={() => removeFile()} className="text-sm font-bold text-red-600">Retirer</button>}
             </div>
           </div>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Notes<textarea name="notes" rows={2} defaultValue={editing !== "new" ? editing.notes || "" : ""} className="admin-input" /></label>
           {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
           <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">Annuler</button><button disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Enregistrer"}</button></div>
+        </div>
+      </form>
+    </div>}
+
+    {accepting && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+      <form onSubmit={submitAcceptance} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
+        <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">Accepter — {accepting.title}</h2><button type="button" onClick={() => setAccepting(null)} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
+        <div className="mt-5 grid gap-4">
+          <label className="grid gap-2 text-sm font-bold">
+            Accepte par
+            <select name="accepted_by_id" required className="admin-input">
+              <option value="">{externalApprovers.length ? "Selectionner..." : "Aucun approbateur externe enregistre"}</option>
+              {externalApprovers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+          <div className="flex justify-end gap-3"><button type="button" onClick={() => setAccepting(null)} className="btn-secondary">Annuler</button><button className="btn-primary">Confirmer l&apos;acceptation</button></div>
         </div>
       </form>
     </div>}

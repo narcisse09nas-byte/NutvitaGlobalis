@@ -103,6 +103,7 @@ function activeSessionRule(pathname: string): SessionRule | null {
   if (starts("/espace-client")) return { services: clientServices, roles: ["client"] };
 
   if (starts("/partenaire") && pathname !== "/partenaire/connexion") return { services: ["health", "child_growth", "teleconsultation"], roles: ["nutritionist"] };
+  if (starts("/medecin-specialiste")) return { services: ["medical_consultation"], roles: ["specialist"] };
   if (starts("/restauration/commander")) return { services: ["catering"], roles: ["client"] };
   if (starts("/candidat")) return { services: ["recruitment"], roles: ["candidate"] };
   if (starts("/surveys")) return { services: ["survey"], roles: ["client", "admin"] };
@@ -118,6 +119,7 @@ function activeSessionRule(pathname: string): SessionRule | null {
 
   if (starts("/api/admin")) return { services: ["administration"], roles: ["super_admin"] };
   if (starts("/api/partner")) return { services: ["health", "child_growth", "teleconsultation"], roles: ["nutritionist"] };
+  if (starts("/api/medical")) return { services: ["medical_consultation"], roles: ["specialist"] };
   if (starts("/api/maximus")) return { services: ["maximus"], roles: ["staff", "admin"] };
   if (starts("/api/consultations")) return { services: ["health", "teleconsultation"], roles: ["client", "nutritionist", "admin"] };
   return null;

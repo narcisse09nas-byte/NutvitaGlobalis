@@ -6,6 +6,7 @@ import {
   getEvmSettings, getProject, listActivities, listAchievements, listBudgetLines, listExpenses,
   listTimePhasedBudgets, listWbsNodes,
 } from "@/lib/ppm/queries";
+import { wbsLeafNodes } from "@/lib/ppm/wbs";
 
 // EVM add-on (Wave 1): the model only narrates SPI/CPI/EAC computed deterministically by
 // lib/ppm/evm.ts — it never recalculates a metric itself (spec section 28).
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
     listWbsNodes(supabase, projectId), listActivities(supabase, projectId), listAchievements(supabase, projectId),
     listExpenses(supabase, projectId), listBudgetLines(supabase, projectId), listTimePhasedBudgets(supabase, projectId),
   ]);
-  const workPackagesLevel4 = workPackages.filter(node => node.level === 4);
+  const workPackagesLevel4 = wbsLeafNodes(workPackages);
   const statusDate = settings.status_date;
 
   const wpMetrics = workPackagesLevel4.map(wp => {

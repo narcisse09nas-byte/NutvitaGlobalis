@@ -2,7 +2,9 @@
 import { useState, type FormEvent } from "react";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
-import type { ApprovalEntityType, ApprovalRequest, ApprovalStatus } from "@/lib/ppm/types";
+import { generateRegistryCode, getOrgCodeForProject, withUniqueRegistryCode } from "@/lib/ppm/ids";
+import { notifyPpmEventClient } from "@/lib/ppm/notify-client";
+import type { ApprovalEntityType, ApprovalRequest, ApprovalStatus, ExternalApprover } from "@/lib/ppm/types";
 
 const entityLabels: Record<ApprovalEntityType, string> = {
   charter: "Charte de projet", scope_baseline: "Scope Baseline", change_request: "Change Request",
@@ -11,9 +13,12 @@ const entityLabels: Record<ApprovalEntityType, string> = {
 const statusLabels: Record<ApprovalStatus, string> = { pending: "En attente", approved: "Approuve", rejected: "Rejete" };
 const statusTones: Record<ApprovalStatus, string> = { pending: "bg-amber-50 text-amber-800", approved: "bg-mint text-forest", rejected: "bg-red-50 text-red-700" };
 
-export default function ApprovalRequestManager({ projectId, projectName, initial }: { projectId: string; projectName: string; initial: ApprovalRequest[] }) {
+export default function ApprovalRequestManager({ projectId, projectName, initial, externalApprovers = [] }: {
+  projectId: string; projectName: string; initial: ApprovalRequest[]; externalApprovers?: ExternalApprover[];
+}) {
   const [rows, setRows] = useState(initial);
   const [creating, setCreating] = useState(false);
+  const [approverId, setApproverId] = useState("");
   const [deciding, setDeciding] = useState<{ row: ApprovalRequest; status: ApprovalStatus } | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -23,6 +28,7 @@ export default function ApprovalRequestManager({ projectId, projectName, initial
     setSaving(true);
     setMessage("");
     const form = new FormData(event.currentTarget);
+    const approver = externalApprovers.find(item => item.id === approverId);
     const payload = {
       project_id: projectId,
       entity_type: String(form.get("entity_type") || "other") as ApprovalEntityType,
@@ -31,26 +37,36 @@ export default function ApprovalRequestManager({ projectId, projectName, initial
       description: String(form.get("description") || "").trim() || null,
       requested_by_name: String(form.get("requested_by_name") || "").trim() || null,
       requested_by_email: String(form.get("requested_by_email") || "").trim() || null,
-      approver_name: String(form.get("approver_name") || "").trim() || null,
-      approver_email: String(form.get("approver_email") || "").trim() || null,
+      approver_name: approver?.name || null,
+      approver_email: approver?.email || null,
     };
     if (!payload.title) { setSaving(false); setMessage("Le titre est obligatoire."); return; }
+    if (!approver) { setSaving(false); setMessage("Selectionnez un approbateur externe."); return; }
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    const result = await supabase.from("ppm_approval_requests").insert({ ...payload, created_by: user?.id }).select("*").single();
+    // Refinement program, Wave 8 (item 44): every external approval request gets an auto-
+    // generated unique registry code, same convention as every other registry this program adds.
+    const orgCode = await getOrgCodeForProject(supabase, projectId);
+    const result = await withUniqueRegistryCode<ApprovalRequest>(
+      async code => await supabase.from("ppm_approval_requests").insert({ ...payload, code, created_by: user?.id }).select("*").single(),
+      () => generateRegistryCode(orgCode, "external_approval"),
+    );
     setSaving(false);
     if (result.error) { setMessage(result.error.message); return; }
     const created = result.data as ApprovalRequest;
     setRows(current => [created, ...current]);
-    if (created.approver_email) {
-      await supabase.from("ppm_notifications").insert({
-        recipient_email: created.approver_email, project_id: projectId, category: "approval",
-        title: `Approbation demandee — ${created.title}`,
-        message: `${created.requested_by_name || "Un membre de l'equipe"} attend votre decision sur "${projectName}".`,
-        link: `/op-management/projets/${projectId}/suivi-controle/approbations`,
-      });
-    }
+    await notifyPpmEventClient({
+      recipient: { email: created.approver_email || undefined },
+      projectId, category: "approval",
+      titleFr: `Approbation demandee — ${created.title}`, titleEn: `Approval requested — ${created.title}`,
+      messageFr: `${created.requested_by_name || "Un membre de l'equipe"} attend votre decision sur "${projectName}".`,
+      messageEn: `${created.requested_by_name || "A team member"} is awaiting your decision on "${projectName}".`,
+      link: `/op-management/projets/${projectId}/suivi-controle/approbations`,
+      emailTemplateId: "ppm_external_approval_requested",
+      emailVariables: { entity_label: created.title, item_title: created.title, project_name: projectName },
+    });
     await supabase.from("ppm_history").insert({ entity_type: "project", entity_id: projectId, actor_id: user?.id, action: `Demande d'approbation — ${created.title}`, to_status: "pending", note: entityLabels[created.entity_type] });
+    setApproverId("");
     setCreating(false);
   }
 
@@ -77,10 +93,10 @@ export default function ApprovalRequestManager({ projectId, projectName, initial
     const updated = result.data as ApprovalRequest;
     setRows(current => current.map(row => row.id === updated.id ? updated : row));
     if (updated.requested_by_email) {
-      await supabase.from("ppm_notifications").insert({
-        recipient_email: updated.requested_by_email, project_id: projectId, category: "info",
-        title: `${statusLabels[updated.status]} — ${updated.title}`,
-        message: decisionNote || undefined,
+      await notifyPpmEventClient({
+        recipient: { email: updated.requested_by_email }, projectId, category: "info",
+        titleFr: `${statusLabels[updated.status]} — ${updated.title}`, titleEn: `${statusLabels[updated.status]} — ${updated.title}`,
+        messageFr: decisionNote || undefined, messageEn: decisionNote || undefined,
         link: `/op-management/projets/${projectId}/suivi-controle/approbations`,
       });
     }
@@ -93,7 +109,7 @@ export default function ApprovalRequestManager({ projectId, projectName, initial
     <div className="grid gap-3">
       {rows.map(row => <article key={row.id} className="rounded-2xl border bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><b className="text-forest">{row.title}</b><p className="mt-1 text-xs text-slate-400">{entityLabels[row.entity_type]}{row.entity_label ? ` · ${row.entity_label}` : ""}{row.approver_name ? ` · Approbateur : ${row.approver_name}` : ""}</p></div>
+          <div>{row.code && <span className="mr-2 rounded-full bg-slate-100 px-2 py-1 font-mono text-xs font-bold text-slate-500">{row.code}</span>}<b className="text-forest">{row.title}</b><p className="mt-1 text-xs text-slate-400">{entityLabels[row.entity_type]}{row.entity_label ? ` · ${row.entity_label}` : ""}{row.approver_name ? ` · Approbateur : ${row.approver_name}` : ""}</p></div>
           <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusTones[row.status]}`}>{statusLabels[row.status]}</span>
         </div>
         {row.description && <p className="mt-2 text-sm text-slate-600">{row.description}</p>}
@@ -116,8 +132,13 @@ export default function ApprovalRequestManager({ projectId, projectName, initial
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Description<textarea name="description" rows={2} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Demandeur<input name="requested_by_name" className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Email du demandeur<input name="requested_by_email" type="email" className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Approbateur<input name="approver_name" className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Email de l&apos;approbateur<input name="approver_email" type="email" className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold sm:col-span-2">
+            Approbateur externe
+            <select value={approverId} onChange={event => setApproverId(event.target.value)} required className="admin-input">
+              <option value="">{externalApprovers.length ? "Selectionner..." : "Aucun approbateur externe enregistre — creez-en un d'abord"}</option>
+              {externalApprovers.map(item => <option key={item.id} value={item.id}>{item.name}{item.organization ? ` — ${item.organization}` : ""}</option>)}
+            </select>
+          </label>
           {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
           <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setCreating(false)} className="btn-secondary">Annuler</button><button disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Envoyer la demande"}</button></div>
         </div>

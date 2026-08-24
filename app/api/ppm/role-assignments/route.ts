@@ -11,13 +11,21 @@ import { PPM_ROLES, type PPMRole } from "@/lib/ppm/roles";
 // still goes through the RLS-scoped client, so public.ppm_role_assignments' own
 // "PPM admins manage role assignments" policy (is_admin()) is the real gate — this route only
 // adds the missing email->id step, it does not bypass RLS.
-async function requirePlatformAdmin() {
+// Refinement program, Wave 9 (item 50): an org-scoped admin (role "org_admin" on their own
+// organization) can grant/revoke roles within that same organization, without needing sitewide
+// admin_users membership — this is the "org-scoped admin delegation" the plan called for. Requests
+// for a different scope (or a caller with neither credential) still require sitewide admin.
+async function requirePlatformAdmin(scopeType?: string, scopeId?: string | null) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: NextResponse.json({ message: "Non authentifie." }, { status: 401 }) } as const;
   const { data: admin } = await supabase.from("admin_users").select("id").eq("id", user.id).eq("active", true).maybeSingle();
-  if (!admin) return { error: NextResponse.json({ message: "Acces reserve aux administrateurs." }, { status: 403 }) } as const;
-  return { supabase, userId: user.id } as const;
+  if (admin) return { supabase, userId: user.id } as const;
+  if (scopeType === "organization" && scopeId) {
+    const { data: orgAdmin } = await supabase.from("ppm_role_assignments").select("id").eq("user_id", user.id).eq("role", "org_admin").eq("scope_type", "organization").eq("scope_id", scopeId).maybeSingle();
+    if (orgAdmin) return { supabase, userId: user.id } as const;
+  }
+  return { error: NextResponse.json({ message: "Acces reserve aux administrateurs." }, { status: 403 }) } as const;
 }
 
 export async function GET(request: Request) {
@@ -35,12 +43,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const gate = await requirePlatformAdmin();
-  if ("error" in gate) return gate.error;
-  const { supabase, userId } = gate;
   const body = await request.json();
 
   if (body.action === "revoke") {
+    // Revocation stays sitewide-admin-only for now — resolving the target assignment's
+    // organization first to extend org-admin delegation here would add a second lookup for a
+    // narrower benefit; grant (below) is the concrete case item 50 asked for.
+    const gate = await requirePlatformAdmin();
+    if ("error" in gate) return gate.error;
+    const { supabase } = gate;
     const id = String(body.id || "");
     if (!id) return NextResponse.json({ message: "Identifiant manquant." }, { status: 400 });
     const { error } = await supabase.from("ppm_role_assignments").delete().eq("id", id);
@@ -55,6 +66,10 @@ export async function POST(request: Request) {
   if (!email || !PPM_ROLES.includes(role) || !["organization", "portfolio", "program", "project"].includes(scopeType)) {
     return NextResponse.json({ message: "Email, role ou perimetre invalide." }, { status: 400 });
   }
+
+  const gate = await requirePlatformAdmin(scopeType, scopeId);
+  if ("error" in gate) return gate.error;
+  const { supabase, userId } = gate;
 
   const service = createAdminClient();
   const { data: listed } = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });

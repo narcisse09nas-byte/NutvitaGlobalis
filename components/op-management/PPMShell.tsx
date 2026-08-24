@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRightStartOnRectangleIcon, Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
+import { ArrowRightStartOnRectangleIcon, Bars3Icon, UserCircleIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import NotificationBell from "@/components/op-management/NotificationBell";
 import { createClient } from "@/lib/supabase/client";
@@ -40,7 +40,8 @@ export default function PPMShell({ children, name, breadcrumbs }: { children: Re
           </div>
         </section>)}
       </nav>
-      <button onClick={logout} className="mt-8 flex w-full items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/70"><ArrowRightStartOnRectangleIcon className="h-5" />Deconnexion</button>
+      <Link href="/op-management/mon-compte" onClick={() => setOpen(false)} className="mt-8 flex w-full items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/70 hover:text-white"><UserCircleIcon className="h-5" />Mon compte</Link>
+      <button onClick={logout} className="mt-2 flex w-full items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white/70"><ArrowRightStartOnRectangleIcon className="h-5" />Deconnexion</button>
     </aside>
     <div className="lg:pl-72">
       <header className="sticky top-0 z-30 flex h-20 items-center justify-between gap-3 border-b bg-white px-5 md:px-8">

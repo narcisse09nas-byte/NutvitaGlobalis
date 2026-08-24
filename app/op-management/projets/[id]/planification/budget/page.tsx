@@ -3,8 +3,9 @@ import PPMShell from "@/components/op-management/PPMShell";
 import ProjectShell from "@/components/op-management/ProjectShell";
 import PlanificationTabs from "@/components/op-management/PlanificationTabs";
 import BudgetManager from "@/components/op-management/BudgetManager";
+import BudgetCategoryManager from "@/components/op-management/BudgetCategoryManager";
 import { createClient } from "@/lib/supabase/server";
-import { getProject, listBudgetLines, listWbsNodes } from "@/lib/ppm/queries";
+import { getProject, listBudgetCategories, listBudgetLines, listWbsNodes } from "@/lib/ppm/queries";
 
 export default async function PlanificationBudgetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,13 +15,16 @@ export default async function PlanificationBudgetPage({ params }: { params: Prom
   const name = user.user_metadata?.full_name || user.email || "Utilisateur";
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [budgetLines, wbsNodes] = await Promise.all([listBudgetLines(supabase, id), listWbsNodes(supabase, id)]);
+  const [budgetLines, wbsNodes, budgetCategories] = await Promise.all([
+    listBudgetLines(supabase, id), listWbsNodes(supabase, id), listBudgetCategories(supabase, id),
+  ]);
 
   return <PPMShell name={name} breadcrumbs={[{ href: "/op-management", label: "Vue d'ensemble" }, { href: "/op-management/projets", label: "Projets" }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/planification/budget`, label: "Planification" }]}>
     <ProjectShell project={project}>
       <div className="grid gap-5">
         <PlanificationTabs projectId={id} />
-        <BudgetManager projectId={id} initial={budgetLines} wbsNodes={wbsNodes} />
+        <BudgetCategoryManager projectId={id} initial={budgetCategories} />
+        <BudgetManager projectId={id} initial={budgetLines} wbsNodes={wbsNodes} budgetCategories={budgetCategories} />
       </div>
     </ProjectShell>
   </PPMShell>;

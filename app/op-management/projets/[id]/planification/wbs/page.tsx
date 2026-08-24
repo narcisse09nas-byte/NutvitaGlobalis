@@ -3,8 +3,9 @@ import PPMShell from "@/components/op-management/PPMShell";
 import ProjectShell from "@/components/op-management/ProjectShell";
 import PlanificationTabs from "@/components/op-management/PlanificationTabs";
 import WBSTreeEditor from "@/components/op-management/WBSTreeEditor";
+import WBSDictionaryView from "@/components/op-management/WBSDictionaryView";
 import { createClient } from "@/lib/supabase/server";
-import { getProject, listWbsNodes } from "@/lib/ppm/queries";
+import { getProject, listResources, listWbsNodes } from "@/lib/ppm/queries";
 
 export default async function PlanificationWbsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,13 +15,15 @@ export default async function PlanificationWbsPage({ params }: { params: Promise
   const name = user.user_metadata?.full_name || user.email || "Utilisateur";
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const wbsNodes = await listWbsNodes(supabase, id);
+  const [wbsNodes, resources] = await Promise.all([listWbsNodes(supabase, id), listResources(supabase, id)]);
+  const staff = resources.filter(item => item.type === "human" || item.type === "consultant");
 
   return <PPMShell name={name} breadcrumbs={[{ href: "/op-management", label: "Vue d'ensemble" }, { href: "/op-management/projets", label: "Projets" }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/planification/wbs`, label: "Planification" }]}>
     <ProjectShell project={project}>
       <div className="grid gap-5">
         <PlanificationTabs projectId={id} />
-        <WBSTreeEditor projectId={id} initial={wbsNodes} />
+        <WBSTreeEditor projectId={id} initial={wbsNodes} staff={staff} />
+        <WBSDictionaryView nodes={wbsNodes} />
       </div>
     </ProjectShell>
   </PPMShell>;

@@ -8,7 +8,7 @@ import CommunicationActualsManager from "@/components/op-management/Communicatio
 import StakeholderInteractionManager from "@/components/op-management/StakeholderInteractionManager";
 import { createClient } from "@/lib/supabase/server";
 import {
-  getProject, listCommunicationActuals, listCommunicationItems, listStakeholderInteractions, listStakeholders,
+  getProject, listCommunicationActuals, listCommunicationItems, listResources, listStakeholderInteractions, listStakeholders,
 } from "@/lib/ppm/queries";
 
 export default async function SuiviControlePartiesPrenantesPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,18 +19,19 @@ export default async function SuiviControlePartiesPrenantesPage({ params }: { pa
   const name = user.user_metadata?.full_name || user.email || "Utilisateur";
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [stakeholders, communicationItems, communicationActuals, stakeholderInteractions] = await Promise.all([
+  const [stakeholders, communicationItems, communicationActuals, stakeholderInteractions, resources] = await Promise.all([
     listStakeholders(supabase, id), listCommunicationItems(supabase, id),
-    listCommunicationActuals(supabase, id), listStakeholderInteractions(supabase, id),
+    listCommunicationActuals(supabase, id), listStakeholderInteractions(supabase, id), listResources(supabase, id),
   ]);
+  const staff = resources.filter(item => item.type === "human" || item.type === "consultant");
 
   return <PPMShell name={name} breadcrumbs={[{ href: "/op-management", label: "Vue d'ensemble" }, { href: "/op-management/projets", label: "Projets" }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/suivi-controle/parties-prenantes`, label: "Suivi & controle" }]}>
     <ProjectShell project={project}>
       <div className="grid gap-8">
         <SuiviControleTabs projectId={id} />
         <StakeholderRegister projectId={id} initial={stakeholders} />
-        <CommunicationPlanManager projectId={id} initial={communicationItems} stakeholders={stakeholders} />
-        <CommunicationActualsManager projectId={id} initial={communicationActuals} communicationItems={communicationItems} />
+        <CommunicationPlanManager projectId={id} initial={communicationItems} stakeholders={stakeholders} staff={staff} />
+        <CommunicationActualsManager projectId={id} initial={communicationActuals} communicationItems={communicationItems} stakeholders={stakeholders} />
         <StakeholderInteractionManager projectId={id} initial={stakeholderInteractions} stakeholders={stakeholders} />
       </div>
     </ProjectShell>

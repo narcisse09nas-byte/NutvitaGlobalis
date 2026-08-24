@@ -2,25 +2,17 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
+import { buildResultChainTree, type ResultChainTreeNode } from "@/lib/ppm/result-chain";
 import type { ResultChainNode, ResultLevel } from "@/lib/ppm/types";
 
 const levelLabels: Record<ResultLevel, string> = { impact: "Impact", outcome: "Outcome", output: "Output" };
 const childLevel: Record<ResultLevel, ResultLevel | null> = { impact: "outcome", outcome: "output", output: null };
 
-type Tree = ResultChainNode & { children: Tree[] };
-
-function buildTree(nodes: ResultChainNode[]): Tree[] {
-  const byParent = new Map<string, ResultChainNode[]>();
-  for (const node of nodes) { const key = node.parent_id || "root"; if (!byParent.has(key)) byParent.set(key, []); byParent.get(key)!.push(node); }
-  function attach(key: string): Tree[] { return (byParent.get(key) || []).sort((a, b) => a.order_index - b.order_index).map(node => ({ ...node, children: attach(node.id) })); }
-  return attach("root");
-}
-
 export default function ResultChainManager({ projectId, initial }: { projectId: string; initial: ResultChainNode[] }) {
   const [nodes, setNodes] = useState(initial);
   const [adding, setAdding] = useState<{ parentId: string | null; level: ResultLevel } | null>(null);
   const [saving, setSaving] = useState(false);
-  const tree = useMemo(() => buildTree(nodes), [nodes]);
+  const tree = useMemo(() => buildResultChainTree(nodes), [nodes]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,10 +40,11 @@ export default function ResultChainManager({ projectId, initial }: { projectId: 
     setNodes(current => current.filter(node => node.id !== id && node.parent_id !== id));
   }
 
-  function renderNode(node: Tree, depth: number) {
+  function renderNode(node: ResultChainTreeNode, depth: number) {
     const next = childLevel[node.level];
     return <div key={node.id} className="grid gap-2" style={{ marginLeft: depth * 24 }}>
       <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-white p-3">
+        <span className="rounded-full bg-slate-100 px-2 py-1 font-mono text-xs font-bold text-slate-500">{node.code}</span>
         <span className="rounded-full bg-mint px-3 py-1 text-xs font-black text-forest">{levelLabels[node.level]}</span>
         <b className="text-forest">{node.title}</b>
         {node.description && <span className="text-xs text-slate-400">{node.description}</span>}

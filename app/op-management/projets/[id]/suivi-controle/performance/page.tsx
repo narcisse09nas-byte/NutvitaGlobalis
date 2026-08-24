@@ -9,6 +9,7 @@ import {
   listBudgetLines, listChangeRequests, listExpenses, listEvmSnapshots, listIssues, listPmbVersions,
   listRisks, listTimePhasedBudgets, listWbsNodes,
 } from "@/lib/ppm/queries";
+import { wbsLeafNodes } from "@/lib/ppm/wbs";
 
 export default async function SuiviControlePerformancePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,7 +26,7 @@ export default async function SuiviControlePerformancePage({ params }: { params:
     listRisks(supabase, id), listIssues(supabase, id), listEvmSnapshots(supabase, id),
     listChangeRequests(supabase, id), listPmbVersions(supabase, id), getApprovedPmbWorkPackageSnapshots(supabase, id),
   ]);
-  const workPackagesLevel4 = workPackages.filter(node => node.level === 4);
+  const workPackagesLevel4 = wbsLeafNodes(workPackages);
 
   return <PPMShell name={name} breadcrumbs={[{ href: "/op-management", label: "Vue d'ensemble" }, { href: "/op-management/projets", label: "Projets" }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/suivi-controle/performance`, label: "Suivi & controle" }]}>
     <ProjectShell project={project}>

@@ -10,11 +10,26 @@ const typeLabels: Record<ProjectType, string> = {
 const priorityLabels: Record<ProjectPriority, string> = { low: "Faible", medium: "Moyenne", high: "Elevee", critical: "Critique" };
 const splitList = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
 
+// Refinement program, Wave 2: duration is derived from the date range, never typed independently —
+// a manually-entered number next to two dates could silently drift from the actual span.
+function monthsBetween(start: string, end: string): number | null {
+  if (!start || !end) return null;
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (endDate < startDate) return null;
+  const months = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth());
+  const dayAdjustment = endDate.getDate() >= startDate.getDate() ? 0 : -1;
+  return Math.max(1, months + dayAdjustment + 1);
+}
+
 export default function ProjectIdentificationForm({ project, portfolios, programs }: { project: Project; portfolios: Portfolio[]; programs: Program[] }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [portfolioId, setPortfolioId] = useState(project.portfolio_id);
+  const [startDate, setStartDate] = useState(project.start_date || "");
+  const [endDate, setEndDate] = useState(project.end_date || "");
   const availablePrograms = programs.filter(item => item.portfolio_id === portfolioId);
+  const computedDuration = monthsBetween(startDate, endDate);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -40,7 +55,7 @@ export default function ProjectIdentificationForm({ project, portfolios, program
       responsible_unit: String(form.get("responsible_unit") || "").trim() || null,
       start_date: String(form.get("start_date") || "") || null,
       end_date: String(form.get("end_date") || "") || null,
-      duration_months: form.get("duration_months") ? Number(form.get("duration_months")) : null,
+      duration_months: monthsBetween(String(form.get("start_date") || ""), String(form.get("end_date") || "")),
       country: String(form.get("country") || "").trim() || null,
       regions: splitList(String(form.get("regions") || "")),
       sites: splitList(String(form.get("sites") || "")),
@@ -75,9 +90,9 @@ export default function ProjectIdentificationForm({ project, portfolios, program
       <label className="grid gap-2 text-sm font-bold">Sponsor<input name="sponsor_name" defaultValue={project.sponsor_name || ""} className="admin-input" /></label>
       <label className="grid gap-2 text-sm font-bold">Email sponsor<input name="sponsor_email" type="email" defaultValue={project.sponsor_email || ""} className="admin-input" /></label>
       <label className="grid gap-2 text-sm font-bold">Unite responsable<input name="responsible_unit" defaultValue={project.responsible_unit || ""} className="admin-input" /></label>
-      <label className="grid gap-2 text-sm font-bold">Duree (mois)<input name="duration_months" type="number" min="0" defaultValue={project.duration_months ?? ""} className="admin-input" /></label>
-      <label className="grid gap-2 text-sm font-bold">Date de debut<input name="start_date" type="date" defaultValue={project.start_date || ""} className="admin-input" /></label>
-      <label className="grid gap-2 text-sm font-bold">Date de fin<input name="end_date" type="date" defaultValue={project.end_date || ""} className="admin-input" /></label>
+      <label className="grid gap-2 text-sm font-bold">Duree (mois) — calculee automatiquement<input disabled value={computedDuration ?? "—"} className="admin-input" /></label>
+      <label className="grid gap-2 text-sm font-bold">Date de debut<input name="start_date" type="date" value={startDate} onChange={event => setStartDate(event.target.value)} className="admin-input" /></label>
+      <label className="grid gap-2 text-sm font-bold">Date de fin<input name="end_date" type="date" value={endDate} onChange={event => setEndDate(event.target.value)} className="admin-input" /></label>
       <label className="grid gap-2 text-sm font-bold">Pays<input name="country" defaultValue={project.country || ""} className="admin-input" /></label>
       <label className="grid gap-2 text-sm font-bold">Regions (separees par des virgules)<input name="regions" defaultValue={(project.regions || []).join(", ")} className="admin-input" /></label>
       <label className="grid gap-2 text-sm font-bold sm:col-span-2">Zones / sites (separes par des virgules)<input name="sites" defaultValue={(project.sites || []).join(", ")} className="admin-input" /></label>

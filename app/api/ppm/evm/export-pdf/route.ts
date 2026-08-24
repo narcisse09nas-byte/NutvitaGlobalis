@@ -6,6 +6,7 @@ import {
   getApprovedPmbWorkPackageSnapshots, getEvmSettings, getProject, listActivities,
   listAchievements, listBudgetLines, listExpenses, listTimePhasedBudgets, listWbsNodes,
 } from "@/lib/ppm/queries";
+import { wbsLeafNodes } from "@/lib/ppm/wbs";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     listExpenses(supabase, projectId), listBudgetLines(supabase, projectId), listTimePhasedBudgets(supabase, projectId),
     getApprovedPmbWorkPackageSnapshots(supabase, projectId),
   ]);
-  const workPackagesLevel4 = workPackages.filter(node => node.level === 4);
+  const workPackagesLevel4 = wbsLeafNodes(workPackages);
   const statusDate = settings.status_date;
 
   const wpMetrics = workPackagesLevel4.map(wp => {

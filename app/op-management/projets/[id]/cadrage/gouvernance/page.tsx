@@ -5,7 +5,8 @@ import CadrageTabs from "@/components/op-management/CadrageTabs";
 import GovernanceManager from "@/components/op-management/GovernanceManager";
 import RaciMatrix from "@/components/op-management/RaciMatrix";
 import { createClient } from "@/lib/supabase/server";
-import { getProject, listGovernanceRoles, listRaciEntries } from "@/lib/ppm/queries";
+import { getProject, listActivities, listGovernanceRoles, listRaciEntries, listWbsNodes } from "@/lib/ppm/queries";
+import { wbsLeafNodes } from "@/lib/ppm/wbs";
 
 export default async function CadrageGovernancePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,14 +16,17 @@ export default async function CadrageGovernancePage({ params }: { params: Promis
   const name = user.user_metadata?.full_name || user.email || "Utilisateur";
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [roles, raci] = await Promise.all([listGovernanceRoles(supabase, id), listRaciEntries(supabase, id)]);
+  const [roles, raci, wbsNodes, activities] = await Promise.all([
+    listGovernanceRoles(supabase, id), listRaciEntries(supabase, id), listWbsNodes(supabase, id), listActivities(supabase, id),
+  ]);
+  const workPackages = wbsLeafNodes(wbsNodes);
 
   return <PPMShell name={name} breadcrumbs={[{ href: "/op-management", label: "Vue d'ensemble" }, { href: "/op-management/projets", label: "Projets" }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/cadrage/gouvernance`, label: "Cadrage" }]}>
     <ProjectShell project={project}>
       <div className="grid gap-8">
         <CadrageTabs projectId={id} />
         <GovernanceManager projectId={id} initial={roles} />
-        <RaciMatrix projectId={id} roles={roles} initial={raci} />
+        <RaciMatrix projectId={id} roles={roles} initial={raci} workPackages={workPackages} activities={activities} />
       </div>
     </ProjectShell>
   </PPMShell>;

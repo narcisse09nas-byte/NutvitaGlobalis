@@ -2,11 +2,17 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { Deliverable, Evaluation, LessonLearned, ProcurementItem, Project, ProjectClosure } from "@/lib/ppm/types";
+import HandoverRegister from "@/components/op-management/HandoverRegister";
+import ArchiveRegister from "@/components/op-management/ArchiveRegister";
+import type { ArchiveItem, Deliverable, Evaluation, HandoverItem, LessonLearned, PPMDocument, ProcurementItem, Project, ProjectClosure } from "@/lib/ppm/types";
 
-export default function ProjectClosureWorkspace({ projectId, project, initial, deliverables, activitiesTotal, activitiesCompleted, procurementItems, budgetBalance, evaluations, lessonsLearnedCount }: {
+export default function ProjectClosureWorkspace({
+  projectId, project, initial, deliverables, activitiesTotal, activitiesCompleted, procurementItems, budgetBalance,
+  evaluations, lessonsLearnedCount, initialHandoverItems, initialArchiveItems, documents,
+}: {
   projectId: string; project: Project; initial: ProjectClosure | null; deliverables: Deliverable[]; activitiesTotal: number;
   activitiesCompleted: number; procurementItems: ProcurementItem[]; budgetBalance: number; evaluations: Evaluation[]; lessonsLearnedCount: number;
+  initialHandoverItems: HandoverItem[]; initialArchiveItems: ArchiveItem[]; documents: PPMDocument[];
 }) {
   const [closure, setClosure] = useState(initial);
   const [saving, setSaving] = useState(false);
@@ -31,11 +37,9 @@ export default function ProjectClosureWorkspace({ projectId, project, initial, d
       financial_closed: form.get("financial_closed") === "on",
       financial_closure_note: String(form.get("financial_closure_note") || "").trim() || null,
       final_evaluation_id: String(form.get("final_evaluation_id") || "") || null,
-      handover_to_name: String(form.get("handover_to_name") || "").trim() || null,
-      handover_to_organization: String(form.get("handover_to_organization") || "").trim() || null,
-      handover_date: String(form.get("handover_date") || "") || null,
-      handover_notes: String(form.get("handover_notes") || "").trim() || null,
-      archive_reference: String(form.get("archive_reference") || "").trim() || null,
+      // Refinement program, Wave 8 (items 48-49): handover_to_*/archive_reference on this single
+      // closure record are superseded by the HandoverRegister/ArchiveRegister components below —
+      // no longer collected here, so they must not be overwritten with null on every save.
       status: (closure?.status === "completed" ? "completed" : "in_progress") as ProjectClosure["status"],
     };
     const supabase = createClient();
@@ -102,21 +106,6 @@ export default function ProjectClosureWorkspace({ projectId, project, initial, d
         <p className="mt-3 text-sm text-slate-500">{lessonsLearnedCount} lecon(s) apprise(s) enregistree(s). <Link href={`/op-management/projets/${projectId}/suivi-controle/meal`} className="font-bold text-leaf">Ouvrir MEAL →</Link></p>
       </section>
 
-      <section className="rounded-2xl border bg-white p-6">
-        <h2 className="text-lg font-black text-forest">5. Transfert (handover)</h2>
-        <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-2 text-sm font-bold">Transfere a<input name="handover_to_name" defaultValue={closure?.handover_to_name || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Organisation<input name="handover_to_organization" defaultValue={closure?.handover_to_organization || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Date de transfert<input name="handover_date" type="date" defaultValue={closure?.handover_date || ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold sm:col-span-2">Notes de transfert<textarea name="handover_notes" rows={2} defaultValue={closure?.handover_notes || ""} className="admin-input" /></label>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border bg-white p-6">
-        <h2 className="text-lg font-black text-forest">6. Archivage</h2>
-        <label className="grid gap-2 text-sm font-bold">Reference d&apos;archivage<input name="archive_reference" defaultValue={closure?.archive_reference || ""} className="admin-input" /></label>
-      </section>
-
       {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">{message}</p>}
       <div className="flex flex-wrap gap-3">
         <button disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Enregistrer la checklist"}</button>
@@ -126,5 +115,8 @@ export default function ProjectClosureWorkspace({ projectId, project, initial, d
       </div>
       {!readyToClose && closure?.status !== "completed" && <p className="text-xs text-slate-400">Les 3 premieres cases doivent etre cochees et enregistrees avant de pouvoir cloturer le projet.</p>}
     </form>
+
+    <section className="rounded-2xl border bg-white p-6"><HandoverRegister projectId={projectId} initial={initialHandoverItems} /></section>
+    <section className="rounded-2xl border bg-white p-6"><ArchiveRegister projectId={projectId} initial={initialArchiveItems} deliverables={deliverables} documents={documents} /></section>
   </div>;
 }

@@ -1,17 +1,24 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import type {
-  Activity, BudgetLine, Expense, ExpenseCategory, ExpenseEvidence, ExpenseEvidenceCategory,
+  Activity, BudgetCategory, BudgetLine, Expense, ExpenseCategory, ExpenseEvidence, ExpenseEvidenceCategory,
   ExpenseStatus, PaymentMethod, ProcurementItem, WBSNode,
 } from "@/lib/ppm/types";
+import { wbsLeafNodes } from "@/lib/ppm/wbs";
+import { buildBudgetCategoryTree, flattenBudgetCategoryTree } from "@/lib/ppm/budget-categories";
+import { checkIsSuperAdmin, isFinalStatus } from "@/lib/ppm/lock";
 
 const categoryLabels: Record<ExpenseCategory, string> = {
   personnel: "Personnel", consultants: "Consultants", travel: "Voyage", transport: "Transport",
   accommodation: "Hebergement", training: "Formation", workshop: "Atelier", supplies: "Fournitures",
   equipment: "Equipement", communication: "Communication", services: "Services", other: "Autres",
 };
+// Refinement program, Wave 4 (item 30): only these categories normally go through a procurement/
+// PO process in NGO practice — Personnel/Travel/Transport/Accommodation/Communication/Training
+// never do (confirmed with the user), so a PO is required only here.
+const PO_REQUIRED_CATEGORIES: ExpenseCategory[] = ["consultants", "workshop", "supplies", "equipment", "services"];
 const paymentMethodLabels: Record<PaymentMethod, string> = {
   cash: "Especes", bank_transfer: "Virement", check: "Cheque", mobile_money: "Mobile money", card: "Carte", other: "Autre",
 };
@@ -30,11 +37,12 @@ const evidenceCategoryLabels: Record<ExpenseEvidenceCategory, string> = {
   liquidation: "Liquidation", other: "Autre",
 };
 
-export default function ExpenseManager({ projectId, initial, budgetLines, wbsNodes, activities, procurementItems }: {
-  projectId: string; initial: Expense[]; budgetLines: BudgetLine[]; wbsNodes: WBSNode[]; activities: Activity[]; procurementItems: ProcurementItem[];
+export default function ExpenseManager({ projectId, initial, budgetLines, wbsNodes, activities, procurementItems, budgetCategories }: {
+  projectId: string; initial: Expense[]; budgetLines: BudgetLine[]; wbsNodes: WBSNode[]; activities: Activity[]; procurementItems: ProcurementItem[]; budgetCategories: BudgetCategory[];
 }) {
   const [rows, setRows] = useState(initial);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [scope, setScope] = useState<"mine" | "all" | "to_verify" | "to_approve">("all");
   const [editing, setEditing] = useState<Expense | "new" | null>(null);
   const [deciding, setDeciding] = useState<{ row: Expense; nextStatus: ExpenseStatus } | null>(null);
@@ -42,7 +50,22 @@ export default function ExpenseManager({ projectId, initial, budgetLines, wbsNod
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => { createClient().auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id || null)); }, []);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id || null));
+    checkIsSuperAdmin(supabase).then(setIsSuperAdmin);
+  }, []);
+
+  const categoryOptions = useMemo(() => flattenBudgetCategoryTree(buildBudgetCategoryTree(budgetCategories)), [budgetCategories]);
+  const categoryById = useMemo(() => new Map(categoryOptions.map(item => [item.id, item])), [categoryOptions]);
+  const budgetLineLabelWithCode = (line: BudgetLine) => {
+    if (!line.budget_category_id) return line.description;
+    const category = categoryById.get(line.budget_category_id);
+    if (!category) return line.description;
+    const siblings = [...budgetLines].filter(item => item.budget_category_id === line.budget_category_id).sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const index = siblings.findIndex(item => item.id === line.id);
+    return `${category.code}.${index + 1} — ${line.description}`;
+  };
 
   const filtered = rows.filter(row => {
     if (scope === "mine") return row.created_by === currentUserId;
@@ -95,6 +118,7 @@ export default function ExpenseManager({ projectId, initial, budgetLines, wbsNod
     {editing && <ExpenseFormModal
       projectId={projectId} editing={editing} budgetLines={budgetLines} wbsNodes={wbsNodes} activities={activities}
       procurementItems={procurementItems} allExpenses={rows} evidence={evidence} setEvidence={setEvidence}
+      budgetLineLabelWithCode={budgetLineLabelWithCode} isSuperAdmin={isSuperAdmin}
       onClose={() => setEditing(null)}
       onSaved={row => { setRows(current => current.some(item => item.id === row.id) ? current.map(item => item.id === row.id ? row : item) : [row, ...current]); setEditing(row); }}
       onDecide={(row, nextStatus) => setDeciding({ row, nextStatus })}
@@ -135,6 +159,19 @@ export default function ExpenseManager({ projectId, initial, budgetLines, wbsNod
               await supabase.from("ppm_procurement_items").update({ payment_status: paymentStatus }).eq("id", updated.procurement_item_id);
             }
           }
+          // Admin override (item 33): reopening an already-posted expense for correction reverses
+          // the rollups it previously contributed, so Budget/Activity/Procurement totals stay correct.
+          if (deciding.row.status === "posted" && deciding.nextStatus !== "posted") {
+            const amount = Number(updated.converted_amount ?? updated.amount_incl_tax);
+            if (updated.budget_line_id) {
+              const line = budgetLines.find(item => item.id === updated.budget_line_id);
+              await supabase.from("ppm_budget_lines").update({ spent_amount: Math.max(0, Number(line?.spent_amount || 0) - amount) }).eq("id", updated.budget_line_id);
+            }
+            if (updated.activity_id) {
+              const activity = activities.find(item => item.id === updated.activity_id);
+              await supabase.from("ppm_activities").update({ actual_expense: Math.max(0, Number(activity?.actual_expense || 0) - amount) }).eq("id", updated.activity_id);
+            }
+          }
           const { data: { user } } = await supabase.auth.getUser();
           await supabase.from("ppm_history").insert({ entity_type: "project", entity_id: projectId, actor_id: user?.id, action: `Depense ${statusLabels[updated.status].toLowerCase()} — ${updated.description}`, from_status: deciding.row.status, to_status: updated.status, note: fields.note || undefined });
           setRows(current => current.map(item => item.id === updated.id ? updated : item));
@@ -163,17 +200,30 @@ function DecisionForm({ deciding, onCancel, onConfirm, saving, message }: {
   </form>;
 }
 
-function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activities, procurementItems, allExpenses, evidence, setEvidence, onClose, onSaved, onDecide }: {
+function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activities, procurementItems, allExpenses, evidence, setEvidence, budgetLineLabelWithCode, isSuperAdmin, onClose, onSaved, onDecide }: {
   projectId: string; editing: Expense | "new"; budgetLines: BudgetLine[]; wbsNodes: WBSNode[]; activities: Activity[]; procurementItems: ProcurementItem[];
   allExpenses: Expense[]; evidence: ExpenseEvidence[]; setEvidence: (rows: ExpenseEvidence[]) => void;
+  budgetLineLabelWithCode: (line: BudgetLine) => string; isSuperAdmin: boolean;
   onClose: () => void; onSaved: (row: Expense) => void; onDecide: (row: Expense, nextStatus: ExpenseStatus) => void;
 }) {
   const isNew = editing === "new";
   const formRef = useRef<HTMLFormElement>(null);
   const [budgetLineId, setBudgetLineId] = useState(isNew ? "" : editing.budget_line_id || "");
+  const [category, setCategory] = useState<ExpenseCategory | "">(isNew ? "" : editing.category || "");
+  const [procurementItemId, setProcurementItemId] = useState(isNew ? "" : editing.procurement_item_id || "");
+  const [amountExclTax, setAmountExclTax] = useState(isNew ? "" : String(editing.amount_excl_tax ?? ""));
+  const [taxAmount, setTaxAmount] = useState(isNew ? "" : String(editing.tax_amount ?? ""));
+  const [manualTtc, setManualTtc] = useState(false);
   const [amountInclTax, setAmountInclTax] = useState(isNew ? "" : String(editing.amount_incl_tax ?? ""));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Refinement program, Wave 4 (item 31): TTC = HT + Taxes, computed live — still overridable via
+  // "Saisir manuellement" for edge-case rounding, matching the plan's explicit allowance for that.
+  const computedTtc = Number(amountExclTax || 0) + Number(taxAmount || 0);
+  useEffect(() => { if (!manualTtc) setAmountInclTax(String(computedTtc)); }, [computedTtc, manualTtc]);
+  const poRequired = category !== "" && PO_REQUIRED_CATEGORIES.includes(category as ExpenseCategory);
+  const availablePoItems = procurementItems.filter(item => !!item.po_reference);
 
   const budgetLine = budgetLines.find(item => item.id === budgetLineId);
   const budgetCheck = useMemo(() => {
@@ -208,6 +258,16 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
     if (!error) window.open(data.signedUrl, "_blank");
   }
 
+  // Refinement program, Wave 4 (item 32): evidence can be replaced/deleted before submission —
+  // restricted to draft so a submitted/reviewed expense's audit trail stays intact.
+  async function deleteEvidence(item: ExpenseEvidence) {
+    if (!confirm("Supprimer cette piece justificative ?")) return;
+    const supabase = createClient();
+    if (item.file_path) await supabase.storage.from("document-vault").remove([item.file_path]);
+    const result = await supabase.from("ppm_expense_evidence").delete().eq("id", item.id);
+    if (!result.error) setEvidence(evidence.filter(row => row.id !== item.id));
+  }
+
   async function submit(nextStatus: ExpenseStatus) {
     if (!formRef.current) return;
     setSaving(true);
@@ -216,27 +276,29 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
     if (budgetCheck && budgetCheck.availableAfter < 0 && !String(form.get("over_budget_justification") || "").trim() && nextStatus !== "draft") {
       setSaving(false); setMessage("Cette depense depasse le disponible budgetaire : une justification est obligatoire."); return;
     }
-    const amountExclTax = Number(form.get("amount_excl_tax") || 0);
-    const taxAmount = Number(form.get("tax_amount") || 0);
+    if (poRequired && !procurementItemId && nextStatus !== "draft") {
+      setSaving(false); setMessage("Un PO (bon de commande) existant est obligatoire pour cette categorie de depense."); return;
+    }
+    const selectedPoItem = procurementItems.find(item => item.id === procurementItemId);
     const exchangeRate = Number(form.get("exchange_rate") || 1);
     const payload = {
       project_id: projectId,
       work_package_id: String(form.get("work_package_id") || "") || null,
       activity_id: String(form.get("activity_id") || "") || null,
       budget_line_id: budgetLineId || null,
-      procurement_item_id: String(form.get("procurement_item_id") || "") || null,
+      procurement_item_id: procurementItemId || null,
       donor_name: String(form.get("donor_name") || "").trim() || null,
       grant_reference: String(form.get("grant_reference") || "").trim() || null,
       cost_center: String(form.get("cost_center") || "").trim() || null,
       expense_date: String(form.get("expense_date") || "") || null,
-      category: String(form.get("category") || "") as ExpenseCategory || null,
+      category: category || null,
       sub_category: String(form.get("sub_category") || "").trim() || null,
       description: String(form.get("description") || "").trim(),
       justification: String(form.get("justification") || "").trim() || null,
       payee_name: String(form.get("payee_name") || "").trim() || null,
       location: String(form.get("location") || "").trim() || null,
-      amount_excl_tax: amountExclTax,
-      tax_amount: taxAmount,
+      amount_excl_tax: Number(amountExclTax || 0),
+      tax_amount: Number(taxAmount || 0),
       amount_incl_tax: Number(amountInclTax || 0),
       transaction_currency: String(form.get("transaction_currency") || "XAF"),
       project_currency: String(form.get("project_currency") || "XAF"),
@@ -247,7 +309,7 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
       transaction_reference: String(form.get("transaction_reference") || "").trim() || null,
       invoice_number: String(form.get("invoice_number") || "").trim() || null,
       invoice_date: String(form.get("invoice_date") || "") || null,
-      po_reference: String(form.get("po_reference") || "").trim() || null,
+      po_reference: selectedPoItem?.po_reference || null,
       contract_reference: String(form.get("contract_reference") || "").trim() || null,
       supplier_name: String(form.get("supplier_name") || "").trim() || null,
       over_budget_justification: String(form.get("over_budget_justification") || "").trim() || null,
@@ -270,17 +332,37 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
       <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{isNew ? "Nouvelle depense" : "Depense"}</h2><button type="button" onClick={onClose} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">Referencement</h3>
-        <label className="grid gap-2 text-sm font-bold">Work Package<select name="work_package_id" defaultValue={isNew ? "" : editing.work_package_id || ""} className="admin-input"><option value="">Aucun</option>{wbsNodes.filter(node => node.level === 4).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">Work Package<select name="work_package_id" defaultValue={isNew ? "" : editing.work_package_id || ""} className="admin-input"><option value="">Aucun</option>{wbsLeafNodes(wbsNodes).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
         <label className="grid gap-2 text-sm font-bold">Activite<select name="activity_id" defaultValue={isNew ? "" : editing.activity_id || ""} className="admin-input"><option value="">Aucune</option>{activities.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-        <label className="grid gap-2 text-sm font-bold">Ligne budgetaire<select value={budgetLineId} onChange={event => setBudgetLineId(event.target.value)} className="admin-input"><option value="">Aucune</option>{budgetLines.map(item => <option key={item.id} value={item.id}>{item.description}</option>)}</select></label>
-        <label className="grid gap-2 text-sm font-bold">Achat lie (procurement)<select name="procurement_item_id" defaultValue={isNew ? "" : editing.procurement_item_id || ""} className="admin-input"><option value="">Aucun</option>{procurementItems.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">Ligne budgetaire<select value={budgetLineId} onChange={event => setBudgetLineId(event.target.value)} className="admin-input"><option value="">Aucune</option>{budgetLines.map(item => <option key={item.id} value={item.id}>{budgetLineLabelWithCode(item)}</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">
+          PO (bon de commande){poRequired && " *"}
+          <select
+            value={procurementItemId}
+            onChange={event => {
+              const nextId = event.target.value;
+              setProcurementItemId(nextId);
+              const item = procurementItems.find(row => row.id === nextId);
+              if (item && formRef.current) {
+                const supplierInput = formRef.current.elements.namedItem("supplier_name") as HTMLInputElement | null;
+                if (supplierInput && !supplierInput.value) supplierInput.value = item.supplier_name || "";
+              }
+            }}
+            required={poRequired}
+            className="admin-input"
+          >
+            <option value="">{availablePoItems.length ? "Aucun" : "Aucun PO disponible pour ce projet"}</option>
+            {availablePoItems.map(item => <option key={item.id} value={item.id}>{item.po_reference} — {item.title}</option>)}
+          </select>
+          {poRequired && !procurementItemId && <span className="mt-1 block text-xs font-bold text-orange">Cette categorie de depense exige un PO existant.</span>}
+        </label>
         <label className="grid gap-2 text-sm font-bold">Bailleur<input name="donor_name" defaultValue={isNew ? "" : editing.donor_name || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Grant<input name="grant_reference" defaultValue={isNew ? "" : editing.grant_reference || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Centre de cout<input name="cost_center" defaultValue={isNew ? "" : editing.cost_center || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Date de depense<input name="expense_date" type="date" defaultValue={isNew ? "" : editing.expense_date || ""} className="admin-input" /></label>
 
         <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">Nature de la depense</h3>
-        <label className="grid gap-2 text-sm font-bold">Categorie<select name="category" defaultValue={isNew ? "" : editing.category || ""} className="admin-input"><option value="">—</option>{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">Categorie<select value={category} onChange={event => setCategory(event.target.value as ExpenseCategory)} className="admin-input"><option value="">—</option>{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label className="grid gap-2 text-sm font-bold">Sous-categorie<input name="sub_category" defaultValue={isNew ? "" : editing.sub_category || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Description<input name="description" defaultValue={isNew ? "" : editing.description} required className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Justification<textarea name="justification" rows={2} defaultValue={isNew ? "" : editing.justification || ""} className="admin-input" /></label>
@@ -288,9 +370,13 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
         <label className="grid gap-2 text-sm font-bold">Lieu<input name="location" defaultValue={isNew ? "" : editing.location || ""} className="admin-input" /></label>
 
         <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">Informations financieres</h3>
-        <label className="grid gap-2 text-sm font-bold">Montant HT<input name="amount_excl_tax" type="number" step="0.01" defaultValue={isNew ? "" : editing.amount_excl_tax ?? ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Taxes<input name="tax_amount" type="number" step="0.01" defaultValue={isNew ? "" : editing.tax_amount ?? ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Montant TTC<input type="number" step="0.01" value={amountInclTax} onChange={event => setAmountInclTax(event.target.value)} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">Montant HT<input type="number" step="0.01" value={amountExclTax} onChange={event => setAmountExclTax(event.target.value)} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">Taxes<input type="number" step="0.01" value={taxAmount} onChange={event => setTaxAmount(event.target.value)} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">
+          Montant TTC {!manualTtc && <span className="font-normal text-slate-400">(calcule automatiquement)</span>}
+          <input type="number" step="0.01" value={amountInclTax} disabled={!manualTtc} onChange={event => setAmountInclTax(event.target.value)} className="admin-input disabled:bg-slate-50" />
+          <label className="flex items-center gap-2 text-xs font-normal text-slate-500"><input type="checkbox" checked={manualTtc} onChange={event => setManualTtc(event.target.checked)} className="h-3.5 w-3.5" />Saisir manuellement (arrondi, etc.)</label>
+        </label>
         <label className="grid gap-2 text-sm font-bold">Devise transaction<input name="transaction_currency" defaultValue={isNew ? "XAF" : editing.transaction_currency || "XAF"} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Devise projet<input name="project_currency" defaultValue={isNew ? "XAF" : editing.project_currency || "XAF"} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Taux de change<input name="exchange_rate" type="number" step="0.0001" defaultValue={isNew ? 1 : editing.exchange_rate ?? 1} className="admin-input" /></label>
@@ -299,7 +385,6 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
         <label className="grid gap-2 text-sm font-bold">Reference transaction<input name="transaction_reference" defaultValue={isNew ? "" : editing.transaction_reference || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Numero facture<input name="invoice_number" defaultValue={isNew ? "" : editing.invoice_number || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Date facture<input name="invoice_date" type="date" defaultValue={isNew ? "" : editing.invoice_date || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">PO<input name="po_reference" defaultValue={isNew ? "" : editing.po_reference || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Contrat<input name="contract_reference" defaultValue={isNew ? "" : editing.contract_reference || ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">Fournisseur<input name="supplier_name" defaultValue={isNew ? "" : editing.supplier_name || ""} className="admin-input" /></label>
 
@@ -321,8 +406,14 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
 
         <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">Pieces justificatives</h3>
         {!isNew ? <div className="sm:col-span-2 grid gap-2">
-          <label className="btn-secondary w-fit cursor-pointer px-4 py-2 text-sm">Ajouter une piece<input type="file" onChange={uploadEvidence} className="hidden" /></label>
-          {evidence.map(item => <div key={item.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2 text-sm"><span>{evidenceCategoryLabels[item.category]} — {item.title}</span>{item.file_path && <button type="button" onClick={() => viewEvidence(item.file_path)} className="text-xs font-bold text-leaf">Voir</button>}</div>)}
+          {editing.status === "draft" && <label className="btn-secondary w-fit cursor-pointer px-4 py-2 text-sm">Ajouter une piece<input type="file" onChange={uploadEvidence} className="hidden" /></label>}
+          {evidence.map(item => <div key={item.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-2 text-sm">
+            <span>{evidenceCategoryLabels[item.category]} — {item.title}</span>
+            <div className="flex items-center gap-3">
+              {item.file_path && <button type="button" onClick={() => viewEvidence(item.file_path)} className="text-xs font-bold text-leaf">Voir</button>}
+              {editing.status === "draft" && <button type="button" onClick={() => deleteEvidence(item)} aria-label="Supprimer"><TrashIcon className="h-4 text-red-600" /></button>}
+            </div>
+          </div>)}
         </div> : <p className="text-sm text-slate-400 sm:col-span-2">Enregistrez d&apos;abord un brouillon pour pouvoir ajouter des pieces.</p>}
 
         {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
@@ -337,6 +428,7 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
             <button type="button" onClick={() => onDecide(editing, "returned")} className="btn-secondary px-4 py-2 text-sm">Retourner</button>
             <button type="button" onClick={() => onDecide(editing, "rejected")} className="btn-secondary px-4 py-2 text-sm">Rejeter</button>
           </>}
+          {!isNew && isFinalStatus("expense", editing.status) && isSuperAdmin && <button type="button" onClick={() => onDecide(editing, "returned")} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-bold text-red-600">Retourner pour correction (admin)</button>}
         </div>
       </div>
     </form>

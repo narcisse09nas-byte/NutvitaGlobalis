@@ -4,8 +4,8 @@ import ProjectShell from "@/components/op-management/ProjectShell";
 import ProjectClosureWorkspace from "@/components/op-management/ProjectClosureWorkspace";
 import { createClient } from "@/lib/supabase/server";
 import {
-  getProject, getProjectClosure, listActivities, listBudgetLines, listDeliverables,
-  listEvaluations, listLessonsLearned, listProcurementItems,
+  getProject, getProjectClosure, listActivities, listArchiveItems, listBudgetLines, listDeliverables,
+  listDocuments, listEvaluations, listHandoverItems, listLessonsLearned, listProcurementItems,
 } from "@/lib/ppm/queries";
 
 export default async function ProjectClosurePage({ params }: { params: Promise<{ id: string }> }) {
@@ -16,9 +16,10 @@ export default async function ProjectClosurePage({ params }: { params: Promise<{
   const name = user.user_metadata?.full_name || user.email || "Utilisateur";
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [closure, deliverables, activities, procurementItems, budgetLines, evaluations, lessonsLearned] = await Promise.all([
+  const [closure, deliverables, activities, procurementItems, budgetLines, evaluations, lessonsLearned, handoverItems, archiveItems, documents] = await Promise.all([
     getProjectClosure(supabase, id), listDeliverables(supabase, id), listActivities(supabase, id),
     listProcurementItems(supabase, id), listBudgetLines(supabase, id), listEvaluations(supabase, id), listLessonsLearned(supabase, id),
+    listHandoverItems(supabase, id), listArchiveItems(supabase, id), listDocuments(supabase, id),
   ]);
   const budgetBalance = budgetLines.reduce((sum, row) => sum + Number(row.revised_budget ?? row.initial_budget ?? 0) - Number(row.spent_amount || 0), 0);
 
@@ -28,6 +29,7 @@ export default async function ProjectClosurePage({ params }: { params: Promise<{
         projectId={id} project={project} initial={closure} deliverables={deliverables}
         activitiesTotal={activities.length} activitiesCompleted={activities.filter(activity => activity.status === "completed").length}
         procurementItems={procurementItems} budgetBalance={budgetBalance} evaluations={evaluations} lessonsLearnedCount={lessonsLearned.length}
+        initialHandoverItems={handoverItems} initialArchiveItems={archiveItems} documents={documents}
       />
     </ProjectShell>
   </PPMShell>;

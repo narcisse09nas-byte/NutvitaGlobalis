@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from "react";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
+import { generateRegistryCode, getOrgCodeForProject, withUniqueRegistryCode } from "@/lib/ppm/ids";
 import type { ActionPriority, ActionSourceType, ActionStatus, PPMAction } from "@/lib/ppm/types";
 
 const sourceLabels: Record<ActionSourceType, string> = {
@@ -46,9 +47,18 @@ export default function ActionTracker({ projectId, initial }: { projectId: strin
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     const isNew = editing === "new";
-    const result = isNew
-      ? await supabase.from("ppm_actions").insert({ ...payload, status: "open", created_by: user?.id }).select("*").single()
-      : await supabase.from("ppm_actions").update(payload).eq("id", (editing as PPMAction).id).select("*").single();
+    // Refinement program, Wave 8 (item 45): every action in the central register gets an
+    // auto-generated unique registry code, same convention as every other registry this program adds.
+    let result;
+    if (isNew) {
+      const orgCode = await getOrgCodeForProject(supabase, projectId);
+      result = await withUniqueRegistryCode<PPMAction>(
+        async code => await supabase.from("ppm_actions").insert({ ...payload, code, status: "open", created_by: user?.id }).select("*").single(),
+        () => generateRegistryCode(orgCode, "action"),
+      );
+    } else {
+      result = await supabase.from("ppm_actions").update(payload).eq("id", (editing as PPMAction).id).select("*").single();
+    }
     setSaving(false);
     if (result.error) { setMessage(result.error.message); return; }
     setRows(current => isNew ? [result.data as PPMAction, ...current] : current.map(row => row.id === result.data.id ? result.data as PPMAction : row));
@@ -76,7 +86,7 @@ export default function ActionTracker({ projectId, initial }: { projectId: strin
     <div className="grid gap-3">
       {filtered.map(row => <article key={row.id} className="rounded-2xl border bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><b className="text-forest">{row.description}</b><p className="mt-1 text-xs text-slate-400">{sourceLabels[row.source_type]}{row.source_label ? ` — ${row.source_label}` : ""} · {priorityLabels[row.priority]}{row.responsible_name ? ` · ${row.responsible_name}` : ""}{isOverdue(row) && <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-black text-red-700">EN RETARD</span>}</p></div>
+          <div>{row.code && <span className="mr-2 rounded-full bg-slate-100 px-2 py-1 font-mono text-xs font-bold text-slate-500">{row.code}</span>}<b className="text-forest">{row.description}</b><p className="mt-1 text-xs text-slate-400">{sourceLabels[row.source_type]}{row.source_label ? ` — ${row.source_label}` : ""} · {priorityLabels[row.priority]}{row.responsible_name ? ` · ${row.responsible_name}` : ""}{isOverdue(row) && <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-black text-red-700">EN RETARD</span>}</p></div>
           <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusTones[row.status]}`}>{statusLabels[row.status]}</span>
         </div>
         {row.due_date && <p className="mt-2 text-xs text-slate-500">Echeance : {new Date(row.due_date).toLocaleDateString("fr-FR")}</p>}

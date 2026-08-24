@@ -396,6 +396,7 @@ export type BudgetLine = {
   activity_id?: string | null;
   cost_category?: string;
   sub_category?: string;
+  budget_category_id?: string | null;
   donor_name?: string;
   grant_reference?: string;
   description: string;
@@ -429,8 +430,14 @@ export type PPMResource = {
   cost_rate?: number;
   cost_unit?: ResourceCostUnit;
   currency?: string;
+  condition_notes?: string;
   status: PPMStatus;
   notes?: string;
+  // Refinement program, Wave 9: per-module workflow permissions + auto-provisioned access account.
+  permissions?: Record<string, { submit?: boolean; verify?: boolean; approve?: boolean }>;
+  user_id?: string | null;
+  account_email?: string | null;
+  must_change_password?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -470,6 +477,7 @@ export type ProcurementItem = {
   currency?: string;
   stage: ProcurementStage;
   requested_by_name?: string;
+  requested_by_email?: string;
   supplier_name?: string;
   contract_reference?: string;
   po_reference?: string;
@@ -522,6 +530,21 @@ export type QualityEvidence = {
   created_at: string;
 };
 
+// Refinement program, Wave 6: Quality control ACTUALS are their own rows — one per time a
+// planned control (QualityRequirement, now purely the plan) is actually performed.
+export type QualityControlActual = {
+  id: string;
+  project_id: string;
+  quality_requirement_id: string;
+  control_date?: string;
+  result: QualityResult;
+  checklist: QualityChecklistItem[];
+  score?: number;
+  notes?: string;
+  created_by?: string | null;
+  created_at: string;
+};
+
 export type NcrStatus = "open" | "root_cause_identified" | "capa_planned" | "capa_implemented" | "effectiveness_reviewed" | "closed";
 
 export type NonConformityReport = {
@@ -566,6 +589,22 @@ export type Risk = {
   status: RiskStatus;
   created_at: string;
   updated_at: string;
+};
+
+// Refinement program, Wave 6: periodic Risk reviews (item 35) — full history of re-assessments
+// instead of only the risk's current probability/impact/status snapshot.
+export type RiskReview = {
+  id: string;
+  project_id: string;
+  risk_id: string;
+  review_date: string;
+  reviewer_name?: string;
+  probability: number;
+  impact: number;
+  status_after: RiskStatus;
+  notes?: string;
+  created_by?: string | null;
+  created_at: string;
 };
 
 export type IssueStatus = "open" | "in_progress" | "resolved" | "closed";
@@ -697,6 +736,21 @@ export type FeedbackEntry = {
   updated_at: string;
 };
 
+// Refinement program, Wave 7 (item 42): closed feedback gets its own follow-up review register
+// with history, instead of only a single status field.
+export type FeedbackFollowup = {
+  id: string;
+  project_id: string;
+  feedback_id: string;
+  review_date: string;
+  reviewer_name?: string;
+  action_taken?: string;
+  status_after: FeedbackStatus;
+  notes?: string;
+  created_by?: string | null;
+  created_at: string;
+};
+
 export type LessonLearned = {
   id: string;
   project_id: string;
@@ -721,6 +775,7 @@ export type Deliverable = {
   activity_id?: string | null;
   title: string;
   description?: string;
+  category?: string;
   type: DeliverableType;
   responsible_name?: string;
   planned_date?: string;
@@ -743,6 +798,8 @@ export type PPMDocument = {
   id: string;
   project_id: string;
   deliverable_id?: string | null;
+  deliverable_ids?: string[];
+  work_package_id?: string | null;
   title: string;
   category: DocumentCategory;
   description?: string;
@@ -800,6 +857,7 @@ export type ApprovalStatus = "pending" | "approved" | "rejected";
 export type ApprovalRequest = {
   id: string;
   project_id: string;
+  code?: string | null;
   entity_type: ApprovalEntityType;
   entity_id?: string | null;
   entity_label?: string;
@@ -815,6 +873,55 @@ export type ApprovalRequest = {
   decided_at?: string;
   created_at: string;
   updated_at: string;
+};
+
+// Refinement program, Wave 8: a real directory of people outside the project who approve
+// deliverables/documents (item 43) — feeds the approver dropdown above and the "accepted by"
+// dropdown on Deliverables.
+export type ExternalApprover = {
+  id: string;
+  project_id: string;
+  name: string;
+  email: string;
+  organization?: string;
+  role_title?: string;
+  notes?: string;
+  created_by?: string | null;
+  created_at: string;
+};
+
+export type HandoverStatus = "pending" | "handed_over" | "acknowledged";
+
+export type HandoverItem = {
+  id: string;
+  project_id: string;
+  code?: string | null;
+  title: string;
+  description?: string;
+  recipient_name?: string;
+  recipient_organization?: string;
+  handover_date?: string;
+  status: HandoverStatus;
+  file_path?: string;
+  notes?: string;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ArchiveSourceType = "deliverable" | "document" | "other";
+
+export type ArchiveItem = {
+  id: string;
+  project_id: string;
+  code?: string | null;
+  title: string;
+  source_type: ArchiveSourceType;
+  source_id?: string | null;
+  file_path?: string;
+  notes?: string;
+  created_by?: string | null;
+  created_at: string;
 };
 
 // Sprint 22: Audit Trail — reads public.ppm_history, populated since Sprint 2 by every
@@ -1077,6 +1184,8 @@ export type Timesheet = {
   activity_id?: string | null;
   entry_date: string;
   hours: number;
+  days?: number | null;
+  week_start?: string | null;
   description?: string;
   status: TimesheetStatus;
   approved_by_name?: string;
@@ -1117,6 +1226,8 @@ export type CommunicationActual = {
   participants?: string;
   channel?: string;
   subject: string;
+  agenda?: string;
+  beneficiary_count?: number | null;
   key_messages?: string;
   information_shared?: string;
   feedback_received?: string;
@@ -1166,6 +1277,7 @@ export type ActionStatus = "open" | "in_progress" | "completed" | "verified" | "
 export type PPMAction = {
   id: string;
   project_id: string;
+  code?: string | null;
   source_type: ActionSourceType;
   source_id?: string | null;
   source_label?: string;
@@ -1282,5 +1394,52 @@ export type PmbWorkPackageSnapshot = {
   bac?: number;
   planned_start?: string;
   planned_end?: string;
+  created_at: string;
+};
+
+// Refinement program, Wave 1: Suppliers get a real directory (previously a free-text name on
+// expenses/procurement), and implementation Sites get a proper Country->Region->Division->
+// Subdivision->Site hierarchy (previously a free-text "Localisation" field everywhere).
+export type SupplierCategory = "goods" | "services" | "works" | "consultancy" | "logistics" | "other";
+
+export type Supplier = {
+  id: string;
+  project_id: string;
+  name: string;
+  category: SupplierCategory;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  address?: string;
+  tax_id?: string;
+  notes?: string;
+  status: PPMStatus;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Site = {
+  id: string;
+  project_id: string;
+  country: string;
+  region?: string;
+  division?: string;
+  subdivision?: string;
+  site_name: string;
+  notes?: string;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// Refinement program, Wave 4: budget categories are a self-referencing tree exactly like WBS
+// (lib/ppm/wbs.ts) — codes computed from tree shape via lib/ppm/budget-categories.ts, never stored.
+export type BudgetCategory = {
+  id: string;
+  project_id: string;
+  parent_id?: string | null;
+  title: string;
+  order_index: number;
   created_at: string;
 };

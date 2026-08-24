@@ -20,7 +20,7 @@ export default async function CadrageCharterPage({ params }: { params: Promise<{
     <ProjectShell project={project}>
       <div className="grid gap-5">
         <CadrageTabs projectId={id} />
-        <ProjectCharterManager projectId={id} initial={charters} />
+        <ProjectCharterManager projectId={id} initial={charters} projectBudget={project.total_budget} />
       </div>
     </ProjectShell>
   </PPMShell>;

@@ -3,14 +3,35 @@ import { useMemo, useState, type FormEvent } from "react";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import EntityStatusBadge from "@/components/op-management/EntityStatusBadge";
-import type { BudgetLine, PPMStatus, WBSNode } from "@/lib/ppm/types";
+import SearchableSelect from "@/components/op-management/SearchableSelect";
+import { buildBudgetCategoryTree, flattenBudgetCategoryTree } from "@/lib/ppm/budget-categories";
+import type { BudgetCategory, BudgetLine, PPMStatus, WBSNode } from "@/lib/ppm/types";
 
-export default function BudgetManager({ projectId, initial, wbsNodes }: { projectId: string; initial: BudgetLine[]; wbsNodes: WBSNode[] }) {
+export default function BudgetManager({ projectId, initial, wbsNodes, budgetCategories }: {
+  projectId: string; initial: BudgetLine[]; wbsNodes: WBSNode[]; budgetCategories: BudgetCategory[];
+}) {
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<BudgetLine | "new" | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const wbsLabel = (id?: string | null) => wbsNodes.find(item => item.id === id)?.title || "—";
+  const categoryOptions = useMemo(() => flattenBudgetCategoryTree(buildBudgetCategoryTree(budgetCategories)), [budgetCategories]);
+  const categoryById = useMemo(() => new Map(categoryOptions.map(item => [item.id, item])), [categoryOptions]);
+  // Refinement program, Wave 4: budget line code = {category code}.{line position within that
+  // category} — computed, never stored, same convention as every other registry code this wave.
+  const lineCode = (row: BudgetLine) => {
+    if (!row.budget_category_id) return null;
+    const category = categoryById.get(row.budget_category_id);
+    if (!category) return null;
+    const siblings = [...rows].filter(item => item.budget_category_id === row.budget_category_id).sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const index = siblings.findIndex(item => item.id === row.id);
+    return `${category.code}.${index + 1}`;
+  };
+  // Refinement program, Wave 4: Donor/Grant become dropdowns after first entry — a plain
+  // <datalist> of values already used on this project, same "known values grow as you type"
+  // pattern as Wave 1's Site division/subdivision suggestions.
+  const donorSuggestions = useMemo(() => Array.from(new Set(rows.map(item => item.donor_name).filter((value): value is string => !!value))), [rows]);
+  const grantSuggestions = useMemo(() => Array.from(new Set(rows.map(item => item.grant_reference).filter((value): value is string => !!value))), [rows]);
 
   const totals = useMemo(() => rows.reduce((sum, row) => ({
     initial: sum.initial + Number(row.initial_budget || 0),
@@ -29,8 +50,7 @@ export default function BudgetManager({ projectId, initial, wbsNodes }: { projec
     const payload = {
       project_id: projectId,
       wbs_node_id: String(form.get("wbs_node_id") || "") || null,
-      cost_category: String(form.get("cost_category") || "").trim() || null,
-      sub_category: String(form.get("sub_category") || "").trim() || null,
+      budget_category_id: String(form.get("budget_category_id") || "") || null,
       donor_name: String(form.get("donor_name") || "").trim() || null,
       grant_reference: String(form.get("grant_reference") || "").trim() || null,
       description: String(form.get("description") || "").trim(),
@@ -74,7 +94,11 @@ export default function BudgetManager({ projectId, initial, wbsNodes }: { projec
         <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Ligne</th><th className="p-4">Rattachement</th><th className="p-4">Initial</th><th className="p-4">Revise</th><th className="p-4">Engage</th><th className="p-4">Depense</th><th className="p-4">Statut</th><th className="p-4">Action</th></tr></thead>
         <tbody>
           {rows.map(row => <tr key={row.id} className="border-t align-top">
-            <td className="p-4"><b className="text-forest">{row.description}</b>{row.cost_category && <p className="mt-1 text-xs text-slate-400">{row.cost_category}{row.sub_category ? ` · ${row.sub_category}` : ""}</p>}</td>
+            <td className="p-4">
+              {lineCode(row) ? <span className="mr-2 rounded-full bg-slate-100 px-2 py-1 font-mono text-xs font-bold text-slate-500">{lineCode(row)}</span> : null}
+              <b className="text-forest">{row.description}</b>
+              {row.budget_category_id ? <p className="mt-1 text-xs text-slate-400">{categoryById.get(row.budget_category_id)?.title}</p> : row.cost_category && <p className="mt-1 text-xs text-slate-400">{row.cost_category}{row.sub_category ? ` · ${row.sub_category}` : ""}</p>}
+            </td>
             <td className="p-4">{wbsLabel(row.wbs_node_id)}{row.donor_name && <p className="mt-1 text-xs text-slate-400">Bailleur : {row.donor_name}</p>}</td>
             <td className="p-4">{row.initial_budget.toLocaleString("fr-FR")}</td>
             <td className="p-4">{(row.revised_budget ?? row.initial_budget).toLocaleString("fr-FR")}</td>
@@ -93,11 +117,14 @@ export default function BudgetManager({ projectId, initial, wbsNodes }: { projec
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? "Nouvelle ligne budgetaire" : "Modifier la ligne"}</h2><button type="button" onClick={() => setEditing(null)} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Description<input name="description" defaultValue={editing !== "new" ? editing.description : ""} required className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Categorie de cout<input name="cost_category" defaultValue={editing !== "new" ? editing.cost_category || "" : ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Sous-categorie<input name="sub_category" defaultValue={editing !== "new" ? editing.sub_category || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold sm:col-span-2">Categorie budgetaire<SearchableSelect name="budget_category_id" options={categoryOptions.map(item => ({ value: item.id, label: `${item.code} — ${item.title}` }))} defaultValue={editing !== "new" ? editing.budget_category_id || "" : ""} placeholder="Selectionner une categorie..." /></label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">Rattachement WBS<select name="wbs_node_id" defaultValue={editing !== "new" ? editing.wbs_node_id || "" : ""} className="admin-input"><option value="">Aucun</option>{wbsNodes.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-          <label className="grid gap-2 text-sm font-bold">Bailleur<input name="donor_name" defaultValue={editing !== "new" ? editing.donor_name || "" : ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Reference Grant<input name="grant_reference" defaultValue={editing !== "new" ? editing.grant_reference || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Bailleur<input name="donor_name" list="donor-suggestions" defaultValue={editing !== "new" ? editing.donor_name || "" : ""} className="admin-input" />
+            <datalist id="donor-suggestions">{donorSuggestions.map(value => <option key={value} value={value} />)}</datalist>
+          </label>
+          <label className="grid gap-2 text-sm font-bold">Reference Grant<input name="grant_reference" list="grant-suggestions" defaultValue={editing !== "new" ? editing.grant_reference || "" : ""} className="admin-input" />
+            <datalist id="grant-suggestions">{grantSuggestions.map(value => <option key={value} value={value} />)}</datalist>
+          </label>
           <label className="grid gap-2 text-sm font-bold">Budget initial<input name="initial_budget" type="number" min="0" step="0.01" defaultValue={editing !== "new" ? editing.initial_budget : 0} required className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Budget revise<input name="revised_budget" type="number" min="0" step="0.01" defaultValue={editing !== "new" ? editing.revised_budget ?? "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Montant engage<input name="committed_amount" type="number" min="0" step="0.01" defaultValue={editing !== "new" ? editing.committed_amount : 0} className="admin-input" /></label>

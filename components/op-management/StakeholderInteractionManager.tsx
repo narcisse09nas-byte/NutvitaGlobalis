@@ -38,6 +38,8 @@ export default function StakeholderInteractionManager({ projectId, initial, stak
       responsible_name: String(form.get("responsible_name") || "").trim() || null,
       deadline: String(form.get("deadline") || "") || null,
       proposed_position: proposedPosition || null,
+      proposed_influence_level: String(form.get("proposed_influence_level") || "") as StakeholderLevel || null,
+      proposed_interest_level: String(form.get("proposed_interest_level") || "") as StakeholderLevel || null,
       position_change_status: proposedPosition ? "proposed" : "not_proposed",
     };
     if (!payload.stakeholder_id) { setSaving(false); setMessage("La partie prenante est obligatoire."); return; }
@@ -68,7 +70,13 @@ export default function StakeholderInteractionManager({ projectId, initial, stak
   }
 
   return <div className="grid gap-4">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">Interactions avec les parties prenantes</h2><button onClick={() => setEditing("new")} disabled={!stakeholders.length} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Enregistrer une interaction</button></div>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-xl font-black text-forest">Interactions avec les parties prenantes</h2>
+      <button onClick={() => setEditing("new")} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Enregistrer une interaction</button>
+    </div>
+    {/* Refinement program, Wave 7 (item 39): the button used to be silently disabled with no
+        explanation when no Stakeholder existed yet — indistinguishable from "broken." */}
+    {!stakeholders.length && <p className="rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-900">Ajoutez d&apos;abord une partie prenante (onglet Equipe ou Parties prenantes) pour pouvoir enregistrer une interaction.</p>}
     <div className="grid gap-3">
       {rows.map(row => <article key={row.id} className="rounded-2xl border bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -108,6 +116,7 @@ export default function StakeholderInteractionManager({ projectId, initial, stak
           <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">Proposer une mise a jour de l&apos;engagement</h3>
           <label className="grid gap-2 text-sm font-bold">Nouvelle position<select name="proposed_position" defaultValue={editing !== "new" ? editing.proposed_position || "" : ""} className="admin-input"><option value="">Aucun changement</option>{Object.entries(positionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold">Nouveau niveau d&apos;influence<select name="proposed_influence_level" defaultValue={editing !== "new" ? editing.proposed_influence_level || "" : ""} className="admin-input"><option value="">—</option>{Object.entries(levelLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="grid gap-2 text-sm font-bold">Nouveau niveau d&apos;interet<select name="proposed_interest_level" defaultValue={editing !== "new" ? editing.proposed_interest_level || "" : ""} className="admin-input"><option value="">—</option>{Object.entries(levelLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
           <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">Annuler</button><button disabled={saving} className="btn-primary">{saving ? "Enregistrement..." : "Enregistrer"}</button></div>
         </div>

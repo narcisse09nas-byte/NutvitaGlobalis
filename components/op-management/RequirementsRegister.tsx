@@ -17,6 +17,12 @@ export default function RequirementsRegister({ projectId, initial }: { projectId
   const [editing, setEditing] = useState<Requirement | "new" | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  // Refinement program, Wave 2: a simple sequential code (REQ-01, REQ-02...) computed from
+  // creation order — same "computed, never stored" approach as WBS/Result-Chain codes.
+  const requirementCode = (row: Requirement) => {
+    const index = [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at)).findIndex(item => item.id === row.id);
+    return `REQ-${String(index + 1).padStart(2, "0")}`;
+  };
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,7 +62,7 @@ export default function RequirementsRegister({ projectId, initial }: { projectId
         <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">Titre</th><th className="p-4">Type</th><th className="p-4">Priorite</th><th className="p-4">Obligatoire</th><th className="p-4">Statut</th><th className="p-4">Action</th></tr></thead>
         <tbody>
           {rows.map(row => <tr key={row.id} className="border-t align-top">
-            <td className="p-4"><b className="text-forest">{row.title}</b>{row.responsible_name && <p className="mt-1 text-xs text-slate-400">Resp. {row.responsible_name}</p>}</td>
+            <td className="p-4"><span className="mr-2 rounded-full bg-slate-100 px-2 py-1 font-mono text-xs font-bold text-slate-500">{requirementCode(row)}</span><b className="text-forest">{row.title}</b>{row.responsible_name && <p className="mt-1 text-xs text-slate-400">Resp. {row.responsible_name}</p>}</td>
             <td className="p-4">{typeLabels[row.type]}</td>
             <td className="p-4">{priorityLabels[row.priority]}</td>
             <td className="p-4">{row.mandatory ? "Oui" : "Non"}</td>

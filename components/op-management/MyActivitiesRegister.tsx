@@ -4,7 +4,7 @@ import Link from "next/link";
 import { activityStatusLabels, activityStatusTones } from "@/components/op-management/ActivityFormModal";
 import AchievementReportForm from "@/components/op-management/AchievementReportForm";
 import { createClient } from "@/lib/supabase/client";
-import { buildWbsTree, flattenWbsTree, type WBSTreeNode } from "@/lib/ppm/wbs";
+import { buildWbsTree, flattenWbsTree, wbsLeafNodes, type WBSTreeNode } from "@/lib/ppm/wbs";
 import type { Achievement, Activity, Indicator, ResultChainNode, WBSNode } from "@/lib/ppm/types";
 
 export default function MyActivitiesRegister({ projectId, activities, wbsNodes, outputs, indicators }: {
@@ -78,7 +78,7 @@ export default function MyActivitiesRegister({ projectId, activities, wbsNodes, 
     <div><h2 className="text-xl font-black text-forest">Mes activites</h2><p className="text-sm text-slate-500">{filtered.length} activite(s) qui vous sont assignees</p></div>
 
     <div className="flex flex-wrap gap-3 rounded-2xl border bg-white p-4">
-      <select value={workPackageFilter} onChange={event => setWorkPackageFilter(event.target.value)} className="admin-input w-auto"><option value="">Tous les Work Packages</option>{wbsNodes.filter(node => node.level === 4).map(node => <option key={node.id} value={node.id}>{wbsCodeByid.get(node.id)?.code} — {node.title}</option>)}</select>
+      <select value={workPackageFilter} onChange={event => setWorkPackageFilter(event.target.value)} className="admin-input w-auto"><option value="">Tous les Work Packages</option>{wbsLeafNodes(wbsNodes).map(node => <option key={node.id} value={node.id}>{wbsCodeByid.get(node.id)?.code} — {node.title}</option>)}</select>
       <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} className="admin-input w-auto"><option value="">Tous les statuts</option>{Object.entries(activityStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
       <input placeholder="Localisation" value={locationFilter} onChange={event => setLocationFilter(event.target.value)} className="admin-input w-auto" />
       <label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={lateOnly} onChange={event => setLateOnly(event.target.checked)} className="h-4 w-4" />En retard uniquement</label>

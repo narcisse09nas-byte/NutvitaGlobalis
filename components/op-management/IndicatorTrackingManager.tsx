@@ -22,9 +22,25 @@ export default function IndicatorTrackingManager({ projectId, indicators, initia
   const [evaluations, setEvaluations] = useState(initialEvaluations);
   const [editingEntry, setEditingEntry] = useState<MealEntry | "new" | null>(null);
   const [editingEvaluation, setEditingEvaluation] = useState<Evaluation | "new" | null>(null);
+  const [entryIndicatorId, setEntryIndicatorId] = useState("");
+  const [entryTargetValue, setEntryTargetValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const indicatorLabel = (id: string) => indicators.find(item => item.id === id)?.name || "—";
+
+  // Refinement program, Wave 7 (item 40): the indicator's own target auto-fills this measurement's
+  // target when the indicator is selected — still editable/overridable afterward.
+  function openEntryEditor(row: MealEntry | "new") {
+    setMessage("");
+    setEntryIndicatorId(row !== "new" ? row.indicator_id : "");
+    setEntryTargetValue(row !== "new" ? String(row.target_value ?? "") : "");
+    setEditingEntry(row);
+  }
+  function handleIndicatorChange(indicatorId: string) {
+    setEntryIndicatorId(indicatorId);
+    const indicator = indicators.find(item => item.id === indicatorId);
+    if (indicator?.target != null) setEntryTargetValue(String(indicator.target));
+  }
 
   async function submitEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -110,7 +126,7 @@ export default function IndicatorTrackingManager({ projectId, indicators, initia
 
   return <div className="grid gap-8">
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">Suivi des indicateurs</h2><button onClick={() => setEditingEntry("new")} disabled={!indicators.length} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Nouvelle mesure</button></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">Suivi des indicateurs</h2><button onClick={() => openEntryEditor("new")} disabled={!indicators.length} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />Nouvelle mesure</button></div>
       {!indicators.length && <p className="rounded-2xl border border-dashed bg-white p-5 text-sm text-slate-500">Definissez d&apos;abord des indicateurs dans le Cadre de resultats (onglet Cadrage) pour pouvoir suivre leurs mesures ici.</p>}
       <div className="overflow-x-auto rounded-2xl border bg-white">
         <table className="w-full min-w-[900px] text-left text-sm">
@@ -124,7 +140,7 @@ export default function IndicatorTrackingManager({ projectId, indicators, initia
               <td className="p-4">{row.data_source || "—"}</td>
               <td className="p-4"><span className={`rounded-full px-3 py-1 text-xs font-bold ${mealStatusTones[row.status]}`}>{mealStatusLabels[row.status]}</span></td>
               <td className="p-4"><div className="flex flex-wrap gap-2">
-                {row.status === "draft" && <button onClick={() => setEditingEntry(row)} className="btn-secondary px-3 py-2 text-xs">Modifier</button>}
+                {row.status === "draft" && <button onClick={() => openEntryEditor(row)} className="btn-secondary px-3 py-2 text-xs">Modifier</button>}
                 {row.status === "draft" && <button onClick={() => advanceEntry(row, "submitted")} className="btn-primary px-3 py-2 text-xs">Soumettre</button>}
                 {row.status === "submitted" && <button onClick={() => advanceEntry(row, "data_quality_review")} className="btn-secondary px-3 py-2 text-xs">Revue qualite</button>}
                 {(row.status === "submitted" || row.status === "data_quality_review") && <>
@@ -132,7 +148,7 @@ export default function IndicatorTrackingManager({ projectId, indicators, initia
                   <button onClick={() => advanceEntry(row, "returned")} className="btn-secondary px-3 py-2 text-xs">Retourner</button>
                   <button onClick={() => advanceEntry(row, "rejected")} className="btn-secondary px-3 py-2 text-xs">Rejeter</button>
                 </>}
-                {row.status === "returned" && <button onClick={() => setEditingEntry(row)} className="btn-secondary px-3 py-2 text-xs">Corriger</button>}
+                {row.status === "returned" && <button onClick={() => openEntryEditor(row)} className="btn-secondary px-3 py-2 text-xs">Corriger</button>}
               </div></td>
             </tr>)}
             {!entries.length && <tr><td colSpan={7} className="p-10 text-center text-slate-400">Aucune mesure enregistree.</td></tr>}
@@ -160,14 +176,14 @@ export default function IndicatorTrackingManager({ projectId, indicators, initia
       <form onSubmit={submitEntry} className="mx-auto my-10 max-w-xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{editingEntry === "new" ? "Nouvelle mesure" : "Modifier la mesure"}</h2><button type="button" onClick={() => setEditingEntry(null)} aria-label="Fermer"><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
-          <label className="grid gap-2 text-sm font-bold">Indicateur<select name="indicator_id" defaultValue={editingEntry !== "new" ? editingEntry.indicator_id : ""} required className="admin-input"><option value="">Selectionner...</option>{indicators.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <label className="grid gap-2 text-sm font-bold">Indicateur<select name="indicator_id" value={entryIndicatorId} onChange={event => handleIndicatorChange(event.target.value)} required className="admin-input"><option value="">Selectionner...</option>{indicators.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold">Periode (ex : T1 2026)<input name="period_label" defaultValue={editingEntry !== "new" ? editingEntry.period_label : ""} required className="admin-input" /></label>
           <div className="grid grid-cols-2 gap-4">
             <label className="grid gap-2 text-sm font-bold">Debut periode<input name="period_start" type="date" defaultValue={editingEntry !== "new" ? editingEntry.period_start || "" : ""} className="admin-input" /></label>
             <label className="grid gap-2 text-sm font-bold">Fin periode<input name="period_end" type="date" defaultValue={editingEntry !== "new" ? editingEntry.period_end || "" : ""} className="admin-input" /></label>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <label className="grid gap-2 text-sm font-bold">Valeur cible<input name="target_value" type="number" step="0.01" defaultValue={editingEntry !== "new" ? editingEntry.target_value ?? "" : ""} className="admin-input" /></label>
+            <label className="grid gap-2 text-sm font-bold">Valeur cible<input name="target_value" type="number" step="0.01" value={entryTargetValue} onChange={event => setEntryTargetValue(event.target.value)} className="admin-input" /></label>
             <label className="grid gap-2 text-sm font-bold">Valeur realisee<input name="actual_value" type="number" step="0.01" defaultValue={editingEntry !== "new" ? editingEntry.actual_value ?? "" : ""} className="admin-input" /></label>
           </div>
           <label className="grid gap-2 text-sm font-bold">Source de donnees<input name="data_source" defaultValue={editingEntry !== "new" ? editingEntry.data_source || "" : ""} className="admin-input" /></label>

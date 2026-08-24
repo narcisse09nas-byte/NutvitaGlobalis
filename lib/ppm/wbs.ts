@@ -29,3 +29,17 @@ export function flattenWbsTree(tree: WBSTreeNode[]): WBSTreeNode[] {
   walk(tree);
   return result;
 }
+
+// Refinement program, Wave 1: "Work Package" is any WBS node with no children — not
+// hardcoded to level 4. A real WBS branch doesn't always go exactly 4 levels deep, so
+// filtering on `level === 4` silently produced an empty Work Package dropdown for any
+// project whose hierarchy wasn't uniformly that deep. Use this everywhere "Work Package"
+// used to mean `node.level === 4`.
+export function wbsLeafNodes(nodes: WBSNode[]): WBSNode[] {
+  const parentIds = new Set(nodes.map(node => node.parent_id).filter((id): id is string => !!id));
+  return nodes.filter(node => !parentIds.has(node.id));
+}
+
+export function wbsLeafTreeNodes(tree: WBSTreeNode[]): WBSTreeNode[] {
+  return flattenWbsTree(tree).filter(node => !node.children.length);
+}

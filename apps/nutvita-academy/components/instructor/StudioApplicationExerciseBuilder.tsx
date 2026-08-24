@@ -125,7 +125,7 @@ export function StudioApplicationExerciseBuilder({
     <label className="cursor-pointer rounded-xl border border-dashed border-emerald-300 bg-emerald-50 p-4">
       <span className="flex items-center gap-2 font-bold text-[#063D2E]">
         <FileUp size={17} />
-        {uploading === key ? "Extraction du texteâ€¦" : label}
+        {uploading === key ? "Extraction du texte…" : label}
       </span>
       <input
         type="file"
@@ -152,8 +152,8 @@ export function StudioApplicationExerciseBuilder({
         Exercices d&apos;application / Application assignments
       </h2>
       <p className="mt-2 text-sm text-slate-600">
-        Le cas et son corrigÃ© bilingue alimentent la correction automatique. Le
-        corrigÃ© n&apos;est jamais affichÃ© Ã  l&apos;apprenant.
+        Le cas et son corrigé bilingue alimentent la correction automatique. Le
+        corrigé n&apos;est jamais affiché à l&apos;apprenant.
       </p>
       <form onSubmit={add} className="mt-5 grid gap-4 md:grid-cols-2">
         <input
@@ -171,11 +171,11 @@ export function StudioApplicationExerciseBuilder({
           <option value="1">1 tentative / attempt</option>
           <option value="2">2 tentatives / attempts</option>
           <option value="3">3 tentatives / attempts</option>
-          <option value="unlimited">IllimitÃ© / Unlimited</option>
+          <option value="unlimited">Illimité / Unlimited</option>
         </select>
         <fieldset className="rounded-xl border p-4 md:col-span-2">
           <legend className="px-2 font-bold text-[#063D2E]">
-            Modules liÃ©s / Linked modules
+            Modules liés / Linked modules
           </legend>
           <div className="grid gap-2 sm:grid-cols-2">
             {course.modules.map((module) => (
@@ -202,9 +202,9 @@ export function StudioApplicationExerciseBuilder({
           rows={4}
           className="rounded-xl border p-3 md:col-span-2"
         />
-        {uploadBox("caseFr", "Charger le cas franÃ§ais")}
+        {uploadBox("caseFr", "Charger le cas français")}
         {uploadBox("caseEn", "Upload English case")}
-        {uploadBox("answerFr", "Charger le corrigÃ© franÃ§ais")}
+        {uploadBox("answerFr", "Charger le corrigé français")}
         {uploadBox("answerEn", "Upload English reference answer")}
         <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-amber-50 p-4 md:col-span-2">
           <input
@@ -217,7 +217,7 @@ export function StudioApplicationExerciseBuilder({
             <b>Soumission obligatoire avant de poursuivre</b>
             <br />
             <span className="text-sm text-slate-600">
-              Les modules suivants resteront verrouillÃ©s jusqu&apos;au dÃ©pÃ´t.
+              Les modules suivants resteront verrouillés jusqu&apos;au dépôt.
             </span>
           </span>
         </label>
@@ -248,7 +248,7 @@ export function StudioApplicationExerciseBuilder({
                           ?.title,
                     )
                     .filter(Boolean)
-                    .join(", ") || "Non dÃ©fini"}
+                    .join(", ") || "Non défini"}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-3 text-xs font-bold text-green-700">
                   {exercise.caseUrlFr && (
@@ -262,7 +262,7 @@ export function StudioApplicationExerciseBuilder({
                     </LocalMediaLink>
                   )}
                   <span>
-                    CorrigÃ©s FR/EN chargÃ©s :{" "}
+                    Corrigés FR/EN chargés :{" "}
                     {exercise.referenceAnswerFr && exercise.referenceAnswerEn
                       ? "oui"
                       : "non"}

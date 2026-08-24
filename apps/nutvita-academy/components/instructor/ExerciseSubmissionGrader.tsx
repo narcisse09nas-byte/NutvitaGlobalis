@@ -65,10 +65,10 @@ export function ExerciseSubmissionGrader() {
                 <b>
                   {students.find((student) => student.id === item.studentUserId)
                     ?.fullName ?? "Apprenant"}{" "}
-                  â€” {course?.title ?? item.courseSlug}
+                  — {course?.title ?? item.courseSlug}
                 </b>
                 <p className="mt-1 text-sm font-semibold text-[#0B5D3B]">
-                  {exercise?.title ?? "Exercice dâ€™application"} Â· tentative{" "}
+                  {exercise?.title ?? "Exercice d’application"} · tentative{" "}
                   {item.attemptNumber}
                 </p>
                 <div className="mt-3 rounded-xl bg-white p-3 text-sm">
@@ -83,7 +83,7 @@ export function ExerciseSubmissionGrader() {
                   )}
                   {item.gradeSource === "instructor_override" && (
                     <p className="mt-1 font-bold text-[#F58220]">
-                      Note remplacÃ©e par le formateur : {item.scorePercent}/100
+                      Note remplacée par le formateur : {item.scorePercent}/100
                     </p>
                   )}
                 </div>
@@ -95,7 +95,7 @@ export function ExerciseSubmissionGrader() {
                     href={item.attachmentUrl}
                     className="mt-2 inline-flex font-bold text-green-700"
                   >
-                    Ouvrir {item.attachmentName || "la piÃ¨ce jointe"}
+                    Ouvrir {item.attachmentName || "la pièce jointe"}
                   </LocalMediaLink>
                 )}
                 <div className="mt-4 grid gap-3 md:grid-cols-[150px_1fr_auto]">
@@ -121,7 +121,7 @@ export function ExerciseSubmissionGrader() {
                         [item.id]: event.target.value,
                       })
                     }
-                    placeholder="ApprÃ©ciation"
+                    placeholder="Appréciation"
                     className="h-11 rounded-xl border px-3"
                   />
                   <button

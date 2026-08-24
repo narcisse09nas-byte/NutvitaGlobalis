@@ -19,7 +19,7 @@ const option = (v: string) =>
   clean(
     v
       .replace(/^\s*(?:[A-Z]|\d+)[).:\-]\s*/i, "")
-      .replace(/\s*[âœ“âœ”]\s*$/, ""),
+      .replace(/\s*[✓✔]\s*$/, ""),
   );
 const tokens = (v: string) =>
   v
@@ -133,18 +133,18 @@ function html(source: string): Raw[] {
       if (
         inputs[i]?.checked ||
         /\b(true|yes|correct|bonne?)\b/i.test(mark) ||
-        /[âœ“âœ”]\s*$/.test(el.textContent ?? "")
+        /[✓✔]\s*$/.test(el.textContent ?? "")
       )
         answers.push(String(i + 1));
     });
     const explicit =
       block.querySelector<HTMLElement>(
-        "[data-answer],.correct-answer,.answer,.reponse,.rÃ©ponse",
+        "[data-answer],.correct-answer,.answer,.reponse,.réponse",
       )?.textContent ??
       [...block.querySelectorAll<HTMLElement>("p,div")]
         .map((x) => clean(x.textContent ?? ""))
         .find((x) =>
-          /^(?:rÃ©ponse|rÃ©ponses|reponses|answer|correct)\s*:/i.test(x),
+          /^(?:réponse|réponses|reponses|answer|correct)\s*:/i.test(x),
         ) ??
       "";
     if (!answers.length && explicit) answers.push(...tokens(explicit));
@@ -175,7 +175,7 @@ function text(source: string): Raw[] {
         opts = lines.filter((x) => /^(?:[A-Z]|\d+)[).:\-]\s+/.test(x)),
         answer =
           lines.find((x) =>
-            /^(?:rÃ©ponse|rÃ©ponses|reponses|answer|correct)\s*:/i.test(x),
+            /^(?:réponse|réponses|reponses|answer|correct)\s*:/i.test(x),
           ) ?? "",
         answers = tokens(answer),
         prompt = clean(

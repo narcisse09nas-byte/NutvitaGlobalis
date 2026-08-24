@@ -190,7 +190,7 @@ export default function AssignmentsPage() {
                     required
                     rows={7}
                     className="rounded-xl border p-3"
-                    placeholder="Votre rÃ©ponse dÃ©taillÃ©e"
+                    placeholder="Votre réponse détaillée"
                   />
                   <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed p-3 text-sm font-bold text-[#0B5D3E]">
                     <FileUp size={17} />
@@ -207,8 +207,8 @@ export default function AssignmentsPage() {
                     className="justify-self-start rounded-full bg-[#F58220] px-5 py-3 font-bold text-white disabled:bg-slate-300"
                   >
                     {submittingId === exercise.id
-                      ? "Correction IA en coursâ€¦"
-                      : `Soumettre - tentative ${own.length + 1}${exercise.maxAttempts ? `/${exercise.maxAttempts}` : "/illimitÃ©e"}`}
+                      ? "Correction IA en cours…"
+                      : `Soumettre - tentative ${own.length + 1}${exercise.maxAttempts ? `/${exercise.maxAttempts}` : "/illimitée"}`}
                   </button>
                 </form>
                 {own.map((submission) => (
@@ -222,7 +222,7 @@ export default function AssignmentsPage() {
                         <p className="mt-2 text-lg font-extrabold text-[#063D2E]">
                           Note : {submission.scorePercent}/100{" "}
                           {submission.gradeSource === "instructor_override"
-                            ? "(modifiÃ©e par le formateur)"
+                            ? "(modifiée par le formateur)"
                             : "(IA)"}
                         </p>
                         <p className="mt-1">

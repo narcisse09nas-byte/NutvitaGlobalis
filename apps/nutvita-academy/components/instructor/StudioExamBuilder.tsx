@@ -30,8 +30,8 @@ type Props = {
 
 const domains: { value: ExamDomain; fr: string; en: string }[] = [
   { value: "fundamentals", fr: "Fondamentaux", en: "Fundamentals" },
-  { value: "anthropometry", fr: "Anthropom�trie", en: "Anthropometry" },
-  { value: "screening", fr: "D�pistage", en: "Screening" },
+  { value: "anthropometry", fr: "Anthropométrie", en: "Anthropometry" },
+  { value: "screening", fr: "Dépistage", en: "Screening" },
   { value: "clinical", fr: "Clinique", en: "Clinical" },
   { value: "cmam", fr: "PCIMA/CMAM", en: "CMAM" },
   { value: "monitoring", fr: "Suivi", en: "Monitoring" },
@@ -66,9 +66,9 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           id: createStudioId("exam"),
           slug: `${course.slug}-final`,
           code: `${course.code}-FINAL`,
-          title: `Examen final � ${course.title}`,
-          titleEn: `Final exam � ${course.titleEn}`,
-          description: `�valuation finale certifiante de la formation ${course.title}.`,
+          title: `Examen final — ${course.title}`,
+          titleEn: `Final exam — ${course.titleEn}`,
+          description: `Évaluation finale certifiante de la formation ${course.title}.`,
           descriptionEn: `Final certification assessment for ${course.titleEn}.`,
           courseSlug: course.slug,
           courseTitle: course.title,
@@ -315,7 +315,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           Examen final / Final exam
         </h2>
         <p className="mt-2 text-slate-500">
-          Cr�ez simultan�ment les banques fran�aise et anglaise. / Build the
+          Créez simultanément les banques française et anglaise. / Build the
           French and English question banks together.
         </p>
         <button
@@ -323,7 +323,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           onClick={createExam}
           className="mt-5 rounded-full bg-[#F58220] px-6 py-3 font-bold text-white"
         >
-          Cr�er l�examen final / Create final exam
+          Créer l’examen final / Create final exam
         </button>
       </section>
     );
@@ -341,14 +341,14 @@ export function StudioExamBuilder({ course, onChange }: Props) {
             {questions.length} question(s) dans la banque / in the bank
           </p>
           <p className="mt-2 text-xs font-bold text-slate-600">
-            QCM/MCQ {capacity.qcm}/50 � QCU/SCQ {capacity.qcu}/35 � Cas/Case{" "}
+            QCM/MCQ {capacity.qcm}/50 · QCU/SCQ {capacity.qcu}/35 · Cas/Case{" "}
             {capacity.case_study}/15
           </p>
         </div>
         <button
           type="button"
           onClick={() =>
-            window.confirm("Supprimer l�examen final ?") &&
+            window.confirm("Supprimer l’examen final ?") &&
             onChange({ finalExam: null })
           }
           className="text-red-600"
@@ -441,14 +441,14 @@ export function StudioExamBuilder({ course, onChange }: Props) {
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <fieldset className="rounded-xl border border-blue-200 p-4">
           <legend className="px-2 font-bold text-blue-800">
-            ???? M�tadonn�es
+            FR · Métadonnées
           </legend>
           <input
             value={definition.title}
             onChange={(event) =>
               updateDefinition({ title: event.target.value })
             }
-            placeholder="Titre de l�examen"
+            placeholder="Titre de l’examen"
             className="h-11 w-full rounded-xl border px-3"
           />
           <textarea
@@ -463,7 +463,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
         </fieldset>
         <fieldset className="rounded-xl border border-amber-200 p-4">
           <legend className="px-2 font-bold text-amber-800">
-            ???? Metadata
+            EN · Metadata
           </legend>
           <input
             value={definition.titleEn ?? ""}
@@ -487,7 +487,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
 
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         <label className="text-sm font-bold text-[#063D2E]">
-          Dur�e / Duration (min)
+          Durée / Duration (min)
           <input
             type="number"
             min={1}
@@ -534,11 +534,11 @@ export function StudioExamBuilder({ course, onChange }: Props) {
               className="flex justify-between gap-3 rounded-xl bg-green-50 p-3 text-sm"
             >
               <span>
-                {index + 1}. ???? {question.prompt || "�"}
+                {index + 1}. FR · {question.prompt || "—"}
                 <br />
-                ???? {question.promptEn || "Missing English question"}{" "}
+                EN · {question.promptEn || "Missing English question"}{" "}
                 <span className="text-slate-400">
-                  � {domains.find((item) => item.value === question.domain)?.fr}
+                  · {domains.find((item) => item.value === question.domain)?.fr}
                 </span>
               </span>
               <button
@@ -558,7 +558,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           {questions.length > 100 && (
             <p className="rounded-xl bg-slate-50 p-3 text-center text-xs font-bold text-slate-600">
               {text(
-                `100 affich�es sur ${questions.length}`,
+                `100 affichées sur ${questions.length}`,
                 `Showing 100 of ${questions.length}`,
               )}
             </p>
@@ -619,7 +619,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
             <option value="single">QCU / Single choice</option>
             <option value="true_false">Vrai-Faux / True-False</option>
             <option value="case_single">Cas pratique / Case study</option>
-            <option value="numeric">R�ponse num�rique / Numeric answer</option>
+            <option value="numeric">Réponse numérique / Numeric answer</option>
           </select>
           <select
             value={domain}
@@ -635,7 +635,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
           {questionType === "numeric" && (
             <>
               <label className="text-xs font-bold text-slate-600">
-                R�ponse / Answer
+                Réponse / Answer
                 <input
                   type="number"
                   value={numericAnswer}
@@ -646,7 +646,7 @@ export function StudioExamBuilder({ course, onChange }: Props) {
                 />
               </label>
               <label className="text-xs font-bold text-slate-600">
-                Tol�rance / Tolerance
+                Tolérance / Tolerance
                 <input
                   type="number"
                   min={0}
@@ -707,12 +707,12 @@ function ExamLanguageFields(props: ExamLanguageFieldsProps) {
       <legend
         className={`px-2 font-bold ${isFrench ? "text-blue-800" : "text-amber-800"}`}
       >
-        {isFrench ? "???? Question" : "???? Question"}
+        {isFrench ? "FR · Question" : "EN · Question"}
       </legend>
       <input
         value={props.prompt}
         onChange={(event) => props.setPrompt(event.target.value)}
-        placeholder={isFrench ? "�nonc� de la question" : "Question prompt"}
+        placeholder={isFrench ? "Énoncé de la question" : "Question prompt"}
         className="h-11 w-full rounded-xl border px-3"
       />
       {(props.questionType === "case_single" ||
@@ -721,7 +721,7 @@ function ExamLanguageFields(props: ExamLanguageFieldsProps) {
           value={props.caseText}
           onChange={(event) => props.setCaseText(event.target.value)}
           placeholder={
-            isFrench ? "Sc�nario du cas pratique" : "Case study scenario"
+            isFrench ? "Scénario du cas pratique" : "Case study scenario"
           }
           rows={3}
           className="mt-3 w-full rounded-xl border px-3 py-2"

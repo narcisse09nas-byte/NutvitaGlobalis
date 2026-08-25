@@ -40,7 +40,7 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
   if (identity.supabase) {
     const userId = identity.user.id;
     const now = Date.now();
-    const [{ data: grants }, { data: clientProfile }, { data: enrollments }, { data: academyProfile }, { data: subscriptions }, { data: plans }, { data: bookings }, { data: partner }, { data: candidate }, { data: medicalApplication }, { data: medicalSpecialist }, { data: medicalConsultations }, { data: nutritrack }, { data: maximus }, { data: staffApplication }] = await Promise.all([
+    const [{ data: grants }, { data: clientProfile }, { data: enrollments }, { data: academyProfile }, { data: subscriptions }, { data: plans }, { data: bookings }, { data: partner }, { data: distributionPartner }, { data: candidate }, { data: medicalApplication }, { data: medicalSpecialist }, { data: medicalConsultations }, { data: nutritrack }, { data: maximus }, { data: staffApplication }] = await Promise.all([
       identity.supabase.from("platform_service_access").select("service_key,roles,expires_at").eq("user_id", userId).eq("active", true),
       identity.supabase.from("client_profiles").select("id").eq("id", userId).maybeSingle(),
       identity.supabase.from("formation_enrollments").select("id").eq("client_id", userId).limit(1),
@@ -49,6 +49,7 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
       identity.supabase.from("subscription_plans").select("id,service_type"),
       identity.supabase.from("consultation_bookings").select("*").eq("client_id", userId),
       identity.supabase.from("dietitian_profiles").select("id,status").eq("candidate_id", userId).maybeSingle(),
+      identity.supabase.from("ppm_ops_partner_profiles").select("id,status").eq("candidate_id", userId).eq("status", "active").maybeSingle(),
       identity.supabase.from("recruitment_applications").select("id").eq("candidate_id", userId).limit(1),
       identity.supabase.from("medical_specialist_applications").select("id").eq("candidate_id", userId).limit(1),
       identity.supabase.from("medical_specialists").select("id,active").eq("user_id", userId).maybeSingle(),
@@ -86,6 +87,7 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
     if (activeMedical) add("medical_consultation", "client");
     if ((activeDietetic || activeMedical) && allowed.get("health")) allowed.get("health")!.delete("client");
     if (partner?.status === "active") for (const service of ["health", "child_growth", "teleconsultation"] as const) add(service, "nutritionist");
+    if (distributionPartner?.status === "active") add("project_management", "distribution_partner");
     if (candidate?.length || medicalApplication?.length || staffApplication?.length) add("recruitment", "candidate");
     if (medicalSpecialist?.active) add("medical_consultation", "specialist");
     if (nutritrack?.status === "active") add("nutritrack", "client");

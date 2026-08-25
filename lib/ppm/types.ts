@@ -133,6 +133,617 @@ export type Project = {
   updated_at: string;
 };
 
+// Operations Management: a parallel top-level entity alongside Project, for field operations
+// that don't fit the WBS/activity model — starting with the Distribution Cycle operation type.
+// `project_id` is optional ("rattache si applicable"); is_sf_hgsf gates every SF/HGSF-only
+// sub-flow (menus, purchase orders, cooperatives...) throughout the module.
+export type OperationProductType = "cash" | "food" | "nfi" | "other";
+export type OperationActivityType = "gfd" | "ans" | "school_meal" | "other";
+export type OperationStatus = "draft" | "active" | "suspended" | "closed" | "cancelled";
+
+export type Operation = {
+  id: string;
+  code: string;
+  organization_id: string;
+  project_id?: string | null;
+  name: string;
+  description?: string;
+  period_start: string;
+  period_end: string;
+  product_type: OperationProductType;
+  product_type_other?: string;
+  activity_type: OperationActivityType;
+  activity_type_other?: string;
+  is_sf_hgsf: boolean;
+  currency: string;
+  status: OperationStatus;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+// Operations Management: distribution site (school/community/other), scoped to one operation.
+export type OpsSiteType = "school" | "health_center" | "community" | "other";
+export type OpsSiteStatus = "active" | "suspended" | "closed";
+
+export type OpsSite = {
+  id: string;
+  code: string;
+  operation_id: string;
+  linked_ppm_site_id?: string | null;
+  site_type: OpsSiteType;
+  name: string;
+  short_initials: string;
+  country: string;
+  region?: string;
+  division?: string;
+  subdivision?: string;
+  stamp_image_path?: string | null;
+  // Added by supabase/ppm-ops-cadrage.sql (Wave 2) once ppm_ops_cooperatives exists.
+  cooperative_id?: string | null;
+  status: OpsSiteStatus;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+// Operations Management: master product catalog (8-char registry code per spec).
+export type OpsProductCategory = "cash" | "food" | "nfi" | "other";
+
+export type OpsProduct = {
+  id: string;
+  code: string;
+  organization_id: string;
+  name: string;
+  category: OpsProductCategory;
+  unit_of_measure: string;
+  status: "active" | "inactive";
+  created_at: string;
+};
+
+// Operations Management — Cadrage (Wave 2).
+export type OpsSitePaymentAccountType = "mobile_money" | "bank" | "other";
+
+export type OpsSitePaymentAccount = {
+  id: string;
+  site_id: string;
+  account_type: OpsSitePaymentAccountType;
+  account_name: string;
+  account_number: string;
+  provider?: string;
+  is_default: boolean;
+  created_at: string;
+};
+
+// "equipe de distribution" (non-SF) / COGES roster (SF) for one site.
+export type OpsSiteTeamRole = "coges_president" | "coges_member" | "distribution_officer" | "delivery_team" | "other";
+
+export type OpsSiteTeamMember = {
+  id: string;
+  site_id: string;
+  full_name: string;
+  role: OpsSiteTeamRole;
+  phone?: string;
+  email?: string;
+  user_id?: string | null;
+  status: "active" | "inactive";
+  created_at: string;
+};
+
+export type OpsRation = {
+  id: string;
+  operation_id: string;
+  product_id: string;
+  ration_per_beneficiary_per_day: number;
+  unit: string;
+  notes?: string;
+  created_at: string;
+};
+
+export type OpsMenu = {
+  id: string;
+  operation_id: string;
+  name: string;
+  notes?: string;
+  status: "active" | "inactive";
+  created_at: string;
+};
+
+export type OpsMenuIngredient = {
+  id: string;
+  menu_id: string;
+  product_id: string;
+  quantity_per_child_per_day: number;
+  unit: string;
+  created_at: string;
+};
+
+// Append-only ingredient price history — an update never mutates an approved row (see
+// IngredientPriceManager.tsx), it inserts a new pending row and supersedes the old one.
+export type OpsIngredientPriceStatus = "pending" | "approved" | "superseded";
+
+export type OpsIngredientPrice = {
+  id: string;
+  operation_id: string;
+  product_id: string;
+  unit_price: number;
+  currency: string;
+  status: OpsIngredientPriceStatus;
+  approved_at?: string | null;
+  approved_by?: string | null;
+  superseded_at?: string | null;
+  superseded_by_price_id?: string | null;
+  effective_from: string;
+  created_by?: string;
+  created_at: string;
+};
+
+export type OpsCooperative = {
+  id: string;
+  code: string;
+  organization_id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  default_payment_account_type?: OpsSitePaymentAccountType;
+  default_payment_account_number?: string;
+  default_payment_account_name?: string;
+  stamp_image_path?: string | null;
+  status: "active" | "suspended" | "closed";
+  created_at: string;
+};
+
+export type OpsCooperativeContact = {
+  id: string;
+  cooperative_id: string;
+  full_name: string;
+  role?: string;
+  phone?: string;
+  email?: string;
+  user_id?: string | null;
+  status: "active" | "inactive";
+  created_at: string;
+};
+
+export type OpsSchoolCooperativeContract = {
+  id: string;
+  site_id: string;
+  cooperative_id: string;
+  start_date: string;
+  end_date?: string | null;
+  document_file_path?: string | null;
+  status: "draft" | "active" | "expired" | "terminated";
+  created_by?: string;
+  created_at: string;
+};
+
+// Operations Management — Planification (Wave 3).
+export type OpsAgeGroup = {
+  id: string;
+  operation_id: string;
+  label: string;
+  sort_order: number;
+};
+
+// Both the "site plan" view and the SF/HGSF "per-day menu" view are two presentations of the
+// same plan record — one status field, one approval, per the spec's "l'approbation suit le
+// meme workflow" requirement.
+export type OpsDistributionPlanStatus = "draft" | "submitted" | "verified" | "approved" | "returned" | "rejected";
+
+export type OpsDistributionPlan = {
+  id: string;
+  code: string;
+  operation_id: string;
+  period_start: string;
+  period_end: string;
+  status: OpsDistributionPlanStatus;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OpsDistributionPlanSite = {
+  id: string;
+  plan_id: string;
+  site_id: string;
+  target_beneficiaries: number;
+  ration_days: number;
+  period_start: string;
+  period_end: string;
+  distribution_start?: string | null;
+  distribution_end?: string | null;
+};
+
+export type OpsDistributionPlanProduct = {
+  id: string;
+  plan_site_id: string;
+  product_id: string;
+  quantity_needed: number;
+  unit: string;
+};
+
+// SF/HGSF only — per-day-per-school menu + target children.
+export type OpsDistributionPlanDaily = {
+  id: string;
+  plan_site_id: string;
+  ration_date: string;
+  menu_id: string;
+  target_children: number;
+  same_for_period: boolean;
+};
+
+// Operations Management — Mise en oeuvre: non-SF path (Wave 4).
+// Per-site running product balance, feeding "stock sur site" auto-fill everywhere it's needed
+// (Needs, Activity Reports) — persists across operations/cycles per the confirmed decision.
+export type OpsStockTransactionType = "received" | "distributed" | "damaged" | "returned" | "adjustment";
+
+export type OpsSiteStockLedgerEntry = {
+  id: number;
+  site_id: string;
+  product_id: string;
+  transaction_type: OpsStockTransactionType;
+  quantity: number;
+  reference_type?: string | null;
+  reference_id?: string | null;
+  balance_after: number;
+  recorded_at: string;
+  created_by?: string;
+};
+
+export type OpsNeedStatus = "draft" | "submitted" | "verified" | "approved" | "returned" | "rejected";
+
+export type OpsNeed = {
+  id: string;
+  code: string;
+  plan_id: string;
+  operation_id: string;
+  period_start: string;
+  period_end: string;
+  status: OpsNeedStatus;
+  created_by?: string;
+  created_at: string;
+};
+
+export type OpsNeedSite = {
+  id: string;
+  need_id: string;
+  site_id: string;
+  target_beneficiaries: number;
+  ration_days: number;
+  desired_start_date: string;
+};
+
+export type OpsNeedProduct = {
+  id: string;
+  need_site_id: string;
+  product_id: string;
+  on_site_stock: number;
+  quantity_required: number;
+  quantity_needed: number;
+};
+
+// Operations Management — Mise en oeuvre: SF/HGSF path (Wave 5).
+export type OpsPurchaseOrderStatus = "draft" | "submitted" | "coges_approved" | "endorsed_by_cooperative" | "returned" | "rejected" | "cancelled";
+
+export type OpsPurchaseOrder = {
+  id: string; // human PO number itself (e.g. "ECO/03/26/01"), not a uuid
+  plan_id: string;
+  site_id: string;
+  cooperative_id: string;
+  cooperative_address_snapshot?: string;
+  cooperative_phone_snapshot?: string;
+  cooperative_email_snapshot?: string;
+  period_start: string;
+  period_end: string;
+  status: OpsPurchaseOrderStatus;
+  endorsed_at?: string | null;
+  endorsed_by_contact_id?: string | null;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OpsPoDailyLine = {
+  id: string;
+  po_id: string;
+  ration_date: string;
+  menu_id: string;
+  student_count: number;
+};
+
+export type OpsPoIngredientLine = {
+  id: string;
+  po_id: string;
+  product_id: string;
+  quantity_mt: number;
+  unit_price: number;
+  total_price: number;
+};
+
+export type OpsDeliveryGeneratedBy = "logistics_team" | "cooperative";
+export type OpsDeliveryStatus = "draft" | "submitted" | "received_pending" | "received_confirmed" | "approved" | "returned" | "rejected";
+
+export type OpsDeliveryNote = {
+  id: string; // human registry code (duplicated onto `code`) — the DB primary key is `id_pk`
+  id_pk: string;
+  code: string;
+  need_id?: string | null;
+  po_id?: string | null;
+  site_id: string;
+  delivery_date: string;
+  delivered_by_name: string;
+  generated_by: OpsDeliveryGeneratedBy;
+  monetary_value?: number | null;
+  currency?: string | null;
+  status: OpsDeliveryStatus;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OpsDeliveryLine = {
+  id: string;
+  delivery_note_id: string;
+  product_id: string;
+  quantity_ordered: number;
+  quantity_received?: number | null;
+  unit_price?: number | null;
+  total_value?: number | null;
+  rejected_quantity: number;
+  rejection_reason?: string | null;
+  conformity?: "conforme" | "non_conforme" | null;
+};
+
+export type OpsDeliveryReceiver = {
+  id: string;
+  delivery_note_id: string;
+  full_name: string;
+  role?: string | null;
+  user_id?: string | null;
+};
+
+// Operations Management — Reporting & invoicing (Wave 6).
+export type OpsActivityReportStatus = "draft" | "submitted" | "verified" | "approved" | "returned" | "rejected";
+
+export type OpsActivityReport = {
+  id: string;
+  id_pk: string;
+  site_id: string;
+  delivery_note_id?: string | null;
+  period_start: string;
+  period_end: string;
+  effective_distribution_start?: string | null;
+  effective_distribution_end?: string | null;
+  ration_days_provided?: number | null;
+  comment?: string | null;
+  amount_distributed_figures?: number | null;
+  amount_distributed_currency?: string | null;
+  amount_distributed_words?: string | null;
+  status: OpsActivityReportStatus;
+  created_by?: string;
+  created_at: string;
+};
+
+export type OpsActivityReportProduct = {
+  id: string;
+  report_id: string;
+  product_id: string;
+  start_qty?: number | null;
+  received_qty?: number | null;
+  received_date?: string | null;
+  distributed_qty?: number | null;
+  damaged_qty?: number | null;
+  damaged_reason?: string | null;
+  returned_qty?: number | null;
+  returned_reason?: string | null;
+  remaining_qty?: number | null;
+};
+
+export type OpsBeneficiarySex = "male" | "female";
+
+export type OpsActivityBeneficiary = {
+  id: string;
+  report_id: string;
+  sex: OpsBeneficiarySex;
+  age_group_id: string;
+  count: number;
+};
+
+export type OpsInvoiceStatus = "draft" | "submitted" | "distribution_manager_endorsed" | "school_endorsed" | "in_synthesis" | "paid_to_school" | "paid_to_cooperative" | "rejected";
+
+export type OpsInvoice = {
+  id: string; // human invoice number itself
+  delivery_note_id: string;
+  site_id: string;
+  cooperative_id?: string | null;
+  is_sf_hgsf: boolean;
+  cost_per_tonne?: number | null;
+  total_tonnage?: number | null;
+  amount_figures: number;
+  amount_words: string;
+  currency: string;
+  payment_account_type?: OpsSitePaymentAccountType | null;
+  payment_account_number?: string | null;
+  payment_account_name?: string | null;
+  status: OpsInvoiceStatus;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+// Operations Management — external cooperative/COGES portal (Wave 7).
+export type OpsPartnerType = "coges" | "cooperative";
+export type OpsPartnerStatus = "invited" | "active" | "suspended";
+
+export type OpsPartnerProfile = {
+  id: string;
+  candidate_id: string;
+  partner_type: OpsPartnerType;
+  cooperative_id?: string | null;
+  full_name: string;
+  phone?: string | null;
+  email?: string | null;
+  status: OpsPartnerStatus;
+  invited_by?: string | null;
+  must_change_password?: boolean;
+  created_at: string;
+};
+
+export type OpsPartnerSiteLink = {
+  id: string;
+  partner_profile_id: string;
+  site_id: string;
+  role?: string | null;
+};
+
+export type OpsInvoicePaymentTracking = {
+  invoice_id: string;
+  cooperative_submitted_at?: string | null;
+  submitted_for_payment_at?: string | null;
+  paid_to_school_at?: string | null;
+  paid_to_cooperative_at?: string | null;
+  updated_by?: string;
+  updated_at: string;
+};
+
+// Operations Management — Reconciliation et fermeture (Wave 8).
+export type OpsReconciliationNoteCategory = "products" | "value" | "cooperative_payment" | "dates";
+
+export type OpsReconciliationNote = {
+  id: string;
+  operation_id: string;
+  category: OpsReconciliationNoteCategory;
+  site_id?: string | null;
+  reference_id?: string | null;
+  note: string;
+  created_by?: string;
+  created_at: string;
+};
+
+export type OpsDonorSynthesisExport = {
+  id: string;
+  operation_id: string;
+  period_start: string;
+  period_end: string;
+  prepared_by_name?: string | null;
+  approved_by_name?: string | null;
+  file_path?: string | null;
+  generated_at: string;
+  created_by?: string;
+};
+
+// Read-only rows from the computed reconciliation views (supabase/ppm-ops-reconciliation.sql).
+export type OpsReconciliationProductRow = {
+  report_id: string;
+  report_id_pk: string;
+  operation_id: string;
+  site_id: string;
+  site_name: string;
+  product_id: string;
+  product_name: string;
+  period_start: string;
+  period_end: string;
+  start_qty: number | null;
+  received_qty: number | null;
+  distributed_qty: number | null;
+  damaged_qty: number | null;
+  returned_qty: number | null;
+  remaining_qty: number | null;
+  total_available: number;
+  total_accounted: number;
+  variance: number;
+};
+
+export type OpsReconciliationValueRow = {
+  report_id: string;
+  report_id_pk: string;
+  operation_id: string;
+  site_id: string;
+  site_name: string;
+  amount_distributed_figures: number | null;
+  amount_distributed_currency: string | null;
+  invoice_id: string | null;
+  invoice_amount: number | null;
+  invoice_currency: string | null;
+  invoice_status: OpsInvoiceStatus | null;
+  paid_to_school_at: string | null;
+  variance_distributed_vs_invoiced: number;
+  is_paid_to_school: boolean;
+};
+
+export type OpsReconciliationCooperativeRow = {
+  invoice_id: string;
+  site_id: string;
+  operation_id: string;
+  site_name: string;
+  cooperative_id: string | null;
+  cooperative_name: string | null;
+  amount_figures: number;
+  currency: string;
+  status: OpsInvoiceStatus;
+  paid_to_school_at: string | null;
+  paid_to_cooperative_at: string | null;
+  pending_cooperative_payment: boolean;
+  anomaly_paid_cooperative_before_school: boolean;
+};
+
+export type OpsReconciliationDatesRow = {
+  report_id: string;
+  report_id_pk: string;
+  operation_id: string;
+  site_id: string;
+  site_name: string;
+  planned_period_start: string | null;
+  planned_period_end: string | null;
+  planned_distribution_start: string | null;
+  planned_distribution_end: string | null;
+  planned_ration_days: number | null;
+  effective_distribution_start: string | null;
+  effective_distribution_end: string | null;
+  ration_days_provided: number | null;
+  ration_days_variance: number | null;
+  start_date_shifted: boolean;
+  end_date_shifted: boolean;
+};
+
+// Time Table / action tracker (Wave 9 polish) — a Planner-like checklist tool listed directly
+// under Operations. A list is a period-bound bucket (week or month), optionally attached to a
+// project OR an operation, holding tasks each with their own responsible person and deadline.
+export type PpmTaskPeriodType = "week" | "month";
+
+export type PpmTaskList = {
+  id: string;
+  organization_id?: string | null;
+  project_id?: string | null;
+  operation_id?: string | null;
+  title: string;
+  period_type: PpmTaskPeriodType;
+  period_start: string;
+  period_end: string;
+  created_by?: string;
+  created_at: string;
+};
+
+export type PpmTaskStatus = "not_started" | "in_progress" | "done" | "blocked";
+
+export type PpmTask = {
+  id: string;
+  task_list_id: string;
+  title: string;
+  description?: string | null;
+  responsible_user_id?: string | null;
+  responsible_name?: string | null;
+  responsible_email?: string | null;
+  deadline?: string | null;
+  status: PpmTaskStatus;
+  reminder_sent_at?: string | null;
+  sort_order: number;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+};
+
 // Sprint 4: versioned Project Charter — a real standalone/versioned entity (table
 // ppm_project_charters), unlike Identification/Context above. Draft -> Under Review ->
 // Approved; once approved a charter is locked and further edits create a new version.
@@ -928,7 +1539,10 @@ export type ArchiveItem = {
 // status-changing action across the app (project creation, charter/baseline/change-request
 // decisions, etc.). `actor_id` is a bare auth.users id: this app has no general people
 // directory, so the UI can only tell "you" from "someone else" — see AuditTrailFeed.tsx.
-export type AuditEntityType = "organization" | "portfolio" | "program" | "project";
+export type AuditEntityType =
+  | "organization" | "portfolio" | "program" | "project"
+  | "distribution_operation" | "distribution_site" | "ingredient_price" | "distribution_plan"
+  | "distribution_need" | "purchase_order" | "delivery_note" | "activity_report" | "invoice" | "partner_profile";
 
 export type AuditLogEntry = {
   id: string;

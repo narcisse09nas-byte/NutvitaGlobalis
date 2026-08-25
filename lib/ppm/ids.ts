@@ -8,12 +8,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type RegistryDomain =
   | "achievement" | "expense" | "purchase_request" | "risk" | "issue" | "ncr"
   | "communication_actual" | "stakeholder_interaction" | "feedback" | "deliverable"
-  | "action" | "external_approval" | "evaluation" | "lesson_learned" | "handover" | "archive";
+  | "action" | "external_approval" | "evaluation" | "lesson_learned" | "handover" | "archive"
+  | "distribution_operation" | "distribution_site" | "cooperative" | "product"
+  | "distribution_need" | "distribution_plan" | "delivery_note" | "distribution_report";
 
 const DOMAIN_CODES: Record<RegistryDomain, string> = {
   achievement: "A", expense: "E", purchase_request: "B", risk: "R", issue: "I", ncr: "N",
   communication_actual: "C", stakeholder_interaction: "S", feedback: "F", deliverable: "D",
   action: "X", external_approval: "V", evaluation: "M", lesson_learned: "L", handover: "H", archive: "Z",
+  // Operations Management (distribution cycles) — unused letters only.
+  distribution_operation: "O", distribution_site: "T", cooperative: "G", product: "P",
+  distribution_need: "J", distribution_plan: "Q", delivery_note: "W", distribution_report: "U",
 };
 
 const ALPHANUMERIC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I — avoids visual ambiguity
@@ -58,4 +63,15 @@ export async function getOrgCodeForProject(supabase: SupabaseClient, projectId: 
   if (!project?.organization_id) return "NVG";
   const { data: organization } = await supabase.from("ppm_organizations").select("code,name").eq("id", project.organization_id).maybeSingle();
   return orgInitials(organization?.code, organization?.name);
+}
+
+export async function getOrgCodeForOrganization(supabase: SupabaseClient, organizationId: string): Promise<string> {
+  const { data: organization } = await supabase.from("ppm_organizations").select("code,name").eq("id", organizationId).maybeSingle();
+  return orgInitials(organization?.code, organization?.name);
+}
+
+export async function getOrgCodeForOperation(supabase: SupabaseClient, operationId: string): Promise<string> {
+  const { data: operation } = await supabase.from("ppm_ops_operations").select("organization_id").eq("id", operationId).maybeSingle();
+  if (!operation?.organization_id) return "NVG";
+  return getOrgCodeForOrganization(supabase, operation.organization_id);
 }

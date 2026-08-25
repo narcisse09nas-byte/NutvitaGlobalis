@@ -4,7 +4,7 @@
 // links to sections that don't exist yet.
 
 import type { ComponentType, SVGProps } from "react";
-import { ArchiveBoxIcon, BriefcaseIcon, BuildingOffice2Icon, ClipboardDocumentListIcon, HomeIcon, Squares2X2Icon } from "@heroicons/react/24/outline";
+import { ArchiveBoxIcon, BriefcaseIcon, BuildingOffice2Icon, CalendarDaysIcon, ClipboardDocumentListIcon, HomeIcon, Squares2X2Icon, TruckIcon } from "@heroicons/react/24/outline";
 
 export type PPMIcon = ComponentType<SVGProps<SVGSVGElement>>;
 export type PPMNavItem = { href: string; label: string; labelEn: string; icon: PPMIcon; description?: string; descriptionEn?: string };
@@ -24,6 +24,8 @@ export const PPM_NAV_GROUPS: PPMNavGroup[] = [
       { href: "/op-management/portefeuilles", label: "Portefeuilles", labelEn: "Portfolios", icon: Squares2X2Icon },
       { href: "/op-management/programmes", label: "Programmes", labelEn: "Programs", icon: BriefcaseIcon },
       { href: "/op-management/projets", label: "Projets", labelEn: "Projects", icon: ClipboardDocumentListIcon },
+      { href: "/op-management/operations", label: "Operations", labelEn: "Operations", icon: TruckIcon },
+      { href: "/op-management/taches", label: "Tableau de taches", labelEn: "Task board", icon: CalendarDaysIcon },
     ],
   },
   {

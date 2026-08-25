@@ -16,6 +16,9 @@ const SEGMENTS = {
   reporting: { fr: "Reporting", en: "Reporting" },
   closure: { fr: "Cloture", en: "Closure" },
   myAccount: { fr: "Mon compte", en: "My account" },
+  operations: { fr: "Operations", en: "Operations" },
+  reconciliation: { fr: "Reconciliation & fermeture", en: "Reconciliation & Closure" },
+  taskTracker: { fr: "Tableau de taches", en: "Task board" },
 } as const;
 
 export function bc(locale: Locale, key: keyof typeof SEGMENTS): string {

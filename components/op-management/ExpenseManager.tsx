@@ -80,6 +80,12 @@ export default function ExpenseManager({ projectId, initial, budgetLines, wbsNod
 
   const budgetLineLabel = (id?: string | null) => budgetLines.find(item => item.id === id)?.description || "—";
 
+  const financialSummary = useMemo(() => {
+    const budget = budgetLines.reduce((sum, line) => sum + Number(line.forecast_amount || 0), 0);
+    const committed = budgetLines.reduce((sum, line) => sum + Number(line.committed_amount || 0), 0);
+    const spent = rows.filter(row => row.status === "posted").reduce((sum, row) => sum + Number(row.amount_incl_tax || 0), 0);
+    return { budget, committed, spent, balance: budget - spent, burnRate: budget > 0 ? Math.round((spent / budget) * 100) : 0 };
+  }, [budgetLines, rows]);
   function openEditor(row: Expense | "new") {
     setMessage("");
     setEvidence([]);
@@ -98,6 +104,12 @@ export default function ExpenseManager({ projectId, initial, budgetLines, wbsNod
       <button onClick={() => openEditor("new")} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />{en ? "New expense" : "Nouvelle depense"}</button>
     </div>
 
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="rounded-2xl border bg-white p-4"><p className="text-xs font-bold uppercase text-slate-400">{en ? "Forecast budget" : "Prevision (Budget)"}</p><b className="mt-1 block text-xl text-forest">{financialSummary.budget.toLocaleString(locale === "en" ? "en-US" : "fr-FR")}</b></div>
+      <div className="rounded-2xl border bg-white p-4"><p className="text-xs font-bold uppercase text-slate-400">{en ? "Committed" : "Engage"}</p><b className="mt-1 block text-xl text-forest">{financialSummary.committed.toLocaleString(locale === "en" ? "en-US" : "fr-FR")}</b></div>
+      <div className="rounded-2xl border bg-white p-4"><p className="text-xs font-bold uppercase text-slate-400">{en ? "Spent" : "Depense"}</p><b className="mt-1 block text-xl text-forest">{financialSummary.spent.toLocaleString(locale === "en" ? "en-US" : "fr-FR")}</b></div>
+      <div className="rounded-2xl border bg-white p-4"><p className="text-xs font-bold uppercase text-slate-400">{en ? "Balance / Burn rate" : "Solde / Burn rate"}</p><b className="mt-1 block text-xl text-forest">{financialSummary.balance.toLocaleString(locale === "en" ? "en-US" : "fr-FR")} · {financialSummary.burnRate}%</b></div>
+    </div>
     <div className="flex flex-wrap gap-2">
       {([["all", en ? "All" : "Toutes"], ["mine", en ? "My expenses" : "Mes depenses"], ["to_verify", en ? "To verify" : "A verifier"], ["to_approve", en ? "To approve" : "A approuver"]] as const).map(([value, label]) => <button key={value} onClick={() => setScope(value)} className={`rounded-full px-4 py-2 text-sm font-bold ${scope === value ? "bg-forest text-white" : "bg-slate-100 text-slate-600 hover:bg-mint"}`}>{label}</button>)}
     </div>
@@ -128,7 +140,7 @@ export default function ExpenseManager({ projectId, initial, budgetLines, wbsNod
       onDecide={(row, nextStatus) => setDeciding({ row, nextStatus })}
     />}
 
-    {deciding && <div className="fixed inset-0 z-[160] overflow-y-auto bg-slate-950/60 p-4">
+    {deciding && <div className="fixed inset-0 z-[160] overflow-y-auto bg-forest/90 p-4">
       <DecisionForm
         deciding={deciding}
         staffOptions={staffOptions}
@@ -334,7 +346,7 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
     onSaved(result.data as Expense);
   }
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
     <form ref={formRef} onSubmit={event => event.preventDefault()} className="mx-auto my-10 max-w-3xl rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{isNew ? (en ? "New expense" : "Nouvelle depense") : (en ? "Expense" : "Depense")}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">

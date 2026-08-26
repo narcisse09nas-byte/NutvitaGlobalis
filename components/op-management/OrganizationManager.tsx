@@ -66,7 +66,7 @@ export default function OrganizationManager({ initial }: { initial: Organization
       </table>
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? (en ? "New organization" : "Nouvelle organisation") : (en ? "Edit organization" : "Modifier l'organisation")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4">

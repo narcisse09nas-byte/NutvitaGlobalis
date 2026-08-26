@@ -63,7 +63,8 @@ export async function POST(request: Request) {
   const role = String(body.role || "") as PPMRole;
   const scopeType = String(body.scope_type || "");
   const scopeId = body.scope_id ? String(body.scope_id) : null;
-  if (!email || !PPM_ROLES.includes(role) || !["organization", "portfolio", "program", "project"].includes(scopeType)) {
+  const customRoleLabel = role === "other" ? String(body.custom_role_label || "").trim() || null : null;
+  if (!email || !PPM_ROLES.includes(role) || !["organization", "portfolio", "program", "project"].includes(scopeType) || (role === "other" && !customRoleLabel)) {
     return NextResponse.json({ message: "Email, role ou perimetre invalide." }, { status: 400 });
   }
 
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from("ppm_role_assignments")
-    .upsert({ user_id: target.id, role, scope_type: scopeType, scope_id: scopeId, granted_by: userId }, { onConflict: "user_id,role,scope_type,scope_id" })
+    .upsert({ user_id: target.id, role, scope_type: scopeType, scope_id: scopeId, granted_by: userId, custom_role_label: customRoleLabel }, { onConflict: "user_id,role,scope_type,scope_id" })
     .select("*")
     .single();
   if (error) return NextResponse.json({ message: error.message }, { status: 400 });

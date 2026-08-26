@@ -6,20 +6,23 @@ import EntityStatusBadge from "@/components/op-management/EntityStatusBadge";
 import SearchableSelect from "@/components/op-management/SearchableSelect";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import { buildResultChainTree, flattenResultChainTree } from "@/lib/ppm/result-chain";
+import { nextSequence } from "@/lib/ppm/ids";
 import type { Indicator, PPMResource, PPMStatus, ResultChainNode } from "@/lib/ppm/types";
 
-const splitList = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
 const levelLabels = { impact: "Impact", outcome: "Outcome", output: "Output" } as const;
 const unitOptionsFr = ["%", "Nombre", "Ratio", "Kg", "Tonnes", "Menages", "Personnes", "Hectares", "XAF", "USD", "EUR"];
 const unitOptionsEn = ["%", "Number", "Ratio", "Kg", "Tons", "Households", "People", "Hectares", "XAF", "USD", "EUR"];
 const frequencyOptionsFr = ["Hebdomadaire", "Mensuelle", "Trimestrielle", "Semestrielle", "Annuelle", "Ponctuelle"];
 const frequencyOptionsEn = ["Weekly", "Monthly", "Quarterly", "Semi-annual", "Annual", "One-off"];
+const disaggregationOptionsFr = ["Sexe", "Age", "Handicap", "Zone (urbain/rural)", "Statut socio-economique", "Deplaces / refugies", "Niveau d'education"];
+const disaggregationOptionsEn = ["Sex", "Age", "Disability", "Zone (urban/rural)", "Socio-economic status", "Displaced / refugees", "Education level"];
 const OTHER = "__other__";
 
 export default function IndicatorManager({ projectId, initial, resultChain, staff = [] }: { projectId: string; initial: Indicator[]; resultChain: ResultChainNode[]; staff?: PPMResource[] }) {
   const { en } = usePpmLocale();
   const unitOptions = en ? unitOptionsEn : unitOptionsFr;
   const frequencyOptions = en ? frequencyOptionsEn : frequencyOptionsFr;
+  const disaggregationOptions = en ? disaggregationOptionsEn : disaggregationOptionsFr;
   const staffOptions = staff.map(item => ({ value: item.name, label: item.name, hint: item.role_title }));
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<Indicator | "new" | null>(null);
@@ -27,6 +30,8 @@ export default function IndicatorManager({ projectId, initial, resultChain, staf
   const [message, setMessage] = useState("");
   const [unitOther, setUnitOther] = useState(false);
   const [frequencyOther, setFrequencyOther] = useState(false);
+  const [selectedDisaggregations, setSelectedDisaggregations] = useState<string[]>([]);
+  const [customDisaggregation, setCustomDisaggregation] = useState("");
   const resultOptions = useMemo(() => flattenResultChainTree(buildResultChainTree(resultChain)), [resultChain]);
   const resultById = useMemo(() => new Map(resultOptions.map(item => [item.id, item])), [resultOptions]);
   const resultLabel = (id?: string | null) => { const item = resultById.get(id || ""); return item ? `${item.code} — ${item.title}` : "—"; };
@@ -39,7 +44,14 @@ export default function IndicatorManager({ projectId, initial, resultChain, staf
     setMessage("");
     setUnitOther(row !== "new" && !!row.unit && !unitOptions.includes(row.unit));
     setFrequencyOther(row !== "new" && !!row.frequency && !frequencyOptions.includes(row.frequency));
+    const existingDisaggregations = row !== "new" ? row.disaggregations || [] : [];
+    setSelectedDisaggregations(existingDisaggregations.filter(item => disaggregationOptions.includes(item)));
+    setCustomDisaggregation(existingDisaggregations.filter(item => !disaggregationOptions.includes(item)).join(", "));
     setEditing(row);
+  }
+
+  function toggleDisaggregation(value: string) {
+    setSelectedDisaggregations(current => current.includes(value) ? current.filter(item => item !== value) : [...current, value]);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -47,10 +59,17 @@ export default function IndicatorManager({ projectId, initial, resultChain, staf
     setSaving(true);
     setMessage("");
     const form = new FormData(event.currentTarget);
+    const supabase = createClient();
+    const isNew = editing === "new";
+    let code = String(form.get("code") || "").trim() || null;
+    if (isNew && !code) {
+      const seq = await nextSequence(supabase, projectId, "indicator").catch(() => null);
+      code = seq ? `IND-${String(seq).padStart(2, "0")}` : null;
+    }
     const payload = {
       project_id: projectId,
       result_chain_id: String(form.get("result_chain_id") || "") || null,
-      code: String(form.get("code") || "").trim() || null,
+      code,
       name: String(form.get("name") || "").trim(),
       definition: String(form.get("definition") || "").trim() || null,
       unit: String(form.get("unit") || "").trim() || null,
@@ -60,14 +79,12 @@ export default function IndicatorManager({ projectId, initial, resultChain, staf
       verification_source: String(form.get("verification_source") || "").trim() || null,
       frequency: String(form.get("frequency") || "").trim() || null,
       responsible_name: String(form.get("responsible_name") || "").trim() || null,
-      disaggregations: splitList(String(form.get("disaggregations") || "")),
+      disaggregations: [...selectedDisaggregations, ...customDisaggregation.split(",").map(item => item.trim()).filter(Boolean)],
       comments: String(form.get("comments") || "").trim() || null,
       status: String(form.get("status") || "active") as PPMStatus,
     };
     if (!payload.name) { setSaving(false); setMessage(en ? "Name is required." : "Le nom est obligatoire."); return; }
-    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    const isNew = editing === "new";
     const result = isNew
       ? await supabase.from("ppm_indicators").insert({ ...payload, created_by: user?.id }).select("*").single()
       : await supabase.from("ppm_indicators").update(payload).eq("id", (editing as Indicator).id).select("*").single();
@@ -96,12 +113,12 @@ export default function IndicatorManager({ projectId, initial, resultChain, staf
       </table>
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? (en ? "New indicator" : "Nouvel indicateur") : (en ? "Edit indicator" : "Modifier l'indicateur")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Name" : "Nom"}<input name="name" defaultValue={editing !== "new" ? editing.name : ""} required className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">{en ? "Code (optional — otherwise" : "Code (facultatif — sinon"} {editing !== "new" ? indicatorCode(editing) : (en ? "auto-generated" : "auto-genere")})<input name="code" defaultValue={editing !== "new" ? editing.code || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Code (optional — auto-generated if left blank)" : "Code (facultatif — genere automatiquement si laisse vide)"}<input name="code" defaultValue={editing !== "new" ? editing.code || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Linked result" : "Resultat lie"}<select name="result_chain_id" defaultValue={editing !== "new" ? editing.result_chain_id || "" : ""} className="admin-input"><option value="">{en ? "None" : "Aucun"}</option>{resultOptions.map(item => <option key={item.id} value={item.id}>{item.code} — {item.title} ({levelLabels[item.level]})</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Definition" : "Definition"}<textarea name="definition" rows={2} defaultValue={editing !== "new" ? editing.definition || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Unit" : "Unite"}
@@ -125,7 +142,13 @@ export default function IndicatorManager({ projectId, initial, resultChain, staf
           <label className="grid gap-2 text-sm font-bold">{en ? "Current value" : "Valeur actuelle"}<input name="current_value" type="number" step="0.01" defaultValue={editing !== "new" ? editing.current_value ?? "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Responsible" : "Responsable"}<SearchableSelect name="responsible_name" options={staffOptions} defaultValue={editing !== "new" ? editing.responsible_name || "" : ""} allowOther otherLabel={en ? "Responsible name" : "Nom du responsable"} placeholder={en ? "Select a staff member..." : "Selectionner un membre du staff..."} /></label>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Verification source" : "Source de verification"}<input name="verification_source" defaultValue={editing !== "new" ? editing.verification_source || "" : ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Disaggregations (comma-separated)" : "Desagregations (separees par des virgules)"}<input name="disaggregations" defaultValue={editing !== "new" ? (editing.disaggregations || []).join(", ") : ""} className="admin-input" /></label>
+          <div className="grid gap-2 text-sm font-bold sm:col-span-2">
+            {en ? "Disaggregations" : "Desagregations"}
+            <div className="grid gap-1.5 rounded-xl border p-3 sm:grid-cols-2">
+              {disaggregationOptions.map(value => <label key={value} className="flex items-center gap-2 text-xs font-normal"><input type="checkbox" checked={selectedDisaggregations.includes(value)} onChange={() => toggleDisaggregation(value)} className="h-4 w-4" />{value}</label>)}
+            </div>
+            <input value={customDisaggregation} onChange={event => setCustomDisaggregation(event.target.value)} placeholder={en ? "Other disaggregations (comma-separated)" : "Autres desagregations (separees par des virgules)"} className="admin-input" />
+          </div>
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Comments" : "Commentaires"}<textarea name="comments" rows={2} defaultValue={editing !== "new" ? editing.comments || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Status" : "Statut"}<select name="status" defaultValue={editing !== "new" ? editing.status : "active"} className="admin-input"><option value="draft">{en ? "Draft" : "Brouillon"}</option><option value="active">{en ? "Active" : "Actif"}</option><option value="on_hold">{en ? "On hold" : "En pause"}</option><option value="closed">{en ? "Closed" : "Cloture"}</option><option value="cancelled">{en ? "Cancelled" : "Annule"}</option></select></label>
           {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}

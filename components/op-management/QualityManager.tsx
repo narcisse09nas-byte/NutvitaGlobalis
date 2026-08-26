@@ -231,7 +231,7 @@ export default function QualityManager({ projectId, initialRequirements, initial
       </div>
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? (en ? "New quality requirement" : "Nouvelle exigence qualite") : (en ? "Edit requirement" : "Modifier l'exigence")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -247,7 +247,7 @@ export default function QualityManager({ projectId, initialRequirements, initial
       </form>
     </div>}
 
-    {recording && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {recording && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submitRecording} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{en ? "New control finding" : "Nouveau constat de controle"}</h2><button type="button" onClick={() => setRecording(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -291,7 +291,7 @@ export default function QualityManager({ projectId, initialRequirements, initial
       </form>
     </div>}
 
-    {editingNcr && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {editingNcr && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submitNcr} className="mx-auto my-10 max-w-xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Process" : "Instruire"} — {editingNcr.title}</h2><button type="button" onClick={() => setEditingNcr(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">

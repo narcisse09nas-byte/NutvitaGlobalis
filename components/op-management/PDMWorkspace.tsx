@@ -4,13 +4,13 @@ import Link from "next/link";
 import { PlusIcon } from "@heroicons/react/24/outline";
 import ActivityFormModal, { activityStatusLabels, activityStatusTones, type ActivityEditTarget } from "@/components/op-management/ActivityFormModal";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
-import type { Activity, Indicator, KnownPerson, ResultChainNode, WBSNode } from "@/lib/ppm/types";
+import type { Activity, Indicator, PPMResource, ResultChainNode, Site, WBSNode } from "@/lib/ppm/types";
 
 type View = "table" | "gantt" | "calendar" | "kanban";
 const KANBAN_COLUMNS: Activity["status"][] = ["not_started", "in_progress", "delayed", "blocked", "completed"];
 
-export default function PDMWorkspace({ projectId, initial, workPackages, outputs, indicators, knownPeople }: {
-  projectId: string; initial: Activity[]; workPackages: WBSNode[]; outputs: ResultChainNode[]; indicators: Indicator[]; knownPeople: KnownPerson[];
+export default function PDMWorkspace({ projectId, initial, workPackages, outputs, indicators, staff, sites }: {
+  projectId: string; initial: Activity[]; workPackages: WBSNode[]; outputs: ResultChainNode[]; indicators: Indicator[]; staff: PPMResource[]; sites: Site[];
 }) {
   const { en } = usePpmLocale();
   const [activities, setActivities] = useState(initial);
@@ -23,6 +23,11 @@ export default function PDMWorkspace({ projectId, initial, workPackages, outputs
   }
 
   const outputTitle = (id?: string | null) => outputs.find(item => item.id === id)?.title || "—";
+  const outputTitles = (row: Activity) => {
+    const ids = row.output_ids?.length ? row.output_ids : (row.output_id ? [row.output_id] : []);
+    return ids.length ? ids.map(id => outputTitle(id)).join(", ") : "—";
+  };
+  const activityCode = (row: Activity) => row.code || `ACT-${String([...activities].sort((a, b) => a.created_at.localeCompare(b.created_at)).findIndex(item => item.id === row.id) + 1).padStart(2, "0")}`;
 
   return <div className="grid gap-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -39,8 +44,8 @@ export default function PDMWorkspace({ projectId, initial, workPackages, outputs
         <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">{en ? "Activity" : "Activite"}</th><th className="p-4">Output</th><th className="p-4">{en ? "Responsible" : "Responsable"}</th><th className="p-4">{en ? "Period" : "Periode"}</th><th className="p-4">{en ? "Progress" : "Progression"}</th><th className="p-4">{en ? "Status" : "Statut"}</th><th className="p-4">Action</th></tr></thead>
         <tbody>
           {activities.map(row => <tr key={row.id} className="border-t align-top">
-            <td className="p-4"><b className="text-forest">{row.title}</b>{row.is_milestone && <span className="ml-2 rounded-full bg-orange/10 px-2 py-0.5 text-[10px] font-black text-orange">{en ? "MILESTONE" : "JALON"}</span>}</td>
-            <td className="p-4">{outputTitle(row.output_id)}</td>
+            <td className="p-4"><span className="mr-2 rounded-full bg-slate-100 px-2 py-1 font-mono text-xs font-bold text-slate-500">{activityCode(row)}</span><b className="text-forest">{row.title}</b>{row.is_milestone && <span className="ml-2 rounded-full bg-orange/10 px-2 py-0.5 text-[10px] font-black text-orange">{en ? "MILESTONE" : "JALON"}</span>}</td>
+            <td className="p-4">{outputTitles(row)}</td>
             <td className="p-4">{row.responsible_name || "—"}</td>
             <td className="p-4">{row.planned_start ? new Date(row.planned_start).toLocaleDateString("fr-FR") : "—"} → {row.planned_end ? new Date(row.planned_end).toLocaleDateString("fr-FR") : "—"}</td>
             <td className="p-4">{row.progress_percent != null ? `${row.progress_percent}%` : "—"}</td>
@@ -56,7 +61,7 @@ export default function PDMWorkspace({ projectId, initial, workPackages, outputs
     {view === "calendar" && <CalendarView activities={activities} onEdit={setEditing} en={en} />}
     {view === "kanban" && <KanbanView activities={activities} onEdit={setEditing} en={en} />}
 
-    <ActivityFormModal projectId={projectId} target={editing} onClose={() => setEditing(null)} onSaved={handleSaved} workPackages={workPackages} outputs={outputs} indicators={indicators} activities={activities} knownPeople={knownPeople} />
+    <ActivityFormModal projectId={projectId} target={editing} onClose={() => setEditing(null)} onSaved={handleSaved} workPackages={workPackages} outputs={outputs} indicators={indicators} activities={activities} staff={staff} sites={sites} />
   </div>;
 }
 

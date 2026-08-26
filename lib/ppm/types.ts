@@ -23,6 +23,101 @@ export type Organization = {
   updated_at: string;
 };
 
+export type OrgRegistryStatus = "active" | "inactive";
+
+export type OrganizationStaff = {
+  id: string;
+  organization_id: string;
+  code?: string | null;
+  full_name: string;
+  role_title?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  status: OrgRegistryStatus;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DonorType = "bilateral" | "multilateral" | "foundation" | "private_sector" | "individual" | "other";
+
+export type OrganizationDonor = {
+  id: string;
+  organization_id: string;
+  code?: string | null;
+  name: string;
+  donor_type?: DonorType | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  notes?: string | null;
+  status: OrgRegistryStatus;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OrganizationSupplier = {
+  id: string;
+  organization_id: string;
+  code?: string | null;
+  name: string;
+  category?: string | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  status: OrgRegistryStatus;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OrgUnitType = "department" | "directorate" | "field_office" | "other";
+
+export type OrganizationUnit = {
+  id: string;
+  organization_id: string;
+  code?: string | null;
+  name: string;
+  unit_type?: OrgUnitType | null;
+  head_name?: string | null;
+  notes?: string | null;
+  status: OrgRegistryStatus;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SiteAccessibility = "good" | "medium" | "poor";
+
+export type ProjectSite = {
+  id: string;
+  project_id: string;
+  name: string;
+  accessibility?: SiteAccessibility | null;
+  notes?: string | null;
+  sort_order: number;
+  created_at: string;
+};
+
+export type ActivityJournalCategory = "milestone" | "decision" | "issue" | "meeting" | "field_visit" | "other";
+
+export type ActivityJournalEntry = {
+  id: string;
+  project_id: string;
+  code?: string | null;
+  entry_date: string;
+  category?: ActivityJournalCategory | null;
+  title: string;
+  description?: string | null;
+  author_name?: string | null;
+  created_by?: string | null;
+  created_at: string;
+};
+
 export type Portfolio = {
   id: string;
   organization_id: string;
@@ -781,7 +876,7 @@ export type ProjectCharter = {
 // Sprint 5: Requirements Register (spec section 8).
 export type RequirementType =
   | "contractual" | "donor" | "technical" | "functional" | "regulatory" | "quality"
-  | "reporting" | "environmental" | "social" | "security" | "operational";
+  | "reporting" | "environmental" | "social" | "security" | "operational" | "other";
 
 export type Requirement = {
   id: string;
@@ -791,6 +886,7 @@ export type Requirement = {
   source?: string;
   source_stakeholder?: string;
   type: RequirementType;
+  type_other_detail?: string | null;
   priority: ProjectPriority;
   mandatory: boolean;
   justification?: string;
@@ -819,6 +915,7 @@ export type ScopeStatement = {
   geographic_limits?: string;
   time_limits?: string;
   budget_limits?: string;
+  change_request_id?: string | null;
   status: PPMStatus;
   created_by?: string;
   created_at: string;
@@ -836,6 +933,7 @@ export type ResultChainNode = {
   level: ResultLevel;
   title: string;
   description?: string;
+  work_package_ids?: string[];
   order_index: number;
   created_at: string;
   updated_at: string;
@@ -908,6 +1006,7 @@ export type WBSNode = {
   acceptance_criteria?: string;
   estimated_duration_days?: number;
   estimated_cost?: number;
+  change_request_id?: string | null;
   status: PPMStatus;
   created_at: string;
   updated_at: string;
@@ -924,6 +1023,10 @@ export type ScopeBaseline = {
   note?: string;
   approved_by_name?: string;
   approved_at?: string;
+  change_request_id?: string | null;
+  scope_snapshot?: Record<string, unknown> | null;
+  wbs_snapshot?: unknown[] | null;
+  dictionary_snapshot?: unknown[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -936,6 +1039,8 @@ export type ChangeRequest = {
   title: string;
   description?: string;
   requested_by_name?: string;
+  request_code?: string | null;
+  baseline_id?: string | null;
   impact_scope?: string;
   impact_schedule?: string;
   impact_budget?: string;
@@ -961,18 +1066,24 @@ export type ActivityStatus = "not_started" | "in_progress" | "completed" | "dela
 export type Activity = {
   id: string;
   project_id: string;
+  code?: string | null;
   work_package_id?: string | null;
   parent_id?: string | null;
   kind: ActivityKind;
   title: string;
   description?: string;
   output_id?: string | null;
+  output_ids?: string[];
   responsible_name?: string;
   responsible_email?: string;
   ev_method: EvMethod;
   milestone_weights: MilestoneWeight[];
   co_responsible?: string[];
   location?: string;
+  site_id?: string | null;
+  dependency_ids?: string[];
+  dependency_type?: 'FS' | 'SS' | 'FF' | 'SF';
+  dependency_lag_days?: number;
   target_population?: string;
   beneficiaries?: number;
   planned_start?: string;
@@ -985,6 +1096,7 @@ export type Activity = {
   progress_percent?: number;
   status: ActivityStatus;
   indicator_id?: string | null;
+  indicator_ids?: string[];
   target_value?: string;
   deliverable?: string;
   evidence_path?: string;
@@ -1009,7 +1121,9 @@ export type BudgetLine = {
   sub_category?: string;
   budget_category_id?: string | null;
   donor_name?: string;
+  donor_id?: string | null;
   grant_reference?: string;
+  grant_id?: string | null;
   description: string;
   initial_budget: number;
   revised_budget?: number;
@@ -1102,6 +1216,8 @@ export type ProcurementItem = {
   currency?: string;
   stage: ProcurementStage;
   requested_by_name?: string;
+  request_code?: string | null;
+  baseline_id?: string | null;
   requested_by_email?: string;
   supplier_name?: string;
   contract_reference?: string;
@@ -1267,9 +1383,11 @@ export type Stakeholder = {
   influence_level: StakeholderLevel;
   interest_level: StakeholderLevel;
   position: StakeholderPosition;
+  desired_position?: StakeholderPosition | null;
   contact_email?: string;
   contact_phone?: string;
   engagement_strategy?: string;
+  engagement_strategies?: string[];
   notes?: string;
   status: PPMStatus;
   created_at: string;
@@ -1405,6 +1523,7 @@ export type Deliverable = {
   responsible_name?: string;
   planned_date?: string;
   actual_date?: string;
+  acceptance_criteria?: string | null;
   acceptance_status: DeliverableAcceptanceStatus;
   accepted_by_name?: string;
   accepted_at?: string;
@@ -1489,6 +1608,8 @@ export type ApprovalRequest = {
   title: string;
   description?: string;
   requested_by_name?: string;
+  request_code?: string | null;
+  baseline_id?: string | null;
   requested_by_email?: string;
   approver_name?: string;
   approver_email?: string;
@@ -2101,10 +2222,25 @@ export type Site = {
   division?: string;
   subdivision?: string;
   site_name: string;
+  site_code?: string | null;
+  beneficiary_count?: number | null;
+  site_type?: string | null;
+  contact_name?: string | null;
+  contact_phone?: string | null;
   notes?: string;
   created_by?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+
+export type OrganizationGrant = {
+  id: string;
+  organization_id: string;
+  donor_id: string;
+  reference: string;
+  title?: string | null;
+  status: OrgRegistryStatus;
 };
 
 // Refinement program, Wave 4: budget categories are a self-referencing tree exactly like WBS

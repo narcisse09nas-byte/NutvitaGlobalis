@@ -131,7 +131,7 @@ function CreateDeliveryModal({ operationId, needs, pos, sites, isSfHgsf, onClose
     onCreated(created);
   }
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
     <form onSubmit={submit} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "New delivery" : "Nouvelle livraison"}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
       <div className="mt-5 grid gap-4">
@@ -223,7 +223,7 @@ function DeliveryDetailPanel({ delivery, sites, products, staff, onStatusChanged
 
   const historyEntries: WorkflowHistoryEntry[] = history.map(item => ({ status: item.to_status || item.action, at: item.created_at, note: item.note }));
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
     <div className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{en ? "Delivery" : "Livraison"} {delivery.code}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
       <p className="mt-2 text-sm text-slate-500">{site?.name} — {new Date(delivery.delivery_date).toLocaleDateString(en ? "en-US" : "fr-FR")}</p>
@@ -285,7 +285,7 @@ function DeliveryDetailPanel({ delivery, sites, products, staff, onStatusChanged
       {!!receivers.length && <p className="mt-3 text-sm text-slate-500">{en ? "Received by" : "Receptionne par"} : {receivers.map(item => item.full_name).join(", ")}</p>}
     </div>
 
-    {receiving && <div className="fixed inset-0 z-[160] overflow-y-auto bg-slate-950/60 p-4">
+    {receiving && <div className="fixed inset-0 z-[160] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submitReception} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Record reception" : "Enregistrer la reception"}</h2><button type="button" onClick={() => setReceiving(false)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">

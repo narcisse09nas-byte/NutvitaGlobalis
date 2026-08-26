@@ -126,6 +126,7 @@ export default function DeliverableManager({ projectId, initial, wbsNodes, activ
       responsible_name: String(form.get("responsible_name") || "").trim() || null,
       planned_date: String(form.get("planned_date") || "") || null,
       actual_date: String(form.get("actual_date") || "") || null,
+      acceptance_criteria: String(form.get("acceptance_criteria") || "").trim() || null,
       acceptance_status: acceptance,
       accepted_by_name: String(form.get("accepted_by_name") || "").trim() || null,
       accepted_at: acceptance === "accepted" ? (!isNew ? (editing as Deliverable).accepted_at : null) || new Date().toISOString() : null,
@@ -184,7 +185,7 @@ export default function DeliverableManager({ projectId, initial, wbsNodes, activ
       </table>
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? (en ? "New deliverable" : "Nouveau livrable") : (en ? "Edit deliverable" : "Modifier le livrable")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -199,6 +200,7 @@ export default function DeliverableManager({ projectId, initial, wbsNodes, activ
           <label className="grid gap-2 text-sm font-bold">{en ? "Responsible" : "Responsable"}<SearchableSelect name="responsible_name" options={staffOptions} defaultValue={editing !== "new" ? editing.responsible_name || "" : ""} allowOther otherLabel={en ? "Responsible name" : "Nom du responsable"} placeholder={en ? "Select a staff member..." : "Selectionner un membre du staff..."} /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Planned date" : "Date planifiee"}<input name="planned_date" type="date" defaultValue={editing !== "new" ? editing.planned_date || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Actual date" : "Date reelle"}<input name="actual_date" type="date" defaultValue={editing !== "new" ? editing.actual_date || "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Acceptance criteria" : "Criteres d'acceptation"}<textarea name="acceptance_criteria" rows={2} defaultValue={editing !== "new" ? editing.acceptance_criteria || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Acceptance" : "Acceptation"}<select name="acceptance_status" defaultValue={editing !== "new" ? editing.acceptance_status : "pending"} className="admin-input">{Object.entries(acceptanceLabels).map(([value, label]) => <option key={value} value={value}>{label[locale]}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Accepted by" : "Accepte par"}<input name="accepted_by_name" defaultValue={editing !== "new" ? editing.accepted_by_name || "" : ""} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Version" : "Version"}<input name="version" type="number" min="1" defaultValue={editing !== "new" ? editing.version : 1} className="admin-input" /></label>
@@ -217,10 +219,12 @@ export default function DeliverableManager({ projectId, initial, wbsNodes, activ
       </form>
     </div>}
 
-    {accepting && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {accepting && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submitAcceptance} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Accept" : "Accepter"} — {accepting.title}</h2><button type="button" onClick={() => setAccepting(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
+          {accepting.acceptance_criteria ? <div className="rounded-xl bg-mint/30 p-3 text-sm text-forest"><b className="block text-xs font-black uppercase text-slate-400">{en ? "Acceptance criteria" : "Criteres d'acceptation"}</b>{accepting.acceptance_criteria}</div>
+            : <p className="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-900">{en ? "No acceptance criteria recorded for this deliverable." : "Aucun critere d'acceptation enregistre pour ce livrable."}</p>}
           <label className="grid gap-2 text-sm font-bold">
             {en ? "Accepted by" : "Accepte par"}
             <select name="accepted_by_id" required className="admin-input">

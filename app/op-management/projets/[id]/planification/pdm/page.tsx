@@ -6,7 +6,7 @@ import PDMWorkspace from "@/components/op-management/PDMWorkspace";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
-import { getProject, listActivities, listIndicators, listKnownPeople, listResultChain, listWbsNodes } from "@/lib/ppm/queries";
+import { getProject, listActivities, listIndicators, listResources, listResultChain, listSites, listWbsNodes } from "@/lib/ppm/queries";
 import { wbsLeafNodes } from "@/lib/ppm/wbs";
 
 export default async function PlanificationPdmPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,8 +17,8 @@ export default async function PlanificationPdmPage({ params }: { params: Promise
   const name = user.user_metadata?.full_name || user.email || ((await getCurrentLocale()) === "en" ? "User" : "Utilisateur");
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [wbsNodes, resultChain, indicators, activities, knownPeople] = await Promise.all([
-    listWbsNodes(supabase, id), listResultChain(supabase, id), listIndicators(supabase, id), listActivities(supabase, id), listKnownPeople(supabase, project),
+  const [wbsNodes, resultChain, indicators, activities, staff, sites] = await Promise.all([
+    listWbsNodes(supabase, id), listResultChain(supabase, id), listIndicators(supabase, id), listActivities(supabase, id), listResources(supabase, id), listSites(supabase, id),
   ]);
   const workPackages = wbsLeafNodes(wbsNodes);
   // Prefer nodes explicitly leveled "output", but fall back to the whole result chain when a
@@ -32,7 +32,7 @@ export default async function PlanificationPdmPage({ params }: { params: Promise
     <ProjectShell project={project}>
       <div className="grid gap-5">
         <PlanificationTabs projectId={id} />
-        <PDMWorkspace projectId={id} initial={activities} workPackages={workPackages} outputs={outputs} indicators={indicators} knownPeople={knownPeople} />
+        <PDMWorkspace projectId={id} initial={activities} workPackages={workPackages} outputs={outputs} indicators={indicators} staff={staff.filter(item => item.type === "human" || item.type === "consultant")} sites={sites} />
       </div>
     </ProjectShell>
   </PPMShell>;

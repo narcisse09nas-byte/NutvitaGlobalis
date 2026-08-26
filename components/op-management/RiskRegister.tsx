@@ -121,7 +121,7 @@ export default function RiskRegister({ projectId, initial, initialReviews, staff
       </table>
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? (en ? "New risk" : "Nouveau risque") : (en ? "Edit risk" : "Modifier le risque")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -147,7 +147,7 @@ export default function RiskRegister({ projectId, initial, initialReviews, staff
       </form>
     </div>}
 
-    {reviewing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {reviewing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submitReview} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Review" : "Reviser"} — {reviewing.title}</h2><button type="button" onClick={() => setReviewing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -163,7 +163,7 @@ export default function RiskRegister({ projectId, initial, initialReviews, staff
       </form>
     </div>}
 
-    {historyFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {historyFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <div className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Review history" : "Historique des revues"} — {historyFor.title}</h2><button onClick={() => setHistoryFor(null)} className="text-2xl">×</button></div>
         <div className="mt-4 grid gap-2">

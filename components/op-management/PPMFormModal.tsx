@@ -10,7 +10,7 @@ export default function PPMFormModal({ icon: Icon, title, subtitle, onClose, chi
   onClose: () => void; children: ReactNode; maxWidth?: string;
 }) {
   const { en } = usePpmLocale();
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
     <div className={`mx-auto my-10 ${maxWidth} rounded-[2rem] bg-forest p-5 shadow-2xl shadow-forest/30 md:p-7`}>
       <div className="mb-1 flex items-start justify-between gap-3 text-white">
         <div className="flex items-center gap-3">

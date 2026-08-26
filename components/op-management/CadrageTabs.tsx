@@ -10,6 +10,7 @@ const TABS = [
   { slug: "exigences", label: "Exigences", labelEn: "Requirements" },
   { slug: "perimetre", label: "Perimetre", labelEn: "Scope" },
   { slug: "cadre-resultats", label: "Cadre de resultats", labelEn: "Results framework" },
+  { slug: "sites", label: "Sites du projet", labelEn: "Project sites" },
   { slug: "gouvernance", label: "Gouvernance", labelEn: "Governance" },
 ] as const;
 

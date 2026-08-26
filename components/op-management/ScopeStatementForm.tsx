@@ -1,47 +1,20 @@
 "use client";
-import { useState, type FormEvent } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
-import type { ScopeStatement } from "@/lib/ppm/types";
-
-const fields: Array<[string, string, string]> = [
-  ["in_scope", "In Scope — ce que le projet couvre", "In Scope — what the project covers"],
-  ["out_of_scope", "Out of Scope — ce qui est explicitement exclu", "Out of Scope — what is explicitly excluded"],
-  ["deliverables", "Livrables principaux", "Main deliverables"],
-  ["acceptance_criteria", "Criteres d'acceptation", "Acceptance criteria"],
-  ["constraints", "Contraintes", "Constraints"],
-  ["assumptions", "Hypotheses", "Assumptions"],
-  ["dependencies", "Dependances", "Dependencies"],
-  ["geographic_limits", "Limites geographiques", "Geographic limits"],
-  ["time_limits", "Limites temporelles", "Time limits"],
-  ["budget_limits", "Limites budgetaires", "Budget limits"],
-];
-
-export default function ScopeStatementForm({ projectId, initial }: { projectId: string; initial: ScopeStatement | null }) {
-  const { en } = usePpmLocale();
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaving(true);
-    setMessage("");
-    const form = new FormData(event.currentTarget);
-    const payload: Record<string, unknown> = { project_id: projectId };
-    for (const [key] of fields) payload[key] = String(form.get(key) || "").trim() || null;
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const result = await supabase.from("ppm_scope_statements").upsert({ ...payload, created_by: initial?.created_by || user?.id }, { onConflict: "project_id" }).select("*").single();
-    setSaving(false);
-    if (result.error) { setMessage(result.error.message); return; }
-    setMessage(en ? "Project scope saved." : "Perimetre du projet enregistre.");
-  }
-
-  return <form onSubmit={submit} className="grid gap-5 rounded-2xl border bg-white p-6">
-    <div className="grid gap-4 sm:grid-cols-2">
-      {fields.map(([key, label, labelEn]) => <label key={key} className="grid gap-2 text-sm font-bold sm:col-span-2"><span>{en ? labelEn : label}</span><textarea name={key} rows={2} defaultValue={initial ? (initial as unknown as Record<string, string>)[key] || "" : ""} className="admin-input" /></label>)}
-    </div>
-    {message && <p className="rounded-xl bg-mint p-3 text-sm font-bold text-forest">{message}</p>}
-    <div className="flex justify-end"><button disabled={saving} className="btn-primary">{saving ? (en ? "Saving..." : "Enregistrement...") : (en ? "Save scope" : "Enregistrer le perimetre")}</button></div>
-  </form>;
+import {useState,type FormEvent} from "react";
+import Link from "next/link";
+import {useRouter} from "next/navigation";
+import {createClient} from "@/lib/supabase/client";
+import {usePpmLocale} from "@/components/op-management/PpmLocaleContext";
+import type {ChangeRequest,ScopeStatement} from "@/lib/ppm/types";
+const fields:Array<[string,string,string,string?,string?]>=[["in_scope","In Scope — ce que le projet couvre","In Scope — what the project covers"],["out_of_scope","Out of Scope — ce qui est explicitement exclu","Out of Scope — what is explicitly excluded"],["constraints","Contraintes","Constraints"],["assumptions","Hypothèses","Assumptions"],["dependencies","Dépendances","Dependencies"],["geographic_limits","Limites géographiques","Geographic limits","(indiquer les zones, pays ou régions non couvertes par le projet)","(state the areas, countries or regions the project does not cover)"],["time_limits","Limites temporelles","Time limits","(indiquer les périodes ou échéances hors du cadre du projet)","(state the periods or deadlines outside the project's scope)"],["budget_limits","Limites budgétaires","Budget limits","(indiquer les dépenses ou postes non couverts par le budget du projet)","(state the expenses or items not covered by the project's budget)"]];
+export default function ScopeStatementForm({projectId,initial,locked=false,changeRequests=[],selectedChangeRequestId="",baselineId=""}:{projectId:string;initial:ScopeStatement|null;locked?:boolean;changeRequests?:ChangeRequest[];selectedChangeRequestId?:string;baselineId?:string}){
+ const {en}=usePpmLocale();const router=useRouter();const [saving,setSaving]=useState(false),[message,setMessage]=useState("");
+ async function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();if(locked)return;setSaving(true);setMessage("");const form=new FormData(event.currentTarget),changeRequestId=String(form.get("change_request_id")||"").trim()||null,payload:Record<string,unknown>={project_id:projectId,change_request_id:changeRequestId};for(const [key] of fields)payload[key]=String(form.get(key)||"").trim()||null;const supabase=createClient();const {data:{user}}=await supabase.auth.getUser();const result=await supabase.from("ppm_scope_statements").upsert({...payload,created_by:initial?.created_by||user?.id},{onConflict:"project_id"}).select("*").single();setSaving(false);if(result.error){setMessage(result.error.message);return}setMessage(en?"Project scope saved.":"Périmètre du projet enregistré.");if(baselineId&&changeRequestId)router.push(`/op-management/projets/${projectId}/planification/wbs?changeRequest=${changeRequestId}&baseline=${baselineId}&step=wbs`)}
+ return <fieldset disabled={locked} className="disabled:opacity-75"><form onSubmit={submit} className="grid gap-5 rounded-[28px] border border-emerald-100 bg-emerald-50/70 p-6 shadow-sm">
+  {locked&&<p className="rounded-xl bg-amber-50 p-4 text-sm font-bold text-amber-900">{en?"The current Scope Baseline is locked. Start an approved Change Request version to edit it.":"La Scope Baseline actuelle est verrouillée. Créez une nouvelle version à partir d’une demande de changement approuvée pour la modifier."}</p>}
+  {!locked&&changeRequests.length>0&&<label className="grid gap-2 text-sm font-bold">{en?"Approved Change Request":"Demande de changement approuvée"}<select name="change_request_id" defaultValue={selectedChangeRequestId||initial?.change_request_id||""} required={Boolean(baselineId)} className="admin-input"><option value="">{en?"None / initial version":"Aucune / version initiale"}</option>{changeRequests.map(item=><option key={item.id} value={item.id}>{item.request_code||item.id} — {item.title}</option>)}</select></label>}
+  <p className="rounded-xl bg-mint/60 p-4 text-sm text-forest">{en?<>Main deliverables and their acceptance criteria are managed in the <Link href={`/op-management/projets/${projectId}/reporting/livrables-documents`} className="font-bold underline">Deliverables register</Link>.</>:<>Les livrables principaux et leurs critères d’acceptation sont gérés dans le <Link href={`/op-management/projets/${projectId}/reporting/livrables-documents`} className="font-bold underline">registre des livrables</Link>.</>}</p>
+  <div className="grid gap-4 sm:grid-cols-2">{fields.map(([key,label,labelEn,hint,hintEn])=><label key={key} className="grid gap-2 text-sm font-bold sm:col-span-2"><span>{en?labelEn:label}{(hint||hintEn)&&<span className="ml-2 text-xs font-normal italic text-slate-400">{en?hintEn:hint}</span>}</span><textarea name={key} rows={2} defaultValue={initial?(initial as unknown as Record<string,string>)[key]||"":""} className="admin-input bg-white" /></label>)}</div>
+  {message&&<p className="rounded-xl bg-mint p-3 text-sm font-bold text-forest">{message}</p>}
+  {!locked&&<div className="flex justify-end"><button disabled={saving} className="btn-primary">{saving?(en?"Saving...":"Enregistrement..."):baselineId?(en?"Save and continue to WBS":"Enregistrer et continuer vers le WBS"):(en?"Save scope":"Enregistrer le périmètre")}</button></div>}
+ </form></fieldset>
 }

@@ -150,7 +150,7 @@ function TaskFormModal({ taskList, task, staff, contextLabel, sortOrder, onClose
     onSaved(saved);
   }
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
     <form onSubmit={submit} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{task ? (en ? "Edit task" : "Modifier la tache") : (en ? "New task" : "Nouvelle tache")}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
       <div className="mt-5 grid gap-4">

@@ -112,7 +112,7 @@ export default function ActionTracker({ projectId, initial, staff = [] }: { proj
       {!filtered.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No action." : "Aucune action."}</p>}
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{editing === "new" ? (en ? "New action" : "Nouvelle action") : (en ? "Edit action" : "Modifier l'action")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -128,7 +128,7 @@ export default function ActionTracker({ projectId, initial, staff = [] }: { proj
       </form>
     </div>}
 
-    {validating && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {validating && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submitValidation} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Verify" : "Verifier"} — {validating.description}</h2><button type="button" onClick={() => setValidating(null)} className="text-2xl">×</button></div>
         <div className="mt-5 grid gap-4">

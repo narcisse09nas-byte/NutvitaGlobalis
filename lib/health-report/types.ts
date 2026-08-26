@@ -20,19 +20,19 @@ export type IndicatorDefinition = {
   transform?:(value:number)=>number;
 };
 export type ValidatedPoint = {date:string;value:number;sourceId?:string};
-export type AnalysisTrace = {indicatorId:string;conclusion:string;sourceValues:number[];dates:string[];referenceId?:string;ruleId:string;calculation:string;confidenceLevel:ConfidenceLevel};
+export type AnalysisTrace = {indicatorId:string;conclusion:string;sourceValues:number[];dates:string[];currentValue:number|null;previousValue:number|null;baselineValue:number|null;referenceId?:string;ruleId:string;reason:string;calculation:string;confidenceLevel:ConfidenceLevel};
 export type IndicatorAnalysis = {
   indicatorId:string; label:string; type:IndicatorType; unit:string; contentType:"measured"|"calculated"; points:ValidatedPoint[];
   currentValue:number|null; previousValue:number|null; baselineValue:number|null; deltaPrevious:number|null; deltaBaseline:number|null;
   percentChangePrevious:number|null; percentChangeBaseline:number|null; direction:Direction; clinicalMeaning:ClinicalMeaning; trend:Trend;
   confidenceLevel:ConfidenceLevel; status:AlertLevel|"normal"|"not_measured"; referenceId?:string; referenceText?:string;
-  interpretation:string; recommendedAction:string; missingData:string[]; chart:{enabled:boolean;type:"line"|"categorical"|"none";domain?:[number,number]}; trace:AnalysisTrace;
+  interpretation:string; recommendedAction:string; missingData:string[]; expectedData:boolean; clinicallyRelevantMissingData:boolean; measurementContext?:string; measuredUnit?:string; chart:{enabled:boolean;type:"line"|"categorical"|"none";domain?:[number,number]}; trace:AnalysisTrace;
 };
 export type ReportAlert = {level:AlertLevel;indicatorId:string;value:number|null;referenceId?:string;reason:string;recommendedAction:string;requiresProfessionalReview:boolean};
 export type ValidationIssue = {severity:"warning"|"critical";code:string;indicatorId?:string;message:string};
 export type HealthReportModel = {
   engineVersion:string; reportType:ReportType; locale:ReportLocale; profile:ReportProfile; generatedAt:string; period:{start:string;end:string};
   indicators:IndicatorAnalysis[]; alerts:ReportAlert[]; validationIssues:ValidationIssue[]; dataQuality:DataQuality;
-  essentialSummary:{globalState:string;improving:string[];stable:string[];attention:string[];missing:string[];priorities:string[]};
+  essentialSummary:{globalState:string;improving:string[];stable:string[];attention:string[];missing:string[];priorities:string[];claims:AnalysisTrace[]};
   traces:AnalysisTrace[]; sourceSnapshot:{counts:Record<string,number>;goals:ReportRow[]}; previousGoals:ReportRow[]; nextGoals:ReportRow[];
 };

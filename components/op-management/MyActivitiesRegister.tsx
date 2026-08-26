@@ -121,7 +121,7 @@ export default function MyActivitiesRegister({ projectId, activities, wbsNodes, 
       onSaved={row => { if (row.status !== "draft") setReporting(null); }}
     />}
 
-    {historyFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {historyFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <div className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "History" : "Historique"} — {historyFor.title}</h2><button onClick={() => setHistoryFor(null)} className="text-2xl">×</button></div>
         <div className="mt-4 grid gap-2">
@@ -131,7 +131,7 @@ export default function MyActivitiesRegister({ projectId, activities, wbsNodes, 
       </div>
     </div>}
 
-    {signalingFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {signalingFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submitSignal} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Flag an issue" : "Signaler un probleme"} — {signalingFor.title}</h2><button type="button" onClick={() => setSignalingFor(null)} className="text-2xl">×</button></div>
         <div className="mt-5 grid gap-4">

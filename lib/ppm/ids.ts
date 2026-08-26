@@ -78,3 +78,20 @@ export async function getOrgCodeForOperation(supabase: SupabaseClient, operation
   if (!operation?.organization_id) return "NVG";
   return getOrgCodeForOrganization(supabase, operation.organization_id);
 }
+
+// Generic scope-scoped sequential numbering (ppm_next_sequence RPC, row-locked upsert) — used for
+// the project code and the new organization-level registries, distinct from the random-suffix
+// generateRegistryCode() scheme above since these need small, gapless, human-legible numbers
+// (e.g. "PROJ-01/26-NVG", "STAFF-003") rather than a collision-resistant random code.
+export async function nextSequence(supabase: SupabaseClient, scopeId: string, kind: string, year = 0): Promise<number> {
+  const { data, error } = await supabase.rpc("ppm_next_sequence", { p_scope_id: scopeId, p_kind: kind, p_year: year });
+  if (error || typeof data !== "number") throw new Error(error?.message || "Sequence generation failed.");
+  return data;
+}
+
+export async function generateProjectCode(supabase: SupabaseClient, organizationId: string): Promise<string> {
+  const orgCode = await getOrgCodeForOrganization(supabase, organizationId);
+  const year = new Date().getFullYear() % 100;
+  const seq = await nextSequence(supabase, organizationId, "project", year);
+  return `PROJ-${String(seq).padStart(2, "0")}/${String(year).padStart(2, "0")}-${orgCode}`;
+}

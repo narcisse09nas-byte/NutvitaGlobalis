@@ -82,7 +82,7 @@ export default function CooperativeManager({ organizationId, initial }: { organi
       </table>
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? (en ? "New cooperative" : "Nouvelle cooperative") : (en ? "Edit cooperative" : "Modifier la cooperative")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -176,7 +176,7 @@ function CooperativeDetailPanel({ cooperative, onClose }: { cooperative: OpsCoop
     if (!error) window.open(data.signedUrl, "_blank");
   }
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
     <div className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{cooperative.name}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
 

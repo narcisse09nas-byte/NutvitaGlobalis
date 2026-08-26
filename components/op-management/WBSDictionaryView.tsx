@@ -4,21 +4,34 @@
 // cost) — there was no missing data, only a missing consolidated view. This is a read-only,
 // printable listing over the same lib/ppm/wbs.ts tree helpers, not a new table.
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { PrinterIcon } from "@heroicons/react/24/outline";
 import { buildWbsTree, flattenWbsTree } from "@/lib/ppm/wbs";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
-import type { WBSNode } from "@/lib/ppm/types";
+import type { ChangeRequest, WBSNode } from "@/lib/ppm/types";
 
 const levelNamesFr = ["", "Projet", "Composante", "Sous-composante", "Work Package"];
 const levelNamesEn = ["", "Project", "Component", "Sub-component", "Work Package"];
 
-export default function WBSDictionaryView({ nodes }: { nodes: WBSNode[] }) {
+export default function WBSDictionaryView({ nodes, projectId, baselineId = "", selectedChangeRequestId = "", changeRequests = [], workflow = false, initiallyOpen = false }: { nodes: WBSNode[]; projectId?: string; baselineId?: string; selectedChangeRequestId?: string; changeRequests?: ChangeRequest[]; workflow?: boolean; initiallyOpen?: boolean }) {
   const { en } = usePpmLocale();
+  const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
   const levelNames = en ? levelNamesEn : levelNamesFr;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen || workflow);
   const flat = useMemo(() => flattenWbsTree(buildWbsTree(nodes)), [nodes]);
 
+  async function submitForReview() {
+    if (!baselineId || !selectedChangeRequestId || !projectId) return;
+    setSubmitting(true);
+    const result = await createClient().from("ppm_scope_baselines").update({ status: "review", change_request_id: selectedChangeRequestId }).eq("id", baselineId);
+    setSubmitting(false);
+    if (!result.error) router.push(`/op-management/projets/${projectId}/planification/baseline`);
+  }
+
   return <div className="grid gap-3">
+    {workflow && <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-5"><label className="grid gap-2 text-sm font-bold">{en ? "Approved Change Request" : "Demande de changement approuvée"}<select value={selectedChangeRequestId} disabled className="admin-input bg-white"><option>{changeRequests.find(item => item.id === selectedChangeRequestId)?.request_code || selectedChangeRequestId}</option></select></label><p className="mt-3 text-sm text-slate-600">{en ? "Review the WBS Dictionary below, then submit the complete baseline version for approval.":"Vérifiez le Dictionnaire WBS ci-dessous, puis soumettez la version complète de la baseline pour approbation."}</p></div>}
     <button onClick={() => setOpen(current => !current)} className="btn-secondary w-fit px-4 py-2 text-sm">
       {open ? (en ? "Hide WBS dictionary" : "Masquer le dictionnaire WBS") : (en ? "Show WBS dictionary" : "Afficher le dictionnaire WBS")}
     </button>

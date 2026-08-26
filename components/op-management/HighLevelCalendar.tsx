@@ -3,8 +3,10 @@
 // data the detailed per-day Gantt (PDMWorkspace.tsx) already renders — visible earlier, at
 // Cadrage time, before/alongside the detailed PDM planning.
 import { useMemo, useState } from "react";
+import { PlusIcon } from "@heroicons/react/24/outline";
+import ActivityFormModal, { type ActivityEditTarget } from "@/components/op-management/ActivityFormModal";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
-import type { Activity } from "@/lib/ppm/types";
+import type { Activity, Indicator, KnownPerson, ResultChainNode, WBSNode } from "@/lib/ppm/types";
 
 type Granularity = "week" | "month" | "quarter" | "year";
 
@@ -34,10 +36,20 @@ function nextPeriod(date: Date, granularity: Granularity): Date {
   return next;
 }
 
-export default function HighLevelCalendar({ activities }: { activities: Activity[] }) {
+export default function HighLevelCalendar({ projectId, initial, workPackages, outputs, indicators, knownPeople }: {
+  projectId: string; initial: Activity[]; workPackages: WBSNode[]; outputs: ResultChainNode[]; indicators: Indicator[]; knownPeople: KnownPerson[];
+}) {
   const { en } = usePpmLocale();
+  const [activities, setActivities] = useState(initial);
+  const [editing, setEditing] = useState<ActivityEditTarget>(null);
   const [granularity, setGranularity] = useState<Granularity>("month");
   const dated = useMemo(() => activities.filter(row => row.planned_start && row.planned_end), [activities]);
+  const activityCode = (row: Activity) => row.code || `ACT-${String([...activities].sort((a, b) => a.created_at.localeCompare(b.created_at)).findIndex(item => item.id === row.id) + 1).padStart(2, "0")}`;
+
+  function handleSaved(row: Activity, isNew: boolean) {
+    setActivities(current => isNew ? [...current, row] : current.map(item => item.id === row.id ? row : item));
+    setEditing(null);
+  }
 
   const periods = useMemo(() => {
     if (!dated.length) return [] as string[];
@@ -71,8 +83,9 @@ export default function HighLevelCalendar({ activities }: { activities: Activity
   return <div className="grid gap-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-xl font-black text-forest">{en ? "Forecast calendar (high-level view)" : "Calendrier previsionnel (vue haut niveau)"}</h2>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {([["week", en ? "Week" : "Semaine"], ["month", en ? "Month" : "Mois"], ["quarter", en ? "Quarter" : "Trimestre"], ["year", en ? "Year" : "Annee"]] as const).map(([value, label]) => <button key={value} onClick={() => setGranularity(value)} className={`rounded-full px-4 py-2 text-xs font-bold ${granularity === value ? "bg-forest text-white" : "bg-slate-100 text-slate-600 hover:bg-mint"}`}>{label}</button>)}
+        <button onClick={() => setEditing("new")} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />{en ? "New activity" : "Nouvelle activite"}</button>
       </div>
     </div>
     {!periods.length ? <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No dated activity to display." : "Aucune activite datee a afficher."}</p> : <div className="overflow-x-auto rounded-2xl border bg-white">
@@ -82,12 +95,13 @@ export default function HighLevelCalendar({ activities }: { activities: Activity
           {dated.map(activity => {
             const covered = activityPeriods(activity);
             return <tr key={activity.id} className="border-t">
-              <td className="whitespace-nowrap p-3 font-bold text-forest">{activity.title}</td>
+              <td className="whitespace-nowrap p-3 font-bold text-forest"><span className="mr-2 rounded-full bg-slate-100 px-2 py-1 font-mono text-xs font-bold text-slate-500">{activityCode(activity)}</span>{activity.title}</td>
               {periods.map(key => <td key={key} className="p-1 text-center">{covered.has(key) && <span className="mx-auto block h-4 rounded-full bg-leaf" />}</td>)}
             </tr>;
           })}
         </tbody>
       </table>
     </div>}
+    <ActivityFormModal projectId={projectId} target={editing} onClose={() => setEditing(null)} onSaved={handleSaved} workPackages={workPackages} outputs={outputs} indicators={indicators} activities={activities} knownPeople={knownPeople} />
   </div>;
 }

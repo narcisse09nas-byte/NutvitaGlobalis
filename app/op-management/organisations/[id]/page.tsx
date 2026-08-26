@@ -3,10 +3,17 @@ import PPMShell from "@/components/op-management/PPMShell";
 import PortfolioManager from "@/components/op-management/PortfolioManager";
 import EntityStatusBadge from "@/components/op-management/EntityStatusBadge";
 import RoleAssignmentManager from "@/components/op-management/RoleAssignmentManager";
+import OrganizationStaffManager from "@/components/op-management/OrganizationStaffManager";
+import OrganizationDonorManager from "@/components/op-management/OrganizationDonorManager";
+import OrganizationSupplierManager from "@/components/op-management/OrganizationSupplierManager";
+import OrganizationUnitManager from "@/components/op-management/OrganizationUnitManager";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
-import { getOrganization, listOrganizations, listPortfolios } from "@/lib/ppm/queries";
+import {
+  getOrganization, listOrganizationDonors, listOrganizations, listOrganizationStaff, listOrganizationSuppliers,
+  listOrganizationUnits, listPortfolios,
+} from "@/lib/ppm/queries";
 
 export default async function OrganizationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,7 +25,10 @@ export default async function OrganizationDetailPage({ params }: { params: Promi
   const en = locale === "en";
   const organization = await getOrganization(supabase, id);
   if (!organization) notFound();
-  const [organizations, portfolios] = await Promise.all([listOrganizations(supabase), listPortfolios(supabase, id)]);
+  const [organizations, portfolios, orgStaff, orgDonors, orgSuppliers, orgUnits] = await Promise.all([
+    listOrganizations(supabase), listPortfolios(supabase, id), listOrganizationStaff(supabase, id),
+    listOrganizationDonors(supabase, id), listOrganizationSuppliers(supabase, id), listOrganizationUnits(supabase, id),
+  ]);
   const totalBudget = portfolios.reduce((sum, item) => sum + (item.total_budget || 0), 0);
 
   return <PPMShell name={name} locale={locale} breadcrumbs={[{ href: "/op-management", label: bc(locale, "overview") }, { href: "/op-management/organisations", label: bc(locale, "organizations") }, { href: `/op-management/organisations/${id}`, label: organization.name }]}>
@@ -32,6 +42,12 @@ export default async function OrganizationDetailPage({ params }: { params: Promi
       <div className="rounded-2xl border bg-white p-5"><p className="text-xs font-bold uppercase text-slate-400">{en ? "Country" : "Pays"}</p><b className="mt-2 block text-2xl text-forest">{organization.country || "—"}</b></div>
     </div>
     <PortfolioManager initial={portfolios} organizations={organizations} organizationId={id} />
-    <div className="mt-7"><RoleAssignmentManager scopeType="organization" scopeId={id} scopeLabel={organization.name} /></div>
+    <div className="mt-7 grid gap-7">
+      <OrganizationStaffManager organizationId={id} initial={orgStaff} />
+      <OrganizationDonorManager organizationId={id} initial={orgDonors} />
+      <OrganizationSupplierManager organizationId={id} initial={orgSuppliers} />
+      <OrganizationUnitManager organizationId={id} initial={orgUnits} />
+      <RoleAssignmentManager scopeType="organization" scopeId={id} scopeLabel={organization.name} />
+    </div>
   </PPMShell>;
 }

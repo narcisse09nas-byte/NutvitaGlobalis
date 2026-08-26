@@ -16,7 +16,7 @@ import type { Site } from "@/lib/ppm/types";
 
 const countries = Country.getAllCountries().sort((a, b) => a.name.localeCompare(b.name));
 
-export default function SiteRegister({ projectId, initial }: { projectId: string; initial: Site[] }) {
+export default function SiteRegister({ projectId, initial, defaultCountry = "" }: { projectId: string; initial: Site[]; defaultCountry?: string }) {
   const { en } = usePpmLocale();
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<Site | "new" | null>(null);
@@ -32,9 +32,9 @@ export default function SiteRegister({ projectId, initial }: { projectId: string
 
   function openEditing(row: Site | "new") {
     setMessage("");
-    setCountryName(row !== "new" ? row.country : "");
+    setCountryName(row !== "new" ? row.country : defaultCountry);
     setRegionName(row !== "new" ? row.region || "" : "");
-    const isoMatch = row !== "new" ? countries.find(item => item.name === row.country)?.isoCode || "" : "";
+    const isoMatch = countries.find(item => item.name === (row !== "new" ? row.country : defaultCountry))?.isoCode || "";
     setCountryIso(isoMatch);
     setEditing(row);
   }
@@ -51,6 +51,11 @@ export default function SiteRegister({ projectId, initial }: { projectId: string
       division: String(form.get("division") || "").trim() || null,
       subdivision: String(form.get("subdivision") || "").trim() || null,
       site_name: String(form.get("site_name") || "").trim(),
+      site_code: String(form.get("site_code") || "").trim() || null,
+      beneficiary_count: form.get("beneficiary_count") ? Number(form.get("beneficiary_count")) : null,
+      site_type: String(form.get("site_type") || "").trim() || null,
+      contact_name: String(form.get("contact_name") || "").trim() || null,
+      contact_phone: String(form.get("contact_phone") || "").trim() || null,
       notes: String(form.get("notes") || "").trim() || null,
     };
     if (!payload.country || !payload.site_name) { setSaving(false); setMessage(en ? "Country and site name are required." : "Le pays et le nom du site sont obligatoires."); return; }
@@ -108,7 +113,7 @@ export default function SiteRegister({ projectId, initial }: { projectId: string
         <label className="grid gap-2 text-sm font-bold">{en ? "Subdivision" : "Sous-division"}<input name="subdivision" list="subdivision-suggestions" defaultValue={editing !== "new" ? editing.subdivision || "" : ""} className="admin-input" />
           <datalist id="subdivision-suggestions">{subdivisionSuggestions.map(value => <option key={value} value={value} />)}</datalist>
         </label>
-        <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Site name" : "Nom du site"}<input name="site_name" defaultValue={editing !== "new" ? editing.site_name : ""} required className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Site name" : "Nom du site"}<input name="site_name" defaultValue={editing !== "new" ? editing.site_name : ""} required className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Code<input name="site_code" defaultValue={editing !== "new" ? editing.site_code || "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Site type" : "Type de site"}<input name="site_type" defaultValue={editing !== "new" ? editing.site_type || "" : ""} placeholder={en ? "School, health centre..." : "Ecole, centre de sante..."} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Beneficiaries" : "Nombre de beneficiaires"}<input name="beneficiary_count" type="number" min="0" defaultValue={editing !== "new" ? editing.beneficiary_count ?? "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Site contact" : "Contact du site"}<input name="contact_name" defaultValue={editing !== "new" ? editing.contact_name || "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Telephone<input name="contact_phone" defaultValue={editing !== "new" ? editing.contact_phone || "" : ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Notes<textarea name="notes" rows={2} defaultValue={editing !== "new" ? editing.notes || "" : ""} className="admin-input" /></label>
         {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
         <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button disabled={saving} className="btn-primary">{saving ? (en ? "Saving..." : "Enregistrement...") : (en ? "Save" : "Enregistrer")}</button></div>

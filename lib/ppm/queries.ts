@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
-  Achievement, AchievementEvidence, Activity, ApprovalRequest, ArchiveItem, AssetInventoryLine, AssetInventorySession,
+  Achievement, AchievementEvidence, Activity, ActivityJournalEntry, ApprovalRequest, ArchiveItem, AssetInventoryLine, AssetInventorySession,
   AuditLogEntry, BudgetCategory, BudgetLine,
   ChangeRequest, CommunicationActual, CommunicationItem, Deliverable, EquipmentCheckout,
   Evaluation, EvmSettings, EvmSnapshot, Expense, ExternalApprover, FeedbackEntry, FeedbackFollowup, GovernanceRole, HandoverItem, Indicator,
@@ -14,7 +14,8 @@ import type {
   OpsNeed, OpsNeedProduct, OpsNeedSite, OpsPoDailyLine, OpsPoIngredientLine, OpsProduct, OpsPurchaseOrder,
   OpsRation, OpsReconciliationCooperativeRow, OpsReconciliationDatesRow, OpsReconciliationNote,
   OpsReconciliationProductRow, OpsReconciliationValueRow,
-  OpsSchoolCooperativeContract, OpsSite, OpsSitePaymentAccount, OpsSiteStockLedgerEntry, OpsSiteTeamMember, Organization, Portfolio,
+  OpsSchoolCooperativeContract, OpsSite, OpsSitePaymentAccount, OpsSiteStockLedgerEntry, OpsSiteTeamMember, Organization,
+  OrganizationDonor, OrganizationGrant, OrganizationStaff, OrganizationSupplier, OrganizationUnit, Portfolio, ProjectSite,
   PmbVersion, PmbWorkPackageSnapshot, PPMAction, PPMDocument, PPMNotification, PPMResource,
   PpmTask, PpmTaskList,
   Program, ProcurementItem, Project, ProjectCharter, ProjectClosure, QualityRequirement,
@@ -316,6 +317,45 @@ export async function listOrganizations(supabase: SupabaseClient): Promise<Organ
 export async function getOrganization(supabase: SupabaseClient, id: string): Promise<Organization | null> {
   const { data } = await supabase.from("ppm_organizations").select("*").eq("id", id).maybeSingle();
   return (data as Organization) || null;
+}
+
+export async function listOrganizationStaff(supabase: SupabaseClient, organizationId: string): Promise<OrganizationStaff[]> {
+  const { data } = await supabase.from("ppm_organization_staff").select("*").eq("organization_id", organizationId).order("full_name");
+  return (data || []) as OrganizationStaff[];
+}
+
+export async function listAllOrganizationStaff(supabase: SupabaseClient): Promise<OrganizationStaff[]> {
+  const { data } = await supabase.from("ppm_organization_staff").select("*").eq("status", "active").order("full_name");
+  return (data || []) as OrganizationStaff[];
+}
+
+export async function listOrganizationDonors(supabase: SupabaseClient, organizationId: string): Promise<OrganizationDonor[]> {
+  const { data } = await supabase.from("ppm_organization_donors").select("*").eq("organization_id", organizationId).order("name");
+  return (data || []) as OrganizationDonor[];
+}
+
+export async function listOrganizationGrants(supabase: SupabaseClient, organizationId: string): Promise<OrganizationGrant[]> {
+  const { data } = await supabase.from("ppm_organization_grants").select("*").eq("organization_id", organizationId).order("reference");
+  return (data || []) as OrganizationGrant[];
+}
+export async function listOrganizationSuppliers(supabase: SupabaseClient, organizationId: string): Promise<OrganizationSupplier[]> {
+  const { data } = await supabase.from("ppm_organization_suppliers").select("*").eq("organization_id", organizationId).order("name");
+  return (data || []) as OrganizationSupplier[];
+}
+
+export async function listOrganizationUnits(supabase: SupabaseClient, organizationId: string): Promise<OrganizationUnit[]> {
+  const { data } = await supabase.from("ppm_organization_units").select("*").eq("organization_id", organizationId).order("name");
+  return (data || []) as OrganizationUnit[];
+}
+
+export async function listProjectSites(supabase: SupabaseClient, projectId: string): Promise<ProjectSite[]> {
+  const { data } = await supabase.from("ppm_project_sites").select("*").eq("project_id", projectId).order("sort_order");
+  return (data || []) as ProjectSite[];
+}
+
+export async function listActivityJournalEntries(supabase: SupabaseClient, projectId: string): Promise<ActivityJournalEntry[]> {
+  const { data } = await supabase.from("ppm_project_activity_journal").select("*").eq("project_id", projectId).order("entry_date", { ascending: false });
+  return (data || []) as ActivityJournalEntry[];
 }
 
 export async function listPortfolios(supabase: SupabaseClient, organizationId?: string): Promise<Portfolio[]> {

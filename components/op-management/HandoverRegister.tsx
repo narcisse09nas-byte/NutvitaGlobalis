@@ -88,7 +88,7 @@ export default function HandoverRegister({ projectId, initial, staff = [], stake
       {!rows.length && <p className="rounded-2xl border bg-white p-6 text-center text-slate-400">{en ? "No handover item recorded." : "Aucun element de transfert enregistre."}</p>}
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{editing === "new" ? (en ? "New item to transfer" : "Nouvel element a transferer") : (en ? "Edit" : "Modifier")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">

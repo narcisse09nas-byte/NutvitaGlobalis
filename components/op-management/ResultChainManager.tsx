@@ -4,12 +4,12 @@ import { PlusIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import { buildResultChainTree, type ResultChainTreeNode } from "@/lib/ppm/result-chain";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
-import type { ResultChainNode, ResultLevel } from "@/lib/ppm/types";
+import type { ResultChainNode, ResultLevel, WBSNode } from "@/lib/ppm/types";
 
 const levelLabels: Record<ResultLevel, string> = { impact: "Impact", outcome: "Outcome", output: "Output" };
 const childLevel: Record<ResultLevel, ResultLevel | null> = { impact: "outcome", outcome: "output", output: null };
 
-export default function ResultChainManager({ projectId, initial }: { projectId: string; initial: ResultChainNode[] }) {
+export default function ResultChainManager({ projectId, initial, workPackages }: { projectId: string; initial: ResultChainNode[]; workPackages: WBSNode[] }) {
   const { en } = usePpmLocale();
   const [nodes, setNodes] = useState(initial);
   const [adding, setAdding] = useState<{ parentId: string | null; level: ResultLevel } | null>(null);
@@ -28,6 +28,7 @@ export default function ResultChainManager({ projectId, initial }: { projectId: 
     const result = await supabase.from("ppm_result_chains").insert({
       project_id: projectId, parent_id: adding.parentId, level: adding.level, title,
       description: String(form.get("description") || "").trim() || null,
+      work_package_ids: adding.level === "output" ? form.getAll("work_package_ids").map(String) : [],
       order_index: nodes.filter(n => (n.parent_id || null) === adding.parentId).length,
       created_by: user?.id,
     }).select("*").single();
@@ -66,12 +67,12 @@ export default function ResultChainManager({ projectId, initial }: { projectId: 
       {!tree.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No results framework yet. Start with an Impact." : "Aucun cadre de resultats. Commencez par un Impact."}</p>}
     </div>
 
-    {adding && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {adding && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "New" : "Nouveau"} {levelLabels[adding.level]}</h2><button type="button" onClick={() => setAdding(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
           <label className="grid gap-2 text-sm font-bold">{en ? "Title" : "Titre"}<input name="title" required className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Description<textarea name="description" rows={3} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Description<textarea name="description" rows={3} className="admin-input" /></label>{adding.level === "output" && <fieldset className="rounded-xl border p-3"><legend className="px-1 text-sm font-bold">Work Packages lies</legend><div className="grid gap-1">{workPackages.map(wp => <label key={wp.id} className="flex items-center gap-2 text-xs"><input name="work_package_ids" value={wp.id} type="checkbox" />{wp.title}</label>)}</div></fieldset>}
           <div className="flex justify-end gap-3"><button type="button" onClick={() => setAdding(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button disabled={saving} className="btn-primary">{saving ? (en ? "Adding..." : "Ajout...") : (en ? "Add" : "Ajouter")}</button></div>
         </div>
       </form>

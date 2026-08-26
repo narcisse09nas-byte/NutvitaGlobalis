@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import EntityStatusBadge from "@/components/op-management/EntityStatusBadge";
 import SearchableSelect from "@/components/op-management/SearchableSelect";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
-import type { Portfolio, PPMResource, Program, PPMStatus, Project, ProjectPriority, ProjectType } from "@/lib/ppm/types";
+import { generateProjectCode } from "@/lib/ppm/ids";
+import type { OrganizationStaff, Portfolio, Program, PPMStatus, Project, ProjectPriority, ProjectType } from "@/lib/ppm/types";
 
 const typeLabels: Record<ProjectType, { fr: string; en: string }> = {
   development: { fr: "Developpement", en: "Development" }, humanitarian: { fr: "Humanitaire", en: "Humanitarian" },
@@ -18,18 +19,28 @@ const priorityLabels: Record<ProjectPriority, { fr: string; en: string }> = {
   low: { fr: "Faible", en: "Low" }, medium: { fr: "Moyenne", en: "Medium" }, high: { fr: "Elevee", en: "High" }, critical: { fr: "Critique", en: "Critical" },
 };
 
-export default function ProjectManager({ initial, portfolios, programs, portfolioId, programId, staff = [] }: {
-  initial: Project[]; portfolios: Portfolio[]; programs: Program[]; portfolioId?: string; programId?: string; staff?: PPMResource[];
+export default function ProjectManager({ initial, portfolios, programs, portfolioId, programId, orgStaff = [] }: {
+  initial: Project[]; portfolios: Portfolio[]; programs: Program[]; portfolioId?: string; programId?: string; orgStaff?: OrganizationStaff[];
 }) {
   const { locale, en } = usePpmLocale();
-  const staffOptions = staff.map(item => ({ value: item.name, label: item.name, hint: item.role_title }));
   const [rows, setRows] = useState(initial);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [selectedPortfolio, setSelectedPortfolio] = useState(portfolioId || "");
+  const [pointFocalId, setPointFocalId] = useState("");
+  const [pointFocalEmail, setPointFocalEmail] = useState("");
   const portfolioName = (id: string) => portfolios.find(item => item.id === id)?.name || "—";
   const availablePrograms = programs.filter(item => !selectedPortfolio || item.portfolio_id === selectedPortfolio);
+  const selectedOrgId = portfolios.find(item => item.id === selectedPortfolio)?.organization_id || "";
+  const availableStaff = orgStaff.filter(item => item.organization_id === selectedOrgId && item.status === "active");
+  const staffOptions = availableStaff.map(item => ({ value: item.id, label: item.full_name, hint: item.role_title || undefined }));
+
+  function pickPointFocal(value: string) {
+    setPointFocalId(value);
+    const matched = availableStaff.find(item => item.id === value);
+    if (matched) setPointFocalEmail(matched.email || "");
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,16 +50,20 @@ export default function ProjectManager({ initial, portfolios, programs, portfoli
     const portfolio = portfolios.find(item => item.id === String(form.get("portfolio_id") || ""));
     if (!portfolio) { setSaving(false); setMessage(en ? "Select a valid portfolio." : "Selectionnez un portefeuille valide."); return; }
     const programValue = String(form.get("program_id") || "") || null;
+    const rawPointFocal = String(form.get("project_manager_staff_id") || "").trim();
+    const matchedStaff = availableStaff.find(item => item.id === rawPointFocal);
+    const supabase = createClient();
+    const code = await generateProjectCode(supabase, portfolio.organization_id).catch(() => null);
     const payload = {
       name: String(form.get("name") || "").trim(),
-      code: String(form.get("code") || "").trim() || null,
+      code,
       acronym: String(form.get("acronym") || "").trim() || null,
       type: String(form.get("type") || "other") as ProjectType,
       priority: String(form.get("priority") || "medium") as ProjectPriority,
       portfolio_id: portfolio.id,
       program_id: programValue,
       organization_id: portfolio.organization_id,
-      project_manager_name: String(form.get("project_manager_name") || "").trim() || null,
+      project_manager_name: matchedStaff ? matchedStaff.full_name : (rawPointFocal || null),
       project_manager_email: String(form.get("project_manager_email") || "").trim() || null,
       start_date: String(form.get("start_date") || "") || null,
       end_date: String(form.get("end_date") || "") || null,
@@ -58,7 +73,6 @@ export default function ProjectManager({ initial, portfolios, programs, portfoli
       status: "draft" as PPMStatus,
     };
     if (!payload.name) { setSaving(false); setMessage(en ? "Name is required." : "Le nom est obligatoire."); return; }
-    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     const result = await supabase.from("ppm_projects").insert({ ...payload, created_by: user?.id }).select("*").single();
     setSaving(false);
@@ -66,6 +80,8 @@ export default function ProjectManager({ initial, portfolios, programs, portfoli
     await supabase.from("ppm_history").insert({ entity_type: "project", entity_id: result.data.id, actor_id: user?.id, action: "Projet cree", to_status: payload.status, note: payload.name });
     setRows(current => [...current, result.data as Project].sort((a, b) => a.name.localeCompare(b.name)));
     setCreating(false);
+    setPointFocalId("");
+    setPointFocalEmail("");
   }
 
   return <div className="grid gap-6">
@@ -92,7 +108,7 @@ export default function ProjectManager({ initial, portfolios, programs, portfoli
       </table>
     </div>
 
-    {creating && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {creating && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{en ? "New project" : "Nouveau projet"}</h2><button type="button" onClick={() => setCreating(false)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <p className="mt-2 text-sm text-slate-500">{en ? "Fill in the essential identification — the full scoping (context, charter, requirements, scope) is completed afterwards from the project record." : "Renseignez l'identification essentielle — le cadrage complet (contexte, charte, exigences, perimetre) se complete ensuite depuis la fiche projet."}</p>
@@ -100,12 +116,12 @@ export default function ProjectManager({ initial, portfolios, programs, portfoli
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Project name" : "Nom du projet"}<input name="name" required className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Portfolio" : "Portefeuille"}<select name="portfolio_id" required defaultValue={portfolioId || ""} onChange={event => setSelectedPortfolio(event.target.value)} className="admin-input"><option value="">{en ? "Select" : "Selectionner"}</option>{portfolios.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Program (optional)" : "Programme (facultatif)"}<select name="program_id" defaultValue={programId || ""} className="admin-input"><option value="">{en ? "None — attached directly to the portfolio" : "Aucun — rattache directement au portefeuille"}</option>{availablePrograms.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label className="grid gap-2 text-sm font-bold">Code<input name="code" className="admin-input" /></label>
+          <p className="text-xs text-slate-400 sm:col-span-2">{en ? "Code: generated automatically on save (PROJ-order/year-org)." : "Code : genere automatiquement a l'enregistrement (PROJ-ordre/annee-org)."}</p>
           <label className="grid gap-2 text-sm font-bold">{en ? "Acronym" : "Acronyme"}<input name="acronym" className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Type<select name="type" defaultValue="other" className="admin-input">{Object.entries(typeLabels).map(([value, label]) => <option key={value} value={value}>{label[locale]}</option>)}</select></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Priority" : "Priorite"}<select name="priority" defaultValue="medium" className="admin-input">{Object.entries(priorityLabels).map(([value, label]) => <option key={value} value={value}>{label[locale]}</option>)}</select></label>
-          <label className="grid gap-2 text-sm font-bold">{en ? "Project manager" : "Chef de projet"}<SearchableSelect name="project_manager_name" options={staffOptions} allowOther otherLabel={en ? "Project manager name" : "Nom du chef de projet"} placeholder={en ? "Select a staff member..." : "Selectionner un membre du staff..."} /></label>
-          <label className="grid gap-2 text-sm font-bold">{en ? "Project manager email" : "Email du chef de projet"}<input name="project_manager_email" type="email" className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Project focal point" : "Point Focal Projet"}<SearchableSelect name="project_manager_staff_id" options={staffOptions} onChange={pickPointFocal} allowOther otherLabel={en ? "Name" : "Nom"} placeholder={en ? "Select from the organization's staff..." : "Selectionner dans le staff de l'organisation..."} /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Focal point email" : "Email du Point Focal Projet"}<input name="project_manager_email" type="email" value={pointFocalEmail} onChange={event => setPointFocalEmail(event.target.value)} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Start date" : "Date de debut"}<input name="start_date" type="date" className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "End date" : "Date de fin"}<input name="end_date" type="date" className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Country" : "Pays"}<input name="country" className="admin-input" /></label>

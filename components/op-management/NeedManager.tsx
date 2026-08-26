@@ -84,7 +84,7 @@ export default function NeedManager({ operationId, initial, plans, sites, produc
       {!rows.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No need raised yet." : "Aucun besoin souleve pour le moment."}</p>}
     </div>
 
-    {creating && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {creating && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={createNeed} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "New need" : "Nouveau besoin"}</h2><button type="button" onClick={() => setCreating(false)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -207,7 +207,7 @@ function NeedDetailPanel({ need, sites, products, staff, onStatusChanged, onClos
 
   const historyEntries: WorkflowHistoryEntry[] = history.map(item => ({ status: item.to_status || item.action, at: item.created_at, note: item.note }));
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
     <div className="mx-auto my-10 max-w-3xl rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{en ? "Need" : "Besoin"} {need.code}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
 
@@ -253,7 +253,7 @@ function NeedDetailPanel({ need, sites, products, staff, onStatusChanged, onClos
       <button onClick={() => setAddingSite(true)} className="btn-secondary mt-3 px-4 py-2 text-sm"><PlusIcon className="mr-2 inline h-4" />{en ? "Add a site" : "Ajouter un site"}</button>
     </div>
 
-    {addingSite && <div className="fixed inset-0 z-[160] overflow-y-auto bg-slate-950/60 p-4">
+    {addingSite && <div className="fixed inset-0 z-[160] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={addSite} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Add a site" : "Ajouter un site"}</h2><button type="button" onClick={() => setAddingSite(false)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -268,7 +268,7 @@ function NeedDetailPanel({ need, sites, products, staff, onStatusChanged, onClos
       </form>
     </div>}
 
-    {addingProductFor && <div className="fixed inset-0 z-[160] overflow-y-auto bg-slate-950/60 p-4">
+    {addingProductFor && <div className="fixed inset-0 z-[160] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={addProduct} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Product need" : "Besoin en produit"} — {siteName(addingProductFor.site_id)}</h2><button type="button" onClick={() => setAddingProductFor(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">

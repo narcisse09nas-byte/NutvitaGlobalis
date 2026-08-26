@@ -156,7 +156,7 @@ export default function ResourceManager({ projectId, initial, initialAssignments
       </table>
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? (en ? "New resource" : "Nouvelle ressource") : (en ? "Edit resource" : "Modifier la ressource")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -193,7 +193,7 @@ export default function ResourceManager({ projectId, initial, initialAssignments
       </form>
     </div>}
 
-    {assigning && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {assigning && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submitAssignment} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Assign" : "Affecter"} {assigning.name}</h2><button type="button" onClick={() => setAssigning(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -212,7 +212,7 @@ export default function ResourceManager({ projectId, initial, initialAssignments
       </form>
     </div>}
 
-    {creatingAccountFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {creatingAccountFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submitAccountCreation} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Create access account" : "Creer un compte d'acces"} — {creatingAccountFor.name}</h2><button type="button" onClick={() => setCreatingAccountFor(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <p className="mt-2 text-sm text-slate-500">{en ? "A temporary password will be generated and sent by email. The person will have to change it on first login." : "Un mot de passe temporaire sera genere et envoye par email. La personne devra le changer a sa premiere connexion."}</p>

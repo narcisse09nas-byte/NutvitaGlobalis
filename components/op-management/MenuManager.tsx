@@ -46,7 +46,7 @@ export default function MenuManager({ operationId, organizationId, initial, init
       {!rows.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No menu registered." : "Aucun menu enregistre."}</p>}
     </div>
 
-    {creating && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {creating && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "New menu" : "Nouveau menu"}</h2><button type="button" onClick={() => setCreating(false)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -125,7 +125,7 @@ function MenuIngredientsPanel({ menu, operationId, organizationId, products, onP
     if (!result.error) setIngredients(current => current.filter(item => item.id !== ingredientId));
   }
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
     <div className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{menu.name}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
       <div className="mt-4 grid gap-2">

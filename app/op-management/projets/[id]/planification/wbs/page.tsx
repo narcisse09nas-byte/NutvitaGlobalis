@@ -7,10 +7,11 @@ import WBSDictionaryView from "@/components/op-management/WBSDictionaryView";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
-import { getProject, listResources, listWbsNodes } from "@/lib/ppm/queries";
+import { getProject, listChangeRequests, listResources, listScopeBaselines, listWbsNodes } from "@/lib/ppm/queries";
 
-export default async function PlanificationWbsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PlanificationWbsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ changeRequest?: string; baseline?: string; step?: string; view?: string }> }) {
   const { id } = await params;
+  const query = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/connexion?redirect=${encodeURIComponent(`/op-management/projets/${id}/planification/wbs`)}`);
@@ -18,15 +19,19 @@ export default async function PlanificationWbsPage({ params }: { params: Promise
   const project = await getProject(supabase, id);
   if (!project) notFound();
   const locale = await getCurrentLocale();
-  const [wbsNodes, resources] = await Promise.all([listWbsNodes(supabase, id), listResources(supabase, id)]);
-  const staff = resources.filter(item => item.type === "human" || item.type === "consultant");
+  const [wbsNodes, resources, baselines, changeRequests] = await Promise.all([listWbsNodes(supabase, id), listResources(supabase, id), listScopeBaselines(supabase, id), listChangeRequests(supabase, id)]);
+  const latest = baselines[0];
+  const activeDraft = query.baseline ? baselines.find(item => item.id === query.baseline && item.status === "draft") : null;
+  const locked = latest?.status === "baseline" && !activeDraft;
+  const approvedChanges = changeRequests.filter(item => item.status === "approved" && item.request_code);
+  const staff = resources.filter(item => (item.type === "human" || item.type === "consultant") && item.status === "active");
 
   return <PPMShell name={name} locale={locale} breadcrumbs={[{ href: "/op-management", label: bc(locale, "overview") }, { href: "/op-management/projets", label: bc(locale, "projects") }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/planification/wbs`, label: bc(locale, "planning") }]}>
     <ProjectShell project={project}>
       <div className="grid gap-5">
         <PlanificationTabs projectId={id} />
-        <WBSTreeEditor projectId={id} initial={wbsNodes} staff={staff} />
-        <WBSDictionaryView nodes={wbsNodes} />
+        <WBSTreeEditor projectId={id} initial={wbsNodes} staff={staff} locked={locked} changeRequests={approvedChanges} selectedChangeRequestId={query.changeRequest || ""} baselineId={activeDraft?.id || ""} />
+        <WBSDictionaryView nodes={wbsNodes} projectId={id} baselineId={activeDraft?.id || ""} selectedChangeRequestId={query.changeRequest || ""} changeRequests={approvedChanges} workflow={query.step === "dictionary" && Boolean(activeDraft)} initiallyOpen={query.view === "dictionary"} />
       </div>
     </ProjectShell>
   </PPMShell>;

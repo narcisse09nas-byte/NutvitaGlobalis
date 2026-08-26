@@ -102,7 +102,7 @@ export default function TimesheetManager({ projectId, initial, resources, wbsNod
       </table>
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{editing === "new" ? (en ? "New entry" : "Nouvelle saisie") : (en ? "Edit" : "Modifier")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -118,7 +118,7 @@ export default function TimesheetManager({ projectId, initial, resources, wbsNod
       </form>
     </div>}
 
-    {approving && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+    {approving && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
       <form onSubmit={submitApproval} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{statusLabels[approving.status][locale]} — {resourceLabel(approving.row.resource_id)}</h2><button type="button" onClick={() => setApproving(null)} className="text-2xl">×</button></div>
         <div className="mt-5 grid gap-4">

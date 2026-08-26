@@ -174,7 +174,7 @@ function CreatePoModal({ operationId, plans, sites, cooperatives, menus, menuIng
     onCreated(created);
   }
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
     <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{en ? "New purchase order" : "Nouveau bon de commande"}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
       <div className="mt-6 grid gap-4">
@@ -261,7 +261,7 @@ function PoDetailPanel({ po, sites, cooperatives, products, menus, staff, onStat
 
   const historyEntries: WorkflowHistoryEntry[] = history.map(item => ({ status: item.to_status || item.action, at: item.created_at, note: item.note }));
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
     <div className="mx-auto my-10 max-w-3xl rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{en ? "Purchase order" : "Bon de commande"} {po.id}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
       <p className="mt-2 text-sm text-slate-500">{siteName(po.site_id)} → {cooperativeName(po.cooperative_id)}</p>

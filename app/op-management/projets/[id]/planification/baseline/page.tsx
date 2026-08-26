@@ -19,14 +19,14 @@ export default async function PlanificationBaselinePage({ params }: { params: Pr
   if (!project) notFound();
   const locale = await getCurrentLocale();
   const [baselines, changeRequests, resources] = await Promise.all([listScopeBaselines(supabase, id), listChangeRequests(supabase, id), listResources(supabase, id)]);
-  const staff = resources.filter(item => item.type === "human" || item.type === "consultant");
+  const staff = resources.filter(item => (item.type === "human" || item.type === "consultant") && item.status === "active");
 
   return <PPMShell name={name} locale={locale} breadcrumbs={[{ href: "/op-management", label: bc(locale, "overview") }, { href: "/op-management/projets", label: bc(locale, "projects") }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/planification/baseline`, label: bc(locale, "planning") }]}>
     <ProjectShell project={project}>
       <div className="grid gap-8">
         <PlanificationTabs projectId={id} />
-        <ScopeBaselineManager projectId={id} initial={baselines} />
-        <ChangeRequestManager projectId={id} initial={changeRequests} staff={staff} />
+        <ScopeBaselineManager projectId={id} initial={baselines} changeRequests={changeRequests} />
+        <ChangeRequestManager projectId={id} initial={changeRequests} staff={staff} baselines={baselines} />
       </div>
     </ProjectShell>
   </PPMShell>;

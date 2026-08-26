@@ -202,7 +202,7 @@ export default function AchievementReportForm({ projectId, activity, workPackage
   const isDraftStatus = isNewInitially || (editing as Achievement).status === "draft";
   const showBeneficiaries = activity.beneficiaries != null && activity.beneficiaries > 0;
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">
+  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
     <form ref={formRef} onSubmit={event => event.preventDefault()} className="mx-auto my-10 max-w-3xl rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{en ? "Report an achievement" : "Rapporter une realisation"}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
 

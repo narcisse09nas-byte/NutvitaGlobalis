@@ -29,6 +29,13 @@ const tabs = [
   ["consultations", "Consultations"],
 ] as const;
 const today = () => new Date().toLocaleDateString("en-CA");
+function normalizeAnthropometry(values: Record<string, any>) {
+  const height = Number(String(values.height_cm ?? "").replace(",", "."));
+  const weight = Number(String(values.weight_kg ?? "").replace(",", "."));
+  if (Number.isFinite(height) && height > 0) values.height_cm = height <= 3 ? height * 100 : height;
+  if (Number.isFinite(weight) && weight > 0) values.weight_kg = weight;
+  return values;
+}
 
 const activityLevels = [
   { value: 1, label: "Tres faible", labelEn:"Very low", description: "Mode de vie sedentaire : aucune activite physique ou sportive planifiee au cours des 7 derniers jours et faible mobilite au quotidien.",descriptionEn:"Sedentary lifestyle: no planned physical or sports activity during the past 7 days and low daily mobility." },
@@ -72,6 +79,11 @@ export default function NutritionRecord({
   const [lifestyleRows, setLifestyle] = useState(lifestyle);
   const [message, setMessage] = useState("");
   const anthroTemplates = useMemo(() => customIndicatorTemplates(anthroRows), [anthroRows]);
+  const latestAdultHeight = useMemo(() => {
+    const raw = Number(anthroRows.find(row => Number(row.height_cm) > 0)?.height_cm);
+    if (!Number.isFinite(raw) || raw <= 0) return undefined;
+    return raw <= 3 ? raw * 100 : raw;
+  }, [anthroRows]);
   const biologyTemplates = useMemo(() => {
     const existing = customIndicatorTemplates(bioRows);
     const byName = new Map(existing.map(item => [item.name.toLocaleLowerCase(), item]));
@@ -102,6 +114,7 @@ export default function NutritionRecord({
     const form = event.currentTarget;
     const payload: Record<string, any> = Object.fromEntries(new FormData(form));
     for (const key of Object.keys(payload)) if (payload[key] === "") delete payload[key];
+    if (table === "anthropometric_measurements") normalizeAnthropometry(payload);
 
     if (payload.custom_values) {
       try { payload.custom_values = JSON.parse(String(payload.custom_values)); }
@@ -180,6 +193,7 @@ export default function NutritionRecord({
       if (food && key === "calories") changes.content = { ...(row.content || {}), calories: value === "" ? null : Number(value) };
       else changes[key] = value === "" ? null : value;
     }
+    if (table === "anthropometric_measurements") normalizeAnthropometry(changes);
     const { data, error } = await createClient().from(table).update(changes).eq("id", row.id).eq("client_id", clientId).select().single();
     if (error) setMessage(error.message);
     else { setter(rows.map(item => item.id === row.id ? data : item)); setMessage(tx("Donnee modifiee.","Record updated.")); }
@@ -189,7 +203,7 @@ export default function NutritionRecord({
     <div className="mb-6 flex flex-wrap gap-2">{tabs.map(([value]) => <button key={value} onClick={() => setTab(value)} className={`rounded-full px-4 py-2 text-sm font-bold ${tab === value ? "bg-forest text-white" : "bg-white text-forest"}`}>{tabLabels[value]}</button>)}</div>
     {message && <p className="mb-5 rounded-xl bg-mint p-4 font-bold text-forest">{message}</p>}
 
-    {tab === "anthro" && <><RecordForm locale={locale} title={tx("Ajouter des mesures anthropometriques","Add anthropometric measurements")} onSubmit={event => add("anthropometric_measurements", event, setAnthro, anthroRows)} fields={[["weight_kg", tx("Poids (kg)","Weight (kg)")], ["height_cm", tx("Taille (cm)","Height (cm)")], ["waist_cm", tx("Tour de taille (cm)","Waist circumference (cm)")], ["hip_cm", tx("Tour de hanche (cm)","Hip circumference (cm)")], ["muac_cm", "MUAC (cm)"], ["body_fat_percent", tx("Masse grasse (%)","Body fat (%)")], ["muscle_mass_kg", tx("Masse musculaire (kg)","Muscle mass (kg)")]]} templates={anthroTemplates}/><History locale={locale} rows={anthroRows} columns={[["measured_at", "Date"], ["weight_kg", tx("Poids","Weight")], ["height_cm", tx("Taille","Height")], ["bmi", "BMI"], ["waist_cm", tx("Taille abdominale","Waist")], ["muac_cm", "MUAC"], ["custom_values", tx("Autres mesures","Other measurements")]]} onEdit={(row,columns)=>edit("anthropometric_measurements",row,columns,setAnthro,anthroRows)} onDelete={id=>remove("anthropometric_measurements",id,setAnthro,anthroRows)}/></>}
+    {tab === "anthro" && <><RecordForm key={`anthro-${latestAdultHeight ?? "empty"}`} locale={locale} defaultValues={{height_cm:latestAdultHeight}} title={tx("Ajouter des mesures anthropometriques","Add anthropometric measurements")} onSubmit={event => add("anthropometric_measurements", event, setAnthro, anthroRows)} fields={[["weight_kg", tx("Poids (kg)","Weight (kg)")], ["height_cm", tx("Taille (cm ou m)","Height (cm or m)")], ["waist_cm", tx("Tour de taille (cm)","Waist circumference (cm)")], ["hip_cm", tx("Tour de hanche (cm)","Hip circumference (cm)")], ["muac_cm", "MUAC (cm)"], ["body_fat_percent", tx("Masse grasse (%)","Body fat (%)")], ["muscle_mass_kg", tx("Masse musculaire (kg)","Muscle mass (kg)")]]} templates={anthroTemplates}/><History locale={locale} rows={anthroRows} columns={[["measured_at", "Date"], ["weight_kg", tx("Poids","Weight")], ["height_cm", tx("Taille","Height")], ["bmi", "BMI"], ["waist_cm", tx("Taille abdominale","Waist")], ["muac_cm", "MUAC"], ["custom_values", tx("Autres mesures","Other measurements")]]} onEdit={(row,columns)=>edit("anthropometric_measurements",row,columns,setAnthro,anthroRows)} onDelete={id=>remove("anthropometric_measurements",id,setAnthro,anthroRows)}/></>}
 
 {tab === "vitals" && <><RecordForm locale={locale} title={tx("Enregistrer la tension arterielle et le pouls","Record blood pressure and pulse")} onSubmit={event => add("biological_measurements", event, setBio, bioRows)} fields={[["systolic_pressure", tx("TA systolique (mmHg)","Systolic BP (mmHg)")], ["diastolic_pressure", tx("TA diastolique (mmHg)","Diastolic BP (mmHg)")], ["pulse_bpm", tx("Pouls (bpm)","Pulse (bpm)")]]} templates={[]}/><History locale={locale} rows={bioRows.filter(row=>row.systolic_pressure!=null||row.diastolic_pressure!=null||row.pulse_bpm!=null)} columns={[["measured_at", "Date"], ["systolic_pressure", tx("TA systolique","Systolic BP")], ["diastolic_pressure", tx("TA diastolique","Diastolic BP")], ["pulse_bpm", tx("Pouls","Pulse")]]} onEdit={(row,columns)=>edit("biological_measurements",row,columns,setBio,bioRows)} onDelete={id=>remove("biological_measurements",id,setBio,bioRows)}/></>}
     {tab === "biology" && <><RecordForm locale={locale} title={tx("Ajouter des param\u00e8tres biologiques","Add biological parameters")} onSubmit={event => add("biological_measurements", event, setBio, bioRows)} fields={[]} templates={biologyTemplates}/><History locale={locale} rows={bioRows} columns={biologyColumns} onEdit={(row,columns)=>edit("biological_measurements",row,columns,setBio,bioRows)} onDelete={id=>remove("biological_measurements",id,setBio,bioRows)}/></>}
@@ -202,7 +216,7 @@ export default function NutritionRecord({
   </div>;
 }
 
-function RecordForm({ title, onSubmit, fields, templates, locale }: { title: string; onSubmit: (event: FormEvent<HTMLFormElement>) => void; fields: string[][]; templates: Array<{ name: string; unit?: string; normal_min?: number | null; normal_max?: number | null }>; locale:"fr"|"en" }) {
+function RecordForm({ title, onSubmit, fields, templates, locale, defaultValues = {} }: { title: string; onSubmit: (event: FormEvent<HTMLFormElement>) => void; fields: string[][]; templates: Array<{ name: string; unit?: string; normal_min?: number | null; normal_max?: number | null }>; locale:"fr"|"en"; defaultValues?:Record<string,number|undefined> }) {
   const [custom, setCustom] = useState<CustomMeasure[]>(() => templates.map(item => ({
     name: item.name,
     value: "",
@@ -221,7 +235,7 @@ function RecordForm({ title, onSubmit, fields, templates, locale }: { title: str
   return <form onSubmit={event => { onSubmit(event); setCustom(current => current.map(item => ({ ...item, value: "" }))); }} className="mb-6 grid gap-4 rounded-2xl border bg-white p-6 md:grid-cols-3">
     <h2 className="text-xl font-black md:col-span-3">{title}</h2>
     <label className="grid gap-2 text-sm font-bold md:col-span-3 md:max-w-sm">{locale==="en"?"Measurement date":"Date de la mesure"}<input name="measured_at" type="date" defaultValue={today()} max={today()} required className="admin-input"/></label>
-    {fields.map(([name, label]) => <label key={name} className="grid gap-2 text-sm font-bold">{label}<input name={name} type="number" step="0.01" className="admin-input"/></label>)}
+    {fields.map(([name, label]) => <label key={name} className="grid gap-2 text-sm font-bold">{label}<input name={name} type="number" step="0.01" defaultValue={defaultValues[name]} className="admin-input"/>{name==="height_cm"&&defaultValues[name]!=null&&<small className="font-normal text-slate-500">{locale==="en"?"Pre-filled from your latest measurement; edit it if needed.":"Préremplie depuis votre dernière mesure; modifiez-la si nécessaire."}</small>}</label>)}
     <div className="rounded-2xl bg-slate-50 p-4 md:col-span-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-black">{locale==="en"?"Other measurements or parameters":"Autres mesures ou parametres"}</h3><p className="text-sm text-slate-500">{locale==="en"?"Added indicators remain available for future records. Add a normal range to enable comparison.":"Les indicateurs ajoutes restent disponibles pour les prochains renseignements. Ajoutez leur plage normale pour permettre la comparaison."}</p></div><button type="button" className="btn-secondary px-4 py-2" onClick={() => setCustom([...custom, { name: "", value: "", unit: "", normalMin: "", normalMax: "", uncertainty: "" }])}><PlusIcon className="mr-2 h-4"/>{locale==="en"?"Add parameter":"Ajouter un parametre"}</button></div>
       <div className="mt-4 grid gap-3">{custom.map((item, index) => <div key={`${item.name}-${index}`} className="grid gap-3 md:grid-cols-[1.2fr_.8fr_.7fr_.7fr_.7fr_.7fr_auto]"><input aria-label={locale==="en"?"Parameter name":"Nom du parametre"} className="admin-input" placeholder={locale==="en"?"E.g. Vitamin D":"Ex. Vitamine D"} value={item.name} onChange={event => setCustom(custom.map((row, i) => i === index ? { ...row, name: event.target.value } : row))}/><input aria-label={locale==="en"?"Parameter value":"Valeur du parametre"} className="admin-input" type="number" step="0.01" placeholder={locale==="en"?"Value":"Valeur"} value={item.value} onChange={event => setCustom(custom.map((row, i) => i === index ? { ...row, value: event.target.value } : row))}/><input aria-label={locale==="en"?"Parameter unit":"Unite du parametre"} className="admin-input" placeholder={locale==="en"?"Unit":"Unite"} value={item.unit} onChange={event => setCustom(custom.map((row, i) => i === index ? { ...row, unit: event.target.value } : row))}/><input aria-label={locale==="en"?"Minimum normal value":"Norme minimale"} className="admin-input" type="number" step="0.01" placeholder={locale==="en"?"Normal min.":"Norme min."} value={item.normalMin} onChange={event => setCustom(custom.map((row, i) => i === index ? { ...row, normalMin: event.target.value } : row))}/><input aria-label={locale==="en"?"Maximum normal value":"Norme maximale"} className="admin-input" type="number" step="0.01" placeholder={locale==="en"?"Normal max.":"Norme max."} value={item.normalMax} onChange={event => setCustom(custom.map((row, i) => i === index ? { ...row, normalMax: event.target.value } : row))}/><input aria-label={locale==="en"?"Measurement uncertainty":"Incertitude de mesure"} className="admin-input" type="number" min="0" step="0.01" placeholder={locale==="en"?"Uncertainty ±":"Incertitude ±"} value={item.uncertainty} onChange={event => setCustom(custom.map((row, i) => i === index ? { ...row, uncertainty: event.target.value } : row))}/><button type="button" aria-label={locale==="en"?"Delete this parameter":"Supprimer ce parametre"} className="grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-600" onClick={() => setCustom(custom.filter((_, i) => i !== index))}><TrashIcon className="h-5"/></button></div>)}</div>
     </div>

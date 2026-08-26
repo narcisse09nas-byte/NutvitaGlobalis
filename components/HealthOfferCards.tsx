@@ -21,7 +21,7 @@ const featureSets={
 export default function HealthOfferCards({plans,english,userConnected,access}:{plans:Plan[];english:boolean;userConnected:boolean;access:Access}){
  const [selected,setSelected]=useState<Plan|null>(null);
  const t=(fr:string,en:string)=>english?en:fr;
- const active=(plan:Plan)=>plan.service_type==="child_growth"?access?.childGrowth:access?.health;
+ const active=(plan:Plan)=>Boolean((plan.service_type==="child_growth"?access?.childGrowth:access?.health)&&ownedTier(plan)===(String(plan.tier).toLowerCase()==="premium"?"premium":"basic"));
  // The tier the client actually holds for this service_type (or null if none) — lets Standard
  // grey out once Premium is active, and Premium read as "upgrade" once Standard is active,
  // instead of every tier card being judged only against its own exact match.

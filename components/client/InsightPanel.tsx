@@ -41,9 +41,9 @@ export default function InsightPanel({ initial, alerts, reports }: { initial: In
     setLoading(false);
   }
 
-  async function report() {
+  async function report(reportType:"summary"|"patient"|"professional") {
     setLoading(true);
-    const response = await fetch("/api/health/report", { method: "POST" });
+    const response = await fetch("/api/health/report", { method: "POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({reportType}) });
     const result = await response.json();
     if (response.ok) {
       setReports([result, ...reportItems]);
@@ -73,7 +73,9 @@ export default function InsightPanel({ initial, alerts, reports }: { initial: In
     <div className="grid gap-6">
       <div className="flex flex-wrap gap-3">
         <button onClick={analyze} disabled={loading} className="btn-primary">{loading ? "Analyse..." : "Actualiser mon analyse"}</button>
-        <button onClick={report} disabled={loading} className="btn-secondary">Generer un rapport PDF</button>
+<button onClick={()=>report("summary")} disabled={loading} className="btn-secondary">Résumé santé</button>
+        <button onClick={()=>report("patient")} disabled={loading} className="btn-secondary">Rapport patient</button>
+        <button onClick={()=>report("professional")} disabled={loading} className="btn-secondary">Rapport professionnel</button>
       </div>
       {message && <p className="rounded-xl bg-mint p-4 font-bold text-forest">{message}</p>}
       {insight?.aiProvider && (

@@ -303,7 +303,9 @@ export async function enrichHealthNarrative<T extends {
   const enrichedByIndicator = new Map(result.data.indicatorInsights.map((item: any) => [String(item.indicator), item]));
   const indicatorInsights = analysis.indicatorInsights.map((item: any) => {
     const enriched = enrichedByIndicator.get(String(item.indicator)) as any;
-    return enriched ? { ...item, ...enriched } : item;
+    if (!enriched) return item;
+    // AI may improve wording only. Deterministic identity, values, history, status, references and calculations remain authoritative.
+    return { ...item, publicInterpretation: enriched.publicInterpretation, professionalInterpretation: enriched.professionalInterpretation, recommendation: enriched.recommendation, professionalRecommendations: enriched.professionalRecommendations, benefits: enriched.benefits };
   });
   return { ...analysis, ...result.data, indicatorInsights, aiProvider: result.provider || 'external', aiError: undefined };
 }

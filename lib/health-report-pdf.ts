@@ -1,8 +1,10 @@
 import "server-only";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { InsightResult, HealthRow } from "@/lib/health-analysis";
+import type { HealthReportModel } from "@/lib/health-report/types";
+import { indicatorRegistry } from "@/lib/health-report/indicator-registry";
 import { createNutvitaDocumentBranding, createReportQrCode } from "@/lib/pdf-branding";
-import { customNumericSeries, drawIndicatorReportCard, matchInsightForSeries, numericSeries } from "@/lib/pdf-indicator-charts";
+import { customNumericSeries, drawBloodPressureReportCard, drawIndicatorReportCard, matchInsightForSeries, numericSeries } from "@/lib/pdf-indicator-charts";
 
 const wrap = (value: string, max = 92) => {
   const words = String(value || "").replace(/\s+/g, " ").trim().split(" "), lines: string[] = [];
@@ -26,9 +28,9 @@ export async function renderHealthReport(
   insight: InsightResult,
   period: { start: string; end: string },
   locale: "fr" | "en" = "fr",
-  metadata?: { reportId?: string; generatedAt?: string; userEmail?: string; dietary?: Record<string, any> | null },
+  metadata?: { reportId?: string; generatedAt?: string; userEmail?: string; dietary?: Record<string, any> | null; reportModel?: HealthReportModel },
 ) {
-  const fr = locale === "fr", generatedAt = metadata?.generatedAt || new Date().toISOString();
+  const fr = locale === "fr", generatedAt = metadata?.generatedAt || new Date().toISOString(), model=metadata?.reportModel, reportType=model?.reportType||"professional";
   const pdf = await PDFDocument.create(), regular = await pdf.embedFont(StandardFonts.Helvetica), bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const brand = await createNutvitaDocumentBranding(pdf);
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
@@ -67,13 +69,20 @@ export async function renderHealthReport(
   const heading = (value: string) => { if (y < 140) addPage(); y -= 7; page.drawRectangle({ x: 45, y: y - 22, width: 505, height: 30, color: rgb(.94, .98, .96), borderColor: rgb(.82, .88, .85), borderWidth: .6 }); page.drawRectangle({ x: 45, y: y - 22, width: 4, height: 30, color: rgb(.12, .49, .33) }); page.drawText(value, { x: 58, y: y - 13, size: 13, font: bold, color: rgb(.07, .24, .19) }); y -= 35; };
   const bullets = (values: string[] | undefined, limit = 5) => (values || []).filter(Boolean).slice(0, limit).forEach(value => text(`•  ${value}`, 8.5));
 
-  text(fr ? "Rapport de suivi sante" : "Health monitoring report", 20, bold, rgb(.07, .24, .19));
+  text(reportType==="summary"?(fr?"Résumé santé":"Health summary"):reportType==="patient"?(fr?"Rapport patient":"Patient report"):(fr?"Rapport professionnel":"Professional report"), 20, bold, rgb(.07, .24, .19));
   text(profile.full_name || (fr ? "Client" : "Client"), 12, bold);
   text(`${fr ? "Genere le" : "Generated on"} ${formatDate(generatedAt, locale)} | ${fr ? "Periode analysee" : "Analyzed period"}: ${formatDate(period.start, locale)} - ${formatDate(period.end, locale)}`, 9);
   text(`${fr ? "Reference" : "Reference"}: ${metadata?.reportId || "N/A"}`, 8, regular, rgb(.4, .45, .44));
+  if(model){heading(fr?"Tableau de bord santé":"Health dashboard");twoColumnBullets(model.indicators.filter(item=>item.currentValue!==null).slice(0,8).map(item=>`${item.label}: ${item.currentValue} ${item.unit}${item.deltaPrevious!==null?` | ${item.deltaPrevious>0?"+":""}${item.deltaPrevious} depuis la dernière mesure`:""}`),8)}
   y -= 10;
   heading(fr ? "Synthese essentielle" : "Essential summary");
-  twoColumnText(insight.publicSummary, 10);
+  if(model){
+    text(`${fr?"État global":"Global state"}: ${model.essentialSummary.globalState}`,11,bold,rgb(.07,.24,.19));
+    if(model.essentialSummary.improving.length){text(fr?"Ce qui s’améliore":"What is improving",9,bold,rgb(.12,.49,.33));bullets(model.essentialSummary.improving,3)}
+    if(model.essentialSummary.stable.length){text(fr?"Ce qui est stable":"What is stable",9,bold);bullets(model.essentialSummary.stable,3)}
+    if(model.essentialSummary.attention.length){text(fr?"Points d’attention":"Attention points",9,bold,rgb(.72,.25,.12));bullets(model.essentialSummary.attention,3)}
+    if(model.essentialSummary.missing.length){text(fr?"Données importantes manquantes":"Important missing data",9,bold);bullets(model.essentialSummary.missing,3)}
+  } else twoColumnText(insight.publicSummary, 10);
   if (insight.risks?.length) { text(fr ? "Points de vigilance" : "Points requiring attention", 10, bold, rgb(.72, .25, .12)); bullets(insight.risks, 4); }
   if (insight.improvements?.length) { text(fr ? "Evolutions favorables" : "Favorable changes", 10, bold, rgb(.12, .49, .33)); bullets(insight.improvements, 3); }
   y -= 8;
@@ -125,9 +134,19 @@ export async function renderHealthReport(
     ? "Pour chaque indicateur : evolution recente, comparaison a la reference, a la derniere mesure et depuis le debut du suivi."
     : "For each indicator: recent trend, comparison to the reference, to the last measurement and since monitoring began.", 8, regular, rgb(.4, .45, .44));
   const rankedSeries = [...chartSeries]
-    .map(series => ({ series, insight: matchInsightForSeries(series, insight.indicatorInsights) }))
+    .map(series => {
+      const definition=indicatorRegistry.find(item=>item.field===series.key);
+      const strict=model&&definition?model.indicators.find(item=>item.indicatorId===definition.id):undefined;
+      const mapped=strict?{indicator:strict.label,reference:strict.referenceText,recommendation:strict.recommendedAction,professionalInterpretation:strict.interpretation,status:strict.status==="critical"?"urgent":strict.status==="warning"||strict.status==="watch"?"watch":strict.status==="not_measured"?"incomplete":"stable"}:matchInsightForSeries(series,insight.indicatorInsights);
+      return {series:strict?{...series,domain:strict.chart.domain}:series,insight:mapped,enabled:strict?strict.chart.enabled:true};
+    })
+    .filter(item=>item.enabled)
     .sort((a, b) => (statusRank[a.insight?.status || ""] ?? 5) - (statusRank[b.insight?.status || ""] ?? 5));
-  for (const { series, insight: matched } of rankedSeries) {
+  const candidateSeries=reportType==="summary"?[]:reportType==="patient"?rankedSeries.slice(0,6):rankedSeries;
+  const systolicSeries=rankedSeries.find(item=>item.series.key==="systolic_pressure")?.series,diastolicSeries=rankedSeries.find(item=>item.series.key==="diastolic_pressure")?.series;
+  if(reportType!=="summary"&&systolicSeries&&diastolicSeries){if(y<190)addPage();y=drawBloodPressureReportCard(page,regular,bold,systolicSeries,diastolicSeries,50,y,locale)}
+  const visibleSeries=candidateSeries.filter(item=>item.series.key!=="systolic_pressure"&&item.series.key!=="diastolic_pressure");
+  for (const { series, insight: matched } of visibleSeries) {
     if (y < 175) addPage();
     y = drawIndicatorReportCard(page, regular, bold, series, matched, 50, y, wrap, locale);
   }
@@ -138,19 +157,26 @@ export async function renderHealthReport(
     text(fr ? "Dans les 30 prochains jours" : "Within the next 30 days", 9, bold);
     twoColumnBullets(insight.actionPlan.days30, 4);
   }
+  if(reportType==="professional"){
   heading(fr ? "Note professionnelle" : "Professional note");
   twoColumnText(insight.professionalSummary, 9);
   const concerning = insight.indicatorInsights.filter(item => item.status === "urgent" || item.status === "watch").slice(0, 6);
   for (const item of concerning) {
-    text(`${item.indicator} [${item.status}]`, 9, bold);
+    text(item.indicator, 9, bold);
     text(item.professionalInterpretation, 8);
     bullets(item.professionalRecommendations, 2);
   }
 
-  heading(fr ? "Qualite des donnees et limites" : "Data quality and limitations");
+  }
+  heading(fr ? "Qualité des données et limites" : "Data quality and limitations");
   twoColumnBullets(insight.limitations, 6);
   text(`${fr ? "Donnees exploitees" : "Data used"}: ${anthropometry.length} ${fr ? "mesures anthropometriques" : "anthropometric measurements"}, ${biology.length} ${fr ? "biologiques" : "biological"}, ${food.length} ${fr ? "alimentaires" : "food records"}, ${lifestyle.length} ${fr ? "evaluations du mode de vie" : "lifestyle assessments"}.`, 8);
 
+  if(reportType==="professional"){
+    const latestLifestyle=[...lifestyle].sort((a,b)=>+new Date(a.assessment_date)-+new Date(b.assessment_date)).at(-1);
+    const snapshot=latestLifestyle?.questionnaire_snapshot as Record<string,Array<Record<string,any>>>|undefined;
+    if(snapshot){heading(fr?"Annexe — données sources des questionnaires":"Appendix — questionnaire source data");for(const [domain,responses] of Object.entries(snapshot)){text(domain,9,bold);for(const item of responses||[])text(`${item.reference||item.id||"Q"} — ${item.question||""}: ${item.answer??(fr?"Non renseigné":"Not recorded")} (${item.score??"—"}/4)`,7.5)}}
+  }
   if (y < 220) addPage();
   y -= 6;
   page.drawRectangle({ x: 50, y: y - 4, width: 495, height: 4, color: rgb(.12, .49, .33) });

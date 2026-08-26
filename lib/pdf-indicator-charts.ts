@@ -1,7 +1,7 @@
 import { rgb, type PDFFont, type PDFPage } from "pdf-lib";
 
 export type IndicatorPoint = { date: string | Date; value: number };
-export type IndicatorSeries = { key: string; label: string; unit?: string; points: IndicatorPoint[] };
+export type IndicatorSeries = { key: string; label: string; unit?: string; points: IndicatorPoint[]; domain?: [number,number] };
 
 export function numericSeries(
   rows: Record<string, any>[],
@@ -117,7 +117,7 @@ function drawTrendChart(
   const values = points.map(point => point.value);
   const min = Math.min(...values), max = Math.max(...values);
   const span = max - min || Math.max(Math.abs(max) * .1, 1);
-  const lo = min - span * .12, hi = max + span * .12, plotSpan = hi - lo || 1;
+  const lo = series.domain?.[0] ?? min - span * .12, hi = series.domain?.[1] ?? max + span * .12, plotSpan = hi - lo || 1;
   const left = x + 34, right = x + width - 6, plotTop = top - 16, plotBottom = top - height + 16;
   const plotHeight = plotTop - plotBottom;
 
@@ -212,4 +212,19 @@ export function drawIndicatorReportCard(
   }
 
   return top - cardHeight - 10;
+}
+
+export function drawBloodPressureReportCard(page:PDFPage,regular:PDFFont,bold:PDFFont,systolic:IndicatorSeries,diastolic:IndicatorSeries,x:number,y:number,locale:"fr"|"en"="fr"){
+ const width=495,height=142,left=x+42,right=x+width-14,top=y-32,bottom=y-height+28,lo=40,hi=200;
+ page.drawRectangle({x,y:y-height,width,height,color:rgb(.985,.99,.988),borderColor:rgb(.83,.87,.86),borderWidth:.7});
+ page.drawRectangle({x,y:y-height,width:4,height,color:rgb(.12,.49,.33)});
+ page.drawText(locale==="fr"?"Pression artérielle":"Blood pressure",{x:x+14,y:y-18,size:10,font:bold,color:rgb(.07,.24,.19)});
+ const s=systolic.points.at(-1)?.value,d=diastolic.points.at(-1)?.value;
+ page.drawText(`${s??"—"}/${d??"—"} mmHg`,{x:x+350,y:y-18,size:10,font:bold,color:rgb(.94,.42,.14)});
+ for(let i=0;i<=4;i++){const value=lo+(hi-lo)*i/4,gy=bottom+(top-bottom)*i/4;page.drawLine({start:{x:left,y:gy},end:{x:right,y:gy},thickness:.35,color:rgb(.88,.91,.9)});page.drawText(String(value),{x:x+13,y:gy-2,size:5.2,font:regular,color:rgb(.45,.5,.49)})}
+ const draw=(series:IndicatorSeries,color:ReturnType<typeof rgb>)=>{const pts=series.points,px=(i:number)=>pts.length===1?(left+right)/2:left+i*(right-left)/(pts.length-1),py=(v:number)=>bottom+(v-lo)/(hi-lo)*(top-bottom);pts.forEach((p,i)=>{if(i)page.drawLine({start:{x:px(i-1),y:py(pts[i-1].value)},end:{x:px(i),y:py(p.value)},thickness:1.8,color});page.drawCircle({x:px(i),y:py(p.value),size:2.5,color})})};
+ draw(systolic,rgb(.1,.47,.31));draw(diastolic,rgb(.94,.42,.14));
+ page.drawText("PAS",{x:left,y:bottom-14,size:6,font:bold,color:rgb(.1,.47,.31)});page.drawText("PAD",{x:left+35,y:bottom-14,size:6,font:bold,color:rgb(.94,.42,.14)});
+ page.drawText(locale==="fr"?"Une mesure isolée ne constitue pas un diagnostic.":"A single measurement is not diagnostic.",{x:left+80,y:bottom-14,size:6,font:regular,color:rgb(.4,.45,.44)});
+ return y-height-10;
 }

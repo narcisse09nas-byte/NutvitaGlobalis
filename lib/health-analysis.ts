@@ -433,13 +433,14 @@ if (pulse !== null) {
       if (!responses.length) continue;
       const answered = responses.filter((item: any) => item?.answer != null && Number.isFinite(Number(item?.score)));
       const priorities = answered.filter((item: any) => Number(item.score) <= 1);
-      const details = answered.map((item: any) => `${item.question}: ${item.answer} (${item.score}/4)`);
+      const responseLabel = (item: any) => `${item.reference ? `[${item.reference}] ` : ""}${item.question}`;
+      const details = answered.map((item: any) => `${responseLabel(item)}: ${item.answer} (${item.score}/4)`);
       addInsight(indicatorInsights, {
         indicator: locale === "en" ? `Detailed ${domain} questionnaire` : `Questionnaire ${domain} detaille`,
         latest: `${answered.length}/${responses.length}`,
         status: priorities.length ? "watch" : "stable",
         publicInterpretation: priorities.length
-          ? (locale === "en" ? `Priority answers: ${priorities.map((item: any) => `${item.question}: ${item.answer}`).join("; ")}.` : `Reponses prioritaires : ${priorities.map((item: any) => `${item.question} : ${item.answer}`).join("; ")}.`)
+          ? (locale === "en" ? `Priority answers: ${priorities.map((item: any) => `${responseLabel(item)}: ${item.answer}`).join("; ")}.` : `Reponses prioritaires : ${priorities.map((item: any) => `${responseLabel(item)} : ${item.answer}`).join("; ")}.`)
           : (locale === "en" ? "No low-scoring answer in the latest completed questionnaire." : "Aucune reponse a score faible dans le dernier questionnaire complet."),
         professionalInterpretation: details.join("; "),
         recommendation: locale === "en" ? "Use every answer with clinical context and objective measurements." : "Interpreter chaque reponse avec le contexte clinique et les mesures objectives.",

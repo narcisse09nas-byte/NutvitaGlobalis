@@ -4,12 +4,11 @@ import ProjectShell from "@/components/op-management/ProjectShell";
 import PlanificationTabs from "@/components/op-management/PlanificationTabs";
 import ResourceManager from "@/components/op-management/ResourceManager";
 import TimesheetManager from "@/components/op-management/TimesheetManager";
-import EquipmentCheckoutManager from "@/components/op-management/EquipmentCheckoutManager";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
 import {
-  getProject, listActivities, listEquipmentCheckouts, listResourceAssignments, listResources,
+  getProject, listActivities, listResourceAssignments, listResources,
   listTimesheets, listWbsNodes,
 } from "@/lib/ppm/queries";
 
@@ -21,13 +20,11 @@ export default async function PlanificationRessourcesPage({ params }: { params: 
   const name = user.user_metadata?.full_name || user.email || ((await getCurrentLocale()) === "en" ? "User" : "Utilisateur");
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [resources, assignments, activities, wbsNodes, timesheets, checkouts] = await Promise.all([
+  const [resources, assignments, activities, wbsNodes, timesheets] = await Promise.all([
     listResources(supabase, id), listResourceAssignments(supabase, id), listActivities(supabase, id),
-    listWbsNodes(supabase, id), listTimesheets(supabase, id), listEquipmentCheckouts(supabase, id),
+    listWbsNodes(supabase, id), listTimesheets(supabase, id),
   ]);
-  const equipment = resources.filter(item => item.type === "equipment");
   const assetResources = resources.filter(item => item.type === "equipment" || item.type === "vehicle" || item.type === "infrastructure");
-  const staff = resources.filter(item => item.type === "human" || item.type === "consultant");
   const locale = await getCurrentLocale();
   const en = locale === "en";
 
@@ -35,10 +32,9 @@ export default async function PlanificationRessourcesPage({ params }: { params: 
     <ProjectShell project={project}>
       <div className="grid gap-8">
         <PlanificationTabs projectId={id} />
-        <p className="rounded-2xl bg-mint/40 p-4 text-sm text-forest">{en ? <>Staff and consultants are now managed from the project's <b>Team</b> tab. This page covers assets, equipment and their assignment.</> : <>Le personnel et les consultants se gerent desormais depuis l&apos;onglet <b>Equipe</b> du projet. Cette page couvre les actifs, equipements et leur affectation.</>}</p>
+        <p className="rounded-2xl bg-mint/40 p-4 text-sm text-forest">{en ? <>Staff and consultants are now managed from the project's <b>Team</b> tab. This page covers resource planning; asset registration, assignment and physical inventory are handled in the Implementation phase&apos;s <b>Assets</b> tab.</> : <>Le personnel et les consultants se gerent desormais depuis l&apos;onglet <b>Equipe</b> du projet. Cette page couvre la planification des ressources ; l&apos;enregistrement, l&apos;attribution et l&apos;inventaire physique des actifs se gerent depuis l&apos;onglet <b>Actifs</b> de la phase Mise en oeuvre.</>}</p>
         <ResourceManager projectId={id} initial={assetResources} initialAssignments={assignments} activities={activities} title={en ? "Assets & equipment" : "Actifs & equipements"} allowedTypes={["equipment", "vehicle", "infrastructure"]} />
         <TimesheetManager projectId={id} initial={timesheets} resources={resources} wbsNodes={wbsNodes} activities={activities} />
-        <EquipmentCheckoutManager projectId={id} initial={checkouts} equipment={equipment} activities={activities} staff={staff} />
       </div>
     </ProjectShell>
   </PPMShell>;

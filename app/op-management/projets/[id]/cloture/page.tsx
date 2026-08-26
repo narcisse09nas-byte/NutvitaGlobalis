@@ -26,6 +26,7 @@ export default async function ProjectClosurePage({ params }: { params: Promise<{
   ]);
   const budgetBalance = budgetLines.reduce((sum, row) => sum + Number(row.revised_budget ?? row.initial_budget ?? 0) - Number(row.spent_amount || 0), 0);
   const staff = resources.filter(item => item.type === "human" || item.type === "consultant");
+  const assets = resources.filter(item => item.type === "equipment" || item.type === "vehicle" || item.type === "infrastructure");
   const locale = await getCurrentLocale();
 
   return <PPMShell name={name} locale={locale} breadcrumbs={[{ href: "/op-management", label: bc(locale, "overview") }, { href: "/op-management/projets", label: bc(locale, "projects") }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/cloture`, label: bc(locale, "closure") }]}>
@@ -34,7 +35,7 @@ export default async function ProjectClosurePage({ params }: { params: Promise<{
         projectId={id} project={project} initial={closure} deliverables={deliverables}
         activitiesTotal={activities.length} activitiesCompleted={activities.filter(activity => activity.status === "completed").length}
         procurementItems={procurementItems} budgetBalance={budgetBalance} evaluations={evaluations} lessonsLearnedCount={lessonsLearned.length}
-        initialHandoverItems={handoverItems} initialArchiveItems={archiveItems} documents={documents} staff={staff} stakeholders={stakeholders}
+        initialHandoverItems={handoverItems} initialArchiveItems={archiveItems} documents={documents} staff={staff} stakeholders={stakeholders} assets={assets}
       />
     </ProjectShell>
   </PPMShell>;

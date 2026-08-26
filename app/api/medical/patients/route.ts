@@ -15,8 +15,9 @@ export async function POST(request: Request) {
   const session = await createClient();
   const { data: { user } } = await session.auth.getUser();
   if (!user) return NextResponse.json({ message: "Non authentifie." }, { status: 401 });
-  const { data: specialist } = await session.from("medical_specialists").select("id").eq("user_id", user.id).eq("active", true).maybeSingle();
+  const { data: specialist } = await session.from("medical_specialists").select("id, free_onsite_creation").eq("user_id", user.id).eq("active", true).maybeSingle();
   if (!specialist) return NextResponse.json({ message: "Medecin specialiste actif requis." }, { status: 403 });
+  if (!specialist.free_onsite_creation) return NextResponse.json({ message: "La creation de patients sur site est reservee aux specialistes autorises. Utilisez la facturation Maximus." }, { status: 403 });
 
   const body = await request.json().catch(() => ({}));
   const fullName = String(body.full_name || "").trim();

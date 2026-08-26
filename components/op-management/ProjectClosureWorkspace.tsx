@@ -10,11 +10,11 @@ import type { ArchiveItem, Deliverable, Evaluation, HandoverItem, LessonLearned,
 
 export default function ProjectClosureWorkspace({
   projectId, project, initial, deliverables, activitiesTotal, activitiesCompleted, procurementItems, budgetBalance,
-  evaluations, lessonsLearnedCount, initialHandoverItems, initialArchiveItems, documents, staff = [], stakeholders = [],
+  evaluations, lessonsLearnedCount, initialHandoverItems, initialArchiveItems, documents, staff = [], stakeholders = [], assets = [],
 }: {
   projectId: string; project: Project; initial: ProjectClosure | null; deliverables: Deliverable[]; activitiesTotal: number;
   activitiesCompleted: number; procurementItems: ProcurementItem[]; budgetBalance: number; evaluations: Evaluation[]; lessonsLearnedCount: number;
-  initialHandoverItems: HandoverItem[]; initialArchiveItems: ArchiveItem[]; documents: PPMDocument[]; staff?: PPMResource[]; stakeholders?: Stakeholder[];
+  initialHandoverItems: HandoverItem[]; initialArchiveItems: ArchiveItem[]; documents: PPMDocument[]; staff?: PPMResource[]; stakeholders?: Stakeholder[]; assets?: PPMResource[];
 }) {
   const { en } = usePpmLocale();
   const staffOptions = staff.map(item => ({ value: item.name, label: item.name, hint: item.role_title }));
@@ -27,6 +27,9 @@ export default function ProjectClosureWorkspace({
   const deliverablesAccepted = deliverables.filter(item => item.acceptance_status === "accepted").length;
   const procurementOpen = procurementItems.filter(item => item.stage !== "completed" && item.stage !== "cancelled").length;
   const finalEvaluations = evaluations.filter(item => item.type === "final" || item.type === "endline");
+  const disposedAssetIds = new Set(initialHandoverItems.filter(item => item.resource_id && (item.status === "handed_over" || item.status === "acknowledged")).map(item => item.resource_id));
+  const registeredActiveAssets = assets.filter(item => item.origin_type && item.status === "active");
+  const undisposedAssetsCount = registeredActiveAssets.filter(item => !disposedAssetIds.has(item.id)).length;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -124,7 +127,8 @@ export default function ProjectClosureWorkspace({
       {!readyToClose && closure?.status !== "completed" && <p className="text-xs text-slate-400">{en ? "The first 3 boxes must be checked and saved before the project can be closed." : "Les 3 premieres cases doivent etre cochees et enregistrees avant de pouvoir cloturer le projet."}</p>}
     </form>
 
-    <section className="rounded-2xl border bg-white p-6"><HandoverRegister projectId={projectId} initial={initialHandoverItems} staff={staff} stakeholders={stakeholders} /></section>
+    {undisposedAssetsCount > 0 && <p className="rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-900">{en ? `${undisposedAssetsCount} registered asset(s) have no recorded disposal yet — record how each will be disposed of in the Handover section below before closing.` : `${undisposedAssetsCount} actif(s) enregistre(s) n'ont pas encore de disposition enregistree — precisez comment chacun sera dispose dans la section Transfert ci-dessous avant de cloturer.`}</p>}
+    <section className="rounded-2xl border bg-white p-6"><HandoverRegister projectId={projectId} initial={initialHandoverItems} staff={staff} stakeholders={stakeholders} assets={registeredActiveAssets} /></section>
     <section className="rounded-2xl border bg-white p-6"><ArchiveRegister projectId={projectId} initial={initialArchiveItems} deliverables={deliverables} documents={documents} /></section>
 
     {closingByName && <div className="fixed inset-0 z-[150] overflow-y-auto bg-slate-950/60 p-4">

@@ -1028,6 +1028,7 @@ export type BudgetLine = {
 // Sprint 12: Resource management (spec section 22).
 export type ResourceType = "human" | "consultant" | "equipment" | "vehicle" | "infrastructure";
 export type ResourceCostUnit = "hour" | "day" | "week" | "month" | "flat";
+export type ResourceOriginType = "purchase" | "donation" | "transfer" | "internal_production" | "other";
 
 export type PPMResource = {
   id: string;
@@ -1048,6 +1049,19 @@ export type PPMResource = {
   permissions?: Record<string, { submit?: boolean; verify?: boolean; approve?: boolean }>;
   user_id?: string | null;
   account_email?: string | null;
+  // Project Asset Management: origin tracking for equipment/vehicle/infrastructure resources.
+  // origin_type is null for a mere planning placeholder; set once the asset is concretely
+  // registered (asset_code assigned).
+  asset_code?: string | null;
+  origin_type?: ResourceOriginType | null;
+  origin_procurement_item_id?: string | null;
+  origin_donor_name?: string | null;
+  origin_transfer_project_id?: string | null;
+  origin_other_detail?: string | null;
+  origin_notes?: string | null;
+  current_location?: string | null;
+  registered_at?: string | null;
+  registered_by?: string | null;
   must_change_password?: boolean;
   created_at: string;
   updated_at: string;
@@ -1502,6 +1516,7 @@ export type ExternalApprover = {
 };
 
 export type HandoverStatus = "pending" | "handed_over" | "acknowledged";
+export type DisposalMethod = "transferred_to_project" | "donated" | "sold" | "scrapped" | "returned_to_donor" | "kept_by_organization" | "other";
 
 export type HandoverItem = {
   id: string;
@@ -1515,6 +1530,11 @@ export type HandoverItem = {
   status: HandoverStatus;
   file_path?: string;
   notes?: string;
+  resource_id?: string | null;
+  disposal_method?: DisposalMethod | null;
+  disposal_method_other?: string | null;
+  disposal_amount?: number | null;
+  disposal_currency?: string | null;
   created_by?: string | null;
   created_at: string;
   updated_at: string;
@@ -1542,7 +1562,8 @@ export type ArchiveItem = {
 export type AuditEntityType =
   | "organization" | "portfolio" | "program" | "project"
   | "distribution_operation" | "distribution_site" | "ingredient_price" | "distribution_plan"
-  | "distribution_need" | "purchase_order" | "delivery_note" | "activity_report" | "invoice" | "partner_profile";
+  | "distribution_need" | "purchase_order" | "delivery_note" | "activity_report" | "invoice" | "partner_profile"
+  | "asset" | "asset_assignment" | "asset_inventory_session";
 
 export type AuditLogEntry = {
   id: string;
@@ -1809,7 +1830,39 @@ export type Timesheet = {
   updated_at: string;
 };
 
-export type EquipmentCheckoutStatus = "checked_out" | "returned" | "lost" | "damaged";
+export type AssetInventorySessionStatus = "draft" | "in_progress" | "completed" | "cancelled";
+
+export type AssetInventorySession = {
+  id: string;
+  project_id: string;
+  code?: string | null;
+  title: string;
+  count_date: string;
+  status: AssetInventorySessionStatus;
+  conducted_by_name?: string | null;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+};
+
+export type AssetInventoryCountStatus = "pending" | "found" | "not_found" | "misplaced";
+
+export type AssetInventoryLine = {
+  id: string;
+  session_id: string;
+  resource_id: string;
+  count_status: AssetInventoryCountStatus;
+  condition_observed?: string | null;
+  location_observed?: string | null;
+  discrepancy_note?: string | null;
+  counted_by_name?: string | null;
+  counted_at?: string | null;
+  created_at: string;
+};
+
+export type EquipmentCheckoutStatus = "pending_endorsement" | "checked_out" | "return_requested" | "returned" | "lost" | "damaged";
 
 export type EquipmentCheckout = {
   id: string;
@@ -1817,6 +1870,13 @@ export type EquipmentCheckout = {
   resource_id: string;
   activity_id?: string | null;
   user_name?: string;
+  assigned_resource_id?: string | null;
+  assigned_by?: string | null;
+  endorsed_at?: string | null;
+  return_requested_at?: string | null;
+  return_requested_note?: string | null;
+  return_endorsed_at?: string | null;
+  return_endorsed_by?: string | null;
   checkout_date?: string;
   expected_return_date?: string;
   actual_return_date?: string;

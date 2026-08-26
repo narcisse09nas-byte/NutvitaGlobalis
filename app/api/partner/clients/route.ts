@@ -15,8 +15,9 @@ export async function POST(request:Request){
  }
  const session=await createClient(),{data:{user}}=await session.auth.getUser();
  if(!user)return NextResponse.json({message:"Non authentifié."},{status:401});
- const {data:partner}=await session.from("dietitian_profiles").select("id").eq("candidate_id",user.id).eq("status","active").maybeSingle();
+ const {data:partner}=await session.from("dietitian_profiles").select("id,free_onsite_creation").eq("candidate_id",user.id).eq("status","active").maybeSingle();
  if(!partner)return NextResponse.json({message:"Partenaire actif requis."},{status:403});
+ if(!partner.free_onsite_creation)return NextResponse.json({message:"La création de clients sur site est réservée aux partenaires autorisés. Utilisez la facturation Maximus."},{status:403});
  const admin=createAdminClient(),username=clean(body.username||body.full_name),password=String(body.password||`Nvg-${crypto.randomUUID().slice(0,8)}!`);
  if(username.length<4)return NextResponse.json({message:"Le nom utilisateur doit contenir au moins 4 caractères."},{status:400});
  const loginEmail=`${username}@accounts.nutvitaglobalis.local`;

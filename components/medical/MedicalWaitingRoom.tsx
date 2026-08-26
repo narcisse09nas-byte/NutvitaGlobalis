@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import AcceptConsultationButton from "@/components/appointments/AcceptConsultationButton";
+import { createClient } from "@/lib/supabase/client";
 
 // Mirrors components/partner/PartnerWaitingRoom.tsx's table/search UI. Unlike the dietitian side
 // (consultation_waiting_room is a shared broadcast queue multiple partners can see), a médecin
@@ -10,9 +11,21 @@ import AcceptConsultationButton from "@/components/appointments/AcceptConsultati
 type Row = Record<string, any>;
 const date = (value?: string) => value ? new Date(value).toLocaleString("fr-FR") : "—";
 
-export default function MedicalWaitingRoom({ initial }: { initial: Row[] }) {
+export default function MedicalWaitingRoom({ initial, unassigned = [], specialistId }: { initial: Row[]; unassigned?: Row[]; specialistId?: string }) {
   const [rows] = useState(initial);
+  const [pending, setPending] = useState(unassigned);
   const [query, setQuery] = useState("");
+  const [claiming, setClaiming] = useState<string | null>(null);
+
+  async function claim(row: Row) {
+    if (!specialistId) return;
+    setClaiming(row.id);
+    const { error } = await createClient().from("medical_consultations")
+      .update({ specialist_id: specialistId, status: "scheduled" })
+      .eq("id", row.id).eq("status", "pending_assignment").is("specialist_id", null);
+    setClaiming(null);
+    if (!error) setPending(current => current.filter(item => item.id !== row.id));
+  }
   const filtered = useMemo(() => rows.filter(row => {
     const profile = row.client_profiles || {};
     const haystack = [row.consultation_code, profile.full_name, profile.email, row.chief_complaint].join(" ").toLowerCase();
@@ -20,6 +33,15 @@ export default function MedicalWaitingRoom({ initial }: { initial: Row[] }) {
   }), [rows, query]);
 
   return <section className="grid gap-4">
+    {!!pending.length && <div className="grid gap-3 rounded-2xl border border-orange/40 bg-orange/5 p-4">
+      <h2 className="text-sm font-black uppercase text-orange">Clients non assignes (achetes via la facturation Maximus)</h2>
+      <div className="grid gap-2">
+        {pending.map(row => { const profile = row.client_profiles || {}; return <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3">
+          <div><b>{profile.full_name || profile.email || "Patient"}</b>{row.chief_complaint && <span className="ml-2 text-sm text-slate-500">— {row.chief_complaint}</span>}</div>
+          <button onClick={() => claim(row)} disabled={claiming === row.id} className="btn-primary px-4 py-2 text-xs">{claiming === row.id ? "Prise en charge..." : "Prendre en charge"}</button>
+        </div>; })}
+      </div>
+    </div>}
     <div className="rounded-2xl border bg-white p-4">
       <input value={query} onChange={event => setQuery(event.target.value)} className="admin-input" placeholder="Rechercher un patient, un motif…" />
     </div>

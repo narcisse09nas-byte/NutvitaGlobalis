@@ -1,7 +1,8 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
-  Achievement, AchievementEvidence, Activity, ApprovalRequest, ArchiveItem, AuditLogEntry, BudgetCategory, BudgetLine,
+  Achievement, AchievementEvidence, Activity, ApprovalRequest, ArchiveItem, AssetInventoryLine, AssetInventorySession,
+  AuditLogEntry, BudgetCategory, BudgetLine,
   ChangeRequest, CommunicationActual, CommunicationItem, Deliverable, EquipmentCheckout,
   Evaluation, EvmSettings, EvmSnapshot, Expense, ExternalApprover, FeedbackEntry, FeedbackFollowup, GovernanceRole, HandoverItem, Indicator,
   Issue, KnownPerson, LessonLearned, MealEntry, NonConformityReport, Operation,
@@ -674,6 +675,16 @@ export async function listTimesheets(supabase: SupabaseClient, projectId: string
 export async function listEquipmentCheckouts(supabase: SupabaseClient, projectId: string): Promise<EquipmentCheckout[]> {
   const { data } = await supabase.from("ppm_equipment_checkouts").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
   return (data || []) as EquipmentCheckout[];
+}
+
+export async function listAssetInventorySessions(supabase: SupabaseClient, projectId: string): Promise<AssetInventorySession[]> {
+  const { data } = await supabase.from("ppm_asset_inventory_sessions").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+  return (data || []) as AssetInventorySession[];
+}
+
+export async function listAssetInventoryLines(supabase: SupabaseClient, sessionId: string): Promise<AssetInventoryLine[]> {
+  const { data } = await supabase.from("ppm_asset_inventory_lines").select("*").eq("session_id", sessionId);
+  return (data || []) as AssetInventoryLine[];
 }
 
 // Phase K: Communication Actuals + Stakeholder Interactions

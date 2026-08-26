@@ -249,6 +249,7 @@ const baseMaximusModules: MaximusModule[] = [
     { key: 'sale_point', label: 'Point de vente', required: true }, { key: 'report_reference', label: 'Rapport de vente' }, { key: 'amount', label: 'Montant déposé', type: 'number' },
     { key: 'deposit_date', label: 'Date', type: 'date' }, { key: 'deposited_by', label: 'Déposé par' }, { key: 'bank_reference', label: 'Référence banque / caisse' },
   ] },
+  { slug: 'finance/invoicing', title: 'Facturation', group: 'Finance', description: 'Achat de services pour un tiers, factures proforma et facturation des points de vente partenaires.', fields: [] },
   { slug: 'finance/online-payments', title: 'Paiements en ligne', group: 'Finance', description: 'Registre de tous les achats effectués en ligne et de leurs factures.', fields: [] },
   { slug: 'finance/partner-registry', title: 'Registre des partenaires', group: 'Finance', description: 'Nutritionnistes, médecins, promoteurs, fournisseurs et autres partenaires avec numéro vendor.', fields: [] },
   { slug: 'finance/partner-payments', title: 'Suivi des paiements aux prestataires', group: 'Finance', description: 'Paiements, preuves et commentaires des prestataires et partenaires.', fields: [] },

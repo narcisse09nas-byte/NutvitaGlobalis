@@ -20,7 +20,8 @@ export type PPMRole =
   | "team_member"
   | "viewer"
   | "auditor"
-  | "donor_viewer";
+  | "donor_viewer"
+  | "asset_manager";
 
 export const PPM_ROLE_LABELS: Record<PPMRole, string> = {
   super_admin: "Super Admin",
@@ -38,6 +39,7 @@ export const PPM_ROLE_LABELS: Record<PPMRole, string> = {
   viewer: "Viewer",
   auditor: "Auditor",
   donor_viewer: "Donor / Partner Viewer",
+  asset_manager: "Asset Manager",
 };
 
 export const PPM_ROLES: PPMRole[] = Object.keys(PPM_ROLE_LABELS) as PPMRole[];

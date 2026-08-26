@@ -8,7 +8,7 @@ import { FormEvent, useMemo, useState } from "react";
 type Row = Record<string, any>;
 const age = (birth?: string) => birth ? Math.max(0, new Date().getFullYear() - new Date(birth).getFullYear()) : "—";
 
-export default function MedicalPatientManager({ initial }: { initial: Row[] }) {
+export default function MedicalPatientManager({ initial, freeOnsiteCreation = false }: { initial: Row[]; freeOnsiteCreation?: boolean }) {
   const [rows, setRows] = useState(initial);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -29,7 +29,8 @@ export default function MedicalPatientManager({ initial }: { initial: Row[] }) {
   }
 
   return <section className="grid gap-5">
-    <header className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl font-black">Mes patients</h1><p className="mt-2 text-slate-500">Registre unique des patients vus en consultation.</p></div><button onClick={() => setOpen(true)} className="btn-primary">+ Nouveau patient</button></header>
+    <header className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-3xl font-black">Mes patients</h1><p className="mt-2 text-slate-500">Registre unique des patients vus en consultation.</p></div>{freeOnsiteCreation && <button onClick={() => setOpen(true)} className="btn-primary">+ Nouveau patient</button>}</header>
+    {!freeOnsiteCreation && <p className="rounded-xl bg-amber-50 p-4 text-sm font-bold text-amber-900">La creation de patients sur site est desormais centralisee : demandez a la reception de creer l&apos;achat depuis la facturation Maximus.</p>}
     {message && <p className="rounded-xl bg-mint p-3 text-sm font-bold text-leaf">{message}</p>}
     <div className="rounded-2xl border bg-white p-4"><input value={query} onChange={event => setQuery(event.target.value)} className="admin-input" placeholder="Rechercher par ID, nom ou email…" /></div>
     <div className="overflow-x-auto rounded-2xl border bg-white">

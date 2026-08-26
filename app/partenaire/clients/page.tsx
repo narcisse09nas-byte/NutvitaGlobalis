@@ -10,5 +10,5 @@ export default async function Page(){
  ]);
  const requestByClient=Object.fromEntries((requests||[]).map((x:Record<string,any>)=>[x.client_id,x]));
  const rows=(clients||[]).map((x:Record<string,any>)=>({...x,waiting_request:requestByClient[x.id]||null}));
- return <PartnerShell email={user.email||""}><PartnerClientManager initial={rows} partnerId={profile.id} collaborators={partners||[]}/></PartnerShell>
+ return <PartnerShell email={user.email||""}><PartnerClientManager initial={rows} partnerId={profile.id} collaborators={partners||[]} freeOnsiteCreation={!!profile.free_onsite_creation}/></PartnerShell>
 }

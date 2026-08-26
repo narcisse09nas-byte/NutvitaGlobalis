@@ -10,6 +10,6 @@ export default async function Page() {
     ? await supabase.from("client_profiles").select("*").in("id", clientIds).order("full_name")
     : { data: [] as any[] };
   return <MedicalShell email={user.email || ""}>
-    <MedicalPatientManager initial={patients || []} />
+    <MedicalPatientManager initial={patients || []} freeOnsiteCreation={!!profile.free_onsite_creation} />
   </MedicalShell>;
 }

@@ -62,6 +62,7 @@ import TreasuryManagement from './specialized/TreasuryManagement';
 import TreasuryFinancialReports from './specialized/TreasuryFinancialReports';
 import InternalTransfers from './specialized/InternalTransfers';
 import OnlineServiceFinance from './specialized/OnlineServiceFinance';
+import InvoicingWorkspace from './specialized/InvoicingWorkspace';
 import RecruitmentQuestionImporter from '@/components/admin/RecruitmentQuestionImporter';
 
 const FinancialDashboard = dynamic(() => import('./specialized/FinancialDashboard'), {
@@ -134,6 +135,7 @@ export default function MaximusWorkspace({ adminName, module, workflowView = fal
 }
 
 function ModuleRenderer({ module }: { module: MaximusModule }) {
+  if (module.slug === 'finance/invoicing') return <InvoicingWorkspace />;
   if (module.slug === 'finance/online-payments') return <OnlineServiceFinance mode="online-payments" />;
   if (module.slug === 'finance/partner-registry') return <OnlineServiceFinance mode="partner-registry" />;
   if (module.slug === 'finance/partner-payments') return <OnlineServiceFinance mode="partner-payments" />;

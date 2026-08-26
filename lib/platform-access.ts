@@ -40,7 +40,7 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
   if (identity.supabase) {
     const userId = identity.user.id;
     const now = Date.now();
-    const [{ data: grants }, { data: clientProfile }, { data: enrollments }, { data: academyProfile }, { data: subscriptions }, { data: plans }, { data: bookings }, { data: partner }, { data: distributionPartner }, { data: candidate }, { data: medicalApplication }, { data: medicalSpecialist }, { data: medicalConsultations }, { data: nutritrack }, { data: maximus }, { data: staffApplication }] = await Promise.all([
+    const [{ data: grants }, { data: clientProfile }, { data: enrollments }, { data: academyProfile }, { data: subscriptions }, { data: plans }, { data: bookings }, { data: partner }, { data: distributionPartner }, { data: candidate }, { data: medicalApplication }, { data: medicalSpecialist }, { data: medicalConsultations }, { data: nutritrack }, { data: maximus }, { data: staffApplication }, { data: ppmStaffResource }] = await Promise.all([
       identity.supabase.from("platform_service_access").select("service_key,roles,expires_at").eq("user_id", userId).eq("active", true),
       identity.supabase.from("client_profiles").select("id").eq("id", userId).maybeSingle(),
       identity.supabase.from("formation_enrollments").select("id").eq("client_id", userId).limit(1),
@@ -57,6 +57,7 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
       identity.supabase.from("nutritrack_members").select("id,status").eq("user_id", userId).maybeSingle(),
       identity.supabase.from("maximus_user_access").select("active").eq("user_id", userId).eq("active", true).maybeSingle(),
       identity.supabase.from("maximus_staff_applications").select("id").eq("candidate_id", userId).limit(1),
+      identity.supabase.from("ppm_resources").select("id").eq("user_id", userId).limit(1),
     ]);
     if (clientProfile) add("client", "client");
     const validGrants = (grants || []).filter((grant: any) => !grant.expires_at || +new Date(grant.expires_at) > now);
@@ -92,6 +93,7 @@ export async function getAccessChoices(): Promise<{ email: string; superAdmin: b
     if (medicalSpecialist?.active) add("medical_consultation", "specialist");
     if (nutritrack?.status === "active") add("nutritrack", "client");
     if (maximus?.active) add("maximus", "staff");
+    if (ppmStaffResource?.length) add("project_management", "ppm_staff");
   }
   const choices = platformServices.flatMap(service => service.roles.filter(role => allowed.get(service.key)?.has(role.key)).map(role => ({ service: service.key, role: role.key, serviceTitle: title(service), roleLabel: role.label, href: role.href })));
   return { email: identity.user.email || "", superAdmin: false, choices };

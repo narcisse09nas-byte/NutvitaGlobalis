@@ -4,12 +4,13 @@ import { requireAdmin } from "@/lib/admin";
 
 export default async function Page() {
   const { supabase, admin } = await requireAdmin();
-  const [applications, interviews, settings, page] = await Promise.all([
+  const [applications, interviews, specialists, settings, page] = await Promise.all([
     supabase.from("medical_specialist_applications").select("*").order("applied_at", { ascending: false }),
     supabase
       .from("medical_specialist_interviews")
       .select("*,medical_specialist_applications(full_name,application_code)")
       .order("scheduled_at", { ascending: false }),
+    supabase.from("medical_specialists").select("*").order("full_name"),
     supabase.from("medical_specialist_settings").select("*").eq("id", 1).maybeSingle(),
     supabase.from("medical_specialist_page_settings").select("*").eq("id", 1).maybeSingle(),
   ]);
@@ -26,7 +27,7 @@ export default async function Page() {
       <MedicalSpecialistAdmin
         applications={applications.data || []}
         interviews={interviews.data || []}
-        specialists={[]}
+        specialists={specialists.data || []}
         accounts={[]}
         payments={[]}
         settings={{ ...(settings.data || {}), page: page.data }}

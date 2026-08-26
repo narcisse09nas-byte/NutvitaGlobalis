@@ -10,7 +10,8 @@ export type RegistryDomain =
   | "communication_actual" | "stakeholder_interaction" | "feedback" | "deliverable"
   | "action" | "external_approval" | "evaluation" | "lesson_learned" | "handover" | "archive"
   | "distribution_operation" | "distribution_site" | "cooperative" | "product"
-  | "distribution_need" | "distribution_plan" | "delivery_note" | "distribution_report";
+  | "distribution_need" | "distribution_plan" | "delivery_note" | "distribution_report"
+  | "asset" | "asset_inventory_session";
 
 const DOMAIN_CODES: Record<RegistryDomain, string> = {
   achievement: "A", expense: "E", purchase_request: "B", risk: "R", issue: "I", ncr: "N",
@@ -19,6 +20,8 @@ const DOMAIN_CODES: Record<RegistryDomain, string> = {
   // Operations Management (distribution cycles) — unused letters only.
   distribution_operation: "O", distribution_site: "T", cooperative: "G", product: "P",
   distribution_need: "J", distribution_plan: "Q", delivery_note: "W", distribution_report: "U",
+  // Project Asset Management — unused letters only.
+  asset: "K", asset_inventory_session: "Y",
 };
 
 const ALPHANUMERIC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I — avoids visual ambiguity

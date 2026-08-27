@@ -8,7 +8,7 @@ const TABS = [
   { slug: "baseline", label: "Scope Baseline & Change Control", labelEn: "Scope Baseline & Change Control" },
   { slug: "pdm", label: "PDM (activites)", labelEn: "PDM (activities)" },
   { slug: "budget", label: "Budget", labelEn: "Budget" },
-  { slug: "ressources", label: "Ressources", labelEn: "Resources" },
+  { slug: "ressources", label: "Autres ressources", labelEn: "Other resources" },
 ] as const;
 
 export default function PlanificationTabs({ projectId }: { projectId: string }) {

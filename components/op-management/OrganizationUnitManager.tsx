@@ -37,8 +37,9 @@ export default function OrganizationUnitManager({ organizationId, initial }: { o
     const isNew = editing === "new";
     let result;
     if (isNew) {
-      const seq = await nextSequence(supabase, organizationId, "org_unit");
-      result = await supabase.from("ppm_organization_units").insert({ ...payload, code: `UNIT-${String(seq).padStart(3, "0")}`, created_by: user?.id }).select("*").single();
+      const seq = await nextSequence(supabase, organizationId, "org_unit").catch(() => null);
+      const code = seq ? `UNIT-${String(seq).padStart(3, "0")}` : null;
+      result = await supabase.from("ppm_organization_units").insert({ ...payload, code, created_by: user?.id }).select("*").single();
     } else {
       result = await supabase.from("ppm_organization_units").update(payload).eq("id", (editing as OrganizationUnit).id).select("*").single();
     }

@@ -11,7 +11,7 @@ export default async function SurveyProjectPage({ params }: { params: Promise<{ 
   const { data: survey } = await supabase.from('survey_projects').select('*').eq('id', id).maybeSingle();
   if (!survey) redirect('/surveys?access=denied');
   return (
-    <main className="min-h-screen bg-slate-100">
+    <main className="survey-workspace min-h-screen bg-slate-100">
       <header className="border-b bg-white px-5 py-5">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-4">
           <div><Link href="/surveys" className="text-sm font-bold text-emerald-800">Toutes les enquetes</Link><h1 className="mt-2 text-2xl font-black">{survey.title}</h1><p className="text-sm text-slate-500">Support Food Security and Nutrition Survey</p></div>

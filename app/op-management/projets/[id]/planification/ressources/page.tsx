@@ -24,7 +24,7 @@ export default async function PlanificationRessourcesPage({ params }: { params: 
     listResources(supabase, id), listResourceAssignments(supabase, id), listActivities(supabase, id),
     listWbsNodes(supabase, id), listTimesheets(supabase, id),
   ]);
-  const assetResources = resources.filter(item => item.type === "equipment" || item.type === "vehicle" || item.type === "infrastructure");
+  const otherResources = resources.filter(item => ["service", "consumable", "material", "other"].includes(item.type));
   const locale = await getCurrentLocale();
   const en = locale === "en";
 
@@ -32,8 +32,8 @@ export default async function PlanificationRessourcesPage({ params }: { params: 
     <ProjectShell project={project}>
       <div className="grid gap-8">
         <PlanificationTabs projectId={id} />
-        <p className="rounded-2xl bg-mint/40 p-4 text-sm text-forest">{en ? <>Staff and consultants are now managed from the project's <b>Team</b> tab. This page covers resource planning; asset registration, assignment and physical inventory are handled in the Implementation phase&apos;s <b>Assets</b> tab.</> : <>Le personnel et les consultants se gerent desormais depuis l&apos;onglet <b>Equipe</b> du projet. Cette page couvre la planification des ressources ; l&apos;enregistrement, l&apos;attribution et l&apos;inventaire physique des actifs se gerent depuis l&apos;onglet <b>Actifs</b> de la phase Mise en oeuvre.</>}</p>
-        <ResourceManager projectId={id} initial={assetResources} initialAssignments={assignments} activities={activities} title={en ? "Assets & equipment" : "Actifs & equipements"} allowedTypes={["equipment", "vehicle", "infrastructure", "service", "consumable", "material", "other"]} />
+        <p className="rounded-2xl bg-mint/40 p-4 text-sm text-forest">{en ? <>Staff and consultants are managed from the project's <b>Team</b> tab. This page only covers the planning of other resources, notably services, materials and consumables. Asset registration, assignment and physical inventory are handled in the Implementation phase&apos;s <b>Assets</b> tab.</> : <>Le personnel et les consultants se gerent depuis l&apos;onglet <b>Equipe</b> du projet. Cette page couvre uniquement la planification des autres ressources, notamment les services, le materiel et les consommables. L&apos;enregistrement, l&apos;attribution et l&apos;inventaire physique des actifs se gerent depuis l&apos;onglet <b>Actifs</b> de la phase Mise en oeuvre.</>}</p>
+        <ResourceManager projectId={id} initial={otherResources} initialAssignments={assignments} activities={activities} title={en ? "Services, materials & consumables" : "Service, materiel & consommable"} allowedTypes={["consumable", "material", "service", "other"]} />
         <TimesheetManager projectId={id} initial={timesheets} resources={resources} wbsNodes={wbsNodes} activities={activities} />
       </div>
     </ProjectShell>

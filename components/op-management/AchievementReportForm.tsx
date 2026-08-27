@@ -14,7 +14,8 @@ const typeLabels: Record<AchievementType, { fr: string; en: string }> = {
   supervision: { fr: "Supervision", en: "Supervision" }, meeting: { fr: "Reunion", en: "Meeting" }, mission: { fr: "Mission", en: "Mission" }, data_collection: { fr: "Collecte de donnees", en: "Data collection" },
   service_delivery: { fr: "Prestation", en: "Service delivery" }, construction: { fr: "Construction", en: "Construction" }, documentation: { fr: "Production documentaire", en: "Documentation" }, other: { fr: "Autre", en: "Other" },
 };
-const methodLabels: Record<ProgressMethod, { fr: string; en: string }> = { quantitative: { fr: "Quantitative", en: "Quantitative" }, milestones: { fr: "Etapes (milestones)", en: "Milestones" }, manual: { fr: "Estimation manuelle", en: "Manual estimate" } };
+type ReportingProgressMethod = Exclude<ProgressMethod, "manual">;
+const methodLabels: Record<ReportingProgressMethod, { fr: string; en: string }> = { quantitative: { fr: "Quantitative", en: "Quantitative" }, milestones: { fr: "Etapes (milestones)", en: "Milestones" } };
 const difficultyCategoryLabels: Record<DifficultyCategory, { fr: string; en: string }> = {
   technical: { fr: "Technique", en: "Technical" }, logistics: { fr: "Logistique", en: "Logistics" }, financial: { fr: "Financiere", en: "Financial" }, hr: { fr: "Ressources humaines", en: "Human resources" },
   procurement: { fr: "Procurement", en: "Procurement" }, security: { fr: "Securite", en: "Security" }, partner: { fr: "Partenaire", en: "Partner" }, community: { fr: "Communaute", en: "Community" },
@@ -39,12 +40,16 @@ export default function AchievementReportForm({ projectId, activity, workPackage
   const isNewInitially = editing === "new";
   const formRef = useRef<HTMLFormElement>(null);
   const [achievementId, setAchievementId] = useState<string | null>(isNewInitially ? null : (editing as Achievement).id);
-  const [method, setMethod] = useState<ProgressMethod>(isNewInitially ? "manual" : (editing as Achievement).progress_method);
+  const plannedMilestones = activity.milestone_weights || [];
+  const milestonesPlanned = plannedMilestones.length;
+  const rawTarget = indicator?.target ?? activity.target_value ?? (editing !== "new" ? editing.target_value : null) ?? 0;
+  const targetValue = Number.isFinite(Number(rawTarget)) ? Number(rawTarget) : 0;
+  const storedMethod = isNewInitially ? null : (editing as Achievement).progress_method;
+  const initialMethod: ReportingProgressMethod = storedMethod === "milestones" && milestonesPlanned > 0 ? "milestones" : "quantitative";
+  const [method, setMethod] = useState<ReportingProgressMethod>(initialMethod);
   const [periodAchieved, setPeriodAchieved] = useState(isNewInitially ? "" : String((editing as Achievement).period_achieved ?? ""));
-  const [targetValue, setTargetValue] = useState(isNewInitially ? (indicator?.target != null ? String(indicator.target) : "") : String((editing as Achievement).target_value ?? ""));
-  const [milestonesPlanned, setMilestonesPlanned] = useState(isNewInitially ? "" : String((editing as Achievement).milestones_planned ?? ""));
   const [milestonesCompleted, setMilestonesCompleted] = useState(isNewInitially ? "" : String((editing as Achievement).milestones_completed ?? ""));
-  const [manualPercent, setManualPercent] = useState(isNewInitially ? "" : String((editing as Achievement).manual_progress_percent ?? ""));
+  const [beneficiariesPeriod, setBeneficiariesPeriod] = useState(isNewInitially ? "" : String((editing as Achievement).beneficiaries_period ?? ""));
   const [breakdown, setBreakdown] = useState<BeneficiaryBreakdownEntry[]>(isNewInitially ? [] : (editing as Achievement).beneficiaries_breakdown || []);
   const [difficultyEncountered, setDifficultyEncountered] = useState(isNewInitially ? false : (editing as Achievement).difficulty_encountered);
   const [linkedIssueId, setLinkedIssueId] = useState<string | null>(isNewInitially ? null : (editing as Achievement).linked_issue_id ?? null);
@@ -59,13 +64,23 @@ export default function AchievementReportForm({ projectId, activity, workPackage
     .reduce((sum, item) => sum + Number(item.period_achieved || 0), 0), [previousAchievements]);
 
   const proposedCumulative = previousValidatedCumulative + Number(periodAchieved || 0);
+  const previousValidatedBeneficiaries = useMemo(() => previousAchievements
+    .filter(item => item.status === "validated")
+    .reduce((sum, item) => sum + Number(item.beneficiaries_period || 0), 0), [previousAchievements]);
+  const beneficiariesCumulative = previousValidatedBeneficiaries + Number(beneficiariesPeriod || 0);
   const computedPercent = useMemo(() => {
-    if (method === "quantitative") { const target = Number(targetValue || 0); return target > 0 ? round1(Math.min(100, (proposedCumulative / target) * 100)) : 0; }
-    if (method === "milestones") { const planned = Number(milestonesPlanned || 0); return planned > 0 ? round1(Math.min(100, (Number(milestonesCompleted || 0) / planned) * 100)) : 0; }
-    return Number(manualPercent || 0);
-  }, [method, targetValue, proposedCumulative, milestonesPlanned, milestonesCompleted, manualPercent]);
+    if (method === "quantitative") return targetValue > 0 ? round1(Math.min(100, (proposedCumulative / targetValue) * 100)) : 0;
+    return milestonesPlanned > 0 ? round1(Math.min(100, (Number(milestonesCompleted || 0) / milestonesPlanned) * 100)) : 0;
+  }, [method, targetValue, proposedCumulative, milestonesPlanned, milestonesCompleted]);
 
   const suggestedBreakdownCategories = en ? suggestedBreakdownCategoriesEn : suggestedBreakdownCategoriesFr;
+  function breakdownLabelPlaceholder(category: string) {
+    const normalized = category.toLowerCase();
+    if (normalized === "age") return en ? "Age group (e.g. 15-24 years)" : "Groupe d age (ex : 15-24 ans)";
+    if (normalized === "sexe" || normalized === "sex") return en ? "Sex (e.g. Female)" : "Sexe (ex : Femme)";
+    if (normalized === "handicap" || normalized === "disability") return en ? "Disability group" : "Groupe de handicap";
+    return en ? "Group / modality" : "Groupe / modalite";
+  }
   function addBreakdownRow(category = "") { setBreakdown(current => [...current, { category, label: "", value: 0 }]); }
   function updateBreakdownRow(index: number, patch: Partial<BeneficiaryBreakdownEntry>) {
     setBreakdown(current => current.map((row, i) => i === index ? { ...row, ...patch } : row));
@@ -97,15 +112,24 @@ export default function AchievementReportForm({ projectId, activity, workPackage
     setSaving(true);
     setMessage("");
     const form = new FormData(formRef.current);
-    if (method === "manual" && !String(form.get("manual_justification") || "").trim()) {
-      setSaving(false); setMessage(en ? "A justification is required for a manual estimate." : "Une justification est obligatoire pour une estimation manuelle."); return;
+    const reportingPeriodStart = String(form.get("reporting_period_start") || "");
+    const reportingPeriodEnd = String(form.get("reporting_period_end") || "");
+    const actualStart = String(form.get("actual_start") || "");
+    const actualEnd = String(form.get("actual_end") || "");
+    if (!reportingPeriodStart || !reportingPeriodEnd || reportingPeriodEnd < reportingPeriodStart) {
+      setSaving(false); setMessage(en ? "A valid reporting period is required." : "Une periode de rapportage valide est obligatoire."); return;
+    }
+    if (actualStart && actualEnd && actualEnd < actualStart) {
+      setSaving(false); setMessage(en ? "The achievement end date must follow its start date." : "La date de fin de realisation doit suivre la date de debut."); return;
     }
     const payload = {
       project_id: projectId,
       activity_id: activity.id,
       code: achievementId ? (editing !== "new" ? editing.code : undefined) : `ACH-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${previousAchievements.length + 1}`,
-      period_label: String(form.get("period_label") || "").trim() || null,
-      achievement_date: String(form.get("achievement_date") || "") || null,
+      period_label: [reportingPeriodStart, reportingPeriodEnd].filter(Boolean).join(" - ") || null,
+      reporting_period_start: reportingPeriodStart || null,
+      reporting_period_end: reportingPeriodEnd || null,
+      achievement_date: null,
       location: String(form.get("location") || "").trim() || null,
       title: String(form.get("title") || "").trim(),
       description: String(form.get("description") || "").trim() || null,
@@ -114,21 +138,19 @@ export default function AchievementReportForm({ projectId, activity, workPackage
       actual_end: String(form.get("actual_end") || "") || null,
       partners_involved: String(form.get("partners_involved") || "").trim() || null,
       progress_method: method,
-      target_value: method === "quantitative" ? Number(targetValue || 0) : null,
+      target_value: method === "quantitative" ? targetValue : null,
       previous_validated_cumulative: method === "quantitative" ? previousValidatedCumulative : null,
       period_achieved: method === "quantitative" ? Number(periodAchieved || 0) : null,
       proposed_cumulative: method === "quantitative" ? proposedCumulative : null,
       milestones_planned: method === "milestones" ? Number(milestonesPlanned || 0) : null,
       milestones_completed: method === "milestones" ? Number(milestonesCompleted || 0) : null,
-      manual_progress_percent: method === "manual" ? Number(manualPercent || 0) : null,
-      manual_justification: method === "manual" ? String(form.get("manual_justification") || "").trim() || null : null,
+      manual_progress_percent: null,
+      manual_justification: null,
       progress_percent: computedPercent,
-      beneficiaries_period: form.get("beneficiaries_period") ? Number(form.get("beneficiaries_period")) : null,
-      beneficiaries_cumulative: form.get("beneficiaries_cumulative") ? Number(form.get("beneficiaries_cumulative")) : null,
+      beneficiaries_period: beneficiariesPeriod ? Number(beneficiariesPeriod) : null,
+      beneficiaries_cumulative: showBeneficiaries ? beneficiariesCumulative : null,
       beneficiaries_breakdown: breakdown.filter(row => row.category || row.label),
       indicator_id: indicator?.id || null,
-      indicator_contribution: form.get("indicator_contribution") ? Number(form.get("indicator_contribution")) : null,
-      indicator_contribution_note: String(form.get("indicator_contribution_note") || "").trim() || null,
       difficulty_encountered: difficultyEncountered,
       difficulty_category: difficultyEncountered ? (String(form.get("difficulty_category") || "") as DifficultyCategory || null) : null,
       difficulty_description: difficultyEncountered ? String(form.get("difficulty_description") || "").trim() || null : null,
@@ -213,9 +235,11 @@ export default function AchievementReportForm({ projectId, activity, workPackage
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">{en ? "Identification" : "Identification"}</h3>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Reporting period" : "Periode de rapportage"}<input name="period_label" defaultValue={editing !== "new" ? editing.period_label || "" : ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Achievement date" : "Date de realisation"}<input name="achievement_date" type="date" defaultValue={editing !== "new" ? editing.achievement_date || "" : ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Actual location" : "Localisation reelle"}<input name="location" defaultValue={editing !== "new" ? editing.location || "" : activity.location || ""} className="admin-input" /></label>
+        <fieldset className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
+          <legend className="mb-2 text-sm font-bold">{en ? "Reporting period" : "Periode de rapportage"}</legend>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Start date" : "Date de debut"}<input name="reporting_period_start" type="date" defaultValue={editing !== "new" ? editing.reporting_period_start || "" : ""} required className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "End date" : "Date de fin"}<input name="reporting_period_end" type="date" defaultValue={editing !== "new" ? editing.reporting_period_end || "" : ""} required className="admin-input" /></label>
+        </fieldset>        <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Actual location" : "Localisation reelle"}<input name="location" defaultValue={editing !== "new" ? editing.location || "" : activity.location || ""} className="admin-input" /></label>
 
         <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">{en ? "Achievement" : "Realisation"}</h3>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Title / summary" : "Titre / resume"}<input name="title" defaultValue={editing !== "new" ? editing.title : ""} required className="admin-input" /></label>
@@ -227,46 +251,35 @@ export default function AchievementReportForm({ projectId, activity, workPackage
 
         <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">{en ? "Progress" : "Progression"}</h3>
         <div className="flex flex-wrap gap-2 sm:col-span-2">
-          {Object.entries(methodLabels).map(([value, label]) => <button key={value} type="button" onClick={() => setMethod(value as ProgressMethod)} className={`rounded-full px-4 py-2 text-xs font-bold ${method === value ? "bg-forest text-white" : "bg-slate-100 text-slate-600"}`}>{label[locale]}</button>)}
+          {Object.entries(methodLabels).map(([value, label]) => { const disabled = value === "milestones" && milestonesPlanned === 0; return <button key={value} type="button" disabled={disabled} title={disabled ? (en ? "No milestone is planned for this activity." : "Aucune etape n est planifiee pour cette activite.") : undefined} onClick={() => !disabled && setMethod(value as ReportingProgressMethod)} className={`rounded-full px-4 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40 ${method === value ? "bg-forest text-white" : "bg-slate-100 text-slate-600"}`}>{label[locale]}</button>; })}
         </div>
         {method === "quantitative" && <>
-          <label className="grid gap-2 text-sm font-bold">{en ? "Target" : "Cible"}<input type="number" step="0.01" value={targetValue} onChange={event => setTargetValue(event.target.value)} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Target" : "Cible"}<input type="number" step="0.01" value={targetValue} readOnly aria-readonly="true" className="admin-input bg-slate-50" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Already validated (cumulative)" : "Deja valide (cumul)"}<input value={previousValidatedCumulative} disabled className="admin-input bg-slate-50" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Achieved this period" : "Realise cette periode"}<input type="number" step="0.01" value={periodAchieved} onChange={event => setPeriodAchieved(event.target.value)} className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Proposed cumulative" : "Cumul propose"}<input value={proposedCumulative} disabled className="admin-input bg-slate-50" /></label>
         </>}
         {method === "milestones" && <>
-          <label className="grid gap-2 text-sm font-bold">{en ? "Milestones planned" : "Etapes prevues"}<input type="number" min="0" value={milestonesPlanned} onChange={event => setMilestonesPlanned(event.target.value)} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Milestones planned" : "Etapes prevues"}<input type="number" min="0" value={milestonesPlanned} readOnly aria-readonly="true" className="admin-input bg-slate-50" /></label>
           <label className="grid gap-2 text-sm font-bold">{en ? "Milestones completed" : "Etapes terminees"}<input type="number" min="0" value={milestonesCompleted} onChange={event => setMilestonesCompleted(event.target.value)} className="admin-input" /></label>
-        </>}
-        {method === "manual" && <>
-          <label className="grid gap-2 text-sm font-bold">{en ? "Estimated progress (%)" : "Progression estimee (%)"}<input type="number" min="0" max="100" value={manualPercent} onChange={event => setManualPercent(event.target.value)} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">{en ? "Justification" : "Justification"}<textarea name="manual_justification" rows={2} defaultValue={editing !== "new" ? editing.manual_justification || "" : ""} className="admin-input" /></label>
         </>}
         <p className="rounded-xl bg-mint px-4 py-3 text-sm font-bold text-forest sm:col-span-2">{en ? "Computed progress" : "Progression calculee"} : {computedPercent}%</p>
 
         {showBeneficiaries && <>
           <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">{en ? "Beneficiaries" : "Beneficiaires"}</h3>
-          <label className="grid gap-2 text-sm font-bold">{en ? "Reached this period" : "Atteints cette periode"}<input name="beneficiaries_period" type="number" min="0" defaultValue={editing !== "new" ? editing.beneficiaries_period ?? "" : ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">{en ? "Cumulative" : "Cumul"}<input name="beneficiaries_cumulative" type="number" min="0" defaultValue={editing !== "new" ? editing.beneficiaries_cumulative ?? "" : ""} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Reached this period" : "Atteints cette periode"}<input name="beneficiaries_period" type="number" min="0" value={beneficiariesPeriod} onChange={event => setBeneficiariesPeriod(event.target.value)} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{en ? "Cumulative" : "Cumul"}<input type="number" min="0" value={beneficiariesCumulative} readOnly aria-readonly="true" className="admin-input bg-slate-50" /></label>
           <div className="sm:col-span-2">
             <div className="flex flex-wrap gap-2">{suggestedBreakdownCategories.map(category => <button key={category} type="button" onClick={() => addBreakdownRow(category)} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 hover:bg-mint">+ {category}</button>)}<button type="button" onClick={() => addBreakdownRow()} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 hover:bg-mint">+ {en ? "Other breakdown" : "Autre desagregation"}</button></div>
             <div className="mt-2 grid gap-2">
               {breakdown.map((row, index) => <div key={index} className="grid grid-cols-[1fr_1fr_100px_auto] gap-2">
                 <input placeholder={en ? "Category" : "Categorie"} value={row.category} onChange={event => updateBreakdownRow(index, { category: event.target.value })} className="admin-input" />
-                <input placeholder={en ? "Value (e.g. Female)" : "Valeur (ex: Femme)"} value={row.label} onChange={event => updateBreakdownRow(index, { label: event.target.value })} className="admin-input" />
+                <input placeholder={breakdownLabelPlaceholder(row.category)} value={row.label} onChange={event => updateBreakdownRow(index, { label: event.target.value })} className="admin-input" />
                 <input type="number" min="0" value={row.value} onChange={event => updateBreakdownRow(index, { value: Number(event.target.value) })} className="admin-input" />
                 <button type="button" onClick={() => removeBreakdownRow(index)} aria-label={en ? "Remove" : "Retirer"}><TrashIcon className="h-5 text-red-600" /></button>
               </div>)}
             </div>
           </div>
-        </>}
-
-        {indicator && <>
-          <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">{en ? "Contribution to the indicator (proposal — will be reviewed by MEAL)" : "Contribution a l'indicateur (proposition — sera revue par MEAL)"}</h3>
-          <p className="text-sm text-slate-500 sm:col-span-2">{indicator.name} — {en ? "target" : "cible"} {indicator.target ?? "—"} · {en ? "current validated value" : "valeur validee actuelle"} {indicator.current_value ?? "—"}</p>
-          <label className="grid gap-2 text-sm font-bold">{en ? "Proposed contribution" : "Contribution proposee"}<input name="indicator_contribution" type="number" step="0.01" defaultValue={editing !== "new" ? editing.indicator_contribution ?? "" : ""} className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">{en ? "Note" : "Note"}<input name="indicator_contribution_note" defaultValue={editing !== "new" ? editing.indicator_contribution_note || "" : ""} className="admin-input" /></label>
         </>}
 
         <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">{en ? "Difficulties & gaps" : "Difficultes & ecarts"}</h3>

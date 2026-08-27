@@ -35,8 +35,9 @@ export default function OrganizationSupplierManager({ organizationId, initial }:
     const isNew = editing === "new";
     let result;
     if (isNew) {
-      const seq = await nextSequence(supabase, organizationId, "org_supplier");
-      result = await supabase.from("ppm_organization_suppliers").insert({ ...payload, code: `SUP-${String(seq).padStart(3, "0")}`, created_by: user?.id }).select("*").single();
+      const seq = await nextSequence(supabase, organizationId, "org_supplier").catch(() => null);
+      const code = seq ? `SUP-${String(seq).padStart(3, "0")}` : null;
+      result = await supabase.from("ppm_organization_suppliers").insert({ ...payload, code, created_by: user?.id }).select("*").single();
     } else {
       result = await supabase.from("ppm_organization_suppliers").update(payload).eq("id", (editing as OrganizationSupplier).id).select("*").single();
     }

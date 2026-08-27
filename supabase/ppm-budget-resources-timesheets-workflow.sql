@@ -21,6 +21,7 @@ create policy "PPM staff read assigned asset resources" on public.ppm_resources
 for select to authenticated using (public.ppm_can_read_assigned_asset(id));
 
 -- Broader resource catalogue requested by the planning form.
+alter table public.ppm_resources add column if not exists type_other_detail text;
 alter table public.ppm_resources drop constraint if exists ppm_resources_type_check;
 alter table public.ppm_resources add constraint ppm_resources_type_check
 check(type in ('human','consultant','equipment','vehicle','infrastructure','service','consumable','material','other'));
@@ -52,3 +53,6 @@ set end_date=coalesce(end_date, week_start, entry_date),
     duration=coalesce(duration, days, hours),
     duration_unit=coalesce(duration_unit, case when days is not null then 'day' else 'hour' end)
 where end_date is null or duration is null or duration_unit is null;
+
+-- Refresh the Supabase/PostgREST schema cache after adding form columns.
+notify pgrst, 'reload schema';

@@ -1752,6 +1752,8 @@ export type Achievement = {
   activity_id: string;
   code?: string;
   period_label?: string;
+  reporting_period_start?: string;
+  reporting_period_end?: string;
   achievement_date?: string;
   location?: string;
   title: string;

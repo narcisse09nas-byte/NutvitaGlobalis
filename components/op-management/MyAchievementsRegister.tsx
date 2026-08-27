@@ -93,20 +93,29 @@ export default function MyAchievementsRegister({ projectId, initial, activities,
         <button onClick={() => { setWpFilter(""); setPicking(true); }} className="btn-primary px-4 py-2 text-sm"><PlusIcon className="mr-2 h-4" />{en ? "New achievement" : "Nouvelle realisation"}</button>
       </div>
     </div>
-    <div className="grid gap-3">
-      {filtered.map(row => { const activity = activityById.get(row.activity_id); return <article key={row.id} className="rounded-2xl border bg-white p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><b className="text-forest">{row.title}</b><p className="mt-1 text-xs text-slate-400">{activity?.title}{row.period_label ? ` · ${row.period_label}` : ""}{row.progress_percent != null ? ` · ${row.progress_percent}%` : ""}</p></div>
-          <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusTones[row.status]}`}>{statusLabels[row.status][locale]}</span>
-        </div>
-        {row.description && <p className="mt-2 text-sm text-slate-600">{row.description}</p>}
-        <div className="mt-3 flex flex-wrap gap-2">
-          {row.status === "draft" && <button onClick={() => openEdit(row)} className="btn-primary px-3 py-1.5 text-xs">{en ? "Resume / Submit" : "Reprendre / Soumettre"}</button>}
-          {row.status !== "draft" && <button onClick={() => openEdit(row)} className="btn-secondary px-3 py-1.5 text-xs">{en ? "View" : "Voir"}</button>}
-          {row.status === "draft" && <button onClick={() => cancelDraft(row)} className="btn-secondary px-3 py-1.5 text-xs">{en ? "Cancel" : "Annuler"}</button>}
-        </div>
-      </article>; })}
-      {!filtered.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No achievement." : "Aucune realisation."}</p>}
+    <div className="overflow-x-auto rounded-2xl border bg-white">
+      <table className="w-full min-w-[1180px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+          <tr><th className="p-4">ID</th><th className="p-4">{en ? "Activity" : "Activite"}</th><th className="p-4">{en ? "Reporting period" : "Periode"}</th><th className="p-4">{en ? "Achievement" : "Realisation"}</th><th className="p-4">{en ? "Progress" : "Progression"}</th><th className="p-4">{en ? "Beneficiaries" : "Beneficiaires"}</th><th className="p-4">{en ? "Status" : "Statut"}</th><th className="p-4 text-right">Actions</th></tr>
+        </thead>
+        <tbody>
+          {filtered.map(row => { const activity = activityById.get(row.activity_id); const period = row.reporting_period_start || row.reporting_period_end ? `${row.reporting_period_start || "..."} - ${row.reporting_period_end || "..."}` : row.period_label || "—"; return <tr key={row.id} className="border-t align-top">
+            <td className="p-4 font-mono text-xs font-bold text-slate-500">{row.code || row.id.slice(0, 8)}</td>
+            <td className="p-4"><b className="text-forest">{activity?.title || "—"}</b><p className="mt-1 font-mono text-xs text-slate-400">{activity?.code || row.activity_id.slice(0, 8)}</p></td>
+            <td className="p-4 whitespace-nowrap">{period}</td>
+            <td className="p-4"><b className="text-forest">{row.title}</b>{row.description && <p className="mt-1 max-w-sm text-xs text-slate-500 line-clamp-2">{row.description}</p>}</td>
+            <td className="p-4 font-bold">{row.progress_percent != null ? `${row.progress_percent}%` : "—"}</td>
+            <td className="p-4"><span>{en ? "Period" : "Periode"}: <b>{row.beneficiaries_period ?? "—"}</b></span><span className="mt-1 block text-xs text-slate-500">{en ? "Cumulative" : "Cumul"}: {row.beneficiaries_cumulative ?? "—"}</span></td>
+            <td className="p-4"><span className={`rounded-full px-3 py-1 text-xs font-bold ${statusTones[row.status]}`}>{statusLabels[row.status][locale]}</span></td>
+            <td className="p-4"><div className="flex justify-end gap-2">
+              {row.status === "draft" && <button onClick={() => openEdit(row)} className="btn-primary px-3 py-1.5 text-xs">{en ? "Resume / Submit" : "Reprendre / Soumettre"}</button>}
+              {row.status !== "draft" && <button onClick={() => openEdit(row)} className="btn-secondary px-3 py-1.5 text-xs">{en ? "View" : "Voir"}</button>}
+              {row.status === "draft" && <button onClick={() => cancelDraft(row)} className="btn-secondary px-3 py-1.5 text-xs">{en ? "Cancel" : "Annuler"}</button>}
+            </div></td>
+          </tr>; })}
+          {!filtered.length && <tr><td colSpan={8} className="p-10 text-center text-slate-400">{en ? "No achievement." : "Aucune realisation."}</td></tr>}
+        </tbody>
+      </table>
     </div>
 
     {editing && editingActivity && <AchievementReportForm

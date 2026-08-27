@@ -59,7 +59,7 @@ export default function OrganizationManager({ initial }: { initial: Organization
             <td className="p-4 font-mono text-xs">{row.code || "—"}</td>
             <td className="p-4">{row.country || "—"}</td>
             <td className="p-4"><EntityStatusBadge status={row.status} /></td>
-            <td className="p-4"><div className="flex flex-wrap gap-2"><Link href={`/op-management/organisations/${row.id}`} className="btn-secondary px-3 py-2 text-xs">{en ? "Open" : "Ouvrir"}</Link><button onClick={() => setEditing(row)} className="btn-secondary px-3 py-2 text-xs">{en ? "Edit" : "Modifier"}</button></div></td>
+            <td className="p-4"><div className="flex flex-wrap gap-2"><Link href={`/op-management/organisations/${row.id}`} className="btn-secondary px-3 py-2 text-xs">{en ? "Open organization" : "Ouvrir l'organisation"}</Link><button onClick={() => setEditing(row)} className="btn-secondary px-3 py-2 text-xs">{en ? "Edit" : "Modifier"}</button></div></td>
           </tr>)}
           {!rows.length && <tr><td colSpan={5} className="p-10 text-center text-slate-400">{en ? "No organizations yet. Create the first one to get started." : "Aucune organisation. Creez la premiere pour commencer."}</td></tr>}
         </tbody>

@@ -11,7 +11,7 @@ export default async function SurveysPage({ searchParams }: { searchParams: Prom
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/connexion?redirect=${encodeURIComponent('/surveys')}`);
   return (
-    <main className="min-h-screen bg-slate-100 p-5 md:p-8">
+    <main className="survey-workspace min-h-screen bg-slate-100 p-5 md:p-8">
       <div className="mx-auto max-w-7xl">
         <Link href="/services" className="text-sm font-bold text-emerald-800">Retour aux services</Link>
         <div className="mb-8 mt-5">

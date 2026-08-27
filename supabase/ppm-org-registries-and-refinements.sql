@@ -24,6 +24,7 @@ begin
   returning last_seq into v_next;
   return v_next;
 end $$;
+grant execute on function public.ppm_next_sequence(uuid, text, int) to authenticated;
 
 -- Organization-level registries -----------------------------------------------------------------
 

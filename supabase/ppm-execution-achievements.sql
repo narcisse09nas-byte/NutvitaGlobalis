@@ -11,6 +11,8 @@ create table if not exists public.ppm_achievements (
   activity_id uuid not null references public.ppm_activities(id) on delete cascade,
   code text,
   period_label text,
+  reporting_period_start date,
+  reporting_period_end date,
   achievement_date date,
   location text,
   title text not null,

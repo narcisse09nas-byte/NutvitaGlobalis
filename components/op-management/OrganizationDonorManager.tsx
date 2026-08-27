@@ -40,8 +40,9 @@ export default function OrganizationDonorManager({ organizationId, initial }: { 
     const isNew = editing === "new";
     let result;
     if (isNew) {
-      const seq = await nextSequence(supabase, organizationId, "org_donor");
-      result = await supabase.from("ppm_organization_donors").insert({ ...payload, code: `DON-${String(seq).padStart(3, "0")}`, created_by: user?.id }).select("*").single();
+      const seq = await nextSequence(supabase, organizationId, "org_donor").catch(() => null);
+      const code = seq ? `DON-${String(seq).padStart(3, "0")}` : null;
+      result = await supabase.from("ppm_organization_donors").insert({ ...payload, code, created_by: user?.id }).select("*").single();
     } else {
       result = await supabase.from("ppm_organization_donors").update(payload).eq("id", (editing as OrganizationDonor).id).select("*").single();
     }

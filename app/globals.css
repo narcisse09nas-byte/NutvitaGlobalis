@@ -217,3 +217,94 @@
 .ppm-workspace .ppm-modal-backdrop form [class*="justify-end"] > .btn-secondary,
 .ppm-workspace .ppm-modal-backdrop .ppm-modal-card [class*="justify-end"] > .btn-primary,
 .ppm-workspace .ppm-modal-backdrop .ppm-modal-card [class*="justify-end"] > .btn-secondary { width: 100%; }
+/* Shared NutVitaGlobalis form language — all service and management portals.
+   Full identity treatment is reserved for modal/standalone cards; embedded forms
+   inherit the field and action language without being inflated into new panels. */
+body [class*="fixed"][class*="inset-0"]:not(.ppm-modal-backdrop):has(form) {
+  background-color: rgb(15 23 42 / .28) !important;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+body [class*="fixed"][class*="inset-0"]:not(.ppm-modal-backdrop):has(form) > :is(form, section, article, div):has(form),
+body [class*="fixed"][class*="inset-0"]:not(.ppm-modal-backdrop):has(form) > form,
+.nutritrack-form-card {
+  position: relative;
+  overflow-y: auto;
+  border: 12px solid #0b493b !important;
+  border-radius: 2.15rem !important;
+  background: #fff !important;
+  box-shadow: 0 28px 70px rgb(6 49 39 / .24) !important;
+}
+
+body [class*="fixed"][class*="inset-0"]:not(.ppm-modal-backdrop):has(form) > :is(form, section, article, div):has(form)::before,
+body [class*="fixed"][class*="inset-0"]:not(.ppm-modal-backdrop):has(form) > form::before,
+.nutritrack-form-card::before {
+  content: "";
+  display: block;
+  width: 205px;
+  height: 42px;
+  margin: 1.5rem 1.5rem .25rem;
+  background: url('/brand/nutvita-logo-full.png') left center / contain no-repeat;
+}
+
+body form .admin-input,
+.nutritrack-form-card .admin-input,
+.nutritrack-form-card :is(input, select, textarea) {
+  min-height: 3.35rem;
+  border-color: #d9e3f2;
+  border-radius: 1rem;
+  background-color: #edf3ff;
+  padding-inline: 1rem;
+  font-size: .96rem;
+}
+
+body form textarea.admin-input,
+.nutritrack-form-card textarea { min-height: 6rem; }
+
+body form .admin-input:focus,
+.nutritrack-form-card :is(input, select, textarea):focus {
+  border-color: #2f8d69;
+  background-color: #f7faff;
+  box-shadow: 0 0 0 3px rgb(47 141 105 / .12);
+  outline: none;
+}
+
+body form label,
+.nutritrack-form-card label {
+  color: #263a4f;
+  font-weight: 800;
+}
+
+body form .btn-primary,
+.nutritrack-form-card .btn-primary {
+  min-height: 3.45rem;
+  border-radius: 9999px;
+  background: #ef7d36;
+  box-shadow: 0 10px 22px rgb(239 125 54 / .22);
+}
+
+body form .btn-secondary,
+.nutritrack-form-card .btn-secondary {
+  min-height: 3.35rem;
+  border-radius: 9999px;
+}
+
+@media (max-width: 639px) {
+  body [class*="fixed"][class*="inset-0"]:not(.ppm-modal-backdrop):has(form) > :is(form, section, article, div):has(form),
+  body [class*="fixed"][class*="inset-0"]:not(.ppm-modal-backdrop):has(form) > form,
+  .nutritrack-form-card {
+    border-width: 9px !important;
+    border-radius: 1.65rem !important;
+  }
+  body [class*="fixed"][class*="inset-0"]:not(.ppm-modal-backdrop):has(form) > :is(form, section, article, div):has(form)::before,
+  body [class*="fixed"][class*="inset-0"]:not(.ppm-modal-backdrop):has(form) > form::before,
+  .nutritrack-form-card::before {
+    width: 170px;
+    height: 35px;
+    margin: 1rem 1rem .15rem;
+  }
+  body form [class*="grid-cols-"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

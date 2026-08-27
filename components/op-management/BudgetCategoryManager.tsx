@@ -64,7 +64,7 @@ export default function BudgetCategoryManager({ projectId, initial }: { projectI
       {!tree.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No budget category yet. Start with a main category." : "Aucune categorie budgetaire. Commencez par une categorie principale."}</p>}
     </div>
 
-    {adding && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {adding && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "New category" : "Nouvelle categorie"}</h2><button type="button" onClick={() => setAdding(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">

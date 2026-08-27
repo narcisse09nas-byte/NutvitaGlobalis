@@ -110,7 +110,7 @@ export default function WBSTreeEditor({ projectId, initial, staff = [], locked =
       {!tree.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No WBS yet. Create the first level (the project itself)." : "Aucun WBS. Creez le premier niveau (le projet lui-meme)."}</p>}
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {editing && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] border border-white/20 bg-emerald-50 p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{isNewNode ? `${en ? "New" : "Nouveau"} — ${levelNames[(editing as { level: number }).level]}` : `${en ? "WBS record" : "Fiche WBS"} — ${editingNode?.code}`}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">

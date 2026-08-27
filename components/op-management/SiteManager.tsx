@@ -224,7 +224,7 @@ function SiteDetailPanel({ site, onClose }: { site: OpsSite; onClose: () => void
     setInviteMessages(current => ({ ...current, [member.id]: result.ok ? (en ? "Invited to the portal." : "Invite(e) au portail.") : (result.message || (en ? "Error" : "Erreur")) }));
   }
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+  return <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
     <div className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{site.name}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
 

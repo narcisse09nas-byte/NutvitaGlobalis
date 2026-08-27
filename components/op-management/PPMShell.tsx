@@ -26,7 +26,7 @@ export default function PPMShell({ children, name, breadcrumbs, locale = "fr" }:
     router.refresh();
   }
 
-  return <div className="min-h-screen bg-[#edf7f0]">
+  return <div className="ppm-workspace min-h-screen bg-[#edf7f0]">
     <aside className={`fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-forest p-6 pb-24 text-white transition lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="mb-9 flex items-center justify-between">
         <Link href="/op-management" className="text-xl font-black">NutVita<span className="text-orange">PPM</span></Link>

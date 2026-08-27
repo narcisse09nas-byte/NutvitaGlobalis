@@ -187,7 +187,7 @@ export default function ProcurementPipeline({ projectId, initial, wbsNodes, staf
       {!rows.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No purchase recorded." : "Aucun achat enregistre."}</p>}
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {editing && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? (en ? "New purchase" : "Nouvel achat") : (en ? "Edit purchase" : "Modifier l'achat")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -212,7 +212,7 @@ export default function ProcurementPipeline({ projectId, initial, wbsNodes, staf
       </form>
     </div>}
 
-    {receivingFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {receivingFor && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submitReceipt} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{en ? "Record receipt" : "Enregistrer la reception"} — {receivingFor.title}</h2><button type="button" onClick={() => setReceivingFor(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">

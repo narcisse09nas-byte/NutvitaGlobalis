@@ -1134,13 +1134,19 @@ export type BudgetLine = {
   exchange_rate?: number;
   period_start?: string;
   period_end?: string;
-  status: PPMStatus;
+  status: 'draft' | 'submitted' | 'verified' | 'approved' | 'returned' | 'rejected' | 'cancelled';
+  submitted_at?: string | null;
+  verified_at?: string | null;
+  verified_by_name?: string | null;
+  approved_at?: string | null;
+  approved_by_name?: string | null;
+  workflow_note?: string | null;
   created_at: string;
   updated_at: string;
 };
 
 // Sprint 12: Resource management (spec section 22).
-export type ResourceType = "human" | "consultant" | "equipment" | "vehicle" | "infrastructure";
+export type ResourceType = "human" | "consultant" | "equipment" | "vehicle" | "infrastructure" | "service" | "consumable" | "material" | "other";
 export type ResourceCostUnit = "hour" | "day" | "week" | "month" | "flat";
 export type ResourceOriginType = "purchase" | "donation" | "transfer" | "internal_production" | "other";
 
@@ -1148,6 +1154,7 @@ export type PPMResource = {
   id: string;
   project_id: string;
   type: ResourceType;
+  type_other_detail?: string | null;
   name: string;
   role_title?: string;
   skills?: string[];
@@ -1942,6 +1949,9 @@ export type Timesheet = {
   hours: number;
   days?: number | null;
   week_start?: string | null;
+  end_date?: string | null;
+  duration?: number | null;
+  duration_unit?: 'hour' | 'day' | 'week' | 'month' | null;
   description?: string;
   status: TimesheetStatus;
   approved_by_name?: string;

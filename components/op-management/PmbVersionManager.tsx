@@ -99,7 +99,7 @@ export default function PmbVersionManager({ projectId, workPackages, budgetLines
       {!versions.length && <p className="text-sm text-slate-400">{en ? "No PMB version. Create the first one to lock the reference budget by Work Package." : "Aucune version PMB. Creez la premiere pour figer le budget de reference par Work Package."}</p>}
     </div>
 
-    {creating && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {creating && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submitCreate} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "New PMB version" : "Nouvelle version PMB"}</h2><button type="button" onClick={() => setCreating(false)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -112,7 +112,7 @@ export default function PmbVersionManager({ projectId, workPackages, budgetLines
       </form>
     </div>}
 
-    {approving && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {approving && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submitApproval} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Approve" : "Approuver"} — PMB v{approving.version}</h2><button type="button" onClick={() => setApproving(null)} className="text-2xl">×</button></div>
         <div className="mt-5 grid gap-4">

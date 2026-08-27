@@ -132,7 +132,7 @@ function CreateInvoiceModal({ operationId, deliveries, sites, cooperatives, ingr
     onCreated(created);
   }
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+  return <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
     <form onSubmit={submit} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "New invoice" : "Nouvelle facture"}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
       <div className="mt-5 grid gap-4">
@@ -179,7 +179,7 @@ function InvoiceDetailPanel({ invoice, sites, cooperatives, staff, onStatusChang
 
   const historyEntries: WorkflowHistoryEntry[] = history.map(item => ({ status: item.to_status || item.action, at: item.created_at, note: item.note }));
 
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+  return <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
     <div className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
       <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{invoice.id}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
       <p className="mt-2 text-sm text-slate-500">{site?.name}{cooperative ? ` — ${cooperative.name}` : ""}</p>

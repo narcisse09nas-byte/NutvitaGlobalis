@@ -131,7 +131,7 @@ export default function ProjectClosureWorkspace({
     <section className="rounded-2xl border bg-white p-6"><HandoverRegister projectId={projectId} initial={initialHandoverItems} staff={staff} stakeholders={stakeholders} assets={registeredActiveAssets} /></section>
     <section className="rounded-2xl border bg-white p-6"><ArchiveRegister projectId={projectId} initial={initialArchiveItems} deliverables={deliverables} documents={documents} /></section>
 
-    {closingByName && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {closingByName && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submitClosure} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Closure signature" : "Signature de cloture"}</h2><button type="button" onClick={() => setClosingByName(false)} className="text-2xl">×</button></div>
         <div className="mt-5 grid gap-4">

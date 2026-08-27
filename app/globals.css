@@ -126,3 +126,94 @@
   .support-product > section:not(:first-child):not(:last-child) { display: none; }
   .support-product > section:first-child { padding-top: 1.25rem; }
 }
+
+/* Promanage modal system — reference: NutVitaGlobalis authentication card.
+   The green is deliberately limited to the card contour; it no longer floods the viewport. */
+.ppm-workspace .ppm-modal-backdrop {
+  background: rgb(15 23 42 / .28);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.ppm-workspace .ppm-modal-backdrop > form,
+.ppm-workspace .ppm-modal-backdrop > .ppm-modal-card {
+  position: relative;
+  overflow: hidden;
+  border: 7px solid #0b493b;
+  border-radius: 2.15rem;
+  background: #fff;
+  box-shadow: 0 28px 70px rgb(6 49 39 / .24);
+}
+.ppm-workspace .ppm-modal-backdrop > form::before,
+.ppm-workspace .ppm-modal-backdrop > .ppm-modal-card::before {
+  content: "";
+  display: block;
+  width: 205px;
+  height: 42px;
+  margin-bottom: 1.4rem;
+  background: url('/brand/nutvita-logo-full.png') left center / contain no-repeat;
+}
+.ppm-workspace .ppm-modal-backdrop > form h2,
+.ppm-workspace .ppm-modal-backdrop > .ppm-modal-card h2 {
+  color: #083f33;
+  font-size: clamp(1.65rem, 2.4vw, 2.25rem);
+  line-height: 1.08;
+  font-weight: 900;
+  letter-spacing: -.035em;
+}
+.ppm-workspace .ppm-modal-backdrop label,
+.ppm-workspace .ppm-modal-backdrop legend {
+  color: #263a4f;
+  font-weight: 800;
+}
+.ppm-workspace .ppm-modal-backdrop .admin-input {
+  min-height: 3.35rem;
+  border-color: #d9e3f2;
+  border-radius: 1rem;
+  background: #edf3ff;
+  padding-inline: 1rem;
+  font-size: .96rem;
+}
+.ppm-workspace .ppm-modal-backdrop textarea.admin-input { min-height: 6rem; }
+.ppm-workspace .ppm-modal-backdrop .admin-input:focus {
+  border-color: #2f8d69;
+  background: #f7faff;
+  box-shadow: 0 0 0 3px rgb(47 141 105 / .12);
+}
+.ppm-workspace .ppm-modal-backdrop .btn-primary {
+  min-height: 3.45rem;
+  border-radius: 9999px;
+  padding-inline: 2rem;
+  background: #ef7d36;
+  box-shadow: 0 10px 22px rgb(239 125 54 / .22);
+  font-size: .96rem;
+}
+.ppm-workspace .ppm-modal-backdrop .btn-secondary {
+  min-height: 3.35rem;
+  border-radius: 9999px;
+  padding-inline: 2rem;
+}
+.ppm-workspace .ppm-modal-backdrop form > div:last-child > .btn-primary:only-child,
+.ppm-workspace .ppm-modal-backdrop form > div:last-child > div:last-child > .btn-primary:last-child {
+  min-width: min(100%, 15rem);
+}
+@media (max-width: 639px) {
+  .ppm-workspace .ppm-modal-backdrop { padding: .75rem; }
+  .ppm-workspace .ppm-modal-backdrop > form,
+  .ppm-workspace .ppm-modal-backdrop > .ppm-modal-card { border-width: 5px; border-radius: 1.65rem; padding: 1.35rem; }
+  .ppm-workspace .ppm-modal-backdrop > form::before,
+  .ppm-workspace .ppm-modal-backdrop > .ppm-modal-card::before { width: 170px; height: 35px; margin-bottom: 1rem; }
+  .ppm-workspace .ppm-modal-backdrop form [class*="grid-cols-"] { grid-template-columns: minmax(0, 1fr); }
+  .ppm-workspace .ppm-modal-backdrop [class*="justify-end"] { flex-wrap: wrap; }
+  .ppm-workspace .ppm-modal-backdrop [class*="justify-end"] .btn-primary,
+  .ppm-workspace .ppm-modal-backdrop [class*="justify-end"] .btn-secondary { width: 100%; }
+}.ppm-workspace .ppm-modal-backdrop .ppm-modal-card > div:first-of-type > div > span:first-child { display: none; }
+.ppm-workspace .ppm-modal-backdrop form [class*="justify-end"],
+.ppm-workspace .ppm-modal-backdrop .ppm-modal-card [class*="justify-end"] {
+  width: 100%;
+  flex-direction: column-reverse;
+  align-items: stretch;
+}
+.ppm-workspace .ppm-modal-backdrop form [class*="justify-end"] > .btn-primary,
+.ppm-workspace .ppm-modal-backdrop form [class*="justify-end"] > .btn-secondary,
+.ppm-workspace .ppm-modal-backdrop .ppm-modal-card [class*="justify-end"] > .btn-primary,
+.ppm-workspace .ppm-modal-backdrop .ppm-modal-card [class*="justify-end"] > .btn-secondary { width: 100%; }

@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { PlusIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import { wbsLeafNodes } from "@/lib/ppm/wbs";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
@@ -45,6 +45,19 @@ export default function RaciMatrix({ projectId, roles, initial, workPackages = [
     }
   }
 
+  async function removeArea(area: string) {
+    if (!confirm(en ? "Remove this row and all its RACI entries?" : "Retirer cette ligne et toutes ses entrees RACI ?")) return;
+    setMessage("");
+    const areaEntries = entries.filter(entry => entry.area === area);
+    if (areaEntries.length) {
+      const supabase = createClient();
+      const result = await supabase.from("ppm_raci_entries").delete().eq("project_id", projectId).eq("area", area);
+      if (result.error) { setMessage(result.error.message); return; }
+    }
+    setEntries(current => current.filter(entry => entry.area !== area));
+    setExtraAreas(current => current.filter(item => item !== area));
+  }
+
   function addArea() {
     setMessage("");
     const value = (pickedArea === OTHER ? newArea : pickedArea).trim();
@@ -70,7 +83,7 @@ export default function RaciMatrix({ projectId, roles, initial, workPackages = [
       {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">{message}</p>}
       <div className="overflow-x-auto rounded-2xl border bg-white">
         <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">{en ? "Area / activity" : "Zone / activite"}</th>{roles.map(role => <th key={role.id} className="p-4">{role.name}</th>)}</tr></thead>
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">{en ? "Area / activity" : "Zone / activite"}</th>{roles.map(role => <th key={role.id} className="p-4">{role.name}</th>)}<th className="p-4">Action</th></tr></thead>
           <tbody>
             {areas.map(area => <tr key={area} className="border-t">
               <td className="p-4 font-bold text-forest">{area}</td>
@@ -82,8 +95,9 @@ export default function RaciMatrix({ projectId, roles, initial, workPackages = [
                   </div>
                 </td>;
               })}
+              <td className="p-4"><button onClick={() => removeArea(area)} aria-label={en ? "Remove row" : "Retirer la ligne"} className="rounded-lg border border-red-200 p-1.5 text-red-600"><TrashIcon className="h-4" /></button></td>
             </tr>)}
-            {!areas.length && <tr><td colSpan={roles.length + 1} className="p-10 text-center text-slate-400">{en ? "No area added." : "Aucune zone ajoutee."}</td></tr>}
+            {!areas.length && <tr><td colSpan={roles.length + 2} className="p-10 text-center text-slate-400">{en ? "No area added." : "Aucune zone ajoutee."}</td></tr>}
           </tbody>
         </table>
       </div>

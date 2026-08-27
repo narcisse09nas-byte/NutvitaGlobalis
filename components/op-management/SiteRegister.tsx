@@ -11,12 +11,13 @@ import { Country, State } from "country-state-city";
 import { MapPinIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import PPMFormModal from "@/components/op-management/PPMFormModal";
+import SearchableSelect from "@/components/op-management/SearchableSelect";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
-import type { Site } from "@/lib/ppm/types";
+import type { ProjectSite, Site } from "@/lib/ppm/types";
 
 const countries = Country.getAllCountries().sort((a, b) => a.name.localeCompare(b.name));
 
-export default function SiteRegister({ projectId, initial, defaultCountry = "" }: { projectId: string; initial: Site[]; defaultCountry?: string }) {
+export default function SiteRegister({ projectId, initial, defaultCountry = "", identifiedSites = [] }: { projectId: string; initial: Site[]; defaultCountry?: string; identifiedSites?: ProjectSite[] }) {
   const { en } = usePpmLocale();
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<Site | "new" | null>(null);
@@ -25,6 +26,9 @@ export default function SiteRegister({ projectId, initial, defaultCountry = "" }
   const [regionName, setRegionName] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [siteNameValue, setSiteNameValue] = useState("");
+  const unregisteredIdentifiedSites = identifiedSites.filter(item => !rows.some(row => row.site_name === item.name));
+  const identifiedSiteOptions = unregisteredIdentifiedSites.map(item => ({ value: item.id, label: item.name, hint: item.accessibility || undefined }));
 
   const states = useMemo(() => countryIso ? State.getStatesOfCountry(countryIso).sort((a, b) => a.name.localeCompare(b.name)) : [], [countryIso]);
   const divisionSuggestions = useMemo(() => Array.from(new Set(rows.filter(row => row.country === countryName && row.region === regionName && row.division).map(row => row.division as string))), [rows, countryName, regionName]);
@@ -36,6 +40,7 @@ export default function SiteRegister({ projectId, initial, defaultCountry = "" }
     setRegionName(row !== "new" ? row.region || "" : "");
     const isoMatch = countries.find(item => item.name === (row !== "new" ? row.country : defaultCountry))?.isoCode || "";
     setCountryIso(isoMatch);
+    setSiteNameValue(row !== "new" ? row.site_name : "");
     setEditing(row);
   }
 
@@ -113,7 +118,8 @@ export default function SiteRegister({ projectId, initial, defaultCountry = "" }
         <label className="grid gap-2 text-sm font-bold">{en ? "Subdivision" : "Sous-division"}<input name="subdivision" list="subdivision-suggestions" defaultValue={editing !== "new" ? editing.subdivision || "" : ""} className="admin-input" />
           <datalist id="subdivision-suggestions">{subdivisionSuggestions.map(value => <option key={value} value={value} />)}</datalist>
         </label>
-        <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Site name" : "Nom du site"}<input name="site_name" defaultValue={editing !== "new" ? editing.site_name : ""} required className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Code<input name="site_code" defaultValue={editing !== "new" ? editing.site_code || "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Site type" : "Type de site"}<input name="site_type" defaultValue={editing !== "new" ? editing.site_type || "" : ""} placeholder={en ? "School, health centre..." : "Ecole, centre de sante..."} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Beneficiaries" : "Nombre de beneficiaires"}<input name="beneficiary_count" type="number" min="0" defaultValue={editing !== "new" ? editing.beneficiary_count ?? "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Site contact" : "Contact du site"}<input name="contact_name" defaultValue={editing !== "new" ? editing.contact_name || "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Telephone<input name="contact_phone" defaultValue={editing !== "new" ? editing.contact_phone || "" : ""} className="admin-input" /></label>
+        {!!identifiedSiteOptions.length && <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Fill in from the sites identified in Identification (optional)" : "Renseigner depuis les zones/sites identifies en Identification (facultatif)"}<SearchableSelect name="identified_site_pick" options={identifiedSiteOptions} placeholder={en ? "Select..." : "Selectionner..."} onChange={value => { const picked = unregisteredIdentifiedSites.find(item => item.id === value); if (picked) setSiteNameValue(picked.name); }} /></label>}
+        <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Site name" : "Nom du site"}<input name="site_name" value={siteNameValue} onChange={event => setSiteNameValue(event.target.value)} required className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Code<input name="site_code" defaultValue={editing !== "new" ? editing.site_code || "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Site type" : "Type de site"}<input name="site_type" defaultValue={editing !== "new" ? editing.site_type || "" : ""} placeholder={en ? "School, health centre..." : "Ecole, centre de sante..."} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Beneficiaries" : "Nombre de beneficiaires"}<input name="beneficiary_count" type="number" min="0" defaultValue={editing !== "new" ? editing.beneficiary_count ?? "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Site contact" : "Contact du site"}<input name="contact_name" defaultValue={editing !== "new" ? editing.contact_name || "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Telephone<input name="contact_phone" defaultValue={editing !== "new" ? editing.contact_phone || "" : ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Notes<textarea name="notes" rows={2} defaultValue={editing !== "new" ? editing.notes || "" : ""} className="admin-input" /></label>
         {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
         <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button disabled={saving} className="btn-primary">{saving ? (en ? "Saving..." : "Enregistrement...") : (en ? "Save" : "Enregistrer")}</button></div>

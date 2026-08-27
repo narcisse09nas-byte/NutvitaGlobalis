@@ -83,7 +83,7 @@ export default function RoleAssignmentManager({ scopeType, scopeId, scopeLabel }
       {!rows.length && <p className="text-sm text-slate-400">{en ? "No role assigned to this scope." : "Aucun role assigne a ce perimetre."}</p>}
     </div>
 
-    {creating && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {creating && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-md rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Assign a role" : "Assigner un role"}</h2><button type="button" onClick={() => setCreating(false)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">

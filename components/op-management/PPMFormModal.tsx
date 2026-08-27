@@ -10,16 +10,16 @@ export default function PPMFormModal({ icon: Icon, title, subtitle, onClose, chi
   onClose: () => void; children: ReactNode; maxWidth?: string;
 }) {
   const { en } = usePpmLocale();
-  return <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
-    <div className={`mx-auto my-10 ${maxWidth} rounded-[2rem] bg-forest p-5 shadow-2xl shadow-forest/30 md:p-7`}>
-      <div className="mb-1 flex items-start justify-between gap-3 text-white">
+  return <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
+    <div className={`ppm-modal-card mx-auto my-10 ${maxWidth} rounded-[2rem] bg-white p-7 shadow-2xl md:p-10`}>
+      <div className="mb-1 flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-orange"><Icon className="h-5" /></span>
-          <div><h2 className="text-xl font-black text-white">{title}</h2>{subtitle && <p className="mt-0.5 text-sm text-white/65">{subtitle}</p>}</div>
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-mint text-forest"><Icon className="h-5" /></span>
+          <div><h2 className="text-3xl font-black text-forest">{title}</h2>{subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}</div>
         </div>
-        <button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"} className="text-white/70 hover:text-white"><XMarkIcon className="h-6" /></button>
+        <button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"} className="text-slate-400 hover:text-forest"><XMarkIcon className="h-6" /></button>
       </div>
-      <div className="mt-4 rounded-[1.6rem] bg-white p-6 md:p-8">{children}</div>
+      <div className="mt-7">{children}</div>
     </div>
   </div>;
 }

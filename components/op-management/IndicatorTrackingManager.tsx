@@ -176,7 +176,7 @@ export default function IndicatorTrackingManager({ projectId, indicators, initia
       </div>
     </div>
 
-    {editingEntry && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {editingEntry && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submitEntry} className="mx-auto my-10 max-w-xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{editingEntry === "new" ? (en ? "New measurement" : "Nouvelle mesure") : (en ? "Edit measurement" : "Modifier la mesure")}</h2><button type="button" onClick={() => setEditingEntry(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -200,7 +200,7 @@ export default function IndicatorTrackingManager({ projectId, indicators, initia
       </form>
     </div>}
 
-    {editingEvaluation && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {editingEvaluation && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submitEvaluation} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editingEvaluation === "new" ? (en ? "New evaluation" : "Nouvelle evaluation") : (en ? "Edit evaluation" : "Modifier l'evaluation")}</h2><button type="button" onClick={() => setEditingEvaluation(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">

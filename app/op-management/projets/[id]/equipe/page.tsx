@@ -11,7 +11,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
 import {
-  getProject, listResourceAssignments, listResources, listActivities, listSites, listStakeholders, listSuppliers,
+  getProject, listResourceAssignments, listResources, listActivities, listOrganizationStaff, listOrganizationSuppliers,
+  listProjectSites, listSites, listStakeholders, listSuppliers,
 } from "@/lib/ppm/queries";
 
 // Refinement program, Wave 1: Staff, Suppliers, Stakeholders, Sites and Assets need to be visible
@@ -27,9 +28,10 @@ export default async function ProjectEquipePage({ params }: { params: Promise<{ 
   const en = locale === "en";
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [resources, assignments, activities, suppliers, stakeholders, sites] = await Promise.all([
+  const [resources, assignments, activities, suppliers, stakeholders, sites, orgStaff, orgSuppliers, identifiedSites] = await Promise.all([
     listResources(supabase, id), listResourceAssignments(supabase, id), listActivities(supabase, id),
     listSuppliers(supabase, id), listStakeholders(supabase, id), listSites(supabase, id),
+    listOrganizationStaff(supabase, project.organization_id), listOrganizationSuppliers(supabase, project.organization_id), listProjectSites(supabase, id),
   ]);
   const staff = resources.filter(item => item.type === "human" || item.type === "consultant");
   const assets = resources.filter(item => item.type === "equipment" || item.type === "vehicle" || item.type === "infrastructure");
@@ -37,10 +39,10 @@ export default async function ProjectEquipePage({ params }: { params: Promise<{ 
   return <PPMShell name={name} locale={locale} breadcrumbs={[{ href: "/op-management", label: bc(locale, "overview") }, { href: "/op-management/projets", label: bc(locale, "projects") }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/equipe`, label: bc(locale, "team") }]}>
     <ProjectShell project={project}>
       <div className="grid gap-8">
-        <ResourceManager projectId={id} initial={staff} initialAssignments={assignments} activities={activities} title={en ? "Staff & consultants" : "Staff & consultants"} allowedTypes={["human", "consultant"]} />
-        <SupplierRegister projectId={id} initial={suppliers} />
+        <ResourceManager projectId={id} initial={staff} initialAssignments={assignments} activities={activities} title={en ? "Staff & consultants" : "Staff & consultants"} allowedTypes={["human", "consultant"]} orgStaff={orgStaff} />
+        <SupplierRegister projectId={id} initial={suppliers} orgSuppliers={orgSuppliers} />
         <StakeholderRegister projectId={id} initial={stakeholders} />
-        <SiteRegister projectId={id} initial={sites} />
+        <SiteRegister projectId={id} initial={sites} identifiedSites={identifiedSites} />
 
         <div className="grid gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3">

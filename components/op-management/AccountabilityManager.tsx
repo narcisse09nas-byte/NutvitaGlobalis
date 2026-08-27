@@ -153,7 +153,7 @@ export default function AccountabilityManager({ projectId, initialFeedback, init
       </div>
     </div>
 
-    {editingFeedback && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {editingFeedback && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submitFeedback} className="mx-auto my-10 max-w-xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{editingFeedback === "new" ? (en ? "New feedback" : "Nouveau retour") : (en ? "Process the feedback" : "Instruire le retour")}</h2><button type="button" onClick={() => setEditingFeedback(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -179,7 +179,7 @@ export default function AccountabilityManager({ projectId, initialFeedback, init
       </form>
     </div>}
 
-    {editingLesson && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {editingLesson && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submitLesson} className="mx-auto my-10 max-w-xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "New lesson learned" : "Nouvelle lecon apprise"}</h2><button type="button" onClick={() => setEditingLesson(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -194,7 +194,7 @@ export default function AccountabilityManager({ projectId, initialFeedback, init
       </form>
     </div>}
 
-    {followingUp && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {followingUp && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submitFollowup} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Follow-up" : "Suivi"} — {categoryLabels[followingUp.category][locale]}</h2><button type="button" onClick={() => setFollowingUp(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -209,7 +209,7 @@ export default function AccountabilityManager({ projectId, initialFeedback, init
       </form>
     </div>}
 
-    {historyFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {historyFor && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <div className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Follow-up history" : "Historique des suivis"}</h2><button onClick={() => setHistoryFor(null)} className="text-2xl">×</button></div>
         <div className="mt-4 grid gap-2">

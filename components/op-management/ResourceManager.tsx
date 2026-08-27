@@ -3,12 +3,14 @@ import { useState, type FormEvent } from "react";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import EntityStatusBadge from "@/components/op-management/EntityStatusBadge";
+import SearchableSelect from "@/components/op-management/SearchableSelect";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
-import type { Activity, PPMResource, PPMStatus, ResourceAssignment, ResourceType } from "@/lib/ppm/types";
+import type { Activity, OrganizationStaff, PPMResource, PPMStatus, ResourceAssignment, ResourceType } from "@/lib/ppm/types";
 
 const typeLabels: Record<ResourceType, { fr: string; en: string }> = {
   human: { fr: "Personnel", en: "Staff" }, consultant: { fr: "Consultant", en: "Consultant" }, equipment: { fr: "Equipement", en: "Equipment" },
   vehicle: { fr: "Vehicule", en: "Vehicle" }, infrastructure: { fr: "Infrastructure", en: "Infrastructure" },
+  service: { fr: "Service", en: "Service" }, consumable: { fr: "Consommable", en: "Consumable" }, material: { fr: "Materiel", en: "Material" }, other: { fr: "Autre", en: "Other" },
 };
 const splitList = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
 // Refinement program, Wave 9 (item 50): per-module workflow permissions, checked at staff
@@ -21,9 +23,9 @@ const PPM_MODULES: Array<[string, string, string]> = [
 ];
 type ResourcePermissions = Record<string, { submit?: boolean; verify?: boolean; approve?: boolean }>;
 
-export default function ResourceManager({ projectId, initial, initialAssignments, activities, title, allowedTypes }: {
+export default function ResourceManager({ projectId, initial, initialAssignments, activities, title, allowedTypes, orgStaff = [] }: {
   projectId: string; initial: PPMResource[]; initialAssignments: ResourceAssignment[]; activities: Activity[];
-  title?: string; allowedTypes?: ResourceType[];
+  title?: string; allowedTypes?: ResourceType[]; orgStaff?: OrganizationStaff[];
 }) {
   const { locale, en } = usePpmLocale();
   const resolvedTitle = title || (en ? "Resources" : "Ressources");
@@ -39,6 +41,10 @@ export default function ResourceManager({ projectId, initial, initialAssignments
   const [formType, setFormType] = useState<ResourceType>(defaultType);
   const isHumanType = formType === "human" || formType === "consultant";
   const [permissions, setPermissions] = useState<ResourcePermissions>({});
+  const [conditionStatus, setConditionStatus] = useState("");
+  const [nameValue, setNameValue] = useState("");
+  const [roleValue, setRoleValue] = useState("");
+  const orgStaffOptions = orgStaff.map(item => ({ value: item.id, label: item.full_name, hint: item.role_title || undefined }));
   const [creatingAccountFor, setCreatingAccountFor] = useState<PPMResource | null>(null);
   const [accountSaving, setAccountSaving] = useState(false);
   const [accountMessage, setAccountMessage] = useState("");
@@ -47,6 +53,10 @@ export default function ResourceManager({ projectId, initial, initialAssignments
     setMessage("");
     setFormType(row === "new" ? defaultType : row.type);
     setPermissions(row !== "new" ? row.permissions || {} : {});
+    const condition = row !== "new" ? row.condition_notes || "" : "";
+    setConditionStatus(["good", "revision_required", "maintenance_planned"].includes(condition) ? condition : condition ? "other" : "");
+    setNameValue(row !== "new" ? row.name : "");
+    setRoleValue(row !== "new" ? row.role_title || "" : "");
     setEditing(row);
   }
 
@@ -81,11 +91,12 @@ export default function ResourceManager({ projectId, initial, initialAssignments
       project_id: projectId,
       type: String(form.get("type") || defaultType) as ResourceType,
       name: String(form.get("name") || "").trim(),
+      type_other_detail: formType === "other" ? String(form.get("type_other_detail") || "").trim() || null : null,
       role_title: String(form.get("role_title") || "").trim() || null,
       skills: splitList(String(form.get("skills") || "")),
       availability_percent: form.get("availability_percent") ? Number(form.get("availability_percent")) : null,
       weekly_capacity_hours: form.get("weekly_capacity_hours") ? Number(form.get("weekly_capacity_hours")) : null,
-      condition_notes: String(form.get("condition_notes") || "").trim() || null,
+      condition_notes: String(form.get("condition_status") || "") === "other" ? String(form.get("condition_other") || "").trim() || "other" : String(form.get("condition_status") || "").trim() || null,
       cost_rate: form.get("cost_rate") ? Number(form.get("cost_rate")) : null,
       cost_unit: String(form.get("cost_unit") || "day"),
       currency: String(form.get("currency") || "XAF"),
@@ -156,18 +167,19 @@ export default function ResourceManager({ projectId, initial, initialAssignments
       </table>
     </div>
 
-    {editing && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {editing && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-2xl rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{editing === "new" ? (en ? "New resource" : "Nouvelle ressource") : (en ? "Edit resource" : "Modifier la ressource")}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Name" : "Nom"}<input name="name" defaultValue={editing !== "new" ? editing.name : ""} required className="admin-input" /></label>
-          <label className="grid gap-2 text-sm font-bold">Type<select value={formType} onChange={event => setFormType(event.target.value as ResourceType)} className="admin-input">{typeOptions.map(value => <option key={value} value={value}>{typeLabels[value][locale]}</option>)}</select><input type="hidden" name="type" value={formType} /></label>
-          <label className="grid gap-2 text-sm font-bold">{en ? "Position / role" : "Poste / role"}<input name="role_title" defaultValue={editing !== "new" ? editing.role_title || "" : ""} className="admin-input" /></label>
+          {isHumanType && !!orgStaffOptions.length && <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Fill in from the organization directory (optional)" : "Renseigner depuis l'annuaire de l'organisation (facultatif)"}<SearchableSelect name="org_staff_pick" options={orgStaffOptions} placeholder={en ? "Select..." : "Selectionner..."} onChange={value => { const picked = orgStaff.find(item => item.id === value); if (picked) { setNameValue(picked.full_name); setRoleValue(picked.role_title || ""); } }} /></label>}
+          <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Name" : "Nom"}<input name="name" value={nameValue} onChange={event => setNameValue(event.target.value)} required className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">Type<select value={formType} onChange={event => setFormType(event.target.value as ResourceType)} className="admin-input">{typeOptions.map(value => <option key={value} value={value}>{typeLabels[value][locale]}</option>)}</select><input type="hidden" name="type" value={formType} /></label>{formType === "other" && <label className="grid gap-2 text-sm font-bold">{en ? "Specify resource type" : "Preciser le type de ressource"}<input name="type_other_detail" defaultValue={editing !== "new" ? editing.type_other_detail || "" : ""} required className="admin-input" /></label>}
+          <label className="grid gap-2 text-sm font-bold">{en ? "Position, role or use" : "Poste, role ou utilisation"}<input name="role_title" value={roleValue} onChange={event => setRoleValue(event.target.value)} className="admin-input" /></label>
           {isHumanType ? <>
             <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Skills (comma-separated)" : "Competences (separees par des virgules)"}<input name="skills" defaultValue={editing !== "new" ? (editing.skills || []).join(", ") : ""} className="admin-input" /></label>
             <label className="grid gap-2 text-sm font-bold">{en ? "Availability (%)" : "Disponibilite (%)"}<input name="availability_percent" type="number" min="0" max="100" defaultValue={editing !== "new" ? editing.availability_percent ?? "" : ""} className="admin-input" /></label>
             <label className="grid gap-2 text-sm font-bold">{en ? "Weekly capacity (hours)" : "Capacite hebdo (heures)"}<input name="weekly_capacity_hours" type="number" min="0" defaultValue={editing !== "new" ? editing.weekly_capacity_hours ?? "" : ""} className="admin-input" /></label>
-          </> : <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Condition / maintenance notes" : "Etat / notes de maintenance"}<textarea name="condition_notes" rows={2} defaultValue={editing !== "new" ? editing.condition_notes || "" : ""} className="admin-input" /></label>}
+          </> : <div className="grid gap-3 sm:col-span-2"><label className="grid gap-2 text-sm font-bold">{en ? "Condition / maintenance notes" : "Etat / notes de maintenance"}<select name="condition_status" value={conditionStatus} onChange={event => setConditionStatus(event.target.value)} className="admin-input"><option value="">{en ? "Select..." : "Selectionner..."}</option><option value="good">{en ? "Good condition" : "Bon etat"}</option><option value="revision_required">{en ? "Revision required" : "Revision necessaire"}</option><option value="maintenance_planned">{en ? "Maintenance planned" : "Maintenance prevue"}</option><option value="other">{en ? "Other (specify)" : "Autre a preciser"}</option></select></label>{conditionStatus === "other" && <label className="grid gap-2 text-sm font-bold">{en ? "Specify" : "A preciser"}<textarea name="condition_other" rows={2} defaultValue={editing !== "new" && !["good", "revision_required", "maintenance_planned"].includes(editing.condition_notes || "") ? editing.condition_notes || "" : ""} className="admin-input" /></label>}</div>}
           {isHumanType && <div className="sm:col-span-2">
             <p className="text-sm font-black uppercase text-slate-400">{en ? "Per-module permissions" : "Permissions par module"}</p>
             <div className="mt-2 overflow-x-auto rounded-xl border">
@@ -193,7 +205,7 @@ export default function ResourceManager({ projectId, initial, initialAssignments
       </form>
     </div>}
 
-    {assigning && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {assigning && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submitAssignment} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Assign" : "Affecter"} {assigning.name}</h2><button type="button" onClick={() => setAssigning(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <div className="mt-5 grid gap-4">
@@ -212,7 +224,7 @@ export default function ResourceManager({ projectId, initial, initialAssignments
       </form>
     </div>}
 
-    {creatingAccountFor && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {creatingAccountFor && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submitAccountCreation} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "Create access account" : "Creer un compte d'acces"} — {creatingAccountFor.name}</h2><button type="button" onClick={() => setCreatingAccountFor(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <p className="mt-2 text-sm text-slate-500">{en ? "A temporary password will be generated and sent by email. The person will have to change it on first login." : "Un mot de passe temporaire sera genere et envoye par email. La personne devra le changer a sa premiere connexion."}</p>

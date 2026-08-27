@@ -33,7 +33,7 @@ export default async function PlanificationRessourcesPage({ params }: { params: 
       <div className="grid gap-8">
         <PlanificationTabs projectId={id} />
         <p className="rounded-2xl bg-mint/40 p-4 text-sm text-forest">{en ? <>Staff and consultants are now managed from the project's <b>Team</b> tab. This page covers resource planning; asset registration, assignment and physical inventory are handled in the Implementation phase&apos;s <b>Assets</b> tab.</> : <>Le personnel et les consultants se gerent desormais depuis l&apos;onglet <b>Equipe</b> du projet. Cette page couvre la planification des ressources ; l&apos;enregistrement, l&apos;attribution et l&apos;inventaire physique des actifs se gerent depuis l&apos;onglet <b>Actifs</b> de la phase Mise en oeuvre.</>}</p>
-        <ResourceManager projectId={id} initial={assetResources} initialAssignments={assignments} activities={activities} title={en ? "Assets & equipment" : "Actifs & equipements"} allowedTypes={["equipment", "vehicle", "infrastructure"]} />
+        <ResourceManager projectId={id} initial={assetResources} initialAssignments={assignments} activities={activities} title={en ? "Assets & equipment" : "Actifs & equipements"} allowedTypes={["equipment", "vehicle", "infrastructure", "service", "consumable", "material", "other"]} />
         <TimesheetManager projectId={id} initial={timesheets} resources={resources} wbsNodes={wbsNodes} activities={activities} />
       </div>
     </ProjectShell>

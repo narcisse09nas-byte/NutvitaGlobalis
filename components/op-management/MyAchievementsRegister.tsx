@@ -119,7 +119,7 @@ export default function MyAchievementsRegister({ projectId, initial, activities,
       onSaved={handleSaved}
     />}
 
-    {picking && <div className="fixed inset-0 z-[150] overflow-y-auto bg-forest/90 p-4">
+    {picking && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={confirmPick} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "New achievement" : "Nouvelle realisation"}</h2><button type="button" onClick={() => setPicking(false)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
         <p className="mt-2 text-sm text-slate-500">{en ? "First choose the Work Package then the activity to report — known fields (output, indicator, target) will be pre-filled automatically." : "Choisissez d'abord le Work Package puis l'activite a rapporter — les champs connus (output, indicateur, cible) seront pre-remplis automatiquement."}</p>

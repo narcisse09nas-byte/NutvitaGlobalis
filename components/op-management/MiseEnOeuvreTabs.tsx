@@ -9,6 +9,7 @@ const TABS = [
   { slug: "validation", label: "Validation", labelEn: "Validation" },
   { slug: "depenses", label: "Depenses", labelEn: "Expenses" },
   { slug: "procurement", label: "Procurement", labelEn: "Procurement" },
+  { slug: "receptions", label: "Bons de reception", labelEn: "Receipt notes" },
   { slug: "actifs", label: "Actifs", labelEn: "Assets" },
   { slug: "qualite", label: "Qualite", labelEn: "Quality" },
 ] as const;

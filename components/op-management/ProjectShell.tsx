@@ -9,6 +9,7 @@ import type { Project } from "@/lib/ppm/types";
 const PHASES = [
   { slug: "", label: "Vue d'ensemble", labelEn: "Overview" },
   { slug: "cadrage", label: "Cadrage", labelEn: "Scoping" },
+  { slug: "sites", label: "Sites d'intervention", labelEn: "Implementation sites" },
   { slug: "equipe", label: "Equipe", labelEn: "Team" },
   { slug: "planification", label: "Planification", labelEn: "Planning" },
   { slug: "mise-en-oeuvre", label: "Mise en oeuvre", labelEn: "Implementation" },

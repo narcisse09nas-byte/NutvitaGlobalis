@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   Achievement, AchievementEvidence, Activity, ActivityJournalEntry, ApprovalRequest, ArchiveItem, AssetInventoryLine, AssetInventorySession,
-  AuditLogEntry, BudgetCategory, BudgetLine,
+  AuditLogEntry, BudgetCategory, BudgetLine, CostCenter,
   ChangeRequest, CommunicationActual, CommunicationItem, Deliverable, EquipmentCheckout,
   Evaluation, EvmSettings, EvmSnapshot, Expense, ExternalApprover, FeedbackEntry, FeedbackFollowup, GovernanceRole, HandoverItem, Indicator,
   Issue, KnownPerson, LessonLearned, MealEntry, NonConformityReport, Operation,
@@ -18,7 +18,7 @@ import type {
   OrganizationDonor, OrganizationGrant, OrganizationStaff, OrganizationSupplier, OrganizationUnit, Portfolio, ProjectSite,
   PmbVersion, PmbWorkPackageSnapshot, PPMAction, PPMDocument, PPMNotification, PPMResource,
   PpmTask, PpmTaskList,
-  Program, ProcurementItem, Project, ProjectCharter, ProjectClosure, QualityRequirement,
+  Program, ProcurementItem, ProcurementReceipt, ProcurementReceiptCriterion, ProcurementReceiptEvidence, ProcurementReceiptLine, Project, ProjectCharter, ProjectClosure, ProjectContract, ProjectFinanceSettings, QualityRequirement, ReceiptCommitteeMember,
   QualityControlActual, RaciEntry, Report, Requirement, ResourceAssignment, ResultChainNode, Risk,
   RiskReview, ScopeBaseline, ScopeStatement, Site, Stakeholder, StakeholderInteraction, Supplier,
   TimePhasedBudget, Timesheet, WBSNode,
@@ -476,6 +476,21 @@ export async function listBudgetCategories(supabase: SupabaseClient, projectId: 
   return (data || []) as BudgetCategory[];
 }
 
+export async function getProjectFinanceSettings(supabase: SupabaseClient, projectId: string): Promise<ProjectFinanceSettings | null> {
+  const { data } = await supabase.from("ppm_project_finance_settings").select("*").eq("project_id", projectId).maybeSingle();
+  return (data as ProjectFinanceSettings) || null;
+}
+
+export async function listCostCenters(supabase: SupabaseClient, projectId: string): Promise<CostCenter[]> {
+  const { data } = await supabase.from("ppm_cost_centers").select("*").eq("project_id", projectId).order("code");
+  return (data || []) as CostCenter[];
+}
+
+export async function listProjectContracts(supabase: SupabaseClient, projectId: string): Promise<ProjectContract[]> {
+  const { data } = await supabase.from("ppm_project_contracts").select("*").eq("project_id", projectId).order("contract_number");
+  return (data || []) as ProjectContract[];
+}
+
 // Sprint 12: Resources
 export async function listResources(supabase: SupabaseClient, projectId: string): Promise<PPMResource[]> {
   const { data } = await supabase.from("ppm_resources").select("*").eq("project_id", projectId).order("name");
@@ -510,6 +525,31 @@ export async function listSites(supabase: SupabaseClient, projectId: string): Pr
 export async function listProcurementItems(supabase: SupabaseClient, projectId: string): Promise<ProcurementItem[]> {
   const { data } = await supabase.from("ppm_procurement_items").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
   return (data || []) as ProcurementItem[];
+}
+
+export async function listProcurementReceipts(supabase: SupabaseClient, projectId: string): Promise<ProcurementReceipt[]> {
+  const { data } = await supabase.from("ppm_procurement_receipts").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+  return (data || []) as ProcurementReceipt[];
+}
+export async function listProcurementReceiptLines(supabase: SupabaseClient, receiptIds: string[]): Promise<ProcurementReceiptLine[]> {
+  if (!receiptIds.length) return [];
+  const { data } = await supabase.from("ppm_procurement_receipt_lines").select("*").in("receipt_id", receiptIds).order("created_at");
+  return (data || []) as ProcurementReceiptLine[];
+}
+export async function listProcurementReceiptCriteria(supabase: SupabaseClient, receiptIds: string[]): Promise<ProcurementReceiptCriterion[]> {
+  if (!receiptIds.length) return [];
+  const { data } = await supabase.from("ppm_procurement_receipt_criteria").select("*").in("receipt_id", receiptIds).order("created_at");
+  return (data || []) as ProcurementReceiptCriterion[];
+}
+export async function listReceiptCommitteeMembers(supabase: SupabaseClient, receiptIds: string[]): Promise<ReceiptCommitteeMember[]> {
+  if (!receiptIds.length) return [];
+  const { data } = await supabase.from("ppm_receipt_committee_members").select("*").in("receipt_id", receiptIds).order("created_at");
+  return (data || []) as ReceiptCommitteeMember[];
+}
+export async function listProcurementReceiptEvidence(supabase: SupabaseClient, receiptIds: string[]): Promise<ProcurementReceiptEvidence[]> {
+  if (!receiptIds.length) return [];
+  const { data } = await supabase.from("ppm_procurement_receipt_evidence").select("*").in("receipt_id", receiptIds).order("created_at");
+  return (data || []) as ProcurementReceiptEvidence[];
 }
 
 // Sprint 14: Quality

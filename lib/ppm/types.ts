@@ -1117,6 +1117,8 @@ export type BudgetLine = {
   project_id: string;
   wbs_node_id?: string | null;
   activity_id?: string | null;
+  wbs_allocations?: { work_package_id: string; percentage: number }[];
+  cost_center_id?: string | null;
   cost_category?: string;
   sub_category?: string;
   budget_category_id?: string | null;
@@ -1209,12 +1211,19 @@ export type ProcurementStage =
   | "delivery" | "receipt" | "invoice" | "payment" | "completed" | "cancelled";
 export type ProcurementPaymentStatus = "not_invoiced" | "invoiced" | "partially_paid" | "paid";
 
+export type ProcurementAcceptanceCriterion = { id: string; title: string; specification: string };
+export type ProcurementOrderedItem = { id: string; title: string; specification?: string; quantity: number; unit?: string };
+export type ProcurementReceiptStatus = "pending_delivery" | "partial" | "complete" | "received_with_reservations" | "rejected" | "returned_to_supplier";
+
 export type ProcurementItem = {
   id: string;
   project_id: string;
   work_package_id?: string | null;
   activity_id?: string | null;
   budget_line_id?: string | null;
+  cost_center_id?: string | null;
+  supplier_id?: string | null;
+  contract_id?: string | null;
   title: string;
   description?: string;
   category: ProcurementCategory;
@@ -1229,6 +1238,9 @@ export type ProcurementItem = {
   supplier_name?: string;
   contract_reference?: string;
   po_reference?: string;
+  acceptance_criteria?: ProcurementAcceptanceCriterion[];
+  ordered_items?: ProcurementOrderedItem[];
+  receipt_status?: ProcurementReceiptStatus;
   awarded_amount?: number;
   delivery_date?: string;
   received_date?: string;
@@ -1841,23 +1853,35 @@ export type ExpenseCategory =
 export type PaymentMethod = "cash" | "bank_transfer" | "check" | "mobile_money" | "card" | "other";
 export type ExpenseStatus = "draft" | "submitted" | "finance_review" | "manager_approval" | "posted" | "returned" | "rejected" | "cancelled";
 
+export type CostCenterStatus = "active" | "inactive" | "archived";
+export type ProjectFinanceSettings = { project_id: string; cost_centers_enabled: boolean; cost_center_required: boolean; updated_at: string };
+export type CostCenter = { id: string; project_id: string; code: string; label: string; responsible_name?: string | null; status: CostCenterStatus; is_default: boolean; created_at: string; updated_at: string };
+export type ProjectContract = { id: string; project_id: string; contract_number: string; title?: string | null; party_type: "supplier" | "staff" | "other"; party_id?: string | null; party_name: string; start_date?: string | null; end_date?: string | null; amount?: number | null; currency?: string | null; status: "draft" | "active" | "expired" | "terminated" | "archived"; notes?: string | null; created_at: string; updated_at: string };
+export type ExpenseWorkPackageAllocation = { work_package_id: string; percentage: number; amount: number };
+
 export type Expense = {
   id: string;
   project_id: string;
   work_package_id?: string | null;
   activity_id?: string | null;
+  work_package_allocations?: ExpenseWorkPackageAllocation[];
   budget_line_id?: string | null;
   procurement_item_id?: string | null;
   code?: string;
   donor_name?: string;
+  donor_id?: string | null;
   grant_reference?: string;
+  grant_id?: string | null;
   cost_center?: string;
+  cost_center_id?: string | null;
   expense_date?: string;
   category?: ExpenseCategory;
   sub_category?: string;
   description: string;
   justification?: string;
   payee_name?: string;
+  payee_type?: "supplier" | "staff" | "other";
+  payee_id?: string | null;
   location?: string;
   amount_excl_tax: number;
   tax_amount?: number;
@@ -1867,13 +1891,20 @@ export type Expense = {
   exchange_rate?: number;
   converted_amount?: number;
   payment_method?: PaymentMethod;
+  payment_account_reference?: string;
   payment_date?: string;
   transaction_reference?: string;
   invoice_number?: string;
   invoice_date?: string;
   po_reference?: string;
   contract_reference?: string;
+  contract_id?: string | null;
   supplier_name?: string;
+  payment_override_requested?: boolean;
+  payment_override_reason?: string;
+  payment_override_approved?: boolean;
+  payment_override_approved_by?: string;
+  payment_override_approved_at?: string;
   status: ExpenseStatus;
   over_budget_justification?: string;
   submitted_at?: string;
@@ -1909,25 +1940,39 @@ export type ReceiptQualityAssessment = "conforme" | "non_conforme" | "partiellem
 
 export type ProcurementReceipt = {
   id: string;
+  project_id: string;
   procurement_item_id: string;
+  receipt_number?: string;
+  receipt_type?: "goods" | "services" | "works" | "consultancy" | "rental" | "training";
+  status: ProcurementReceiptStatus;
   supplier_name?: string;
   receipt_date?: string;
   site?: string;
   item_description?: string;
   quantity_ordered?: number;
+  previous_quantity?: number;
+  current_quantity?: number;
+  remaining_quantity?: number;
   quantity_delivered?: number;
   quantity_accepted?: number;
   quantity_rejected?: number;
   rejection_reason?: string;
   quality_assessment?: ReceiptQualityAssessment;
   inspection_notes?: string;
+  anomalies?: string;
+  evidence_requirement?: string;
+  create_asset?: boolean;
+  asset_resource_id?: string | null;
   delivery_note_number?: string;
   receipt_minutes_reference?: string;
   received_by_name?: string;
   created_at: string;
 };
 
-export type ProcurementReceiptEvidenceCategory = "photo" | "delivery_note" | "receipt_minutes" | "other";
+export type ProcurementReceiptLine = { id: string; receipt_id: string; item_code: string; title: string; specification?: string; quantity_ordered: number; quantity_previous: number; quantity_received: number; quantity_remaining: number; quality_condition?: string; accepted: boolean; notes?: string };
+export type ProcurementReceiptCriterion = { id: string; receipt_id: string; criterion_code: string; title: string; specification?: string; result: "pending" | "compliant" | "non_compliant" | "not_applicable"; observation?: string };
+export type ReceiptCommitteeMember = { id: string; receipt_id: string; resource_id?: string | null; member_name: string; member_email?: string; decision: "pending" | "approved" | "rejected"; decision_note?: string; signed_at?: string };
+export type ProcurementReceiptEvidenceCategory = "photo" | "delivery_note" | "receipt_minutes" | "report" | "invoice" | "service_certificate" | "validated_deliverable" | "attendance_list" | "utilization_sheet" | "other";
 
 export type ProcurementReceiptEvidence = {
   id: string;

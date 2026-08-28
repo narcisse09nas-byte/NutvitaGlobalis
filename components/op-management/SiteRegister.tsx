@@ -7,7 +7,7 @@
 // Country/Region on this project (same "known values grow as you type" pattern as the execution
 // add-on's responsible_email picker) rather than a fabricated boundary dataset.
 import { useMemo, useState, type FormEvent } from "react";
-import { Country, State } from "country-state-city";
+import { City, Country, State } from "country-state-city";
 import { MapPinIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
 import PPMFormModal from "@/components/op-management/PPMFormModal";
@@ -24,6 +24,8 @@ export default function SiteRegister({ projectId, initial, defaultCountry = "", 
   const [countryIso, setCountryIso] = useState("");
   const [countryName, setCountryName] = useState("");
   const [regionName, setRegionName] = useState("");
+  const [divisionName, setDivisionName] = useState("");
+  const [siteType, setSiteType] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [siteNameValue, setSiteNameValue] = useState("");
@@ -31,6 +33,9 @@ export default function SiteRegister({ projectId, initial, defaultCountry = "", 
   const identifiedSiteOptions = unregisteredIdentifiedSites.map(item => ({ value: item.id, label: item.name, hint: item.accessibility || undefined }));
 
   const states = useMemo(() => countryIso ? State.getStatesOfCountry(countryIso).sort((a, b) => a.name.localeCompare(b.name)) : [], [countryIso]);
+  const selectedStateIso = states.find(item => item.name === regionName)?.isoCode || "";
+  const divisions = useMemo(() => countryIso && selectedStateIso ? City.getCitiesOfState(countryIso, selectedStateIso).sort((a,b)=>a.name.localeCompare(b.name)) : [], [countryIso, selectedStateIso]);
+  const phonePrefix = countries.find(item => item.isoCode === countryIso)?.phonecode ? `+${countries.find(item => item.isoCode === countryIso)?.phonecode}` : "";
   const divisionSuggestions = useMemo(() => Array.from(new Set(rows.filter(row => row.country === countryName && row.region === regionName && row.division).map(row => row.division as string))), [rows, countryName, regionName]);
   const subdivisionSuggestions = useMemo(() => Array.from(new Set(rows.filter(row => row.country === countryName && row.region === regionName && row.subdivision).map(row => row.subdivision as string))), [rows, countryName, regionName]);
 
@@ -38,6 +43,8 @@ export default function SiteRegister({ projectId, initial, defaultCountry = "", 
     setMessage("");
     setCountryName(row !== "new" ? row.country : defaultCountry);
     setRegionName(row !== "new" ? row.region || "" : "");
+    setDivisionName(row !== "new" ? row.division || "" : "");
+    setSiteType(row !== "new" ? row.site_type || "" : "");
     const isoMatch = countries.find(item => item.name === (row !== "new" ? row.country : defaultCountry))?.isoCode || "";
     setCountryIso(isoMatch);
     setSiteNameValue(row !== "new" ? row.site_name : "");
@@ -56,9 +63,9 @@ export default function SiteRegister({ projectId, initial, defaultCountry = "", 
       division: String(form.get("division") || "").trim() || null,
       subdivision: String(form.get("subdivision") || "").trim() || null,
       site_name: String(form.get("site_name") || "").trim(),
-      site_code: String(form.get("site_code") || "").trim() || null,
+      site_code: editing && editing !== "new" ? (editing.site_code || null) : null,
       beneficiary_count: form.get("beneficiary_count") ? Number(form.get("beneficiary_count")) : null,
-      site_type: String(form.get("site_type") || "").trim() || null,
+      site_type: siteType === "other" ? `other:${String(form.get("site_type_other") || "").trim()}` : siteType || null,
       contact_name: String(form.get("contact_name") || "").trim() || null,
       contact_phone: String(form.get("contact_phone") || "").trim() || null,
       notes: String(form.get("notes") || "").trim() || null,
@@ -107,19 +114,15 @@ export default function SiteRegister({ projectId, initial, defaultCountry = "", 
         <input type="hidden" name="country" value={countryName} />
         <label className="grid gap-2 text-sm font-bold">{en ? "Region / State" : "Region / Etat"}<select
           name="region" className="admin-input" value={regionName} disabled={!states.length}
-          onChange={event => setRegionName(event.target.value)}
+          onChange={event => { setRegionName(event.target.value); setDivisionName(""); }}
         >
           <option value="">{states.length ? (en ? "Select..." : "Selectionner...") : (en ? "No subdivision listed" : "Aucune subdivision listee")}</option>
           {states.map(item => <option key={item.isoCode} value={item.name}>{item.name}</option>)}
         </select></label>
-        <label className="grid gap-2 text-sm font-bold">Division<input name="division" list="division-suggestions" defaultValue={editing !== "new" ? editing.division || "" : ""} className="admin-input" />
-          <datalist id="division-suggestions">{divisionSuggestions.map(value => <option key={value} value={value} />)}</datalist>
-        </label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Subdivision" : "Sous-division"}<input name="subdivision" list="subdivision-suggestions" defaultValue={editing !== "new" ? editing.subdivision || "" : ""} className="admin-input" />
-          <datalist id="subdivision-suggestions">{subdivisionSuggestions.map(value => <option key={value} value={value} />)}</datalist>
-        </label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Department / District (Admin 2)" : "Departement / District (Admin 2)"}<select name="division" value={divisionName} onChange={event=>setDivisionName(event.target.value)} disabled={!regionName} className="admin-input"><option value="">{en?"Select...":"Selectionner..."}</option>{divisions.map(item=><option key={`${item.latitude}-${item.longitude}-${item.name}`} value={item.name}>{item.name}</option>)}{divisionSuggestions.filter(value=>!divisions.some(item=>item.name===value)).map(value=><option key={value} value={value}>{value}</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Subdivision (Admin 3)" : "Arrondissement / Sous-division (Admin 3)"}<input name="subdivision" list="subdivision-suggestions" defaultValue={editing !== "new" ? editing.subdivision || "" : ""} disabled={!divisionName} className="admin-input"/><datalist id="subdivision-suggestions">{subdivisionSuggestions.map(value=><option key={value} value={value}/>)}</datalist></label>
         {!!identifiedSiteOptions.length && <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Fill in from the sites identified in Identification (optional)" : "Renseigner depuis les zones/sites identifies en Identification (facultatif)"}<SearchableSelect name="identified_site_pick" options={identifiedSiteOptions} placeholder={en ? "Select..." : "Selectionner..."} onChange={value => { const picked = unregisteredIdentifiedSites.find(item => item.id === value); if (picked) setSiteNameValue(picked.name); }} /></label>}
-        <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Site name" : "Nom du site"}<input name="site_name" value={siteNameValue} onChange={event => setSiteNameValue(event.target.value)} required className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Code<input name="site_code" defaultValue={editing !== "new" ? editing.site_code || "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Site type" : "Type de site"}<input name="site_type" defaultValue={editing !== "new" ? editing.site_type || "" : ""} placeholder={en ? "School, health centre..." : "Ecole, centre de sante..."} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Beneficiaries" : "Nombre de beneficiaires"}<input name="beneficiary_count" type="number" min="0" defaultValue={editing !== "new" ? editing.beneficiary_count ?? "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Site contact" : "Contact du site"}<input name="contact_name" defaultValue={editing !== "new" ? editing.contact_name || "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Telephone<input name="contact_phone" defaultValue={editing !== "new" ? editing.contact_phone || "" : ""} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Site name" : "Nom du site"}<input name="site_name" value={siteNameValue} onChange={event => setSiteNameValue(event.target.value)} required className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Code<input value={editing !== "new" ? editing.site_code || "" : (siteNameValue ? `${siteNameValue.replace(/[^A-Za-z]/g, "").slice(0,3).toUpperCase().padEnd(3,"X")}${String(rows.length+1).padStart(3,"0")}` : "")} readOnly placeholder={en?"Generated automatically":"Genere automatiquement"} className="admin-input bg-slate-100" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Site type" : "Type de site"}<select value={siteType.startsWith("other:")?"other":siteType} onChange={event=>setSiteType(event.target.value)} className="admin-input"><option value="">-</option><option value="school">{en?"School":"Ecole"}</option><option value="health_center">{en?"Health centre":"Centre de sante"}</option><option value="community">{en?"Community site":"Site en communaute"}</option><option value="other">{en?"Other (specify)":"Autre a preciser"}</option></select></label>{(siteType==="other"||siteType.startsWith("other:"))&&<label className="grid gap-2 text-sm font-bold sm:col-span-2">{en?"Specify site type":"Preciser le type de site"}<input name="site_type_other" defaultValue={siteType.startsWith("other:")?siteType.slice(6):""} required className="admin-input"/></label>}<label className="grid gap-2 text-sm font-bold">{en ? "Beneficiaries" : "Nombre de beneficiaires"}<input name="beneficiary_count" type="number" min="0" defaultValue={editing !== "new" ? editing.beneficiary_count ?? "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">{en ? "Site focal point name" : "Nom du Point focal du site"}<input name="contact_name" defaultValue={editing !== "new" ? editing.contact_name || "" : ""} className="admin-input" /></label><label className="grid gap-2 text-sm font-bold">Telephone<div className="flex"><span className="flex items-center rounded-l-xl border border-r-0 bg-slate-100 px-3 text-sm">{phonePrefix}</span><input name="contact_phone" defaultValue={editing !== "new" ? (editing.contact_phone || "").replace(phonePrefix, "") : ""} onBlur={event=>{if(event.target.value&&!event.target.value.startsWith("+"))event.target.value=`${phonePrefix}${event.target.value.replace(/^0+/,"")}`}} className="admin-input rounded-l-none" /></div></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Notes<textarea name="notes" rows={2} defaultValue={editing !== "new" ? editing.notes || "" : ""} className="admin-input" /></label>
         {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
         <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button disabled={saving} className="btn-primary">{saving ? (en ? "Saving..." : "Enregistrement...") : (en ? "Save" : "Enregistrer")}</button></div>

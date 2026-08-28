@@ -12,7 +12,6 @@ const typeLabels: Record<ResourceType, { fr: string; en: string }> = {
   vehicle: { fr: "Vehicule", en: "Vehicle" }, infrastructure: { fr: "Infrastructure", en: "Infrastructure" },
   service: { fr: "Service", en: "Service" }, consumable: { fr: "Consommable", en: "Consumable" }, material: { fr: "Materiel", en: "Material" }, other: { fr: "Autre", en: "Other" },
 };
-const splitList = (value: string) => value.split(",").map(item => item.trim()).filter(Boolean);
 // Refinement program, Wave 9 (item 50): per-module workflow permissions, checked at staff
 // creation — module -> can submit/verify/approve. Kept as a small representative set covering
 // the workflows this program built, not an exhaustive list of every register in the app.
@@ -44,6 +43,8 @@ export default function ResourceManager({ projectId, initial, initialAssignments
   const [conditionStatus, setConditionStatus] = useState("");
   const [nameValue, setNameValue] = useState("");
   const [roleValue, setRoleValue] = useState("");
+  const [skills, setSkills] = useState<string[]>([]);
+  const [skillDraft, setSkillDraft] = useState("");
   const orgStaffOptions = orgStaff.map(item => ({ value: item.id, label: item.full_name, hint: item.role_title || undefined }));
   const [creatingAccountFor, setCreatingAccountFor] = useState<PPMResource | null>(null);
   const [accountSaving, setAccountSaving] = useState(false);
@@ -57,6 +58,8 @@ export default function ResourceManager({ projectId, initial, initialAssignments
     setConditionStatus(["good", "revision_required", "maintenance_planned"].includes(condition) ? condition : condition ? "other" : "");
     setNameValue(row !== "new" ? row.name : "");
     setRoleValue(row !== "new" ? row.role_title || "" : "");
+    setSkills(row !== "new" ? row.skills || [] : []);
+    setSkillDraft("");
     setEditing(row);
   }
 
@@ -93,7 +96,7 @@ export default function ResourceManager({ projectId, initial, initialAssignments
       name: String(form.get("name") || "").trim(),
       type_other_detail: formType === "other" ? String(form.get("type_other_detail") || "").trim() || null : null,
       role_title: String(form.get("role_title") || "").trim() || null,
-      skills: splitList(String(form.get("skills") || "")),
+      skills,
       availability_percent: form.get("availability_percent") ? Number(form.get("availability_percent")) : null,
       weekly_capacity_hours: form.get("weekly_capacity_hours") ? Number(form.get("weekly_capacity_hours")) : null,
       condition_notes: String(form.get("condition_status") || "") === "other" ? String(form.get("condition_other") || "").trim() || "other" : String(form.get("condition_status") || "").trim() || null,
@@ -174,9 +177,9 @@ export default function ResourceManager({ projectId, initial, initialAssignments
           {isHumanType && !!orgStaffOptions.length && <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Fill in from the organization directory (optional)" : "Renseigner depuis l'annuaire de l'organisation (facultatif)"}<SearchableSelect name="org_staff_pick" options={orgStaffOptions} placeholder={en ? "Select..." : "Selectionner..."} onChange={value => { const picked = orgStaff.find(item => item.id === value); if (picked) { setNameValue(picked.full_name); setRoleValue(picked.role_title || ""); } }} /></label>}
           <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Name" : "Nom"}<input name="name" value={nameValue} onChange={event => setNameValue(event.target.value)} required className="admin-input" /></label>
           <label className="grid gap-2 text-sm font-bold">Type<select value={formType} onChange={event => setFormType(event.target.value as ResourceType)} className="admin-input">{typeOptions.map(value => <option key={value} value={value}>{typeLabels[value][locale]}</option>)}</select><input type="hidden" name="type" value={formType} /></label>{formType === "other" && <label className="grid gap-2 text-sm font-bold">{en ? "Specify resource type" : "Preciser le type de ressource"}<input name="type_other_detail" defaultValue={editing !== "new" ? editing.type_other_detail || "" : ""} required className="admin-input" /></label>}
-          <label className="grid gap-2 text-sm font-bold">{en ? "Role or use" : "Role ou utilisation"}<input name="role_title" value={roleValue} onChange={event => setRoleValue(event.target.value)} className="admin-input" /></label>
+          <label className="grid gap-2 text-sm font-bold">{isHumanType ? (en ? "Job title / Function" : "Titre du poste/Fonction") : (en ? "Role or use" : "Role ou utilisation")}<input name="role_title" value={roleValue} onChange={event => setRoleValue(event.target.value)} className="admin-input" /></label>
           {isHumanType ? <>
-            <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Skills (comma-separated)" : "Competences (separees par des virgules)"}<input name="skills" defaultValue={editing !== "new" ? (editing.skills || []).join(", ") : ""} className="admin-input" /></label>
+            <div className="grid gap-2 text-sm font-bold sm:col-span-2"><span>{en ? "Skills" : "Competences"}</span><div className="flex gap-2"><input value={skillDraft} onChange={event => setSkillDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); const value=skillDraft.trim(); if(value&&!skills.some(item=>item.toLowerCase()===value.toLowerCase())) setSkills(current=>[...current,value]); setSkillDraft(""); } }} placeholder={en ? "Enter a skill" : "Saisir une competence"} className="admin-input"/><button type="button" onClick={()=>{const value=skillDraft.trim();if(value&&!skills.some(item=>item.toLowerCase()===value.toLowerCase()))setSkills(current=>[...current,value]);setSkillDraft("")}} className="btn-secondary whitespace-nowrap px-4">+ {en ? "Add a skill" : "Ajouter une competence"}</button></div>{!!skills.length&&<div className="flex flex-wrap gap-2">{skills.map(skill=><span key={skill} className="inline-flex items-center gap-2 rounded-full bg-mint px-3 py-1 text-xs text-forest">{skill}<button type="button" onClick={()=>setSkills(current=>current.filter(item=>item!==skill))}><XMarkIcon className="h-3.5 w-3.5"/></button></span>)}</div>}</div>
             <label className="grid gap-2 text-sm font-bold">{en ? "Availability (%)" : "Disponibilite (%)"}<input name="availability_percent" type="number" min="0" max="100" defaultValue={editing !== "new" ? editing.availability_percent ?? "" : ""} className="admin-input" /></label>
             <label className="grid gap-2 text-sm font-bold">{en ? "Weekly capacity (hours)" : "Capacite hebdo (heures)"}<input name="weekly_capacity_hours" type="number" min="0" defaultValue={editing !== "new" ? editing.weekly_capacity_hours ?? "" : ""} className="admin-input" /></label>
           </> : <div className="grid gap-3 sm:col-span-2"><label className="grid gap-2 text-sm font-bold">{en ? "Condition / maintenance notes" : "Etat / notes de maintenance"}<select name="condition_status" value={conditionStatus} onChange={event => setConditionStatus(event.target.value)} className="admin-input"><option value="">{en ? "Select..." : "Selectionner..."}</option><option value="good">{en ? "Good condition" : "Bon etat"}</option><option value="revision_required">{en ? "Revision required" : "Revision necessaire"}</option><option value="maintenance_planned">{en ? "Maintenance planned" : "Maintenance prevue"}</option><option value="other">{en ? "Other (specify)" : "Autre a preciser"}</option></select></label>{conditionStatus === "other" && <label className="grid gap-2 text-sm font-bold">{en ? "Specify" : "A preciser"}<textarea name="condition_other" rows={2} defaultValue={editing !== "new" && !["good", "revision_required", "maintenance_planned"].includes(editing.condition_notes || "") ? editing.condition_notes || "" : ""} className="admin-input" /></label>}</div>}

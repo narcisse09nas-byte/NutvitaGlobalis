@@ -8,7 +8,7 @@ import EntityStatusBadge from "@/components/op-management/EntityStatusBadge";
 import PPMFormModal from "@/components/op-management/PPMFormModal";
 import SearchableSelect from "@/components/op-management/SearchableSelect";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
-import type { OrganizationSupplier, PPMStatus, Supplier, SupplierCategory } from "@/lib/ppm/types";
+import type { OrganizationSupplier, PPMStatus, ProjectContract, Supplier, SupplierCategory } from "@/lib/ppm/types";
 
 const categoryLabels: Record<SupplierCategory, { fr: string; en: string }> = {
   goods: { fr: "Biens/Fournitures", en: "Goods/Supplies" }, services: { fr: "Services", en: "Services" },
@@ -16,7 +16,7 @@ const categoryLabels: Record<SupplierCategory, { fr: string; en: string }> = {
   logistics: { fr: "Logistique", en: "Logistics" }, other: { fr: "Autre", en: "Other" },
 };
 
-export default function SupplierRegister({ projectId, initial, orgSuppliers = [] }: { projectId: string; initial: Supplier[]; orgSuppliers?: OrganizationSupplier[] }) {
+export default function SupplierRegister({ projectId, initial, orgSuppliers = [], contracts = [] }: { projectId: string; initial: Supplier[]; orgSuppliers?: OrganizationSupplier[]; contracts?: ProjectContract[] }) {
   const { locale, en } = usePpmLocale();
   const [rows, setRows] = useState(initial);
   const [editing, setEditing] = useState<Supplier | "new" | null>(null);
@@ -27,6 +27,7 @@ export default function SupplierRegister({ projectId, initial, orgSuppliers = []
   const [contactEmailValue, setContactEmailValue] = useState("");
   const [contactPhoneValue, setContactPhoneValue] = useState("");
   const [addressValue, setAddressValue] = useState("");
+  const [selectedOrgSupplierId, setSelectedOrgSupplierId] = useState("");
   const orgSupplierOptions = orgSuppliers.map(item => ({ value: item.id, label: item.name, hint: item.category || undefined }));
 
   function openEditing(row: Supplier | "new") {
@@ -36,6 +37,7 @@ export default function SupplierRegister({ projectId, initial, orgSuppliers = []
     setContactEmailValue(row !== "new" ? row.contact_email || "" : "");
     setContactPhoneValue(row !== "new" ? row.contact_phone || "" : "");
     setAddressValue(row !== "new" ? row.address || "" : "");
+    setSelectedOrgSupplierId(row !== "new" ? orgSuppliers.find(item => item.name === row.name)?.id || "" : "");
     setEditing(row);
   }
 
@@ -89,15 +91,15 @@ export default function SupplierRegister({ projectId, initial, orgSuppliers = []
 
     {editing && <PPMFormModal icon={TruckIcon} title={editing === "new" ? (en ? "New supplier" : "Nouveau fournisseur") : (en ? "Edit supplier" : "Modifier le fournisseur")} onClose={() => setEditing(null)}>
       <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
-        {!!orgSupplierOptions.length && <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Fill in from the organization directory (optional)" : "Renseigner depuis l'annuaire de l'organisation (facultatif)"}<SearchableSelect name="org_supplier_pick" options={orgSupplierOptions} placeholder={en ? "Select..." : "Selectionner..."} onChange={value => { const picked = orgSuppliers.find(item => item.id === value); if (picked) { setNameValue(picked.name); setContactNameValue(picked.contact_name || ""); setContactEmailValue(picked.contact_email || ""); setContactPhoneValue(picked.contact_phone || ""); setAddressValue(picked.address || ""); } }} /></label>}
+        {!!orgSupplierOptions.length && <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Fill in from the organization directory (optional)" : "Renseigner depuis l'annuaire de l'organisation (facultatif)"}<SearchableSelect name="org_supplier_pick" options={orgSupplierOptions} defaultValue={selectedOrgSupplierId} placeholder={en ? "Select..." : "Selectionner..."} onChange={value => { setSelectedOrgSupplierId(value); const picked = orgSuppliers.find(item => item.id === value); if (picked) { setNameValue(picked.name); setContactNameValue(picked.contact_name || ""); setContactEmailValue(picked.contact_email || ""); setContactPhoneValue(picked.contact_phone || ""); setAddressValue(picked.address || ""); } }} /></label>}
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Name" : "Nom"}<input name="name" value={nameValue} onChange={event => setNameValue(event.target.value)} required className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">{en ? "Category" : "Categorie"}<select name="category" defaultValue={editing !== "new" ? editing.category : "goods"} className="admin-input">{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label[locale]}</option>)}</select></label>
         <label className="grid gap-2 text-sm font-bold">{en ? "Tax ID / Trade Registry" : "NIU / Registre de commerce"}<input name="tax_id" defaultValue={editing !== "new" ? editing.tax_id || "" : ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Contact<input name="contact_name" value={contactNameValue} onChange={event => setContactNameValue(event.target.value)} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Phone" : "Telephone"}<input name="contact_phone" value={contactPhoneValue} onChange={event => setContactPhoneValue(event.target.value)} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Email<input name="contact_email" type="email" value={contactEmailValue} onChange={event => setContactEmailValue(event.target.value)} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Contract No." : "Contrat N*"}<input value={contracts.filter(item => item.party_type === "supplier" && (item.party_id === selectedOrgSupplierId || item.party_name === nameValue)).map(item => item.contract_number).join(", ")} readOnly className="admin-input bg-slate-100" /></label><input type="hidden" name="contact_name" value={contactNameValue}/>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Phone" : "Telephone"}<input name="contact_phone" value={contactPhoneValue} readOnly className="admin-input bg-slate-100" /></label>
+        <label className="grid gap-2 text-sm font-bold">Email<input name="contact_email" type="email" value={contactEmailValue} readOnly className="admin-input bg-slate-100" /></label>
         <label className="grid gap-2 text-sm font-bold">{en ? "Status" : "Statut"}<select name="status" defaultValue={editing !== "new" ? editing.status : "active"} className="admin-input"><option value="draft">{en ? "Draft" : "Brouillon"}</option><option value="active">{en ? "Active" : "Actif"}</option><option value="on_hold">{en ? "On hold" : "En pause"}</option><option value="closed">{en ? "Closed" : "Cloture"}</option><option value="cancelled">{en ? "Cancelled" : "Annule"}</option></select></label>
-        <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Address" : "Adresse"}<input name="address" value={addressValue} onChange={event => setAddressValue(event.target.value)} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Address" : "Adresse"}<input name="address" value={addressValue} readOnly className="admin-input bg-slate-100" /></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Notes<textarea name="notes" rows={2} defaultValue={editing !== "new" ? editing.notes || "" : ""} className="admin-input" /></label>
         {message && <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900 sm:col-span-2">{message}</p>}
         <div className="flex justify-end gap-3 sm:col-span-2"><button type="button" onClick={() => setEditing(null)} className="btn-secondary">{en ? "Cancel" : "Annuler"}</button><button disabled={saving} className="btn-primary">{saving ? (en ? "Saving..." : "Enregistrement...") : (en ? "Save" : "Enregistrer")}</button></div>

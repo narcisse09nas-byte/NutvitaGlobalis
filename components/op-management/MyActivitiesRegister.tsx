@@ -6,10 +6,10 @@ import AchievementReportForm from "@/components/op-management/AchievementReportF
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import { createClient } from "@/lib/supabase/client";
 import { buildWbsTree, flattenWbsTree, wbsLeafNodes, type WBSTreeNode } from "@/lib/ppm/wbs";
-import type { Achievement, Activity, Indicator, ResultChainNode, WBSNode } from "@/lib/ppm/types";
+import type { Achievement, Activity, Indicator, PPMResource, ResultChainNode, WBSNode } from "@/lib/ppm/types";
 
-export default function MyActivitiesRegister({ projectId, activities, wbsNodes, outputs, indicators }: {
-  projectId: string; activities: Activity[]; wbsNodes: WBSNode[]; outputs: ResultChainNode[]; indicators: Indicator[];
+export default function MyActivitiesRegister({ projectId, activities, wbsNodes, outputs, indicators, staff }: {
+  projectId: string; activities: Activity[]; wbsNodes: WBSNode[]; outputs: ResultChainNode[]; indicators: Indicator[]; staff: PPMResource[];
 }) {
   const { locale, en } = usePpmLocale();
   const wbsCodeByid = useMemo(() => {
@@ -116,7 +116,7 @@ export default function MyActivitiesRegister({ projectId, activities, wbsNodes, 
       workPackage={reporting.work_package_id ? wbsCodeByid.get(reporting.work_package_id) : undefined}
       output={reporting.output_id ? outputById.get(reporting.output_id) : undefined}
       indicator={reporting.indicator_id ? indicatorById.get(reporting.indicator_id) : undefined}
-      previousAchievements={reportingHistory} editing="new" initialEvidence={[]}
+      previousAchievements={reportingHistory} editing="new" initialEvidence={[]} staff={staff}
       onClose={() => setReporting(null)}
       onSaved={row => { if (row.status !== "draft") setReporting(null); }}
     />}

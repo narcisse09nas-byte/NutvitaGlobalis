@@ -7,7 +7,7 @@ import BudgetCategoryManager from "@/components/op-management/BudgetCategoryMana
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
-import { getProject, listBudgetCategories, listBudgetLines, listOrganizationDonors, listOrganizationGrants, listResources, listWbsNodes } from "@/lib/ppm/queries";
+import { getProject, listBudgetCategories, listBudgetLines, listCostCenters, listOrganizationDonors, listOrganizationGrants, listResources, listWbsNodes } from "@/lib/ppm/queries";
 
 export default async function PlanificationBudgetPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,8 +18,8 @@ export default async function PlanificationBudgetPage({ params }: { params: Prom
   const project = await getProject(supabase, id);
   if (!project) notFound();
   const locale = await getCurrentLocale();
-  const [budgetLines, wbsNodes, budgetCategories, donors, grants, resources] = await Promise.all([
-    listBudgetLines(supabase, id), listWbsNodes(supabase, id), listBudgetCategories(supabase, id), listOrganizationDonors(supabase, project.organization_id), listOrganizationGrants(supabase, project.organization_id), listResources(supabase, id),
+  const [budgetLines, wbsNodes, budgetCategories, donors, grants, resources, costCenters] = await Promise.all([
+    listBudgetLines(supabase, id), listWbsNodes(supabase, id), listBudgetCategories(supabase, id), listOrganizationDonors(supabase, project.organization_id), listOrganizationGrants(supabase, project.organization_id), listResources(supabase, id), listCostCenters(supabase, id),
   ]);
 
   return <PPMShell name={name} locale={locale} breadcrumbs={[{ href: "/op-management", label: bc(locale, "overview") }, { href: "/op-management/projets", label: bc(locale, "projects") }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/planification/budget`, label: bc(locale, "planning") }]}>
@@ -27,7 +27,7 @@ export default async function PlanificationBudgetPage({ params }: { params: Prom
       <div className="grid gap-5">
         <PlanificationTabs projectId={id} />
         <BudgetCategoryManager projectId={id} initial={budgetCategories} />
-        <BudgetManager projectId={id} initial={budgetLines} wbsNodes={wbsNodes} budgetCategories={budgetCategories} donors={donors} grants={grants} staff={resources.filter(item => item.type === "human" || item.type === "consultant")} />
+        <BudgetManager projectId={id} initial={budgetLines} wbsNodes={wbsNodes} budgetCategories={budgetCategories} donors={donors} grants={grants} staff={resources.filter(item => item.type === "human" || item.type === "consultant")} costCenters={costCenters} />
       </div>
     </ProjectShell>
   </PPMShell>;

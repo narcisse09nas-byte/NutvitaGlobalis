@@ -1,18 +1,15 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import PPMShell from "@/components/op-management/PPMShell";
 import ProjectShell from "@/components/op-management/ProjectShell";
 import ResourceManager from "@/components/op-management/ResourceManager";
 import SupplierRegister from "@/components/op-management/SupplierRegister";
 import StakeholderRegister from "@/components/op-management/StakeholderRegister";
-import SiteRegister from "@/components/op-management/SiteRegister";
-import EntityStatusBadge from "@/components/op-management/EntityStatusBadge";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
 import {
   getProject, listResourceAssignments, listResources, listActivities, listOrganizationStaff, listOrganizationSuppliers,
-  listProjectSites, listSites, listStakeholders, listSuppliers,
+  listProjectContracts, listStakeholders, listSuppliers,
 } from "@/lib/ppm/queries";
 
 // Refinement program, Wave 1: Staff, Suppliers, Stakeholders, Sites and Assets need to be visible
@@ -28,37 +25,19 @@ export default async function ProjectEquipePage({ params }: { params: Promise<{ 
   const en = locale === "en";
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [resources, assignments, activities, suppliers, stakeholders, sites, orgStaff, orgSuppliers, identifiedSites] = await Promise.all([
+  const [resources, assignments, activities, suppliers, stakeholders, orgStaff, orgSuppliers, contracts] = await Promise.all([
     listResources(supabase, id), listResourceAssignments(supabase, id), listActivities(supabase, id),
-    listSuppliers(supabase, id), listStakeholders(supabase, id), listSites(supabase, id),
-    listOrganizationStaff(supabase, project.organization_id), listOrganizationSuppliers(supabase, project.organization_id), listProjectSites(supabase, id),
+    listSuppliers(supabase, id), listStakeholders(supabase, id),
+    listOrganizationStaff(supabase, project.organization_id), listOrganizationSuppliers(supabase, project.organization_id), listProjectContracts(supabase, id),
   ]);
   const staff = resources.filter(item => item.type === "human" || item.type === "consultant");
-  const assets = resources.filter(item => item.type === "equipment" || item.type === "vehicle" || item.type === "infrastructure");
 
   return <PPMShell name={name} locale={locale} breadcrumbs={[{ href: "/op-management", label: bc(locale, "overview") }, { href: "/op-management/projets", label: bc(locale, "projects") }, { href: `/op-management/projets/${id}`, label: project.name }, { href: `/op-management/projets/${id}/equipe`, label: bc(locale, "team") }]}>
     <ProjectShell project={project}>
       <div className="grid gap-8">
         <ResourceManager projectId={id} initial={staff} initialAssignments={assignments} activities={activities} title={en ? "Staff & consultants" : "Staff & consultants"} allowedTypes={["human", "consultant"]} orgStaff={orgStaff} />
-        <SupplierRegister projectId={id} initial={suppliers} orgSuppliers={orgSuppliers} />
+        <SupplierRegister projectId={id} initial={suppliers} orgSuppliers={orgSuppliers} contracts={contracts} />
         <StakeholderRegister projectId={id} initial={stakeholders} />
-        <SiteRegister projectId={id} initial={sites} identifiedSites={identifiedSites} />
-
-        <div className="grid gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-black text-forest">{en ? "Assets & equipment" : "Actifs & equipements"}</h2>
-            <Link href={`/op-management/projets/${id}/planification/ressources`} className="btn-secondary px-4 py-2 text-sm">{en ? "Manage assets" : "Gerer les actifs"}</Link>
-          </div>
-          <div className="overflow-x-auto rounded-2xl border bg-white">
-            <table className="w-full min-w-[700px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-4">{en ? "Asset" : "Actif"}</th><th className="p-4">Type</th><th className="p-4">{en ? "Status" : "Statut"}</th></tr></thead>
-              <tbody>
-                {assets.map(item => <tr key={item.id} className="border-t"><td className="p-4"><b className="text-forest">{item.name}</b></td><td className="p-4">{item.type === "equipment" ? (en ? "Equipment" : "Equipement") : item.type === "vehicle" ? (en ? "Vehicle" : "Vehicule") : "Infrastructure"}</td><td className="p-4"><EntityStatusBadge status={item.status} /></td></tr>)}
-                {!assets.length && <tr><td colSpan={3} className="p-10 text-center text-slate-400">{en ? "No assets registered. Manage them from Planning > Resources." : "Aucun actif enregistre. Gerez-les depuis Planification > Ressources."}</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </div>
       </div>
     </ProjectShell>
   </PPMShell>;

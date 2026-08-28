@@ -2,11 +2,12 @@
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
+import SearchableSelect from "@/components/op-management/SearchableSelect";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type {
   Achievement, AchievementEvidence, AchievementStatus, AchievementType, Activity,
   BeneficiaryBreakdownEntry, DifficultyCategory, DifficultySeverity, EvidenceCategory,
-  Indicator, ProgressMethod, ResultChainNode, WBSNode,
+  Indicator, PPMResource, ProgressMethod, ResultChainNode, WBSNode,
 } from "@/lib/ppm/types";
 
 const typeLabels: Record<AchievementType, { fr: string; en: string }> = {
@@ -31,8 +32,8 @@ const suggestedBreakdownCategoriesEn = ["Sex", "Age", "Disability", "Status", "Z
 
 function round1(value: number) { return Math.round(value * 10) / 10; }
 
-export default function AchievementReportForm({ projectId, activity, workPackage, output, indicator, previousAchievements, editing, initialEvidence, onClose, onSaved }: {
-  projectId: string; activity: Activity; workPackage?: WBSNode; output?: ResultChainNode; indicator?: Indicator;
+export default function AchievementReportForm({ projectId, activity, workPackage, output, indicator, staff, previousAchievements, editing, initialEvidence, onClose, onSaved }: {
+  projectId: string; activity: Activity; workPackage?: WBSNode; output?: ResultChainNode; indicator?: Indicator; staff: PPMResource[];
   previousAchievements: Achievement[]; editing: Achievement | "new"; initialEvidence: AchievementEvidence[];
   onClose: () => void; onSaved: (row: Achievement) => void;
 }) {
@@ -58,6 +59,7 @@ export default function AchievementReportForm({ projectId, activity, workPackage
   const [evidence, setEvidence] = useState<AchievementEvidence[]>(initialEvidence);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const staffOptions = staff.map(item => ({ value: item.name, label: item.name, hint: item.role_title || undefined }));
 
   const previousValidatedCumulative = useMemo(() => previousAchievements
     .filter(item => item.status === "validated" && item.progress_method === "quantitative")
@@ -303,7 +305,7 @@ export default function AchievementReportForm({ projectId, activity, workPackage
 
         <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">{en ? "Next steps" : "Prochaines etapes"}</h3>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Next activities / actions" : "Prochaines activites / actions"}<textarea name="next_steps" rows={2} defaultValue={editing !== "new" ? editing.next_steps || "" : ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Responsible" : "Responsable"}<input name="next_steps_responsible" defaultValue={editing !== "new" ? editing.next_steps_responsible || "" : ""} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Responsible" : "Responsable"}<SearchableSelect name="next_steps_responsible" options={staffOptions} defaultValue={editing !== "new" ? editing.next_steps_responsible || "" : ""} placeholder={en ? "Select a staff member..." : "Selectionner un membre du staff..."} /></label>
         <label className="grid gap-2 text-sm font-bold">{en ? "Deadline" : "Echeance"}<input name="next_steps_deadline" type="date" defaultValue={editing !== "new" ? editing.next_steps_deadline || "" : ""} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Support needed" : "Support necessaire"}<input name="next_steps_support" defaultValue={editing !== "new" ? editing.next_steps_support || "" : ""} className="admin-input" /></label>
         <label className="flex items-center gap-2 text-sm font-bold sm:col-span-2"><input type="checkbox" checked={managementDecisionRequired} onChange={event => setManagementDecisionRequired(event.target.checked)} className="h-4 w-4" />{en ? "Management decision required" : "Decision management requise"}</label>

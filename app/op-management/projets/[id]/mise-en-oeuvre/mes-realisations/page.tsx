@@ -6,7 +6,7 @@ import MyAchievementsRegister from "@/components/op-management/MyAchievementsReg
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
-import { getProject, listActivities, listIndicators, listMyAchievements, listResultChain, listWbsNodes } from "@/lib/ppm/queries";
+import { getProject, listActivities, listIndicators, listMyAchievements, listResources, listResultChain, listWbsNodes } from "@/lib/ppm/queries";
 
 export default async function MiseEnOeuvreMesRealisationsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,9 +16,9 @@ export default async function MiseEnOeuvreMesRealisationsPage({ params }: { para
   const name = user.user_metadata?.full_name || user.email || ((await getCurrentLocale()) === "en" ? "User" : "Utilisateur");
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [myAchievements, activities, wbsNodes, resultChain, indicators] = await Promise.all([
+  const [myAchievements, activities, wbsNodes, resultChain, indicators, resources] = await Promise.all([
     listMyAchievements(supabase, id, user.id), listActivities(supabase, id), listWbsNodes(supabase, id),
-    listResultChain(supabase, id), listIndicators(supabase, id),
+    listResultChain(supabase, id), listIndicators(supabase, id), listResources(supabase, id),
   ]);
   const outputs = resultChain.filter(node => node.level === "output");
   const locale = await getCurrentLocale();
@@ -27,7 +27,7 @@ export default async function MiseEnOeuvreMesRealisationsPage({ params }: { para
     <ProjectShell project={project}>
       <div className="grid gap-5">
         <MiseEnOeuvreTabs projectId={id} />
-        <MyAchievementsRegister projectId={id} initial={myAchievements} activities={activities} wbsNodes={wbsNodes} outputs={outputs} indicators={indicators} />
+        <MyAchievementsRegister projectId={id} initial={myAchievements} activities={activities} wbsNodes={wbsNodes} outputs={outputs} indicators={indicators} staff={resources.filter(item => item.type === "human" || item.type === "consultant")} />
       </div>
     </ProjectShell>
   </PPMShell>;

@@ -6,7 +6,7 @@ import MyActivitiesRegister from "@/components/op-management/MyActivitiesRegiste
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
-import { getProject, listIndicators, listMyActivities, listResultChain, listWbsNodes } from "@/lib/ppm/queries";
+import { getProject, listIndicators, listMyActivities, listResources, listResultChain, listWbsNodes } from "@/lib/ppm/queries";
 
 export default async function MiseEnOeuvreMesActivitesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,8 +16,8 @@ export default async function MiseEnOeuvreMesActivitesPage({ params }: { params:
   const name = user.user_metadata?.full_name || user.email || ((await getCurrentLocale()) === "en" ? "User" : "Utilisateur");
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [myActivities, wbsNodes, resultChain, indicators] = await Promise.all([
-    listMyActivities(supabase, id, user.email || ""), listWbsNodes(supabase, id), listResultChain(supabase, id), listIndicators(supabase, id),
+  const [myActivities, wbsNodes, resultChain, indicators, resources] = await Promise.all([
+    listMyActivities(supabase, id, user.email || ""), listWbsNodes(supabase, id), listResultChain(supabase, id), listIndicators(supabase, id), listResources(supabase, id),
   ]);
   const outputs = resultChain.filter(node => node.level === "output");
   const locale = await getCurrentLocale();
@@ -26,7 +26,7 @@ export default async function MiseEnOeuvreMesActivitesPage({ params }: { params:
     <ProjectShell project={project}>
       <div className="grid gap-5">
         <MiseEnOeuvreTabs projectId={id} />
-        <MyActivitiesRegister projectId={id} activities={myActivities} wbsNodes={wbsNodes} outputs={outputs} indicators={indicators} />
+        <MyActivitiesRegister projectId={id} activities={myActivities} wbsNodes={wbsNodes} outputs={outputs} indicators={indicators} staff={resources.filter(item => item.type === "human" || item.type === "consultant")} />
       </div>
     </ProjectShell>
   </PPMShell>;

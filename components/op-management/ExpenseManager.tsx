@@ -5,8 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import SearchableSelect, { type SearchableSelectOption } from "@/components/op-management/SearchableSelect";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type {
-  Activity, BudgetCategory, BudgetLine, Expense, ExpenseCategory, ExpenseEvidence, ExpenseEvidenceCategory,
-  ExpenseStatus, PaymentMethod, PPMResource, ProcurementItem, WBSNode,
+  Activity, BudgetCategory, BudgetLine, CostCenter, Expense, ExpenseCategory, ExpenseEvidence, ExpenseEvidenceCategory,
+  ExpenseStatus, OrganizationDonor, OrganizationGrant, OrganizationSupplier, PaymentMethod, PPMResource, ProcurementItem,
+  ProjectContract, ProjectFinanceSettings, WBSNode,
 } from "@/lib/ppm/types";
 import { wbsLeafNodes } from "@/lib/ppm/wbs";
 import { buildBudgetCategoryTree, flattenBudgetCategoryTree } from "@/lib/ppm/budget-categories";
@@ -39,8 +40,9 @@ const evidenceCategoryLabels: Record<ExpenseEvidenceCategory, { fr: string; en: 
   liquidation: { fr: "Liquidation", en: "Liquidation" }, other: { fr: "Autre", en: "Other" },
 };
 
-export default function ExpenseManager({ projectId, initial, budgetLines, wbsNodes, activities, procurementItems, budgetCategories, staff = [] }: {
+export default function ExpenseManager({ projectId, initial, budgetLines, wbsNodes, activities, procurementItems, budgetCategories, staff = [], donors, grants, suppliers, financeSettings, costCenters, contracts, projectManagerEmail }: {
   projectId: string; initial: Expense[]; budgetLines: BudgetLine[]; wbsNodes: WBSNode[]; activities: Activity[]; procurementItems: ProcurementItem[]; budgetCategories: BudgetCategory[]; staff?: PPMResource[];
+  donors: OrganizationDonor[]; grants: OrganizationGrant[]; suppliers: OrganizationSupplier[]; financeSettings: ProjectFinanceSettings | null; costCenters: CostCenter[]; contracts: ProjectContract[]; projectManagerEmail: string;
 }) {
   const { locale, en } = usePpmLocale();
   const staffOptions = staff.map(item => ({ value: item.name, label: item.name, hint: item.role_title }));
@@ -98,6 +100,21 @@ export default function ExpenseManager({ projectId, initial, budgetLines, wbsNod
     setEvidence((data || []) as ExpenseEvidence[]);
   }
 
+  async function approvePaymentOverride(row: Expense) {
+    if (row.status !== "manager_approval" || !row.payment_override_requested) return;
+    const supabase = createClient(); const { data: { user } } = await supabase.auth.getUser();
+    if (!projectManagerEmail || user?.email?.toLowerCase() !== projectManagerEmail.toLowerCase()) {
+      setMessage(en ? "Only the project manager configured on this project can approve this override." : "Seul le chef de projet configure sur ce projet peut approuver cette derogation."); return;
+    }
+    const note = prompt(en ? "Project manager approval note (required)" : "Note d'approbation du chef de projet (obligatoire)")?.trim();
+    if (!note) return;
+    const approver = user.user_metadata?.full_name || user.email || (en ? "Project manager" : "Chef de projet");
+    const result = await supabase.from("ppm_expenses").update({ payment_override_approved: true, payment_override_approved_by: approver, payment_override_approved_at: new Date().toISOString(), approval_note: note }).eq("id", row.id).eq("status", "manager_approval").select("*").single();
+    if (result.error) { setMessage(result.error.message); return; }
+    const updated=result.data as Expense; setRows(current=>current.map(item=>item.id===updated.id?updated:item)); setEditing(updated);
+    await supabase.from("ppm_history").insert({ entity_type:"expense", entity_id:row.id, actor_id:user.id, action:"Derogation de paiement approuvee par le chef de projet", from_status:row.status, to_status:row.status, note });
+  }
+
   return <div className="grid gap-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-xl font-black text-forest">{en ? "Expenses" : "Depenses"}</h2><p className="text-sm text-slate-500">{filtered.length} {en ? "expense(s)" : "depense(s)"}</p></div>
@@ -134,10 +151,12 @@ export default function ExpenseManager({ projectId, initial, budgetLines, wbsNod
     {editing && <ExpenseFormModal
       projectId={projectId} editing={editing} budgetLines={budgetLines} wbsNodes={wbsNodes} activities={activities}
       procurementItems={procurementItems} allExpenses={rows} evidence={evidence} setEvidence={setEvidence}
-      budgetLineLabelWithCode={budgetLineLabelWithCode} isSuperAdmin={isSuperAdmin}
+      budgetLineLabelWithCode={budgetLineLabelWithCode} isSuperAdmin={isSuperAdmin} budgetCategories={budgetCategories} donors={donors} grants={grants} suppliers={suppliers}
+      staff={staff} financeSettings={financeSettings} costCenters={costCenters} contracts={contracts}
       onClose={() => setEditing(null)}
       onSaved={row => { setRows(current => current.some(item => item.id === row.id) ? current.map(item => item.id === row.id ? row : item) : [row, ...current]); setEditing(row); }}
       onDecide={(row, nextStatus) => setDeciding({ row, nextStatus })}
+      onApproveOverride={approvePaymentOverride}
     />}
 
     {deciding && <div className="fixed inset-0 z-[160] overflow-y-auto bg-forest/90 p-4">
@@ -151,6 +170,21 @@ export default function ExpenseManager({ projectId, initial, budgetLines, wbsNod
           const supabase = createClient();
           const now = new Date().toISOString();
           const payload: Record<string, unknown> = { status: deciding.nextStatus };
+          if (deciding.nextStatus === "posted" && deciding.row.procurement_item_id) {
+            const po = procurementItems.find(item => item.id === deciding.row.procurement_item_id);
+            const receiptAllowsPayment = ["complete", "received_with_reservations"].includes(po?.receipt_status || "pending_delivery");
+            if (!receiptAllowsPayment && !deciding.row.payment_override_approved) {
+              setSaving(false); setMessage(en ? "Payment is blocked: receipt is not complete and no manager override has been explicitly approved." : "Paiement bloque : la reception n'est pas complete et aucune derogation manager n'a ete explicitement approuvee."); return;
+            }
+            const { data: receiptRows } = await supabase.from("ppm_procurement_receipts").select("quantity_ordered,quantity_accepted,status").eq("procurement_item_id", deciding.row.procurement_item_id);
+            const ordered = Math.max(0, ...(receiptRows || []).map(row => Number(row.quantity_ordered || 0)));
+            const accepted = (receiptRows || []).filter(row => !["rejected","returned_to_supplier"].includes(row.status)).reduce((sum,row)=>sum+Number(row.quantity_accepted||0),0);
+            const allowedAmount = ordered > 0 ? Number(po?.awarded_amount || 0) * Math.min(1, accepted / ordered) : Number(po?.awarded_amount || 0);
+            const previouslyPaid = rows.filter(row => row.procurement_item_id === deciding.row.procurement_item_id && row.status === "posted" && row.id !== deciding.row.id).reduce((sum,row)=>sum+Number(row.amount_incl_tax||0),0);
+            if (Number(deciding.row.amount_incl_tax || 0) > Math.max(0, allowedAmount - previouslyPaid) && !deciding.row.payment_override_approved) {
+              setSaving(false); setMessage(en ? "The expense exceeds the value of quantities received and accepted." : "La depense depasse la valeur des quantites recues et acceptees."); return;
+            }
+          }
           if (deciding.nextStatus === "finance_review") { payload.finance_reviewed_by_name = fields.name; payload.finance_review_note = fields.note; payload.finance_reviewed_at = now; }
           if (deciding.nextStatus === "manager_approval") { payload.finance_reviewed_by_name = fields.name; payload.finance_review_note = fields.note; payload.finance_reviewed_at = now; }
           if (deciding.nextStatus === "posted") { payload.approved_by_name = fields.name; payload.approval_note = fields.note; payload.approved_at = now; payload.posted_at = now; }
@@ -218,11 +252,13 @@ function DecisionForm({ deciding, staffOptions, onCancel, onConfirm, saving, mes
   </form>;
 }
 
-function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activities, procurementItems, allExpenses, evidence, setEvidence, budgetLineLabelWithCode, isSuperAdmin, onClose, onSaved, onDecide }: {
+function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activities, procurementItems, allExpenses, evidence, setEvidence, budgetLineLabelWithCode, isSuperAdmin, budgetCategories, donors, grants, suppliers, staff, financeSettings, costCenters, contracts, onClose, onSaved, onDecide, onApproveOverride }: {
   projectId: string; editing: Expense | "new"; budgetLines: BudgetLine[]; wbsNodes: WBSNode[]; activities: Activity[]; procurementItems: ProcurementItem[];
   allExpenses: Expense[]; evidence: ExpenseEvidence[]; setEvidence: (rows: ExpenseEvidence[]) => void;
-  budgetLineLabelWithCode: (line: BudgetLine) => string; isSuperAdmin: boolean;
-  onClose: () => void; onSaved: (row: Expense) => void; onDecide: (row: Expense, nextStatus: ExpenseStatus) => void;
+  budgetLineLabelWithCode: (line: BudgetLine) => string; isSuperAdmin: boolean; budgetCategories: BudgetCategory[];
+  donors: OrganizationDonor[]; grants: OrganizationGrant[]; suppliers: OrganizationSupplier[]; staff: PPMResource[];
+  financeSettings: ProjectFinanceSettings | null; costCenters: CostCenter[]; contracts: ProjectContract[];
+  onClose: () => void; onSaved: (row: Expense) => void; onDecide: (row: Expense, nextStatus: ExpenseStatus) => void; onApproveOverride: (row: Expense) => void;
 }) {
   const { locale, en } = usePpmLocale();
   const isNew = editing === "new";
@@ -230,6 +266,14 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
   const [budgetLineId, setBudgetLineId] = useState(isNew ? "" : editing.budget_line_id || "");
   const [category, setCategory] = useState<ExpenseCategory | "">(isNew ? "" : editing.category || "");
   const [procurementItemId, setProcurementItemId] = useState(isNew ? "" : editing.procurement_item_id || "");
+  const [donorId, setDonorId] = useState(isNew ? "" : editing.donor_id || "");
+  const [grantId, setGrantId] = useState(isNew ? "" : editing.grant_id || "");
+  const [costCenterId, setCostCenterId] = useState(isNew ? "" : editing.cost_center_id || "");
+  const [payeeType, setPayeeType] = useState<"supplier" | "staff" | "other">(isNew ? "supplier" : editing.payee_type || "supplier");
+  const [payeeId, setPayeeId] = useState(isNew ? "" : editing.payee_id || "");
+  const [contractId, setContractId] = useState(isNew ? "" : editing.contract_id || "");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">(isNew ? "" : editing.payment_method || "");
+  const [wpAllocations, setWpAllocations] = useState<Record<string, number>>(() => isNew ? {} : Object.fromEntries((editing.work_package_allocations || []).map(x => [x.work_package_id, x.percentage])));
   const [amountExclTax, setAmountExclTax] = useState(isNew ? "" : String(editing.amount_excl_tax ?? ""));
   const [taxAmount, setTaxAmount] = useState(isNew ? "" : String(editing.tax_amount ?? ""));
   const [manualTtc, setManualTtc] = useState(false);
@@ -242,12 +286,40 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
   const computedTtc = Number(amountExclTax || 0) + Number(taxAmount || 0);
   useEffect(() => { if (!manualTtc) setAmountInclTax(String(computedTtc)); }, [computedTtc, manualTtc]);
   const poRequired = category !== "" && PO_REQUIRED_CATEGORIES.includes(category as ExpenseCategory);
-  const availablePoItems = procurementItems.filter(item => !!item.po_reference);
-
   const budgetLine = budgetLines.find(item => item.id === budgetLineId);
+  const budgetLineRemaining = (line: BudgetLine) => {
+    const approved = Number(line.revised_budget ?? line.forecast_amount ?? line.initial_budget ?? 0);
+    const committed = Number(line.committed_amount || 0);
+    const spent = allExpenses.filter(item => item.budget_line_id === line.id && item.status === "posted" && item.id !== (isNew ? "" : editing.id)).reduce((sum, item) => sum + Number(item.converted_amount ?? item.amount_incl_tax), 0);
+    return approved - committed - spent;
+  };
+  const categoryTree = flattenBudgetCategoryTree(buildBudgetCategoryTree(budgetCategories));
+  const selectedBudgetCategory = categoryTree.find(item => item.id === budgetLine?.budget_category_id);
+  const filteredGrants = grants.filter(item => item.donor_id === donorId && item.status === "active");
+  const activeCenters = costCenters.filter(item => item.status === "active");
+  const payeeContracts = contracts.filter(item => item.status === "active" && item.party_type === payeeType && (!item.party_id || item.party_id === payeeId));
+  useEffect(() => { if (payeeContracts.length === 1) setContractId(payeeContracts[0].id); else if (!payeeContracts.some(item => item.id === contractId)) setContractId(""); }, [payeeId, payeeType]);
+  const availablePoItems = procurementItems.filter(item => !!item.po_reference && item.budget_line_id === budgetLineId && item.stage !== "cancelled" && item.payment_status !== "paid");
+  const poRemaining = (item: ProcurementItem) => Number(item.awarded_amount || 0) - allExpenses.filter(expense => expense.procurement_item_id === item.id && !["rejected", "cancelled"].includes(expense.status) && expense.id !== (isNew ? "" : editing.id)).reduce((sum, expense) => sum + Number(expense.amount_incl_tax || 0), 0);
+  const selectedPo = availablePoItems.find(item => item.id === procurementItemId);
+  const allocationTotal = Object.values(wpAllocations).reduce((sum, value) => sum + Number(value || 0), 0);
+  const allocationRows = Object.entries(wpAllocations).map(([work_package_id, percentage]) => ({ work_package_id, percentage: Number(percentage), amount: Number(amountInclTax || 0) * Number(percentage) / 100 }));
+
+  useEffect(() => {
+    if (!budgetLine) return;
+    const allocations = budgetLine.wbs_allocations?.length ? budgetLine.wbs_allocations : budgetLine.wbs_node_id ? [{ work_package_id: budgetLine.wbs_node_id, percentage: 100 }] : [];
+    setWpAllocations(Object.fromEntries(allocations.map(item => [item.work_package_id, Number(item.percentage)])));
+    setDonorId(budgetLine.donor_id || "");
+    setGrantId(budgetLine.grant_id || "");
+    setCostCenterId(budgetLine.cost_center_id || activeCenters.find(item => item.is_default)?.id || "");
+    if (budgetLine.cost_category && budgetLine.cost_category in categoryLabels) setCategory(budgetLine.cost_category as ExpenseCategory);
+    setProcurementItemId("");
+  }, [budgetLineId]);
+
+
   const budgetCheck = useMemo(() => {
     if (!budgetLine) return null;
-    const approved = Number(budgetLine.revised_budget ?? budgetLine.initial_budget ?? 0);
+    const approved = Number(budgetLine.revised_budget ?? budgetLine.forecast_amount ?? budgetLine.initial_budget ?? 0);
     const committed = Number(budgetLine.committed_amount || 0);
     const alreadySpent = allExpenses
       .filter(item => item.budget_line_id === budgetLineId && item.status === "posted" && item.id !== (isNew ? "" : editing.id))
@@ -298,23 +370,38 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
     if (poRequired && !procurementItemId && nextStatus !== "draft") {
       setSaving(false); setMessage(en ? "An existing PO (purchase order) is required for this expense category." : "Un PO (bon de commande) existant est obligatoire pour cette categorie de depense."); return;
     }
+    if (Math.abs(allocationTotal - 100) > 0.01 && nextStatus !== "draft") {
+      setSaving(false); setMessage(en ? "Work Package percentages must total 100%." : "Les pourcentages des Work Packages doivent totaliser 100 %."); return;
+    }
+    if (selectedPo && Number(amountInclTax || 0) > poRemaining(selectedPo)) {
+      setSaving(false); setMessage(en ? "The expense exceeds the remaining purchase order amount." : "La depense depasse le montant restant du bon de commande."); return;
+    }
+    if (financeSettings?.cost_centers_enabled && financeSettings.cost_center_required && !costCenterId && nextStatus !== "draft") {
+      setSaving(false); setMessage(en ? "A cost centre is required for this project." : "Le centre de cout est obligatoire pour ce projet."); return;
+    }
     const selectedPoItem = procurementItems.find(item => item.id === procurementItemId);
     const exchangeRate = Number(form.get("exchange_rate") || 1);
     const payload = {
       project_id: projectId,
-      work_package_id: String(form.get("work_package_id") || "") || null,
-      activity_id: String(form.get("activity_id") || "") || null,
+      work_package_id: allocationRows[0]?.work_package_id || null,
+      activity_id: null,
+      work_package_allocations: allocationRows,
       budget_line_id: budgetLineId || null,
       procurement_item_id: procurementItemId || null,
-      donor_name: String(form.get("donor_name") || "").trim() || null,
-      grant_reference: String(form.get("grant_reference") || "").trim() || null,
-      cost_center: String(form.get("cost_center") || "").trim() || null,
+      donor_id: donorId || null,
+      donor_name: donors.find(item => item.id === donorId)?.name || null,
+      grant_id: grantId || null,
+      grant_reference: grants.find(item => item.id === grantId)?.reference || null,
+      cost_center_id: costCenterId || null,
+      cost_center: costCenters.find(item => item.id === costCenterId)?.code || null,
       expense_date: String(form.get("expense_date") || "") || null,
       category: category || null,
-      sub_category: String(form.get("sub_category") || "").trim() || null,
+      sub_category: selectedBudgetCategory?.title || budgetLine?.sub_category || null,
       description: String(form.get("description") || "").trim(),
       justification: String(form.get("justification") || "").trim() || null,
-      payee_name: String(form.get("payee_name") || "").trim() || null,
+      payee_type: payeeType,
+      payee_id: payeeId || null,
+      payee_name: payeeType === "supplier" ? suppliers.find(item => item.id === payeeId)?.name || null : payeeType === "staff" ? staff.find(item => item.id === payeeId)?.name || null : String(form.get("payee_name") || "").trim() || null,
       location: String(form.get("location") || "").trim() || null,
       amount_excl_tax: Number(amountExclTax || 0),
       tax_amount: Number(taxAmount || 0),
@@ -323,15 +410,19 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
       project_currency: String(form.get("project_currency") || "XAF"),
       exchange_rate: exchangeRate,
       converted_amount: Number(amountInclTax || 0) * exchangeRate,
-      payment_method: String(form.get("payment_method") || "") as PaymentMethod || null,
+      payment_method: paymentMethod || null,
+      payment_account_reference: String(form.get("payment_account_reference") || "").trim() || null,
       payment_date: String(form.get("payment_date") || "") || null,
       transaction_reference: String(form.get("transaction_reference") || "").trim() || null,
       invoice_number: String(form.get("invoice_number") || "").trim() || null,
       invoice_date: String(form.get("invoice_date") || "") || null,
       po_reference: selectedPoItem?.po_reference || null,
-      contract_reference: String(form.get("contract_reference") || "").trim() || null,
-      supplier_name: String(form.get("supplier_name") || "").trim() || null,
+      contract_id: contractId || null,
+      contract_reference: String(form.get("contract_reference") || "").trim() || contracts.find(item => item.id === contractId)?.contract_number || null,
+      supplier_name: payeeType === "supplier" ? suppliers.find(item => item.id === payeeId)?.name || null : null,
       over_budget_justification: String(form.get("over_budget_justification") || "").trim() || null,
+      payment_override_requested: form.get("payment_override_requested") === "on",
+      payment_override_reason: String(form.get("payment_override_reason") || "").trim() || null,
       status: nextStatus,
       submitted_at: nextStatus === "submitted" ? new Date().toISOString() : (isNew ? null : editing.submitted_at) || null,
     };
@@ -351,61 +442,41 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
       <div className="flex items-start justify-between"><h2 className="text-2xl font-black text-forest">{isNew ? (en ? "New expense" : "Nouvelle depense") : (en ? "Expense" : "Depense")}</h2><button type="button" onClick={onClose} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">{en ? "Referencing" : "Referencement"}</h3>
-        <label className="grid gap-2 text-sm font-bold">Work Package<select name="work_package_id" defaultValue={isNew ? "" : editing.work_package_id || ""} className="admin-input"><option value="">{en ? "None" : "Aucun"}</option>{wbsLeafNodes(wbsNodes).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Activity" : "Activite"}<select name="activity_id" defaultValue={isNew ? "" : editing.activity_id || ""} className="admin-input"><option value="">{en ? "None" : "Aucune"}</option>{activities.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Budget line" : "Ligne budgetaire"}<select value={budgetLineId} onChange={event => setBudgetLineId(event.target.value)} className="admin-input"><option value="">{en ? "None" : "Aucune"}</option>{budgetLines.map(item => <option key={item.id} value={item.id}>{budgetLineLabelWithCode(item)}</option>)}</select></label>
-        <label className="grid gap-2 text-sm font-bold">
-          {en ? "PO (purchase order)" : "PO (bon de commande)"}{poRequired && " *"}
-          <select
-            value={procurementItemId}
-            onChange={event => {
-              const nextId = event.target.value;
-              setProcurementItemId(nextId);
-              const item = procurementItems.find(row => row.id === nextId);
-              if (item && formRef.current) {
-                const supplierInput = formRef.current.elements.namedItem("supplier_name") as HTMLInputElement | null;
-                if (supplierInput && !supplierInput.value) supplierInput.value = item.supplier_name || "";
-              }
-            }}
-            required={poRequired}
-            className="admin-input"
-          >
-            <option value="">{availablePoItems.length ? (en ? "None" : "Aucun") : (en ? "No PO available for this project" : "Aucun PO disponible pour ce projet")}</option>
-            {availablePoItems.map(item => <option key={item.id} value={item.id}>{item.po_reference} — {item.title}</option>)}
-          </select>
-          {poRequired && !procurementItemId && <span className="mt-1 block text-xs font-bold text-orange">{en ? "This expense category requires an existing PO." : "Cette categorie de depense exige un PO existant."}</span>}
-        </label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Donor" : "Bailleur"}<input name="donor_name" defaultValue={isNew ? "" : editing.donor_name || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">Grant<input name="grant_reference" defaultValue={isNew ? "" : editing.grant_reference || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Cost center" : "Centre de cout"}<input name="cost_center" defaultValue={isNew ? "" : editing.cost_center || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Expense date" : "Date de depense"}<input name="expense_date" type="date" defaultValue={isNew ? "" : editing.expense_date || ""} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Budget line" : "Ligne budgetaire"} *<select value={budgetLineId} onChange={event => setBudgetLineId(event.target.value)} required className="admin-input"><option value="">{en ? "Select..." : "Selectionner..."}</option>{budgetLines.filter(item => item.status === "approved").map(item => <option key={item.id} value={item.id}>{budgetLineLabelWithCode(item)} ({en ? "remaining" : "reste"}: {budgetLineRemaining(item).toLocaleString(en ? "en-US" : "fr-FR")} {item.currency})</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "PO (purchase order)" : "PO (bon de commande)"}{poRequired && " *"}<select value={procurementItemId} onChange={event => setProcurementItemId(event.target.value)} required={poRequired} disabled={!budgetLineId} className="admin-input"><option value="">{availablePoItems.length ? (en ? "Select..." : "Selectionner...") : (en ? "No active PO for this budget line" : "Aucun PO actif pour cette ligne budgetaire")}</option>{availablePoItems.map(item => <option key={item.id} value={item.id}>{item.po_reference} - {item.title} ({en ? "remaining" : "reste"}: {poRemaining(item).toLocaleString(en ? "en-US" : "fr-FR")} {item.currency || ""})</option>)}</select></label>
+        {selectedPo && <div className="grid gap-3 rounded-xl bg-slate-50 p-3 sm:col-span-2 sm:grid-cols-2"><p className="grid gap-1 text-sm font-bold">{en ? "PO receipt status" : "Statut de reception du PO"}<span className="admin-input bg-slate-100">{selectedPo.receipt_status || "pending_delivery"}</span></p><p className="grid gap-1 text-sm font-bold">{en ? "Remaining committed amount" : "Montant engage restant"}<span className="admin-input bg-slate-100">{poRemaining(selectedPo).toLocaleString(en ? "en-US" : "fr-FR")} {selectedPo.currency}</span></p>{!["complete","received_with_reservations"].includes(selectedPo.receipt_status || "pending_delivery") && <div className="rounded-xl bg-amber-50 p-3 sm:col-span-2"><label className="flex items-center gap-2 text-sm font-bold"><input name="payment_override_requested" type="checkbox" defaultChecked={!isNew && editing.payment_override_requested}/>{en ? "Request project manager exceptional payment authorization" : "Solliciter une derogation de paiement du chef de projet"}</label><textarea name="payment_override_reason" rows={2} defaultValue={isNew ? "" : editing.payment_override_reason || ""} placeholder={en ? "Mandatory justification for the override" : "Justification obligatoire de la derogation"} className="admin-input mt-2"/></div>}</div>}
 
-        <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">{en ? "Nature of the expense" : "Nature de la depense"}</h3>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Category" : "Categorie"}<select value={category} onChange={event => setCategory(event.target.value as ExpenseCategory)} className="admin-input"><option value="">—</option>{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label[locale]}</option>)}</select></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Sub-category" : "Sous-categorie"}<input name="sub_category" defaultValue={isNew ? "" : editing.sub_category || ""} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Category" : "Categorie"}<select value={budgetLine?.budget_category_id || ""} disabled className="admin-input disabled:bg-slate-50"><option value="">{en ? "Filled from budget line" : "Renseignee depuis la ligne budgetaire"}</option>{categoryTree.map(item => <option key={item.id} value={item.id}>{item.code} - {item.title}</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Sub-category" : "Sous-categorie"}<select value={selectedBudgetCategory?.id || ""} disabled className="admin-input disabled:bg-slate-50"><option value="">-</option>{selectedBudgetCategory && <option value={selectedBudgetCategory.id}>{selectedBudgetCategory.title}</option>}</select></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">Description<input name="description" defaultValue={isNew ? "" : editing.description} required className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Justification" : "Justification"}<textarea name="justification" rows={2} defaultValue={isNew ? "" : editing.justification || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Supplier / beneficiary" : "Fournisseur / beneficiaire"}<input name="payee_name" defaultValue={isNew ? "" : editing.payee_name || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Location" : "Lieu"}<input name="location" defaultValue={isNew ? "" : editing.location || ""} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Cost centre" : "Centre de cout"}{financeSettings?.cost_centers_enabled && financeSettings.cost_center_required && " *"}<select value={costCenterId} onChange={event => setCostCenterId(event.target.value)} required={!!financeSettings?.cost_centers_enabled && !!financeSettings.cost_center_required} disabled={!financeSettings?.cost_centers_enabled} className="admin-input"><option value="">{financeSettings?.cost_centers_enabled ? (en ? "Select..." : "Selectionner...") : (en ? "Cost centres disabled for this project" : "Centres de cout desactives pour ce projet")}</option>{activeCenters.map(item => <option key={item.id} value={item.id}>{item.code} - {item.label}{item.is_default ? (en ? " (default)" : " (par defaut)") : ""}</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Expense date" : "Date de depense"}<input name="expense_date" type="date" defaultValue={isNew ? "" : editing.expense_date || ""} className="admin-input" /></label>
+
+        <fieldset className="rounded-xl border p-3 sm:col-span-2"><legend className="px-1 text-sm font-bold">{en ? "Work Packages and allocation" : "Work Packages et ventilation"} ({allocationTotal}%)</legend><p className="mb-3 text-xs text-slate-500">{en ? "Percentages are prefilled from the selected budget line. Amounts are calculated from the total expense." : "Les pourcentages proviennent de la ligne budgetaire. Les montants sont calcules sur la depense totale."}</p><div className="grid gap-2">{wbsLeafNodes(wbsNodes).map(item => <div key={item.id} className="grid items-center gap-2 rounded-xl bg-slate-50 p-2 sm:grid-cols-[auto_1fr_110px_150px]"><input type="checkbox" checked={item.id in wpAllocations} onChange={event => setWpAllocations(current => { const next={...current}; if(event.target.checked) next[item.id]=0; else delete next[item.id]; return next; })}/><span className="text-xs font-bold">{item.title}</span>{item.id in wpAllocations && <><label className="flex items-center gap-1 text-xs"><input type="number" min="0" max="100" step="0.01" value={wpAllocations[item.id]} onChange={event => setWpAllocations(current => ({...current,[item.id]:Number(event.target.value)}))} className="admin-input"/>%</label><b className="text-right text-xs text-forest">{(Number(amountInclTax || 0) * Number(wpAllocations[item.id] || 0) / 100).toLocaleString(en ? "en-US" : "fr-FR")}</b></>}</div>)}</div><p className={`mt-2 text-xs font-bold ${Math.abs(allocationTotal-100)<0.01?"text-leaf":"text-orange"}`}>{en ? "Required total: 100%" : "Total requis : 100 %"}</p></fieldset>
+
+        <label className="grid gap-2 text-sm font-bold">{en ? "Donor" : "Bailleur Donateur"}<select value={donorId} onChange={event => { const next=event.target.value; setDonorId(next); const matches=grants.filter(item=>item.donor_id===next&&item.status==="active"); setGrantId(matches.length===1?matches[0].id:""); }} className="admin-input"><option value="">-</option>{donors.filter(item => item.status === "active").map(item => <option key={item.id} value={item.id}>{item.code ? `${item.code} - ` : ""}{item.name}</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">Grant<select value={grantId} onChange={event => setGrantId(event.target.value)} disabled={!donorId} className="admin-input"><option value="">{filteredGrants.length > 1 ? (en ? "Select..." : "Selectionner...") : "-"}</option>{filteredGrants.map(item => <option key={item.id} value={item.id}>{item.reference}{item.title ? ` - ${item.title}` : ""}</option>)}</select></label>
+
+        <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">{en ? "Payee and contract" : "Beneficiaire et contrat"}</h3>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Payee type" : "Type de beneficiaire"}<select value={payeeType} onChange={event => { setPayeeType(event.target.value as typeof payeeType); setPayeeId(""); setContractId(""); }} className="admin-input"><option value="supplier">{en ? "Supplier" : "Fournisseur"}</option><option value="staff">{en ? "Staff beneficiary" : "Beneficiaire staff"}</option><option value="other">{en ? "Other beneficiary" : "Autre beneficiaire"}</option></select></label>
+        {payeeType === "supplier" ? <label className="grid gap-2 text-sm font-bold">{en ? "Supplier" : "Fournisseur"}<select value={payeeId} onChange={event => setPayeeId(event.target.value)} className="admin-input"><option value="">-</option>{suppliers.filter(item => item.status === "active").map(item => <option key={item.id} value={item.id}>{item.code ? `${item.code} - ` : ""}{item.name}</option>)}</select></label> : payeeType === "staff" ? <label className="grid gap-2 text-sm font-bold">Staff<select value={payeeId} onChange={event => setPayeeId(event.target.value)} className="admin-input"><option value="">-</option>{staff.map(item => <option key={item.id} value={item.id}>{item.name}{item.role_title ? ` - ${item.role_title}` : ""}</option>)}</select></label> : <label className="grid gap-2 text-sm font-bold">{en ? "Other beneficiary" : "Autre beneficiaire a preciser"}<input name="payee_name" defaultValue={!isNew && editing.payee_type === "other" ? editing.payee_name || "" : ""} className="admin-input"/></label>}
+        {payeeType === "other" ? <label className="grid gap-2 text-sm font-bold">{en ? "Contract no. (optional)" : "Contrat N* (facultatif)"}<input name="contract_reference" defaultValue={isNew ? "" : editing.contract_reference || ""} className="admin-input"/></label> : <label className="grid gap-2 text-sm font-bold">{en ? "Contract no." : "Contrat N*"}<select value={contractId} onChange={event => setContractId(event.target.value)} disabled={!payeeId} className="admin-input"><option value="">-</option>{payeeContracts.map(item => <option key={item.id} value={item.id}>{item.contract_number}{item.title ? ` - ${item.title}` : ""}</option>)}</select></label>}
+        <label className="grid gap-2 text-sm font-bold sm:col-span-2">{en ? "Location" : "Lieu"}<input name="location" defaultValue={isNew ? "" : editing.location || ""} className="admin-input" /></label>
 
         <h3 className="text-sm font-black uppercase text-slate-400 sm:col-span-2">{en ? "Financial information" : "Informations financieres"}</h3>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Amount excl. tax" : "Montant HT"}<input type="number" step="0.01" value={amountExclTax} onChange={event => setAmountExclTax(event.target.value)} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Tax" : "Taxes"}<input type="number" step="0.01" value={taxAmount} onChange={event => setTaxAmount(event.target.value)} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">
-          {en ? "Amount incl. tax" : "Montant TTC"} {!manualTtc && <span className="font-normal text-slate-400">{en ? "(computed automatically)" : "(calcule automatiquement)"}</span>}
-          <input type="number" step="0.01" value={amountInclTax} disabled={!manualTtc} onChange={event => setAmountInclTax(event.target.value)} className="admin-input disabled:bg-slate-50" />
-          <label className="flex items-center gap-2 text-xs font-normal text-slate-500"><input type="checkbox" checked={manualTtc} onChange={event => setManualTtc(event.target.checked)} className="h-3.5 w-3.5" />{en ? "Enter manually (rounding, etc.)" : "Saisir manuellement (arrondi, etc.)"}</label>
-        </label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Amount excl. tax" : "Montant HT"}<input type="number" min="0" step="0.01" value={amountExclTax} onChange={event => setAmountExclTax(event.target.value)} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Tax" : "Taxes"}<input type="number" min="0" step="0.01" value={taxAmount} onChange={event => setTaxAmount(event.target.value)} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Amount incl. tax" : "Montant TTC"} {!manualTtc && <span className="font-normal text-slate-400">{en ? "(computed automatically)" : "(calcule automatiquement)"}</span>}<input type="number" min="0" step="0.01" value={amountInclTax} disabled={!manualTtc} onChange={event => setAmountInclTax(event.target.value)} className="admin-input disabled:bg-slate-50" /><span className="flex items-center gap-2 text-xs font-normal text-slate-500"><input type="checkbox" checked={manualTtc} onChange={event => setManualTtc(event.target.checked)} />{en ? "Enter manually" : "Saisir manuellement"}</span></label>
         <label className="grid gap-2 text-sm font-bold">{en ? "Transaction currency" : "Devise transaction"}<input name="transaction_currency" defaultValue={isNew ? "XAF" : editing.transaction_currency || "XAF"} className="admin-input" /></label>
         <label className="grid gap-2 text-sm font-bold">{en ? "Project currency" : "Devise projet"}<input name="project_currency" defaultValue={isNew ? "XAF" : editing.project_currency || "XAF"} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Exchange rate" : "Taux de change"}<input name="exchange_rate" type="number" step="0.0001" defaultValue={isNew ? 1 : editing.exchange_rate ?? 1} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Payment method" : "Mode de paiement"}<select name="payment_method" defaultValue={isNew ? "" : editing.payment_method || ""} className="admin-input"><option value="">—</option>{Object.entries(paymentMethodLabels).map(([value, label]) => <option key={value} value={value}>{label[locale]}</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Exchange rate" : "Taux de change"}<input name="exchange_rate" type="number" min="0" step="0.0001" defaultValue={isNew ? 1 : editing.exchange_rate ?? 1} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Payment method" : "Mode de paiement"}<select value={paymentMethod} onChange={event => setPaymentMethod(event.target.value as PaymentMethod)} className="admin-input"><option value="">-</option>{Object.entries(paymentMethodLabels).map(([value,label])=><option key={value} value={value}>{label[locale]}</option>)}</select></label>
+        <label className="grid gap-2 text-sm font-bold">{paymentMethod === "check" ? (en ? "Check number" : "Numero du cheque") : paymentMethod === "bank_transfer" ? (en ? "Bank account" : "Compte bancaire") : paymentMethod === "mobile_money" ? (en ? "Mobile Money account (country code)" : "Compte Mobile Money (avec indicatif pays)") : paymentMethod === "cash" ? (en ? "Payment receipt order no." : "N* d'ordre du recu de paiement") : (en ? "Payment account / reference" : "Compte / reference de paiement")}<input name="payment_account_reference" defaultValue={isNew ? "" : editing.payment_account_reference || ""} className="admin-input"/></label>
         <label className="grid gap-2 text-sm font-bold">{en ? "Payment date" : "Date de paiement"}<input name="payment_date" type="date" defaultValue={isNew ? "" : editing.payment_date || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Transaction reference" : "Reference transaction"}<input name="transaction_reference" defaultValue={isNew ? "" : editing.transaction_reference || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Invoice number" : "Numero facture"}<input name="invoice_number" defaultValue={isNew ? "" : editing.invoice_number || ""} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Transaction reference (unique transaction ID, transfer order, receipt or Mobile Money transaction no.)" : "Reference transaction (ID unique, N* ordre de virement, N* recu ou N* transaction Mobile Money)"}<input name="transaction_reference" defaultValue={isNew ? "" : editing.transaction_reference || ""} className="admin-input" /></label>
+        <label className="grid gap-2 text-sm font-bold">{en ? "Invoice number (optional)" : "Numero facture (facultatif)"}<input name="invoice_number" defaultValue={isNew ? "" : editing.invoice_number || ""} className="admin-input" /><span className="text-xs font-normal text-slate-500">{en ? "Invoice submitted mainly by a supplier or qualified professional." : "Numero de la facture soumise principalement par un fournisseur ou un professionnel qualifie."}</span></label>
         <label className="grid gap-2 text-sm font-bold">{en ? "Invoice date" : "Date facture"}<input name="invoice_date" type="date" defaultValue={isNew ? "" : editing.invoice_date || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Contract" : "Contrat"}<input name="contract_reference" defaultValue={isNew ? "" : editing.contract_reference || ""} className="admin-input" /></label>
-        <label className="grid gap-2 text-sm font-bold">{en ? "Supplier" : "Fournisseur"}<input name="supplier_name" defaultValue={isNew ? "" : editing.supplier_name || ""} className="admin-input" /></label>
 
         {budgetCheck && <div className="sm:col-span-2 rounded-2xl bg-slate-50 p-4 text-sm">
           <h3 className="text-sm font-black uppercase text-slate-400">{en ? "Budget check" : "Controle budgetaire"}</h3>
@@ -442,6 +513,7 @@ function ExpenseFormModal({ projectId, editing, budgetLines, wbsNodes, activitie
           {!isNew && editing.status === "draft" && <button type="button" onClick={() => submit("submitted")} disabled={saving} className="btn-primary">{en ? "Submit" : "Soumettre"}</button>}
           {!isNew && editing.status === "submitted" && <button type="button" onClick={() => onDecide(editing, "finance_review")} className="btn-primary px-4 py-2 text-sm">{en ? "Send to finance review" : "Envoyer en revue finance"}</button>}
           {!isNew && editing.status === "finance_review" && <button type="button" onClick={() => onDecide(editing, "manager_approval")} className="btn-primary px-4 py-2 text-sm">{en ? "Submit for approval" : "Transmettre pour approbation"}</button>}
+          {!isNew && editing.status === "manager_approval" && editing.payment_override_requested && !editing.payment_override_approved && <button type="button" onClick={() => onApproveOverride(editing)} className="btn-secondary px-4 py-2 text-sm">{en ? "Grant payment override" : "Accorder la derogation de paiement"}</button>}
           {!isNew && editing.status === "manager_approval" && <button type="button" onClick={() => onDecide(editing, "posted")} className="btn-primary px-4 py-2 text-sm">{en ? "Approve & post" : "Approuver & poster"}</button>}
           {!isNew && ["submitted", "finance_review", "manager_approval"].includes(editing.status) && <>
             <button type="button" onClick={() => onDecide(editing, "returned")} className="btn-secondary px-4 py-2 text-sm">{en ? "Return" : "Retourner"}</button>

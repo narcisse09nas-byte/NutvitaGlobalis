@@ -6,7 +6,7 @@ import AchievementReportForm from "@/components/op-management/AchievementReportF
 import SearchableSelect from "@/components/op-management/SearchableSelect";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import { wbsLeafNodes } from "@/lib/ppm/wbs";
-import type { Achievement, AchievementEvidence, AchievementStatus, Activity, Indicator, ResultChainNode, WBSNode } from "@/lib/ppm/types";
+import type { Achievement, AchievementEvidence, AchievementStatus, Activity, Indicator, PPMResource, ResultChainNode, WBSNode } from "@/lib/ppm/types";
 
 const statusLabels: Record<AchievementStatus, { fr: string; en: string }> = {
   draft: { fr: "Brouillon", en: "Draft" }, submitted: { fr: "Soumise", en: "Submitted" }, under_review: { fr: "En cours de revue", en: "Under review" }, validated: { fr: "Validee", en: "Validated" },
@@ -17,8 +17,8 @@ const statusTones: Record<AchievementStatus, string> = {
   validated: "bg-mint text-forest", returned: "bg-orange/10 text-orange", rejected: "bg-red-50 text-red-700", cancelled: "bg-slate-200 text-slate-500",
 };
 
-export default function MyAchievementsRegister({ projectId, initial, activities, wbsNodes, outputs, indicators }: {
-  projectId: string; initial: Achievement[]; activities: Activity[]; wbsNodes: WBSNode[]; outputs: ResultChainNode[]; indicators: Indicator[];
+export default function MyAchievementsRegister({ projectId, initial, activities, wbsNodes, outputs, indicators, staff }: {
+  projectId: string; initial: Achievement[]; activities: Activity[]; wbsNodes: WBSNode[]; outputs: ResultChainNode[]; indicators: Indicator[]; staff: PPMResource[];
 }) {
   const { locale, en } = usePpmLocale();
   const [rows, setRows] = useState(initial);
@@ -123,7 +123,7 @@ export default function MyAchievementsRegister({ projectId, initial, activities,
       workPackage={editingActivity.work_package_id ? wbsById.get(editingActivity.work_package_id) : undefined}
       output={editingActivity.output_id ? outputById.get(editingActivity.output_id) : undefined}
       indicator={editingActivity.indicator_id ? indicatorById.get(editingActivity.indicator_id) : undefined}
-      previousAchievements={editingHistory} editing={editing} initialEvidence={editingEvidence}
+      previousAchievements={editingHistory} editing={editing} initialEvidence={editingEvidence} staff={staff}
       onClose={() => setEditing(null)}
       onSaved={handleSaved}
     />}
@@ -149,7 +149,7 @@ export default function MyAchievementsRegister({ projectId, initial, activities,
       workPackage={creatingActivity.work_package_id ? wbsById.get(creatingActivity.work_package_id) : undefined}
       output={creatingActivity.output_id ? outputById.get(creatingActivity.output_id) : undefined}
       indicator={creatingActivity.indicator_id ? indicatorById.get(creatingActivity.indicator_id) : undefined}
-      previousAchievements={creatingHistory} editing="new" initialEvidence={[]}
+      previousAchievements={creatingHistory} editing="new" initialEvidence={[]} staff={staff}
       onClose={() => setCreatingActivity(null)}
       onSaved={handleCreated}
     />}

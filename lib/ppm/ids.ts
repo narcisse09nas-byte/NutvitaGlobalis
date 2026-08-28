@@ -42,8 +42,8 @@ export function generateRegistryCode(orgCode: string, domain: RegistryDomain): s
 }
 
 // Purchase Orders: org(3) + 5 random = 8 characters total, matching the spec's own example.
-export function generateSequenceCode(orgCode: string): string {
-  return `${orgInitials(orgCode)}${randomChars(5)}`;
+export function generateSequenceCode(_orgCode: string): string {
+  return `PO-${randomChars(5)}`;
 }
 
 // Inserts are expected to retry once on a unique-constraint conflict (Postgres code 23505) —

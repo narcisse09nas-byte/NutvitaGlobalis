@@ -6,7 +6,7 @@ import ExpenseManager from "@/components/op-management/ExpenseManager";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
-import { getProject, listActivities, listBudgetCategories, listBudgetLines, listExpenses, listProcurementItems, listResources, listWbsNodes } from "@/lib/ppm/queries";
+import { getProject, getProjectFinanceSettings, listActivities, listBudgetCategories, listBudgetLines, listCostCenters, listExpenses, listOrganizationDonors, listOrganizationGrants, listOrganizationSuppliers, listProcurementItems, listProjectContracts, listResources, listWbsNodes } from "@/lib/ppm/queries";
 
 export default async function MiseEnOeuvreDepensesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,9 +16,12 @@ export default async function MiseEnOeuvreDepensesPage({ params }: { params: Pro
   const name = user.user_metadata?.full_name || user.email || ((await getCurrentLocale()) === "en" ? "User" : "Utilisateur");
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [expenses, budgetLines, wbsNodes, activities, procurementItems, budgetCategories, resources] = await Promise.all([
+  const [expenses, budgetLines, wbsNodes, activities, procurementItems, budgetCategories, resources, donors, grants, suppliers, financeSettings, costCenters, contracts] = await Promise.all([
     listExpenses(supabase, id), listBudgetLines(supabase, id), listWbsNodes(supabase, id), listActivities(supabase, id),
     listProcurementItems(supabase, id), listBudgetCategories(supabase, id), listResources(supabase, id),
+    listOrganizationDonors(supabase, project.organization_id), listOrganizationGrants(supabase, project.organization_id),
+    listOrganizationSuppliers(supabase, project.organization_id), getProjectFinanceSettings(supabase, id),
+    listCostCenters(supabase, id), listProjectContracts(supabase, id),
   ]);
   const staff = resources.filter(item => item.type === "human" || item.type === "consultant");
   const locale = await getCurrentLocale();
@@ -27,7 +30,7 @@ export default async function MiseEnOeuvreDepensesPage({ params }: { params: Pro
     <ProjectShell project={project}>
       <div className="grid gap-5">
         <MiseEnOeuvreTabs projectId={id} />
-        <ExpenseManager projectId={id} initial={expenses} budgetLines={budgetLines} wbsNodes={wbsNodes} activities={activities} procurementItems={procurementItems} budgetCategories={budgetCategories} staff={staff} />
+        <ExpenseManager projectId={id} initial={expenses} budgetLines={budgetLines} wbsNodes={wbsNodes} activities={activities} procurementItems={procurementItems} budgetCategories={budgetCategories} staff={staff} donors={donors} grants={grants} suppliers={suppliers} financeSettings={financeSettings} costCenters={costCenters} contracts={contracts} projectManagerEmail={project.project_manager_email || ""} />
       </div>
     </ProjectShell>
   </PPMShell>;

@@ -6,7 +6,7 @@ import ProcurementPipeline from "@/components/op-management/ProcurementPipeline"
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
-import { getProject, listProcurementItems, listResources, listWbsNodes } from "@/lib/ppm/queries";
+import { getProject, listBudgetLines, listCostCenters, listOrganizationSuppliers, listProcurementItems, listProjectContracts, listResources, listWbsNodes } from "@/lib/ppm/queries";
 
 export default async function MiseEnOeuvreProcurementPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,7 +16,7 @@ export default async function MiseEnOeuvreProcurementPage({ params }: { params: 
   const name = user.user_metadata?.full_name || user.email || ((await getCurrentLocale()) === "en" ? "User" : "Utilisateur");
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [procurementItems, wbsNodes, resources] = await Promise.all([listProcurementItems(supabase, id), listWbsNodes(supabase, id), listResources(supabase, id)]);
+  const [procurementItems, wbsNodes, resources, budgetLines, costCenters, suppliers, contracts] = await Promise.all([listProcurementItems(supabase, id), listWbsNodes(supabase, id), listResources(supabase, id), listBudgetLines(supabase, id), listCostCenters(supabase, id), listOrganizationSuppliers(supabase, project.organization_id), listProjectContracts(supabase, id)]);
   const staff = resources.filter(item => item.type === "human" || item.type === "consultant");
   const locale = await getCurrentLocale();
 
@@ -24,7 +24,7 @@ export default async function MiseEnOeuvreProcurementPage({ params }: { params: 
     <ProjectShell project={project}>
       <div className="grid gap-5">
         <MiseEnOeuvreTabs projectId={id} />
-        <ProcurementPipeline projectId={id} initial={procurementItems} wbsNodes={wbsNodes} staff={staff} />
+        <ProcurementPipeline projectId={id} initial={procurementItems} wbsNodes={wbsNodes} staff={staff} budgetLines={budgetLines} costCenters={costCenters} suppliers={suppliers} contracts={contracts} />
       </div>
     </ProjectShell>
   </PPMShell>;

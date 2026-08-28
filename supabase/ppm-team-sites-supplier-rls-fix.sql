@@ -23,6 +23,16 @@ create policy "PPM staff read assigned asset resources" on public.ppm_resources
 for select to authenticated using (public.ppm_can_read_assigned_asset(id));
 
 -- Site codes are generated server-side as AAA999 and remain unique per project.
+-- Keep this migration autonomous when ppm-pdm-budget-cascades.sql was not run first.
+alter table public.ppm_sites add column if not exists site_code text;
+alter table public.ppm_sites add column if not exists beneficiary_count integer;
+alter table public.ppm_sites add column if not exists site_type text;
+alter table public.ppm_sites add column if not exists contact_name text;
+alter table public.ppm_sites add column if not exists contact_phone text;
+do $$ begin
+  alter table public.ppm_sites add constraint ppm_sites_beneficiary_count_check
+    check (beneficiary_count is null or beneficiary_count >= 0);
+exception when duplicate_object then null; end $$;
 create unique index if not exists ppm_sites_project_site_code_unique
   on public.ppm_sites(project_id, site_code) where site_code is not null;
 create or replace function public.ppm_generate_site_code()

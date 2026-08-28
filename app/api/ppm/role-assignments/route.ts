@@ -29,12 +29,20 @@ async function requirePlatformAdmin(scopeType?: string, scopeId?: string | null)
 }
 
 export async function GET(request: Request) {
-  const gate = await requirePlatformAdmin();
+  const url = new URL(request.url);
+  const directory = url.searchParams.get("directory") === "1";
+  const scopeType = url.searchParams.get("scope_type") || undefined;
+  const scopeId = url.searchParams.get("scope_id") || undefined;
+  const gate = await requirePlatformAdmin(directory ? scopeType : undefined, directory ? scopeId : undefined);
   if ("error" in gate) return gate.error;
-  const ids = (new URL(request.url).searchParams.get("ids") || "").split(",").map(item => item.trim()).filter(Boolean);
-  if (!ids.length) return NextResponse.json({ emails: {} });
+  const ids = (url.searchParams.get("ids") || "").split(",").map(item => item.trim()).filter(Boolean);
   const service = createAdminClient();
   const { data } = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (directory) {
+    const users = (data?.users || []).filter(item => item.email).map(item => ({ id: item.id, email: item.email as string, name: String(item.user_metadata?.full_name || item.user_metadata?.name || "").trim() })).sort((a, b) => a.email.localeCompare(b.email));
+    return NextResponse.json({ users });
+  }
+  if (!ids.length) return NextResponse.json({ emails: {} });
   const emails: Record<string, string> = {};
   for (const authUser of data?.users || []) {
     if (authUser.email && ids.includes(authUser.id)) emails[authUser.id] = authUser.email;

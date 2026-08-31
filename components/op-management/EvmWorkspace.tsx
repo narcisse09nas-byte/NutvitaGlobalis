@@ -12,14 +12,14 @@ import type {
 
 type View = "dashboard" | "settings" | "time-phased" | "pmb";
 
-export default function EvmWorkspace({ projectId, project, initialSettings, workPackages, budgetLines, activities, achievements, expenses, timePhasedRows, risks, issues, initialSnapshots, changeRequests, initialPmbVersions, pmbSnapshots, staff = [] }: {
-  projectId: string; project: Project; initialSettings: EvmSettings | null; workPackages: WBSNode[]; budgetLines: BudgetLine[];
+export default function EvmWorkspace({ projectId, project, initialSettings, initialView, workPackages, budgetLines, activities, achievements, expenses, timePhasedRows, risks, issues, initialSnapshots, changeRequests, initialPmbVersions, pmbSnapshots, staff = [] }: {
+  projectId: string; project: Project; initialSettings: EvmSettings | null; initialView?: View; workPackages: WBSNode[]; budgetLines: BudgetLine[];
   activities: Activity[]; achievements: Achievement[]; expenses: Expense[]; timePhasedRows: TimePhasedBudget[];
   risks: Risk[]; issues: Issue[]; initialSnapshots: EvmSnapshot[]; changeRequests: ChangeRequest[]; initialPmbVersions: PmbVersion[];
   pmbSnapshots: PmbWorkPackageSnapshot[]; staff?: PPMResource[];
 }) {
   const { en } = usePpmLocale();
-  const [view, setView] = useState<View>(initialSettings?.enabled ? "dashboard" : "settings");
+  const [view, setView] = useState<View>(initialView || (initialSettings?.enabled ? "dashboard" : "settings"));
   const [settings, setSettings] = useState(initialSettings);
 
   return <div className="grid gap-5">

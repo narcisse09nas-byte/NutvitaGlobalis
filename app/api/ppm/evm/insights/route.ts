@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateStructured } from "@/lib/ai-narrative";
-import { computeEac, computeEtc, computeEvm, computeVac, evmStatusColor, rollupEvm } from "@/lib/ppm/evm";
+import { budgetLineAmountForWorkPackage, computeEac, computeEtc, computeEvm, computeVac, evmStatusColor, rollupEvm } from "@/lib/ppm/evm";
 import {
   getEvmSettings, getProject, listActivities, listAchievements, listBudgetLines, listExpenses,
   listTimePhasedBudgets, listWbsNodes,
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     const activityIds = new Set(wpActivities.map(activity => activity.id));
     const wpExpenses = expenses.filter(item => item.work_package_id === wp.id || (item.activity_id && activityIds.has(item.activity_id)));
     const wpTimePhased = timePhasedRows.filter(row => row.work_package_id === wp.id);
-    const bac = budgetLines.filter(line => line.wbs_node_id === wp.id).reduce((sum, line) => sum + Number(line.revised_budget ?? line.initial_budget ?? 0), 0);
+    const bac = budgetLines.reduce((sum, line) => sum + budgetLineAmountForWorkPackage(line, wp.id), 0);
     const metrics = computeEvm({ activities: wpActivities, achievements, expenses: wpExpenses, timePhasedRows: wpTimePhased, bac, asOfDate: statusDate });
     return { title: wp.title, metrics };
   });

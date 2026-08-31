@@ -75,6 +75,15 @@ export function activityLinearPv(activity: Activity, asOfDate: string): number {
 export function workPackageTimePhasedPv(rows: TimePhasedBudget[], asOfDate: string): number {
   return rows.filter(row => row.period_date <= asOfDate).reduce((sum, row) => sum + Number(row.planned_amount || 0), 0);
 }
+export function budgetLineForecast(line: BudgetLine): number {
+  return Number(line.revised_budget ?? line.forecast_amount ?? line.initial_budget ?? 0);
+}
+
+export function budgetLineAmountForWorkPackage(line: BudgetLine, workPackageId: string): number {
+  const allocation = (line.wbs_allocations || []).find(item => item.work_package_id === workPackageId);
+  if (allocation) return budgetLineForecast(line) * Number(allocation.percentage || 0) / 100;
+  return line.wbs_node_id === workPackageId ? budgetLineForecast(line) : 0;
+}
 
 function actualCost(expenses: Expense[], asOfDate: string): number {
   return expenses
@@ -179,7 +188,7 @@ export function computeMonthlySeries({ activities, achievements, expenses, timeP
 export function resolveWorkPackageBac(workPackageId: string, budgetLines: BudgetLine[], latestApprovedSnapshots: PmbWorkPackageSnapshot[]): { bac: number; source: "pmb" | "live_budget" } {
   const snapshot = latestApprovedSnapshots.find(item => item.work_package_id === workPackageId);
   if (snapshot) return { bac: Number(snapshot.bac || 0), source: "pmb" };
-  const bac = budgetLines.filter(line => line.wbs_node_id === workPackageId).reduce((sum, line) => sum + Number(line.revised_budget ?? line.initial_budget ?? 0), 0);
+  const bac = budgetLines.reduce((sum, line) => sum + budgetLineAmountForWorkPackage(line, workPackageId), 0);
   return { bac, source: "live_budget" };
 }
 
@@ -202,7 +211,7 @@ export function computeProjectEvm({ workPackages, activities, achievements, expe
   });
   const unassignedActivities = activities.filter(activity => !activity.work_package_id);
   if (unassignedActivities.length) {
-    const bac = budgetLines.filter(line => !line.wbs_node_id).reduce((sum, line) => sum + Number(line.revised_budget ?? line.initial_budget ?? 0), 0);
+    const bac = budgetLines.filter(line => !line.wbs_node_id && !(line.wbs_allocations || []).length).reduce((sum, line) => sum + budgetLineForecast(line), 0);
     scopes.push(computeEvm({
       activities: unassignedActivities, achievements,
       expenses: expenses.filter(item => !item.work_package_id && (!item.activity_id || unassignedActivities.some(a => a.id === item.activity_id))),
@@ -219,7 +228,7 @@ export function checkEvmDataSufficiency({ settings, workPackages, budgetLines, a
 }): string[] {
   const gaps: string[] = [];
   if (!settings || !settings.enabled) gaps.push("L'Earned Value Management n'est pas active pour ce projet.");
-  const budgetedWpIds = new Set(budgetLines.map(line => line.wbs_node_id).filter(Boolean));
+  const budgetedWpIds = new Set(budgetLines.flatMap(line => (line.wbs_allocations || []).map(item => item.work_package_id).concat(line.wbs_node_id ? [line.wbs_node_id] : [])));
   const workPackagesWithoutBudget = workPackages.filter(wp => !budgetedWpIds.has(wp.id));
   if (workPackagesWithoutBudget.length) gaps.push(`${workPackagesWithoutBudget.length} Work Package(s) ne disposent pas encore d'une ligne budgetaire.`);
   const datedActivities = activities.filter(activity => activity.planned_start && activity.planned_end);

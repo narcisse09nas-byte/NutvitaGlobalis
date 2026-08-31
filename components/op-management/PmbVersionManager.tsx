@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from "react";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { createClient } from "@/lib/supabase/client";
+import { budgetLineAmountForWorkPackage } from "@/lib/ppm/evm";
 import SearchableSelect from "@/components/op-management/SearchableSelect";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type { Activity, BudgetLine, ChangeRequest, PmbVersion, PmbVersionStatus, PPMResource, WBSNode } from "@/lib/ppm/types";
@@ -34,7 +35,7 @@ export default function PmbVersionManager({ projectId, workPackages, budgetLines
     const nextVersion = versions.length ? Math.max(...versions.map(item => item.version)) + 1 : 1;
 
     const wpBacs = workPackages.map(wp => {
-      const bac = budgetLines.filter(line => line.wbs_node_id === wp.id).reduce((sum, line) => sum + Number(line.revised_budget ?? line.initial_budget ?? 0), 0);
+      const bac = budgetLines.reduce((sum, line) => sum + budgetLineAmountForWorkPackage(line, wp.id), 0);
       const wpActivities = activities.filter(activity => activity.work_package_id === wp.id && activity.planned_start && activity.planned_end);
       const plannedStart = wpActivities.length ? wpActivities.map(a => a.planned_start!).sort()[0] : null;
       const plannedEnd = wpActivities.length ? wpActivities.map(a => a.planned_end!).sort().slice(-1)[0] : null;

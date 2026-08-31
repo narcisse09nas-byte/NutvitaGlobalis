@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { budgetLineAmountForWorkPackage } from "@/lib/ppm/evm";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import type { Activity, BudgetLine, Project, TimePhasedBudget, WBSNode } from "@/lib/ppm/types";
 
@@ -23,7 +24,7 @@ export default function TimePhasedBudgetForm({ projectId, project, workPackages,
   const [message, setMessage] = useState("");
 
   const selectedWp = workPackages.find(wp => wp.id === selectedWpId);
-  const bac = useMemo(() => budgetLines.filter(line => line.wbs_node_id === selectedWpId).reduce((sum, line) => sum + Number(line.revised_budget ?? line.initial_budget ?? 0), 0), [budgetLines, selectedWpId]);
+  const bac = useMemo(() => budgetLines.reduce((sum, line) => sum + budgetLineAmountForWorkPackage(line, selectedWpId), 0), [budgetLines, selectedWpId]);
 
   function loadWp(wpId: string) {
     setSelectedWpId(wpId);
@@ -83,7 +84,7 @@ export default function TimePhasedBudgetForm({ projectId, project, workPackages,
 
   return <div className="grid gap-4 rounded-2xl border bg-white p-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-lg font-black text-forest">{en ? "Time-Phased Budget" : "Budget mensualise (Time-Phased Budget)"}</h2>
+      <div><h2 className="text-lg font-black text-forest">{en ? "Monthly budget planning (Time-Phased Budget)" : "Planification mensuelle du budget (Time-Phased Budget)"}</h2><p className="mt-1 max-w-3xl text-xs text-slate-500">{en ? "Distribute each Work Package BAC by month. These amounts become Planned Value (PV) and feed the EVM S-curve, SPI and schedule variance." : "Repartissez mensuellement le BAC de chaque Work Package. Ces montants deviennent la valeur planifiee (PV) et alimentent la courbe en S, le SPI et l ecart de delai EVA/EVM."}</p></div>
       <select value={selectedWpId} onChange={event => loadWp(event.target.value)} className="admin-input w-auto"><option value="">{en ? "Select a Work Package" : "Selectionner un Work Package"}</option>{workPackages.map(wp => <option key={wp.id} value={wp.id}>{wp.title}</option>)}</select>
     </div>
     {!workPackages.length && <p className="text-sm text-slate-400">{en ? "No Work Package (WBS level 4) exists yet for this project." : "Aucun Work Package (niveau 4 du WBS) n'existe encore pour ce projet."}</p>}

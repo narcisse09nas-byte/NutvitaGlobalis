@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import EvmSCurveChart from "@/components/op-management/EvmSCurveChart";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 import {
-  checkEvmDataSufficiency, computeEac, computeEtc, computeEvm, computeMonthlySeries,
+  budgetLineForecast, checkEvmDataSufficiency, computeEac, computeEtc, computeEvm, computeMonthlySeries,
   computeTcpiBac, computeTcpiEac, computeVac, evmStatusColor, resolveWorkPackageBac, rollupEvm,
 } from "@/lib/ppm/evm";
 import type {
@@ -55,7 +55,7 @@ export default function EvmDashboard({ projectId, project, settings, workPackage
   const unassignedMetrics: EvmMetrics | null = unassignedActivities.length ? computeEvm({
     activities: unassignedActivities, achievements,
     expenses: expenses.filter(item => !item.work_package_id && (!item.activity_id || unassignedActivities.some(a => a.id === item.activity_id))),
-    timePhasedRows: [], bac: budgetLines.filter(line => !line.wbs_node_id).reduce((sum, line) => sum + Number(line.revised_budget ?? line.initial_budget ?? 0), 0),
+    timePhasedRows: [], bac: budgetLines.filter(line => !line.wbs_node_id && !(line.wbs_allocations || []).length).reduce((sum, line) => sum + budgetLineForecast(line), 0),
     asOfDate: statusDate,
   }) : null;
 

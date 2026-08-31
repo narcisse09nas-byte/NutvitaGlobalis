@@ -13,8 +13,10 @@ import {
 } from "@/lib/ppm/queries";
 import { wbsLeafNodes } from "@/lib/ppm/wbs";
 
-export default async function SuiviControlePerformancePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SuiviControlePerformancePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ view?: string }> }) {
   const { id } = await params;
+  const requestedView = (await searchParams).view;
+  const initialView = requestedView === "time-phased" || requestedView === "dashboard" || requestedView === "settings" || requestedView === "pmb" ? requestedView : undefined;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/connexion?redirect=${encodeURIComponent(`/op-management/projets/${id}/suivi-controle/performance`)}`);
@@ -38,7 +40,7 @@ export default async function SuiviControlePerformancePage({ params }: { params:
       <div className="grid gap-5">
         <SuiviControleTabs projectId={id} />
         <EvmWorkspace
-          projectId={id} project={project} initialSettings={settings} workPackages={workPackagesLevel4} budgetLines={budgetLines}
+          projectId={id} project={project} initialSettings={settings} initialView={initialView} workPackages={workPackagesLevel4} budgetLines={budgetLines}
           activities={activities} achievements={achievements} expenses={expenses} timePhasedRows={timePhasedRows}
           risks={risks} issues={issues} initialSnapshots={snapshots} changeRequests={changeRequests} initialPmbVersions={pmbVersions}
           pmbSnapshots={pmbSnapshots} staff={staff}

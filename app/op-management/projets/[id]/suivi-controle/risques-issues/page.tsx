@@ -7,7 +7,7 @@ import IssueManager from "@/components/op-management/IssueManager";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
-import { getProject, listActivities, listIssues, listResources, listRiskReviews, listRisks, listStakeholders, listWbsNodes } from "@/lib/ppm/queries";
+import { getProject, listActivities, listIssueReviews, listIssues, listResources, listRiskReviews, listRisks, listStakeholders, listWbsNodes } from "@/lib/ppm/queries";
 
 export default async function SuiviControleRisquesIssuesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,9 +17,9 @@ export default async function SuiviControleRisquesIssuesPage({ params }: { param
   const name = user.user_metadata?.full_name || user.email || ((await getCurrentLocale()) === "en" ? "User" : "Utilisateur");
   const project = await getProject(supabase, id);
   if (!project) notFound();
-  const [risks, issues, wbsNodes, activities, riskReviews, resources, stakeholders] = await Promise.all([
+  const [risks, issues, wbsNodes, activities, riskReviews, issueReviews, resources, stakeholders] = await Promise.all([
     listRisks(supabase, id), listIssues(supabase, id), listWbsNodes(supabase, id), listActivities(supabase, id),
-    listRiskReviews(supabase, id), listResources(supabase, id), listStakeholders(supabase, id),
+    listRiskReviews(supabase, id), listIssueReviews(supabase, id), listResources(supabase, id), listStakeholders(supabase, id),
   ]);
   const staff = resources.filter(item => item.type === "human" || item.type === "consultant");
   const locale = await getCurrentLocale();
@@ -29,7 +29,7 @@ export default async function SuiviControleRisquesIssuesPage({ params }: { param
       <div className="grid gap-8">
         <SuiviControleTabs projectId={id} />
         <RiskRegister projectId={id} initial={risks} initialReviews={riskReviews} staff={staff} />
-        <IssueManager projectId={id} initial={issues} wbsNodes={wbsNodes} activities={activities} staff={staff} stakeholders={stakeholders} />
+        <IssueManager projectId={id} initial={issues} initialReviews={issueReviews} wbsNodes={wbsNodes} activities={activities} staff={staff} stakeholders={stakeholders} />
       </div>
     </ProjectShell>
   </PPMShell>;

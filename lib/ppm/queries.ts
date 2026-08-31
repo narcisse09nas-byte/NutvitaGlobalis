@@ -5,7 +5,7 @@ import type {
   AuditLogEntry, BudgetCategory, BudgetLine, CostCenter,
   ChangeRequest, CommunicationActual, CommunicationItem, Deliverable, EquipmentCheckout,
   Evaluation, EvmSettings, EvmSnapshot, Expense, ExternalApprover, FeedbackEntry, FeedbackFollowup, GovernanceRole, HandoverItem, Indicator,
-  Issue, KnownPerson, LessonLearned, MealEntry, NonConformityReport, Operation,
+  Issue, IssueReview, KnownPerson, LessonLearned, MealEntry, NonConformityReport, Operation,
   OpsActivityBeneficiary, OpsActivityReport, OpsActivityReportProduct,
   OpsAgeGroup, OpsCooperative, OpsCooperativeContact, OpsDeliveryLine, OpsDeliveryNote, OpsDeliveryReceiver,
   OpsDistributionPlan, OpsDistributionPlanDaily,
@@ -585,6 +585,11 @@ export async function listIssues(supabase: SupabaseClient, projectId: string): P
   return (data || []) as Issue[];
 }
 
+
+export async function listIssueReviews(supabase: SupabaseClient, projectId: string): Promise<IssueReview[]> {
+  const { data } = await supabase.from("ppm_issue_reviews").select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+  return (data || []) as IssueReview[];
+}
 // Sprint 16: Stakeholders + Communication
 export async function listStakeholders(supabase: SupabaseClient, projectId: string): Promise<Stakeholder[]> {
   const { data } = await supabase.from("ppm_stakeholders").select("*").eq("project_id", projectId).order("name");

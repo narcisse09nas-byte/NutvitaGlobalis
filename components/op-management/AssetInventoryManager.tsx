@@ -68,17 +68,12 @@ export default function AssetInventoryManager({ projectId, initial, assets, staf
   return <div className="grid gap-4">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">{en ? "Physical inventory" : "Inventaire physique"}</h2><button onClick={() => setCreating(true)} disabled={!assets.length} className="btn-primary px-4 py-2 text-sm disabled:opacity-40"><PlusIcon className="mr-2 h-4" />{en ? "New session" : "Nouvelle session"}</button></div>
     {!assets.length && <p className="rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-900">{en ? "Register at least one asset before starting an inventory." : "Enregistrez au moins un actif avant de demarrer un inventaire."}</p>}
-    <div className="grid gap-3">
-      {rows.map(row => <article key={row.id} className="rounded-2xl border bg-white p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><span className="mr-2 rounded-full bg-slate-100 px-2 py-1 font-mono text-xs font-bold text-slate-500">{row.code}</span><b className="text-forest">{row.title}</b><p className="mt-1 text-xs text-slate-400">{new Date(row.count_date).toLocaleDateString("fr-FR")}{row.conducted_by_name ? ` · ${row.conducted_by_name}` : ""}</p></div>
-          <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusTones[row.status]}`}>{statusLabels[row.status][locale]}</span>
-        </div>
-        <button onClick={() => setDetailFor(row)} className="btn-secondary mt-3 px-3 py-1.5 text-xs">{en ? "Open" : "Ouvrir"}</button>
-      </article>)}
-      {!rows.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No inventory session yet." : "Aucune session d'inventaire pour le moment."}</p>}
+    <div className="overflow-x-auto rounded-2xl border bg-white">
+      <table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-3">{en ? "Session ID" : "ID session"}</th><th className="p-3">{en ? "Inventory session" : "Session d'inventaire"}</th><th className="p-3">{en ? "Count date" : "Date de comptage"}</th><th className="p-3">{en ? "Conducted by" : "Realise par"}</th><th className="p-3">{en ? "Status" : "Statut"}</th><th className="p-3">{en ? "Action" : "Action"}</th></tr></thead><tbody>
+        {rows.map(row => <tr key={row.id} className="border-t"><td className="p-3 font-mono text-xs font-bold text-slate-500">{row.code}</td><td className="p-3 font-bold text-forest">{row.title}</td><td className="p-3">{new Date(row.count_date).toLocaleDateString(locale === "en" ? "en-GB" : "fr-FR")}</td><td className="p-3">{row.conducted_by_name || "-"}</td><td className="p-3"><span className={`rounded-full px-3 py-1 text-xs font-bold ${statusTones[row.status]}`}>{statusLabels[row.status][locale]}</span></td><td className="p-3"><button onClick={() => setDetailFor(row)} className="btn-secondary px-3 py-1.5 text-xs">{en ? "Open" : "Ouvrir"}</button></td></tr>)}
+        {!rows.length && <tr><td colSpan={6} className="p-8 text-center text-slate-400">{en ? "No inventory session yet." : "Aucune session d'inventaire pour le moment."}</td></tr>}
+      </tbody></table>
     </div>
-
     {creating && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={createSession} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "New inventory session" : "Nouvelle session d'inventaire"}</h2><button type="button" onClick={() => setCreating(false)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>

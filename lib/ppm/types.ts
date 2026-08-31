@@ -1167,6 +1167,7 @@ export type PPMResource = {
   currency?: string;
   condition_notes?: string;
   status: PPMStatus;
+  asset_workflow_status?: ApprovalWorkflowStatus;
   notes?: string;
   // Refinement program, Wave 9: per-module workflow permissions + auto-provisioned access account.
   permissions?: Record<string, { submit?: boolean; verify?: boolean; approve?: boolean }>;
@@ -1213,7 +1214,7 @@ export type ProcurementPaymentStatus = "not_invoiced" | "invoiced" | "partially_
 
 export type ProcurementAcceptanceCriterion = { id: string; title: string; specification: string };
 export type ProcurementOrderedItem = { id: string; title: string; specification?: string; quantity: number; unit?: string };
-export type ProcurementReceiptStatus = "pending_delivery" | "partial" | "complete" | "received_with_reservations" | "rejected" | "returned_to_supplier";
+export type ProcurementReceiptStatus = "pending_delivery" | "partial" | "complete" | "received_with_reservations" | "rejected" | "returned_to_supplier" | "closed_with_cancelled_balance";
 
 export type ProcurementItem = {
   id: string;
@@ -1255,7 +1256,9 @@ export type ProcurementItem = {
 // "non_applicable" plus a checklist + score (spec section 22).
 export type QualityResult = "pending" | "conforme" | "non_conforme" | "non_applicable";
 
-export type QualityChecklistItem = { criterion: string; result: QualityResult; comment?: string };
+export type QualityChecklistItem = { id?: string; criterion: string; description?: string; control_method?: string; result: QualityResult; comment?: string };
+export type QualityStandard = { id: string; description: string; control_method: string; control_method_other?: string };
+export type ApprovalWorkflowStatus = "draft" | "submitted" | "verified" | "approved" | "returned" | "rejected";
 
 export type QualityRequirement = {
   id: string;
@@ -1263,7 +1266,11 @@ export type QualityRequirement = {
   work_package_id?: string | null;
   activity_id?: string | null;
   title: string;
+  requirement_code?: string | null;
   standard_reference?: string;
+  standards?: QualityStandard[];
+  workflow_status?: ApprovalWorkflowStatus;
+  control_state?: "open" | "closed_compliant";
   description?: string;
   control_method?: string;
   frequency?: string;
@@ -1281,7 +1288,8 @@ export type QualityEvidenceCategory = "report" | "photo" | "checklist" | "video"
 
 export type QualityEvidence = {
   id: string;
-  quality_requirement_id: string;
+  quality_requirement_id?: string | null;
+  quality_control_actual_id?: string | null;
   title: string;
   category: QualityEvidenceCategory;
   file_path?: string;
@@ -1296,6 +1304,7 @@ export type QualityControlActual = {
   id: string;
   project_id: string;
   quality_requirement_id: string;
+  control_code?: string | null;
   control_date?: string;
   result: QualityResult;
   checklist: QualityChecklistItem[];
@@ -1344,6 +1353,7 @@ export type Risk = {
   mitigation_plan?: string;
   deadline?: string;
   cost?: number;
+  currency?: string;
   residual_probability?: number;
   residual_impact?: number;
   status: RiskStatus;
@@ -1362,6 +1372,9 @@ export type RiskReview = {
   probability: number;
   impact: number;
   status_after: RiskStatus;
+  response_strategy?: RiskResponseStrategy | null;
+  owner_name?: string | null;
+  action?: string | null;
   notes?: string;
   created_by?: string | null;
   created_at: string;
@@ -1369,11 +1382,18 @@ export type RiskReview = {
 
 export type IssueStatus = "open" | "in_progress" | "resolved" | "closed";
 
+export type IssueReview = {
+  id: string; project_id: string; issue_id: string; review_date: string; reviewer_name?: string | null;
+  priority: ProjectPriority; owner_name?: string | null; due_date?: string | null; status_after: IssueStatus;
+  action?: string | null; notes?: string | null; created_by?: string | null; created_at: string;
+};
+
 export type Issue = {
   id: string;
   project_id: string;
   work_package_id?: string | null;
   activity_id?: string | null;
+  issue_code?: string | null;
   title: string;
   description?: string;
   category?: string;
@@ -1382,6 +1402,8 @@ export type Issue = {
   owner_name?: string;
   resolution_plan?: string;
   due_date?: string;
+  cost?: number | null;
+  currency?: string;
   status: IssueStatus;
   created_at: string;
   updated_at: string;
@@ -1395,6 +1417,7 @@ export type StakeholderPosition = "champion" | "supporter" | "neutral" | "critic
 export type Stakeholder = {
   id: string;
   project_id: string;
+  stakeholder_code?: string | null;
   name: string;
   organization?: string;
   role_title?: string;
@@ -1419,7 +1442,9 @@ export type CommunicationStatus = "planned" | "sent" | "done" | "cancelled";
 export type CommunicationItem = {
   id: string;
   project_id: string;
+  communication_code?: string | null;
   stakeholder_id?: string | null;
+  stakeholder_ids?: string[];
   audience?: string;
   topic: string;
   message?: string;
@@ -1535,6 +1560,7 @@ export type Deliverable = {
   project_id: string;
   work_package_id?: string | null;
   activity_id?: string | null;
+  issue_code?: string | null;
   title: string;
   description?: string;
   category?: string;
@@ -2046,6 +2072,8 @@ export type EquipmentCheckout = {
   id: string;
   project_id: string;
   resource_id: string;
+  assignment_code?: string | null;
+  workflow_status?: ApprovalWorkflowStatus;
   activity_id?: string | null;
   user_name?: string;
   assigned_resource_id?: string | null;
@@ -2066,12 +2094,13 @@ export type EquipmentCheckout = {
 };
 
 // Execution add-on Phase K: Communication Actuals + Stakeholder Interactions (spec sections 20-21).
-export type CommunicationActualStatus = "draft" | "completed" | "validated";
+export type CommunicationActualStatus = "draft" | "submitted" | "verified" | "approved" | "returned" | "rejected";
 
 export type CommunicationActual = {
   id: string;
   project_id: string;
   communication_item_id?: string | null;
+  actual_code?: string | null;
   planned_date?: string;
   actual_date?: string;
   stakeholders?: string;
@@ -2099,8 +2128,11 @@ export type StakeholderInteraction = {
   id: string;
   project_id: string;
   stakeholder_id: string;
+  stakeholder_ids?: string[];
+  interaction_code?: string | null;
   interaction_date?: string;
   interaction_type?: string;
+  interaction_type_other?: string | null;
   participants?: string;
   objective?: string;
   topics_discussed?: string;
@@ -2119,6 +2151,12 @@ export type StakeholderInteraction = {
   updated_at: string;
 };
 
+export type StakeholderReview = { id:string; project_id:string; stakeholder_id:string; review_date:string; reviewer_name?:string|null; influence_level:StakeholderLevel; interest_level:StakeholderLevel; position:StakeholderPosition; status:PPMStatus; engagement_strategies:string[]; notes?:string|null; created_at:string };
+export type CommunicationPlanReview = { id:string; project_id:string; communication_item_id:string; review_date:string; reviewer_name?:string|null; responsible_name?:string|null; status:CommunicationStatus; next_date?:string|null; last_sent_date?:string|null; notes?:string|null; created_at:string };
+export type StakeholderInteractionReview = { id:string; project_id:string; interaction_id:string; review_date:string; reviewer_name?:string|null; proposed_position?:StakeholderPosition|null; proposed_influence_level?:StakeholderLevel|null; proposed_interest_level?:StakeholderLevel|null; position_change_status?:StakeholderPositionChangeStatus|null; approval_date?:string|null; notes?:string|null; created_at:string };
+export type CommunicationActionStatus = "open"|"in_progress"|"completed"|"cancelled";
+export type CommunicationAction = { id:string; project_id:string; action_code?:string|null; source_type:"direct"|"communication_actual"|"stakeholder_interaction"; source_id?:string|null; title:string; responsible_name?:string|null; due_date?:string|null; status:CommunicationActionStatus; created_at:string; updated_at:string };
+export type CommunicationActionReview = { id:string; project_id:string; action_id:string; review_date:string; reviewer_name?:string|null; responsible_name?:string|null; due_date?:string|null; status:CommunicationActionStatus; notes?:string|null; created_at:string };
 // Execution add-on Phase L: Action Tracker Central (spec section 28).
 export type ActionSourceType =
   | "achievement" | "meeting" | "communication" | "quality" | "ncr" | "risk" | "issue"

@@ -21,8 +21,11 @@ export default async function MiseEnOeuvreActifsPage({ params }: { params: Promi
   const [resources, procurementItems, projects, activities, checkouts, inventorySessions] = await Promise.all([
     listResources(supabase, id), listProcurementItems(supabase, id), listProjects(supabase), listActivities(supabase, id), listEquipmentCheckouts(supabase, id), listAssetInventorySessions(supabase, id),
   ]);
-  const assetResources = resources.filter(item => item.type === "equipment" || item.type === "vehicle" || item.type === "infrastructure");
-  const registeredAssets = assetResources.filter(item => item.origin_type && item.status === "active");
+  const assetResources = resources.filter(item => item.type === "equipment" || item.type === "vehicle" || item.type === "infrastructure" || item.type === "other");
+  const assignedAssetIds = new Set(checkouts.map(item => item.resource_id));
+  const registeredAssets = assetResources.filter(item => Boolean(item.origin_type || item.asset_code));
+  const inventoryAssets = assetResources.filter(item => Boolean(item.origin_type || item.asset_code || assignedAssetIds.has(item.id)));
+  const assignableAssets = registeredAssets.filter(item => item.status !== "on_hold" && item.asset_workflow_status === "approved");
   const staff = resources.filter(item => item.type === "human" || item.type === "consultant");
   const locale = await getCurrentLocale();
 
@@ -30,9 +33,9 @@ export default async function MiseEnOeuvreActifsPage({ params }: { params: Promi
     <ProjectShell project={project}>
       <div className="grid gap-5">
         <MiseEnOeuvreTabs projectId={id} />
-        <AssetRegistrationManager projectId={id} initial={assetResources} procurementItems={procurementItems} projects={projects} />
-        <EquipmentCheckoutManager projectId={id} initial={checkouts} assets={registeredAssets} activities={activities} staff={staff} />
-        <AssetInventoryManager projectId={id} initial={inventorySessions} assets={registeredAssets} staff={staff} />
+        <AssetRegistrationManager projectId={id} initial={assetResources} procurementItems={procurementItems} projects={projects} staff={staff} />
+        <EquipmentCheckoutManager projectId={id} initial={checkouts} assets={assignableAssets} activities={activities} staff={staff} />
+        <AssetInventoryManager projectId={id} initial={inventorySessions} assets={inventoryAssets} staff={staff} />
       </div>
     </ProjectShell>
   </PPMShell>;

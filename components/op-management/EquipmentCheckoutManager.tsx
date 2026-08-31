@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import SearchableSelect from "@/components/op-management/SearchableSelect";
 import WorkflowStatusActions, { type WorkflowAction, type WorkflowHistoryEntry } from "@/components/op-management/WorkflowStatusActions";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
-import type { Activity, AuditLogEntry, EquipmentCheckout, EquipmentCheckoutStatus, PPMResource } from "@/lib/ppm/types";
+import type { Activity, ApprovalWorkflowStatus, AuditLogEntry, EquipmentCheckout, EquipmentCheckoutStatus, PPMResource } from "@/lib/ppm/types";
 
 const statusLabels: Record<EquipmentCheckoutStatus, { fr: string; en: string }> = {
   pending_endorsement: { fr: "En attente d'endossement", en: "Awaiting endorsement" },
@@ -30,6 +30,9 @@ const NEXT_ACTIONS: Record<EquipmentCheckoutStatus, WorkflowAction[]> = {
   return_requested: [{ value: "returned", label: "Endosser le retour", tone: "primary", requireNote: true }],
   returned: [], lost: [], damaged: [],
 };
+const approvalLabels:Record<ApprovalWorkflowStatus,{fr:string;en:string}>={draft:{fr:"Brouillon",en:"Draft"},submitted:{fr:"Soumise",en:"Submitted"},verified:{fr:"Verifiee",en:"Verified"},approved:{fr:"Approuvee",en:"Approved"},returned:{fr:"Retournee",en:"Returned"},rejected:{fr:"Rejetee",en:"Rejected"}};
+const approvalTones:Record<ApprovalWorkflowStatus,string>={draft:"bg-slate-100 text-slate-600",submitted:"bg-sky-50 text-sky-800",verified:"bg-amber-50 text-amber-800",approved:"bg-mint text-forest",returned:"bg-orange/10 text-orange",rejected:"bg-red-50 text-red-700"};
+const approvalActions=(status:ApprovalWorkflowStatus):WorkflowAction[]=>status==="draft"||status==="returned"?[{value:"submitted",label:"Soumettre",tone:"primary",requireNote:true}]:status==="submitted"?[{value:"verified",label:"Verifier",tone:"primary",requireNote:true},{value:"returned",label:"Retourner",requireNote:true}]:status==="verified"?[{value:"approved",label:"Approuver",tone:"primary",requireNote:true},{value:"returned",label:"Retourner",requireNote:true}]:[];
 
 export default function EquipmentCheckoutManager({ projectId, initial, assets, activities, staff = [] }: {
   projectId: string; initial: EquipmentCheckout[]; assets: PPMResource[]; activities: Activity[]; staff?: PPMResource[];
@@ -62,6 +65,7 @@ export default function EquipmentCheckoutManager({ projectId, initial, assets, a
       checkout_date: String(form.get("checkout_date") || "") || null,
       expected_return_date: String(form.get("expected_return_date") || "") || null,
       condition_out: String(form.get("condition_out") || "").trim() || null,
+      workflow_status: "draft" as ApprovalWorkflowStatus,
     };
     if (!payload.resource_id) { setSaving(false); setMessage(en ? "Asset is required." : "L'actif est obligatoire."); return; }
     const supabase = createClient();
@@ -77,6 +81,8 @@ export default function EquipmentCheckoutManager({ projectId, initial, assets, a
     setAssignedResourceId("");
   }
 
+  async function changeApproval(row:EquipmentCheckout,nextStatus:string,reviewedByName:string|null,note:string|null){const supabase=createClient();const from=row.workflow_status||"draft";const result=await supabase.from("ppm_equipment_checkouts").update({workflow_status:nextStatus}).eq("id",row.id).select("*").single();if(result.error)return{error:result.error.message};const{data:{user}}=await supabase.auth.getUser();await supabase.from("ppm_history").insert({entity_type:"asset_assignment",entity_id:row.id,actor_id:user?.id,action:reviewedByName||nextStatus,from_status:from,to_status:nextStatus,note});setRows(current=>current.map(item=>item.id===row.id?result.data as EquipmentCheckout:item));}
+
   async function cancelAssignment(row: EquipmentCheckout) {
     if (!window.confirm(en ? "Cancel this assignment?" : "Annuler cette attribution ?")) return;
     const supabase = createClient();
@@ -87,22 +93,12 @@ export default function EquipmentCheckoutManager({ projectId, initial, assets, a
   return <div className="grid gap-4">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-black text-forest">{en ? "Asset assignment" : "Attribution des actifs"}</h2><button onClick={() => setEditing("new")} disabled={!assets.length} className="btn-primary px-4 py-2 text-sm disabled:opacity-40"><PlusIcon className="mr-2 h-4" />{en ? "New assignment" : "Nouvelle attribution"}</button></div>
     {!assets.length && <p className="rounded-2xl bg-amber-50 p-4 text-sm font-bold text-amber-900">{en ? "Register at least one asset before assigning it." : "Enregistrez au moins un actif avant de l'attribuer."}</p>}
-    <div className="grid gap-3">
-      {rows.map(row => <article key={row.id} className="rounded-2xl border bg-white p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><b className="text-forest">{assetLabel(row.resource_id)}</b><p className="mt-1 text-xs text-slate-400">{en ? "Assigned to" : "Attribue a"} : {row.user_name || staffLabel(row.assigned_resource_id)}{row.activity_id ? ` · ${activityLabel(row.activity_id)}` : ""}</p></div>
-          <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusTones[row.status]}`}>{statusLabels[row.status][locale]}</span>
-        </div>
-        <p className="mt-2 text-xs text-slate-500">{en ? "Checked out" : "Sortie"} : {row.checkout_date ? new Date(row.checkout_date).toLocaleDateString("fr-FR") : "—"} · {en ? "Expected return" : "Retour prevu"} : {row.expected_return_date ? new Date(row.expected_return_date).toLocaleDateString("fr-FR") : "—"} · {en ? "Actual return" : "Retour reel"} : {row.actual_return_date ? new Date(row.actual_return_date).toLocaleDateString("fr-FR") : "—"}</p>
-        {row.incident_note && <p className="mt-2 text-sm text-red-600">{en ? "Incident" : "Incident"} : {row.incident_note}</p>}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button onClick={() => setDetailFor(row)} className="btn-secondary px-3 py-1.5 text-xs">{en ? "Manage" : "Gerer"}</button>
-          {row.status === "pending_endorsement" && <button onClick={() => cancelAssignment(row)} className="flex items-center gap-1 text-xs font-bold text-red-600"><TrashIcon className="h-3.5" />{en ? "Cancel" : "Annuler"}</button>}
-        </div>
-      </article>)}
-      {!rows.length && <p className="rounded-2xl border bg-white p-8 text-center text-slate-400">{en ? "No asset assigned yet." : "Aucun actif attribue pour le moment."}</p>}
+    <div className="overflow-x-auto rounded-2xl border bg-white">
+      <table className="w-full min-w-[1100px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="p-3">ID</th><th className="p-3">{en ? "Asset" : "Actif"}</th><th className="p-3">{en ? "Assigned to" : "Attribue a"}</th><th className="p-3">{en ? "Activity" : "Activite"}</th><th className="p-3">{en ? "Checkout" : "Sortie"}</th><th className="p-3">{en ? "Expected return" : "Retour prevu"}</th><th className="p-3">{en ? "Actual return" : "Retour reel"}</th><th className="p-3">{en ? "Status" : "Statut"}</th><th className="p-3">Workflow</th><th className="p-3">{en ? "Action" : "Action"}</th></tr></thead><tbody>
+        {rows.map(row => <tr key={row.id} className="border-t align-top"><td className="p-3 font-mono text-xs font-bold">{row.assignment_code||row.id.slice(0,8)}</td><td className="p-3 font-bold text-forest">{assetLabel(row.resource_id)}</td><td className="p-3">{row.user_name || staffLabel(row.assigned_resource_id)}</td><td className="p-3">{activityLabel(row.activity_id)}</td><td className="p-3">{row.checkout_date ? new Date(row.checkout_date).toLocaleDateString(locale === "en" ? "en-GB" : "fr-FR") : "-"}</td><td className="p-3">{row.expected_return_date ? new Date(row.expected_return_date).toLocaleDateString(locale === "en" ? "en-GB" : "fr-FR") : "-"}</td><td className="p-3">{row.actual_return_date ? new Date(row.actual_return_date).toLocaleDateString(locale === "en" ? "en-GB" : "fr-FR") : "-"}</td><td className="p-3"><span className={`rounded-full px-3 py-1 text-xs font-bold ${statusTones[row.status]}`}>{statusLabels[row.status][locale]}</span>{row.incident_note && <p className="mt-2 max-w-xs text-xs text-red-600">{row.incident_note}</p>}</td><td className="p-3"><WorkflowStatusActions entityLabel={en?"Asset assignment":"Attribution d actif"} itemTitle={assetLabel(row.resource_id)} status={row.workflow_status||"draft"} statusLabels={Object.fromEntries(Object.entries(approvalLabels).map(([key,value])=>[key,value[locale]]))} statusTones={approvalTones} actions={approvalActions(row.workflow_status||"draft")} staff={staff} onConfirm={input=>changeApproval(row,input.nextStatus,input.reviewedByName,input.note)}/></td><td className="p-3"><div className="flex gap-2"><button onClick={() => setDetailFor(row)} className="btn-secondary px-3 py-1.5 text-xs">{en ? "Manage" : "Gerer"}</button>{row.status === "pending_endorsement" && <button onClick={() => cancelAssignment(row)} className="flex items-center gap-1 text-xs font-bold text-red-600"><TrashIcon className="h-3.5" />{en ? "Cancel" : "Annuler"}</button>}</div></td></tr>)}
+        {!rows.length && <tr><td colSpan={10} className="p-8 text-center text-slate-400">{en ? "No asset assigned yet." : "Aucun actif attribue pour le moment."}</td></tr>}
+      </tbody></table>
     </div>
-
     {editing && <div className="ppm-modal-backdrop fixed inset-0 z-[150] overflow-y-auto p-4">
       <form onSubmit={submit} className="mx-auto my-10 max-w-lg rounded-[30px] bg-white p-7 shadow-2xl">
         <div className="flex items-start justify-between"><h2 className="text-xl font-black text-forest">{en ? "New assignment" : "Nouvelle attribution"}</h2><button type="button" onClick={() => setEditing(null)} aria-label={en ? "Close" : "Fermer"}><XMarkIcon className="h-6" /></button></div>

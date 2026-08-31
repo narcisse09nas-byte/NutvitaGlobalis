@@ -6,6 +6,7 @@ import StakeholderRegister from "@/components/op-management/StakeholderRegister"
 import CommunicationPlanManager from "@/components/op-management/CommunicationPlanManager";
 import CommunicationActualsManager from "@/components/op-management/CommunicationActualsManager";
 import StakeholderInteractionManager from "@/components/op-management/StakeholderInteractionManager";
+import CommunicationActionRegister from "@/components/op-management/CommunicationActionRegister";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { bc } from "@/lib/ppm/breadcrumb-labels";
@@ -32,10 +33,11 @@ export default async function SuiviControlePartiesPrenantesPage({ params }: { pa
     <ProjectShell project={project}>
       <div className="grid gap-8">
         <SuiviControleTabs projectId={id} />
-        <StakeholderRegister projectId={id} initial={stakeholders} />
+        <StakeholderRegister projectId={id} initial={stakeholders} staff={staff} />
         <CommunicationPlanManager projectId={id} initial={communicationItems} stakeholders={stakeholders} staff={staff} />
         <CommunicationActualsManager projectId={id} initial={communicationActuals} communicationItems={communicationItems} stakeholders={stakeholders} staff={staff} />
         <StakeholderInteractionManager projectId={id} initial={stakeholderInteractions} stakeholders={stakeholders} staff={staff} />
+        <CommunicationActionRegister projectId={id} staff={staff} />
       </div>
     </ProjectShell>
   </PPMShell>;

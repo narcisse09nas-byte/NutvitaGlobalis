@@ -1,0 +1,6 @@
+"use client";
+import {useRouter} from "next/navigation";
+import {useState} from "react";
+import {Plus} from "lucide-react";
+import {useLanguage} from "@/hooks/use-language";
+export default function NewVersionButton({programId}:{programId:string}){const{text}=useLanguage();const router=useRouter();const[busy,setBusy]=useState(false);async function create(){const effectiveFrom=window.prompt(text("Date d'effet de la nouvelle version (AAAA-MM-JJ)","New version effective date (YYYY-MM-DD)"));if(!effectiveFrom)return;const reason=window.prompt(text("Motif de la nouvelle version","Reason for the new version"));if(!reason||reason.length<3)return;setBusy(true);const response=await fetch("/api/degree-programs/curriculum/programs",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({programId,effectiveFrom,reason})});setBusy(false);if(!response.ok){const result=await response.json();window.alert(result.error||text("Création impossible","Creation failed"));return}router.refresh()}return <button disabled={busy} onClick={create} className="inline-flex items-center gap-2 rounded-xl bg-[#F58220] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><Plus className="h-4 w-4"/>{text("Nouvelle version","New version")}</button>}

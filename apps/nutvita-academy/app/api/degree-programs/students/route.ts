@@ -1,0 +1,6 @@
+import {NextResponse} from "next/server";
+import {z} from "zod";
+import {getDegreeSession} from "@/lib/degree-programs/access";
+import {createSupabaseServerClient} from "@/lib/supabase/server";
+const schema=z.object({studentId:z.uuid(),status:z.enum(["ADMITTED","ENROLLED","SUSPENDED","WITHDRAWN","GRADUATED","EXCLUDED","ON_LEAVE"]),reason:z.string().min(3)});
+export async function PATCH(request:Request){const session=await getDegreeSession();if(!session)return NextResponse.json({error:"Unauthorized"},{status:401});if(!session.isSuperAdmin&&!session.permissions.includes("student.manage"))return NextResponse.json({error:"Forbidden"},{status:403});const parsed=schema.safeParse(await request.json());if(!parsed.success)return NextResponse.json({error:"Invalid payload"},{status:400});const supabase=await createSupabaseServerClient();const{data,error}=await supabase.rpc("academic_transition_student",{p_student_id:parsed.data.studentId,p_status:parsed.data.status,p_reason:parsed.data.reason});if(error)return NextResponse.json({error:error.message},{status:400});return NextResponse.json({ok:true,data})}

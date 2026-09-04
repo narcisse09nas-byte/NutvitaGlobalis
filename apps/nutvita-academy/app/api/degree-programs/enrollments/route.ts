@@ -1,0 +1,6 @@
+import {NextResponse} from "next/server";
+import {z} from "zod";
+import {getDegreeSession} from "@/lib/degree-programs/access";
+import {createSupabaseServerClient} from "@/lib/supabase/server";
+const schema=z.object({registrationId:z.uuid(),semesterId:z.uuid(),courseIds:z.array(z.uuid()).min(1),enrollmentType:z.enum(["NORMAL","RETAKE","TRANSFER_CREDIT","EXEMPTION"]),reason:z.string().min(3)});
+export async function POST(request:Request){const session=await getDegreeSession();if(!session)return NextResponse.json({error:"Unauthorized"},{status:401});if(!session.isSuperAdmin&&!session.permissions.includes("enrollment.manage"))return NextResponse.json({error:"Forbidden"},{status:403});const parsed=schema.safeParse(await request.json());if(!parsed.success)return NextResponse.json({error:"Invalid payload"},{status:400});const supabase=await createSupabaseServerClient();const{data,error}=await supabase.rpc("academic_enroll_courses",{p_registration_id:parsed.data.registrationId,p_semester_id:parsed.data.semesterId,p_course_ids:parsed.data.courseIds,p_type:parsed.data.enrollmentType,p_reason:parsed.data.reason});if(error)return NextResponse.json({error:error.message},{status:400});return NextResponse.json({ok:true,data},{status:201})}

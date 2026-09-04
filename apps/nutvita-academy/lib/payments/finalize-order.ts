@@ -31,7 +31,7 @@ export async function verifyAndFinalizeFlutterwaveOrder(transactionId: string, e
     raw_provider_payload: verification,
   });
   if (finalizeError) throw finalizeError;
-  const buyerEmail = (order as any).profiles?.email;
+  const buyerEmail = (order as typeof order & { profiles?: { email?: string } | null }).profiles?.email;
   if (buyerEmail) await notifyPlatformCommission(buyerEmail, Number(verification.amount), verification.currency, order.transaction_reference);
   return { orderId: String(orderId), reference: order.transaction_reference };
 }

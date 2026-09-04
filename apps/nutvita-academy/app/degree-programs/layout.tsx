@@ -1,0 +1,2 @@
+import type{ReactNode}from "react";import DegreeProgramShell from "@/components/degree-programs/DegreeProgramShell";import{requireDegreeSession}from "@/lib/degree-programs/access";
+export default async function DegreeProgramsLayout({children}:{children:ReactNode}){const session=await requireDegreeSession();return <DegreeProgramShell session={session}>{children}</DegreeProgramShell>}

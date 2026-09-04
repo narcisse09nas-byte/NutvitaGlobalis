@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { usePpmLocale } from "@/components/op-management/PpmLocaleContext";
 
 const TABS = [
+  { slug: 'pilotage-hgsf', label: 'Pilotage HGSF', labelEn: 'HGSF operations', sfOnly: true, nonSfOnly: false },
   { slug: "besoins", label: "Besoins", labelEn: "Needs", sfOnly: false, nonSfOnly: true },
   { slug: "bons-de-commande", label: "Bons de commande", labelEn: "Purchase orders", sfOnly: true, nonSfOnly: false },
   { slug: "bons-de-livraison", label: "Bons de livraison", labelEn: "Delivery notes", sfOnly: false, nonSfOnly: false },
